@@ -1,3 +1,4 @@
+# incoming_goods_view.py
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from typing import Dict, List, Optional, Any
@@ -1477,7 +1478,7 @@ class IncomingGoodsView(ttk.Frame):
 
                 self.undo_stack.append(('delete', tree, deleted_items))
 
-            except Exception as e:
+        except Exception as e:
             self.notifications.show_error(f"Redo error: {str(e)}")
         finally:
             self.db.disconnect()

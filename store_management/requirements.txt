@@ -2,3 +2,5 @@ tkinter
 sqlite3
 pathlib
 typing
+xlsxwriter
+pandas
