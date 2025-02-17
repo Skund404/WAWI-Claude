@@ -2,11 +2,17 @@ import tkinter as tk
 from tkinter import ttk
 from typing import Dict
 from pathlib import Path
+import sys
+import os
+
+# Add the project root to the Python path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from config import APP_NAME, WINDOW_SIZE, DATABASE_PATH
 from gui.shelf_view import ShelfView
 from gui.recipe_view import RecipeView
 from gui.storage_view import StorageView
+from gui.order.order_management import OrderManagementSystem
 
 
 class MainWindow:
@@ -60,11 +66,10 @@ class MainWindow:
         order_notebook = ttk.Notebook(self.notebook)
         self.notebook.add(order_notebook, text='Order')
 
-        # Add Order views
-        # To be implemented later:
-        # - Incoming goods
-        # - Shopping list
-        # - Supplier
+        # Add Order Management
+        order_frame = ttk.Frame(order_notebook)
+        order_notebook.add(order_frame, text='Incoming Goods')
+        self.views['order'] = OrderManagementSystem(order_frame)
 
     def bind_shortcuts(self):
         """Bind global keyboard shortcuts"""
@@ -110,6 +115,15 @@ class MainWindow:
         if current_tab:
             tab_id = self.notebook.index(current_tab)
             tab_name = self.notebook.tab(tab_id, 'text').lower()
+
+            # Handle special cases for nested notebooks
+            if tab_name == 'product':
+                product_notebook = self.notebook.nametowidget(current_tab)
+                current_product_tab = product_notebook.select()
+                if current_product_tab:
+                    product_tab_id = product_notebook.index(current_product_tab)
+                    tab_name = product_notebook.tab(product_tab_id, 'text').lower()
+
             return self.views.get(tab_name)
         return None
 

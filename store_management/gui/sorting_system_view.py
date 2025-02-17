@@ -343,7 +343,6 @@ class SortingSystemView(ttk.Frame):
                     result = self.db.execute_query(
                         "SELECT recipe_id FROM recipe_details WHERE unique_id_parts = ?",
                         (unique_id,)
-                        (unique_id,)
                     )
                     if result:
                         used_parts.append(unique_id)
@@ -378,284 +377,284 @@ class SortingSystemView(ttk.Frame):
             finally:
                 self.db.disconnect()
 
-                def undo(self, event=None):
-                    """Undo last action"""
-                    if not self.undo_stack:
-                        return
+    def undo(self, event=None):
+        """Undo last action"""
+        if not self.undo_stack:
+            return
 
-                    action = self.undo_stack.pop()
-                    action_type = action[0]
+        action = self.undo_stack.pop()
+        action_type = action[0]
 
-                    if action_type == 'edit':
-                        item, old_values = action[1:]
-                        # Store current values for redo
-                        current_values = {col: self.tree.set(item, col) for col in self.columns}
-                        self.redo_stack.append(('edit', item, current_values))
+        if action_type == 'edit':
+            item, old_values = action[1:]
+            # Store current values for redo
+            current_values = {col: self.tree.set(item, col) for col in self.columns}
+            self.redo_stack.append(('edit', item, current_values))
 
-                        # Restore old values
-                        for col, value in old_values.items():
-                            self.tree.set(item, col, value)
-                            self.update_record(old_values['unique_id_parts'], col, value)
+            # Restore old values
+            for col, value in old_values.items():
+                self.tree.set(item, col, value)
+                self.update_record(old_values['unique_id_parts'], col, value)
 
-                        # Update low stock warning
-                        in_storage = int(old_values['in_storage'])
-                        if in_storage <= 5:
-                            self.tree.item(item, tags=('low_stock',))
-                        else:
-                            self.tree.item(item, tags=())
+            # Update low stock warning
+            in_storage = int(old_values['in_storage'])
+            if in_storage <= 5:
+                self.tree.item(item, tags=('low_stock',))
+            else:
+                self.tree.item(item, tags=())
 
-                    elif action_type == 'add':
-                        data = action[1]
-                        # Delete added record
-                        self.db.connect()
-                        try:
-                            self.db.delete_record(
-                                TABLES['SORTING_SYSTEM'],
-                                "unique_id_parts = ?",
-                                (data['unique_id_parts'],)
-                            )
+        elif action_type == 'add':
+            data = action[1]
+            # Delete added record
+            self.db.connect()
+            try:
+                self.db.delete_record(
+                    TABLES['SORTING_SYSTEM'],
+                    "unique_id_parts = ?",
+                    (data['unique_id_parts'],)
+                )
 
-                            # Find and delete tree item
-                            for item in self.tree.get_children():
-                                if self.tree.set(item, 'unique_id_parts') == data['unique_id_parts']:
-                                    self.tree.delete(item)
-                                    break
+                # Find and delete tree item
+                for item in self.tree.get_children():
+                    if self.tree.set(item, 'unique_id_parts') == data['unique_id_parts']:
+                        self.tree.delete(item)
+                        break
 
-                            self.redo_stack.append(('readd', data))
+                self.redo_stack.append(('readd', data))
 
-                        finally:
-                            self.db.disconnect()
+            finally:
+                self.db.disconnect()
 
-                    elif action_type == 'delete':
-                        deleted_items = action[1]
-                        restored_items = []
+        elif action_type == 'delete':
+            deleted_items = action[1]
+            restored_items = []
 
-                        self.db.connect()
-                        try:
-                            for item_id, values in deleted_items:
-                                # Restore to database
-                                self.db.insert_record(TABLES['SORTING_SYSTEM'], values)
+            self.db.connect()
+            try:
+                for item_id, values in deleted_items:
+                    # Restore to database
+                    self.db.insert_record(TABLES['SORTING_SYSTEM'], values)
 
-                                # Restore to tree
-                                new_item = self.tree.insert('', 'end', values=list(values.values()))
+                    # Restore to tree
+                    new_item = self.tree.insert('', 'end', values=list(values.values()))
 
-                                # Restore low stock warning
-                                in_storage = int(values['in_storage'])
-                                if in_storage <= 5:
-                                    self.tree.item(new_item, tags=('low_stock',))
+                    # Restore low stock warning
+                    in_storage = int(values['in_storage'])
+                    if in_storage <= 5:
+                        self.tree.item(new_item, tags=('low_stock',))
 
-                                restored_items.append((new_item, values))
+                    restored_items.append((new_item, values))
 
-                            self.redo_stack.append(('undelete', restored_items))
+                self.redo_stack.append(('undelete', restored_items))
 
-                        finally:
-                            self.db.disconnect()
+            finally:
+                self.db.disconnect()
 
-                def redo(self, event=None):
-                    """Redo last undone action"""
-                    if not self.redo_stack:
-                        return
+    def redo(self, event=None):
+        """Redo last undone action"""
+        if not self.redo_stack:
+            return
 
-                    action = self.redo_stack.pop()
-                    action_type = action[0]
+        action = self.redo_stack.pop()
+        action_type = action[0]
 
-                    if action_type == 'edit':
-                        item, new_values = action[1:]
-                        # Store current values for undo
-                        current_values = {col: self.tree.set(item, col) for col in self.columns}
-                        self.undo_stack.append(('edit', item, current_values))
+        if action_type == 'edit':
+            item, new_values = action[1:]
+            # Store current values for undo
+            current_values = {col: self.tree.set(item, col) for col in self.columns}
+            self.undo_stack.append(('edit', item, current_values))
 
-                        # Restore new values
-                        for col, value in new_values.items():
-                            self.tree.set(item, col, value)
-                            self.update_record(new_values['unique_id_parts'], col, value)
+            # Restore new values
+            for col, value in new_values.items():
+                self.tree.set(item, col, value)
+                self.update_record(new_values['unique_id_parts'], col, value)
 
-                        # Update low stock warning
-                        in_storage = int(new_values['in_storage'])
-                        if in_storage <= 5:
-                            self.tree.item(item, tags=('low_stock',))
-                        else:
-                            self.tree.item(item, tags=())
+            # Update low stock warning
+            in_storage = int(new_values['in_storage'])
+            if in_storage <= 5:
+                self.tree.item(item, tags=('low_stock',))
+            else:
+                self.tree.item(item, tags=())
 
-                    elif action_type == 'readd':
-                        data = action[1]
-                        # Re-add the record
-                        self.db.connect()
-                        try:
-                            if self.db.insert_record(TABLES['SORTING_SYSTEM'], data):
-                                # Add to tree
-                                item = self.tree.insert('', 'end', values=list(data.values()))
+        elif action_type == 'readd':
+            data = action[1]
+            # Re-add the record
+            self.db.connect()
+            try:
+                if self.db.insert_record(TABLES['SORTING_SYSTEM'], data):
+                    # Add to tree
+                    item = self.tree.insert('', 'end', values=list(data.values()))
 
-                                # Add low stock warning if needed
-                                if int(data['in_storage']) <= 5:
-                                    self.tree.item(item, tags=('low_stock',))
+                    # Add low stock warning if needed
+                    if int(data['in_storage']) <= 5:
+                        self.tree.item(item, tags=('low_stock',))
 
-                                self.undo_stack.append(('add', data))
+                    self.undo_stack.append(('add', data))
 
-                        finally:
-                            self.db.disconnect()
+            finally:
+                self.db.disconnect()
 
-                    elif action_type == 'undelete':
-                        restored_items = action[1]
-                        deleted_items = []
+        elif action_type == 'undelete':
+            restored_items = action[1]
+            deleted_items = []
 
-                        self.db.connect()
-                        try:
-                            for item, values in restored_items:
-                                # Delete from database
-                                self.db.delete_record(
-                                    TABLES['SORTING_SYSTEM'],
-                                    "unique_id_parts = ?",
-                                    (values['unique_id_parts'],)
-                                )
-
-                                # Delete from tree
-                                self.tree.delete(item)
-                                deleted_items.append((item, values))
-
-                            self.undo_stack.append(('delete', deleted_items))
-
-                        finally:
-                            self.db.disconnect()
-
-                def save_table(self):
-                    """Save current table state to file"""
-                    file_path = filedialog.asksaveasfilename(
-                        defaultextension=".csv",
-                        filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
+            self.db.connect()
+            try:
+                for item, values in restored_items:
+                    # Delete from database
+                    self.db.delete_record(
+                        TABLES['SORTING_SYSTEM'],
+                        "unique_id_parts = ?",
+                        (values['unique_id_parts'],)
                     )
 
-                    if not file_path:
-                        return
+                    # Delete from tree
+                    self.tree.delete(item)
+                    deleted_items.append((item, values))
 
-                    try:
-                        with open(file_path, 'w', newline='') as file:
-                            writer = csv.writer(file)
-                            # Write headers
-                            writer.writerow(self.columns)
+                self.undo_stack.append(('delete', deleted_items))
 
-                            # Write data
-                            for item in self.tree.get_children():
-                                row = [self.tree.set(item, col) for col in self.columns]
-                                writer.writerow(row)
+            finally:
+                self.db.disconnect()
 
-                        messagebox.showinfo("Success", "Table saved successfully")
+    def save_table(self):
+        """Save current table state to file"""
+        file_path = filedialog.asksaveasfilename(
+            defaultextension=".csv",
+            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
+        )
 
-                    except Exception as e:
-                        messagebox.showerror("Error", f"Failed to save table: {str(e)}")
+        if not file_path:
+            return
 
-                def load_table(self):
-                    """Load table state from file"""
-                    file_path = filedialog.askopenfilename(
-                        filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
-                    )
+        try:
+            with open(file_path, 'w', newline='') as file:
+                writer = csv.writer(file)
+                # Write headers
+                writer.writerow(self.columns)
 
-                    if not file_path:
-                        return
+                # Write data
+                for item in self.tree.get_children():
+                    row = [self.tree.set(item, col) for col in self.columns]
+                    writer.writerow(row)
 
-                    try:
-                        self.db.connect()
+            messagebox.showinfo("Success", "Table saved successfully")
 
-                        # Clear existing data
-                        self.db.execute_query("DELETE FROM sorting_system")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to save table: {str(e)}")
 
-                        # Read and insert new data
-                        with open(file_path, 'r') as file:
-                            reader = csv.DictReader(file)
-                            for row in reader:
-                                self.db.insert_record(TABLES['SORTING_SYSTEM'], row)
+    def load_table(self):
+        """Load table state from file"""
+        file_path = filedialog.askopenfilename(
+            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
+        )
 
-                        # Reload table
-                        self.load_data()
-                        messagebox.showinfo("Success", "Table loaded successfully")
+        if not file_path:
+            return
 
-                    except Exception as e:
-                        messagebox.showerror("Error", f"Failed to load table: {str(e)}")
+        try:
+            self.db.connect()
 
-                    finally:
-                        self.db.disconnect()
+            # Clear existing data
+            self.db.execute_query("DELETE FROM sorting_system")
 
-                def show_search_dialog(self):
-                    """Show search dialog"""
-                    dialog = SearchDialog(self, self.columns, self.search_items)
-                    self.wait_window(dialog)
+            # Read and insert new data
+            with open(file_path, 'r') as file:
+                reader = csv.DictReader(file)
+                for row in reader:
+                    self.db.insert_record(TABLES['SORTING_SYSTEM'], row)
 
-                def search_items(self, search_params: Dict):
-                    """Search items based on search parameters"""
-                    column = search_params['column']
-                    search_text = search_params['text']
-                    match_case = search_params['match_case']
+            # Reload table
+            self.load_data()
+            messagebox.showinfo("Success", "Table loaded successfully")
 
-                    # Clear current selection
-                    self.tree.selection_remove(*self.tree.selection())
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to load table: {str(e)}")
 
-                    for item in self.tree.get_children():
-                        values = self.tree.item(item)['values']
+        finally:
+            self.db.disconnect()
 
-                        # Get the value to search in
-                        if column == 'All':
-                            search_in = ' '.join(str(v) for v in values)
-                        else:
-                            col_idx = self.columns.index(column)
-                            search_in = str(values[col_idx])
+    def show_search_dialog(self):
+        """Show search dialog"""
+        dialog = SearchDialog(self, self.columns, self.search_items)
+        self.wait_window(dialog)
 
-                        # Perform search
-                        if not match_case:
-                            search_in = search_in.lower()
-                            search_text = search_text.lower()
+    def search_items(self, search_params: Dict):
+        """Search items based on search parameters"""
+        column = search_params['column']
+        search_text = search_params['text']
+        match_case = search_params['match_case']
 
-                        if search_text in search_in:
-                            self.tree.selection_add(item)
-                            self.tree.see(item)
+        # Clear current selection
+        self.tree.selection_remove(*self.tree.selection())
 
-                def show_filter_dialog(self):
-                    """Show filter dialog"""
-                    dialog = FilterDialog(self, self.columns, self.apply_filters)
-                    self.wait_window(dialog)
+        for item in self.tree.get_children():
+            values = self.tree.item(item)['values']
 
-                def apply_filters(self, filters: List[Dict]):
-                    """Apply filters to the table view"""
-                    query = "SELECT * FROM sorting_system WHERE "
-                    conditions = []
-                    params = []
+            # Get the value to search in
+            if column == 'All':
+                search_in = ' '.join(str(v) for v in values)
+            else:
+                col_idx = self.columns.index(column)
+                search_in = str(values[col_idx])
 
-                    for filter_condition in filters:
-                        column = filter_condition['column']
-                        operator = filter_condition['operator']
-                        value = filter_condition['value']
+            # Perform search
+            if not match_case:
+                search_in = search_in.lower()
+                search_text = search_text.lower()
 
-                        if operator == 'equals':
-                            conditions.append(f"{column} = ?")
-                            params.append(value)
-                        elif operator == 'contains':
-                            conditions.append(f"{column} LIKE ?")
-                            params.append(f"%{value}%")
-                        elif operator == 'greater than':
-                            conditions.append(f"{column} > ?")
-                            params.append(value)
-                        elif operator == 'less than':
-                            conditions.append(f"{column} < ?")
-                            params.append(value)
+            if search_text in search_in:
+                self.tree.selection_add(item)
+                self.tree.see(item)
 
-                    query += " AND ".join(conditions)
-                    query += " ORDER BY bin"
+    def show_filter_dialog(self):
+        """Show filter dialog"""
+        dialog = FilterDialog(self, self.columns, self.apply_filters)
+        self.wait_window(dialog)
 
-                    self.db.connect()
-                    try:
-                        results = self.db.execute_query(query, tuple(params))
+    def apply_filters(self, filters: List[Dict]):
+        """Apply filters to the table view"""
+        query = "SELECT * FROM sorting_system WHERE "
+        conditions = []
+        params = []
 
-                        # Update table
-                        for item in self.tree.get_children():
-                            self.tree.delete(item)
+        for filter_condition in filters:
+            column = filter_condition['column']
+            operator = filter_condition['operator']
+            value = filter_condition['value']
 
-                        for row in results:
-                            item = self.tree.insert('', 'end', values=row[:-2])
-                            if int(row[3]) <= 5:  # Check in_storage
-                                self.tree.item(item, tags=('low_stock',))
+            if operator == 'equals':
+                conditions.append(f"{column} = ?")
+                params.append(value)
+            elif operator == 'contains':
+                conditions.append(f"{column} LIKE ?")
+                params.append(f"%{value}%")
+            elif operator == 'greater than':
+                conditions.append(f"{column} > ?")
+                params.append(value)
+            elif operator == 'less than':
+                conditions.append(f"{column} < ?")
+                params.append(value)
 
-                    finally:
-                        self.db.disconnect()
+        query += " AND ".join(conditions)
+        query += " ORDER BY bin"
 
-                def reset_view(self):
-                    """Reset table to default view"""
-                    self.load_data()
+        self.db.connect()
+        try:
+            results = self.db.execute_query(query, tuple(params))
+
+            # Update table
+            for item in self.tree.get_children():
+                self.tree.delete(item)
+
+            for row in results:
+                item = self.tree.insert('', 'end', values=row[:-2])
+                if int(row[3]) <= 5:  # Check in_storage
+                    self.tree.item(item, tags=('low_stock',))
+
+        finally:
+            self.db.disconnect()
+
+    def reset_view(self):
+        """Reset table to default view"""
+        self.load_data()
