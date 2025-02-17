@@ -12,6 +12,16 @@ from gui.dialogs.filter_dialog import FilterDialog
 
 
 class ShelfView(ttk.Frame):
+    def handle_return(self, event=None):
+        """Handle Return key press - typically used for editing or confirming selection"""
+        selected = self.tree.selection()
+        if selected:
+            # For example, you could start editing the first selected item
+            self.start_cell_edit(selected[0], '#2')  # Start editing the second column
+
+    def handle_escape(self, event=None):
+        """Handle Escape key press - typically used to clear selection"""
+        self.tree.selection_remove(self.tree.selection())
     def __init__(self, parent):
         super().__init__(parent)
         self.db = DatabaseManager(DATABASE_PATH)
@@ -455,9 +465,30 @@ class ShelfView(ttk.Frame):
             self.db.connect()
 
             if action_type == 'edit':
-                # ... (edit code)
+                # Store current values for undo
+                item, old_values = action[1:]
+                current_values = {col: self.tree.set(item, col) for col in self.columns}
+                self.undo_stack.append(('edit', item, current_values))
+
+                # Restore old values
+                for col, value in old_values.items():
+                    self.tree.set(item, col, value)
+                    self.update_record(old_values['unique_id_leather'], col, value)
+
             elif action_type == 'readd':
-                # ... (readd code)
+                # Re-add the deleted item
+                values = action[1]
+
+                # Insert back into database
+                success = self.db.insert_record(TABLES['SHELF'], values)
+
+                if success:
+                    # Add back to tree
+                    new_item = self.tree.insert('', 'end', values=list(values.values()))
+
+                    # Add to undo stack for potential future undo
+                    self.undo_stack.append(('add', values))
+
             elif action_type == 'undelete':
                 restored_items = action[1]
                 deleted_items = []
@@ -465,9 +496,9 @@ class ShelfView(ttk.Frame):
                 for item, values in restored_items:
                     # Delete from database
                     self.db.delete_record(
-                        TABLES['SUPPLIER'],
-                        "company_name = ?",
-                        (values[0],)
+                        TABLES['SHELF'],
+                        "unique_id_leather = ?",
+                        (values['unique_id_leather'],)
                     )
 
                     # Delete from tree

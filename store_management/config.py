@@ -1,42 +1,44 @@
 # config.py
-import os
 from pathlib import Path
 
-# Add the parent directory to Python path to ensure imports work correctly
-import sys
-sys.path.append(str(Path(__file__).parent))
-
-# Import from the database module
-from database.database_setup import ensure_database
-
-# Project root directory
-ROOT_DIR = Path(__file__).parent
+# Application Settings
+APP_NAME = "Store Management System"
+WINDOW_SIZE = "1200x800"
+APP_VERSION = "1.0.0"
 
 # Database
-DATABASE_PATH = ROOT_DIR / 'store_management.db'
-
-# Application settings
-APP_NAME = "Store Management System"
-APP_VERSION = "1.0.0"
+DATABASE_PATH = Path(__file__).parent / 'store_management.db'
 
 # Table names
 TABLES = {
+    'SUPPLIER': 'supplier',
     'SHELF': 'shelf',
     'STORAGE': 'storage',
     'RECIPE_INDEX': 'recipe_index',
     'RECIPE_DETAILS': 'recipe_details',
     'SORTING_SYSTEM': 'sorting_system',
-    'SAVED_VIEWS': 'saved_views',
-    'AUDIT_LOG': 'audit_log'
 }
 
-# Default window size
-WINDOW_SIZE = "1200x800"
-
-# Colors
+# Colors for UI
 COLORS = {
-    'ERROR': '#ffebee',
-    'WARNING': '#fff3e0',
-    'SUCCESS': '#e8f5e9',
-    'PRIMARY': '#e3f2fd'
+    'WARNING': '#ffcccc',
+    'SUCCESS': '#ccffcc',
+    'NORMAL': '#ffffff',
+    'HEADER': '#f0f0f0',
+    'PRIMARY': '#007bff',
+    'SECONDARY': '#6c757d',
 }
+
+# UI Settings
+DEFAULT_PADDING = 5
+MINIMUM_COLUMN_WIDTH = 50
+DEFAULT_FONT = ('Arial', 10)
+HEADER_FONT = ('Arial', 11, 'bold')
+
+# File paths
+BACKUP_DIR = Path(__file__).parent / 'backups'
+LOG_DIR = Path(__file__).parent / 'logs'
+
+# Ensure required directories exist
+BACKUP_DIR.mkdir(exist_ok=True)
+LOG_DIR.mkdir(exist_ok=True)

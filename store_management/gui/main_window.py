@@ -12,7 +12,10 @@ from config import APP_NAME, WINDOW_SIZE, DATABASE_PATH
 from gui.shelf_view import ShelfView
 from gui.recipe_view import RecipeView
 from gui.storage_view import StorageView
-from gui.order.order_management import OrderManagementSystem
+from gui.sorting_system_view import SortingSystemView
+from gui.order.incoming_goods_view import IncomingGoodsView
+from gui.order.shopping_list_view import ShoppingListView
+from gui.order.supplier_view import SupplierView
 
 
 class MainWindow:
@@ -60,16 +63,26 @@ class MainWindow:
         # Add Sorting System view under Storage
         sorting_frame = ttk.Frame(storage_notebook)
         storage_notebook.add(sorting_frame, text='Sorting System')
-        # self.views['sorting'] = SortingSystemView(sorting_frame)  # To be implemented
+        self.views['sorting'] = SortingSystemView(sorting_frame)
 
         # Order group
         order_notebook = ttk.Notebook(self.notebook)
         self.notebook.add(order_notebook, text='Order')
 
-        # Add Order Management
-        order_frame = ttk.Frame(order_notebook)
-        order_notebook.add(order_frame, text='Incoming Goods')
-        self.views['order'] = OrderManagementSystem(order_frame)
+        # Add Incoming Goods view
+        incoming_frame = ttk.Frame(order_notebook)
+        order_notebook.add(incoming_frame, text='Incoming Goods')
+        self.views['incoming'] = IncomingGoodsView(incoming_frame)
+
+        # Add Shopping List view
+        shopping_frame = ttk.Frame(order_notebook)
+        order_notebook.add(shopping_frame, text='Shopping List')
+        self.views['shopping'] = ShoppingListView(shopping_frame)
+
+        # Add Supplier view
+        supplier_frame = ttk.Frame(order_notebook)
+        order_notebook.add(supplier_frame, text='Supplier')
+        self.views['supplier'] = SupplierView(supplier_frame)
 
     def bind_shortcuts(self):
         """Bind global keyboard shortcuts"""
@@ -114,17 +127,22 @@ class MainWindow:
         current_tab = self.notebook.select()
         if current_tab:
             tab_id = self.notebook.index(current_tab)
+
+            # Get the notebook widget for the current tab
+            notebook = self.notebook.nametowidget(current_tab)
+
+            # If it's a nested notebook, get the current subtab
+            if isinstance(notebook, ttk.Notebook):
+                current_subtab = notebook.select()
+                if current_subtab:
+                    subtab_id = notebook.index(current_subtab)
+                    subtab_name = notebook.tab(subtab_id, 'text').lower().replace(' ', '_')
+                    return self.views.get(subtab_name)
+
+            # If it's not a nested notebook, get the view directly
             tab_name = self.notebook.tab(tab_id, 'text').lower()
-
-            # Handle special cases for nested notebooks
-            if tab_name == 'product':
-                product_notebook = self.notebook.nametowidget(current_tab)
-                current_product_tab = product_notebook.select()
-                if current_product_tab:
-                    product_tab_id = product_notebook.index(current_product_tab)
-                    tab_name = product_notebook.tab(product_tab_id, 'text').lower()
-
             return self.views.get(tab_name)
+
         return None
 
     def run(self):

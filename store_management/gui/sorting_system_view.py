@@ -11,6 +11,17 @@ from gui.dialogs.filter_dialog import FilterDialog
 
 
 class SortingSystemView(ttk.Frame):
+    def handle_return(self, event=None):
+        """Handle Return key press - typically used for editing or confirming selection"""
+        selected = self.tree.selection()
+        if selected:
+            # Start editing the second column of the first selected item
+            self.start_cell_edit(selected[0], '#2')
+
+    def handle_escape(self, event=None):
+        """Handle Escape key press - typically used to clear selection"""
+        self.tree.selection_remove(self.tree.selection())
+
     def __init__(self, parent):
         super().__init__(parent)
         self.db = DatabaseManager(DATABASE_PATH)

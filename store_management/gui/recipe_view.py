@@ -1,3 +1,5 @@
+# gui/recipe_view.py
+
 import tkinter as tk
 from tkinter import ttk, messagebox
 from typing import Dict, List, Optional
@@ -358,230 +360,195 @@ class RecipeView(ttk.Frame):
         button_frame = ttk.Frame(main_frame)
         button_frame.grid(row=3, column=0, columnspan=2, pady=10)
 
+        ttk.Button(button_frame, text="Save", command=save).pack(side=tk.LEFT, padx=5)
         ttk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
 
-        def load_data(self):
-            """Load data from database into index table"""
-            self.db.connect()
-            try:
-                query = "SELECT * FROM recipe_index ORDER BY name"
-                results = self.db.execute_query(query)
+    def show_search_dialog(self):
+        """Show dialog for searching recipes"""
+        messagebox.showinfo("Search", "Search functionality is not implemented yet.")
 
-                # Clear existing items
-                for item in self.index_tree.get_children():
-                    self.index_tree.delete(item)
+    def show_filter_dialog(self):
+        """Show dialog for filtering recipes"""
+        messagebox.showinfo("Filter", "Filter functionality is not implemented yet.")
 
-                # Insert new data
-                for row in results:
-                    self.index_tree.insert('', 'end', values=row[:-2])  # Exclude timestamps
+    def load_data(self):
+        """Load data from database into index table"""
+        self.db.connect()
+        try:
+            query = "SELECT * FROM recipe_index ORDER BY name"
+            results = self.db.execute_query(query)
 
-            finally:
-                self.db.disconnect()
+            # Clear existing items
+            for item in self.index_tree.get_children():
+                self.index_tree.delete(item)
 
-        def sort_column(self, tree, col):
-            """Sort treeview column"""
-            # Get current items
-            items = [(tree.set(item, col), item) for item in tree.get_children('')]
+            # Insert new data
+            for row in results:
+                self.index_tree.insert('', 'end', values=row[:-2])  # Exclude timestamps
 
-            # Determine sort direction
-            reverse = False
-            if hasattr(tree, '_last_sort') and tree._last_sort == (col, False):
-                reverse = True
+        finally:
+            self.db.disconnect()
 
-            # Store sort state
-            tree._last_sort = (col, reverse)
+    def sort_column(self, tree, col):
+        """Sort treeview column"""
+        items = [(tree.set(item, col), item) for item in tree.get_children('')]
+        reverse = False
+        if hasattr(tree, '_last_sort') and tree._last_sort == (col, False):
+            reverse = True
+        tree._last_sort = (col, reverse)
+        items.sort(reverse=reverse, key=lambda x: self.sort_key(x[0]))
+        for index, (_, item) in enumerate(items):
+            tree.move(item, '', index)
+        arrow = "▼" if reverse else "▲"
+        tree.heading(col, text=f"{col.replace('_', ' ').title()} {arrow}")
 
-            # Sort items
-            items.sort(reverse=reverse, key=lambda x: self.sort_key(x[0]))
+    def sort_key(self, value):
+        """Create sort key based on value type"""
+        try:
+            return float(value)
+        except ValueError:
+            return str(value).lower()
 
-            # Rearrange items
-            for index, (_, item) in enumerate(items):
-                tree.move(item, '', index)
-
-            # Update header arrow
-            for column in tree['columns']:
-                if column != col:
-                    tree.heading(column, text=column.replace('_', ' ').title())
-            arrow = "▼" if reverse else "▲"
-            tree.heading(col, text=f"{col.replace('_', ' ').title()} {arrow}")
-
-        def sort_key(self, value):
-            """Create sort key based on value type"""
-            try:
-                return float(value)
-            except ValueError:
-                return str(value).lower()
-
-        def on_double_click(self, tree, event):
-            """Handle double-click on cell"""
-            region = tree.identify("region", event.x, event.y)
-            if region == "cell":
-                column = tree.identify_column(event.x)
-                item = tree.identify_row(event.y)
-
-                if column == "#1":  # ID column
-                    return  # Don't allow editing of ID
-
-                self.start_cell_edit(tree, item, column)
-
-        def start_cell_edit(self, tree, item, column):
-            """Start cell editing"""
-            col_num = int(column[1]) - 1
-            col_name = tree['columns'][col_num]
-            current_value = tree.set(item, col_name)
-
-            # Create edit frame
-            frame = ttk.Frame(tree)
-
-            # Create entry widget
-            entry = ttk.Entry(frame)
-            entry.insert(0, current_value)
-            entry.select_range(0, tk.END)
-            entry.pack(fill=tk.BOTH, expand=True)
-
-            # Position frame
-            bbox = tree.bbox(item, column)
-            frame.place(x=bbox[0], y=bbox[1], width=bbox[2], height=bbox[3])
-
-            def save_edit(event=None):
-                """Save the edited value"""
-                new_value = entry.get()
-                if new_value != current_value:
-                    # Store for undo
-                    old_values = {col: tree.set(item, col) for col in tree['columns']}
-                    self.undo_stack.append(('edit', tree, item, old_values))
-                    self.redo_stack.clear()
-
-                    # Update database
-                    unique_id = tree.set(item, tree['columns'][0])
-                    table_name = TABLES['RECIPE_INDEX'] if tree == self.index_tree else TABLES['RECIPE_DETAILS']
-                    id_field = 'unique_id_product' if tree == self.index_tree else 'recipe_id'
-
-                    self.update_record(table_name, id_field, unique_id, col_name, new_value)
-
-                    # Update tree
-                    tree.set(item, col_name, new_value)
-
-                    # Update related data if necessary
-                    if tree == self.index_tree and self.current_recipe == unique_id:
-                        self.load_recipe_details(unique_id)
-
-                frame.destroy()
-
-            def cancel_edit(event=None):
-                """Cancel the edit"""
-                frame.destroy()
-
-            entry.bind('<Return>', save_edit)
-            entry.bind('<Escape>', cancel_edit)
-            entry.bind('<FocusOut>', save_edit)
-            entry.focus_set()
-
-        def update_record(self, table: str, id_field: str, id_value: str, column: str, value: str):
-            """Update record in database"""
-            self.db.connect()
-            try:
-                success = self.db.update_record(
-                    table,
-                    {column: value},
-                    f"{id_field} = ?",
-                    (id_value,)
-                )
-                if not success:
-                    messagebox.showerror("Error", "Failed to update database")
-            finally:
-                self.db.disconnect()
-
-        def delete_selected(self, tree):
-            """Delete selected items"""
-            selected = tree.selection()
-            if not selected:
+    def on_double_click(self, tree, event):
+        """Handle double-click on cell"""
+        region = tree.identify("region", event.x, event.y)
+        if region == "cell":
+            column = tree.identify_column(event.x)
+            item = tree.identify_row(event.y)
+            if column == "#1":
                 return
+            self.start_cell_edit(tree, item, column)
 
-            if messagebox.askyesno("Confirm Delete",
-                                   "Are you sure you want to delete the selected items?"):
-                self.db.connect()
-                try:
-                    # Store for undo
-                    deleted_items = []
-                    for item in selected:
-                        values = {col: tree.set(item, col) for col in tree['columns']}
-                        deleted_items.append((item, values))
+    def start_cell_edit(self, tree, item, column):
+        """Start cell editing"""
+        col_num = int(column[1]) - 1
+        col_name = tree['columns'][col_num]
+        current_value = tree.set(item, col_name)
+        frame = ttk.Frame(tree)
+        entry = ttk.Entry(frame)
+        entry.insert(0, current_value)
+        entry.select_range(0, tk.END)
+        entry.pack(fill=tk.BOTH, expand=True)
+        bbox = tree.bbox(item, column)
+        frame.place(x=bbox[0], y=bbox[1], width=bbox[2], height=bbox[3])
 
-                        # Delete from database
-                        unique_id = values[tree['columns'][0]]
-                        table_name = TABLES['RECIPE_INDEX'] if tree == self.index_tree else TABLES['RECIPE_DETAILS']
-                        id_field = 'unique_id_product' if tree == self.index_tree else 'recipe_id'
-
-                        self.db.delete_record(
-                            table_name,
-                            f"{id_field} = ?",
-                            (unique_id,)
-                        )
-
-                        # If deleting from index, also delete related details
-                        if tree == self.index_tree:
-                            self.db.delete_record(
-                                TABLES['RECIPE_DETAILS'],
-                                "recipe_id = ?",
-                                (unique_id,)
-                            )
-
-                        # Delete from tree
-                        tree.delete(item)
-
-                    self.undo_stack.append(('delete', tree, deleted_items))
-                    self.redo_stack.clear()
-
-                    # Clear details if deleted from index
-                    if tree == self.index_tree:
-                        for item in self.details_tree.get_children():
-                            self.details_tree.delete(item)
-                        self.current_recipe = None
-
-                finally:
-                    self.db.disconnect()
-
-        def undo(self, event=None):
-            """Undo last action"""
-            if not self.undo_stack:
-                return
-
-            action = self.undo_stack.pop()
-            action_type = action[0]
-
-            if action_type == 'edit':
-                tree, item, old_values = action[1:]
-                # Store current values for redo
-                current_values = {col: tree.set(item, col) for col in tree['columns']}
-                self.redo_stack.append(('edit', tree, item, current_values))
-
-                # Restore old values
+        def save_edit(event=None):
+            new_value = entry.get()
+            if new_value != current_value:
+                old_values = {col: tree.set(item, col) for col in tree['columns']}
+                self.undo_stack.append(('edit', tree, item, old_values))
+                self.redo_stack.clear()
+                unique_id = tree.set(item, tree['columns'][0])
                 table_name = TABLES['RECIPE_INDEX'] if tree == self.index_tree else TABLES['RECIPE_DETAILS']
                 id_field = 'unique_id_product' if tree == self.index_tree else 'recipe_id'
+                self.update_record(table_name, id_field, unique_id, col_name, new_value)
+                tree.set(item, col_name, new_value)
+                if tree == self.index_tree and self.current_recipe == unique_id:
+                    self.load_recipe_details(unique_id)
+            frame.destroy()
 
-                for col, value in old_values.items():
-                    tree.set(item, col, value)
-                    self.update_record(table_name, id_field, old_values[tree['columns'][0]], col, value)
+        def cancel_edit(event=None):
+            frame.destroy()
 
-            elif action_type in ['add_recipe', 'add_item']:
-                # Implementation for undoing additions
-                pass  # To be implemented
+        entry.bind('<Return>', save_edit)
+        entry.bind('<Escape>', cancel_edit)
+        entry.bind('<FocusOut>', save_edit)
+        entry.focus_set()
 
-            elif action_type == 'delete':
-                # Implementation for undoing deletions
-                pass  # To be implemented
+    def update_record(self, table: str, id_field: str, id_value: str, column: str, value: str):
+        """Update record in database"""
+        self.db.connect()
+        try:
+            success = self.db.update_record(
+                table,
+                {column: value},
+                f"{id_field} = ?",
+                (id_value,)
+            )
+            if not success:
+                messagebox.showerror("Error", "Failed to update database")
+        finally:
+            self.db.disconnect()
 
-        def save_table(self):
-            """Save current table state"""
-            pass  # To be implemented
+    def delete_selected(self, tree):
+        """Delete selected items"""
+        selected = tree.selection()
+        if not selected:
+            return
+        if messagebox.askyesno("Confirm Delete",
+                               "Are you sure you want to delete the selected items?"):
+            self.db.connect()
+            try:
+                deleted_items = []
+                for item in selected:
+                    values = {col: tree.set(item, col) for col in tree['columns']}
+                    deleted_items.append((item, values))
+                    unique_id = values[tree['columns'][0]]
+                    table_name = TABLES['RECIPE_INDEX'] if tree == self.index_tree else TABLES['RECIPE_DETAILS']
+                    id_field = 'unique_id_product' if tree == self.index_tree else 'recipe_id'
+                    self.db.delete_record(
+                        table_name,
+                        f"{id_field} = ?",
+                        (unique_id,)
+                    )
+                    if tree == self.index_tree:
+                        self.db.delete_record(
+                            TABLES['RECIPE_DETAILS'],
+                            "recipe_id = ?",
+                            (unique_id,)
+                        )
+                    tree.delete(item)
+                self.undo_stack.append(('delete', tree, deleted_items))
+                self.redo_stack.clear()
+                if tree == self.index_tree:
+                    for item in self.details_tree.get_children():
+                        self.details_tree.delete(item)
+                    self.current_recipe = None
+            finally:
+                self.db.disconnect()
 
-        def load_table(self):
-            """Load saved table state"""
-            pass  # To be implemented
+    def undo(self, event=None):
+        """Undo last action"""
+        if not self.undo_stack:
+            return
+        action = self.undo_stack.pop()
+        action_type = action[0]
+        if action_type == 'edit':
+            tree, item, old_values = action[1:]
+            current_values = {col: tree.set(item, col) for col in tree['columns']}
+            self.redo_stack.append(('edit', tree, item, current_values))
+            table_name = TABLES['RECIPE_INDEX'] if tree == self.index_tree else TABLES['RECIPE_DETAILS']
+            id_field = 'unique_id_product' if tree == self.index_tree else 'recipe_id'
+            for col, value in old_values.items():
+                tree.set(item, col, value)
+                self.update_record(table_name, id_field, old_values[tree['columns'][0]], col, value)
 
-        def reset_view(self):
-            """Reset table to default view"""
-            self.load_data()
-            if self.current_recipe:
-                self.load_recipe_details(self.current_recipe)
+    def redo(self):
+        """Redo last undone action"""
+        if not self.redo_stack:
+            return
+        action = self.redo_stack.pop()
+        action_type = action[0]
+        if action_type == 'edit':
+            tree, item, new_values = action[1:]
+            current_values = {col: tree.set(item, col) for col in tree['columns']}
+            self.undo_stack.append(('edit', tree, item, current_values))
+            table_name = TABLES['RECIPE_INDEX'] if tree == self.index_tree else TABLES['RECIPE_DETAILS']
+            id_field = 'unique_id_product' if tree == self.index_tree else 'recipe_id'
+            for col, value in new_values.items():
+                tree.set(item, col, value)
+                self.update_record(table_name, id_field, new_values[tree['columns'][0]], col, value)
+
+    def save_table(self):
+        """Save current table state"""
+        messagebox.showinfo("Save", "Save functionality is not implemented yet.")
+
+    def load_table(self):
+        """Load saved table state"""
+        messagebox.showinfo("Load", "Load functionality is not implemented yet.")
+
+    def reset_view(self):
+        """Reset table to default view"""
+        self.load_data()
+        if self.current_recipe:
+            self.load_recipe_details(self.current_recipe)
