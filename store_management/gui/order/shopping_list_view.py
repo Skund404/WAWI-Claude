@@ -1,13 +1,391 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
+import pandas as pd
+import csv
 from typing import Dict, List, Optional
 import uuid
-
+from datetime import datetime
+from pathlib import Path
 from database.db_manager import DatabaseManager
 from config import DATABASE_PATH, TABLES, COLORS
 
 
 class ShoppingListView(ttk.Frame):
+    def save_table(self):
+        """Save current table state"""
+        if not self.current_list:
+            messagebox.showwarning("Warning", "Please select a shopping list first")
+            return
+
+        try:
+            # Get file path for saving
+            file_path = filedialog.asksaveasfilename(
+                defaultextension=".csv",
+                filetypes=[
+                    ("CSV files", "*.csv"),
+                    ("Excel files", "*.xlsx"),
+                    ("All files", "*.*")
+                ],
+                initialfile=f"shopping_list_{self.current_list}"
+            )
+
+            if not file_path:
+                return
+
+            file_path = Path(file_path)
+
+            # Get current table data
+            data = []
+            for item in self.tree.get_children():
+                values = self.tree.item(item)['values']
+                row_data = dict(zip(self.columns, values))
+                data.append(row_data)
+
+            if file_path.suffix == '.csv':
+                # Save as CSV
+                import csv
+                with open(file_path, 'w', newline='', encoding='utf-8') as f:
+                    writer = csv.DictWriter(f, fieldnames=self.columns)
+                    writer.writeheader()
+                    writer.writerows(data)
+            else:
+                # Save as Excel
+                import pandas as pd
+                df = pd.DataFrame(data)
+                df.to_excel(file_path, index=False)
+
+            messagebox.showinfo("Success", "Shopping list saved successfully")
+
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to save shopping list: {str(e)}")
+
+    def load_table(self):
+        """Load saved table state"""
+        if not self.current_list:
+            messagebox.showwarning("Warning", "Please select a shopping list first")
+            return
+
+        try:
+            # Get file path for loading
+            file_path = filedialog.askopenfilename(
+                filetypes=[
+                    ("CSV files", "*.csv"),
+                    ("Excel files", "*.xlsx"),
+                    ("All files", "*.*")
+                ]
+            )
+
+            if not file_path:
+                return
+
+            file_path = Path(file_path)
+
+            # Create backup before loading
+            self.db.connect()
+            backup_query = f"CREATE TABLE IF NOT EXISTS shopping_list_{self.current_list}_backup AS SELECT * FROM shopping_list_{self.current_list}"
+            self.db.execute_query(backup_query)
+
+            # Clear current table
+            clear_query = f"DELETE FROM shopping_list_{self.current_list}"
+            self.db.execute_query(clear_query)
+
+            # Load data based on file type
+            if file_path.suffix == '.csv':
+                # Load from CSV
+                import csv
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    reader = csv.DictReader(f)
+                    for row in reader:
+                        self.db.insert_record(f"shopping_list_{self.current_list}", row)
+            else:
+                # Load from Excel
+                import pandas as pd
+                df = pd.read_excel(file_path)
+                for _, row in df.iterrows():
+                    self.db.insert_record(f"shopping_list_{self.current_list}", row.to_dict())
+
+            # Refresh view
+            self.load_data()
+            messagebox.showinfo("Success", "Shopping list loaded successfully")
+
+        except Exception as e:
+            # Restore from backup if exists
+            try:
+                restore_query = f"""
+                    DELETE FROM shopping_list_{self.current_list};
+                    INSERT INTO shopping_list_{self.current_list} 
+                    SELECT * FROM shopping_list_{self.current_list}_backup;
+                """
+                self.db.execute_query(restore_query)
+                self.load_data()
+            except:
+                pass
+
+            messagebox.showerror("Error", f"Failed to load shopping list: {str(e)}")
+
+        finally:
+            try:
+                # Drop backup table
+                self.db.execute_query(f"DROP TABLE IF EXISTS shopping_list_{self.current_list}_backup")
+            except:
+                pass
+            self.db.disconnect()
+
+    def show_filter_dialog(self):
+        """Show filter dialog"""
+        if not self.current_list:
+            messagebox.showwarning("Warning", "Please select a shopping list first")
+            return
+
+        dialog = tk.Toplevel(self)
+        dialog.title("Filter Items")
+        dialog.transient(self)
+        dialog.grab_set()
+
+        # Create main frame
+        main_frame = ttk.Frame(dialog, padding="10")
+        main_frame.pack(fill='both', expand=True)
+
+        # Filter conditions frame
+        conditions_frame = ttk.LabelFrame(main_frame, text="Filter Conditions")
+        conditions_frame.pack(fill='both', expand=True, padx=5, pady=5)
+
+        # List to store filter conditions
+        conditions = []
+
+        def add_condition():
+            """Add new filter condition"""
+            condition_frame = ttk.Frame(conditions_frame)
+            condition_frame.pack(fill='x', pady=2)
+
+            # Column selection
+            column_var = tk.StringVar()
+            column_combo = ttk.Combobox(
+                condition_frame,
+                values=self.columns,
+                textvariable=column_var,
+                width=15
+            )
+            column_combo.pack(side=tk.LEFT, padx=2)
+
+            # Operator selection
+            operator_var = tk.StringVar()
+            operator_combo = ttk.Combobox(
+                condition_frame,
+                values=['equals', 'contains', 'greater than', 'less than'],
+                textvariable=operator_var,
+                width=10
+            )
+            operator_combo.pack(side=tk.LEFT, padx=2)
+
+            # Value entry
+            value_var = tk.StringVar()
+            value_entry = ttk.Entry(
+                condition_frame,
+                textvariable=value_var,
+                width=20
+            )
+            value_entry.pack(side=tk.LEFT, padx=2)
+
+            # Remove button
+            def remove_condition():
+                conditions.remove((column_var, operator_var, value_var))
+                condition_frame.destroy()
+
+            ttk.Button(
+                condition_frame,
+                text="×",
+                width=3,
+                command=remove_condition
+            ).pack(side=tk.LEFT, padx=2)
+
+            conditions.append((column_var, operator_var, value_var))
+
+        # Add initial condition
+        add_condition()
+
+        # Add condition button
+        ttk.Button(
+            main_frame,
+            text="Add Condition",
+            command=add_condition
+        ).pack(pady=10)
+
+        def apply_filters():
+            """Apply filter conditions"""
+            try:
+                filter_conditions = []
+                for column_var, operator_var, value_var in conditions:
+                    if all([column_var.get(), operator_var.get(), value_var.get()]):
+                        filter_conditions.append({
+                            'column': column_var.get(),
+                            'operator': operator_var.get(),
+                            'value': value_var.get()
+                        })
+
+                if not filter_conditions:
+                    messagebox.showwarning("Warning", "No valid filter conditions")
+                    return
+
+                # Build query
+                query = f"SELECT * FROM shopping_list_{self.current_list} WHERE "
+                params = []
+                clauses = []
+
+                for condition in filter_conditions:
+                    column = condition['column']
+                    operator = condition['operator']
+                    value = condition['value']
+
+                    if operator == 'equals':
+                        clauses.append(f"{column} = ?")
+                        params.append(value)
+                    elif operator == 'contains':
+                        clauses.append(f"{column} LIKE ?")
+                        params.append(f"%{value}%")
+                    elif operator == 'greater than':
+                        clauses.append(f"{column} > ?")
+                        params.append(value)
+                    elif operator == 'less than':
+                        clauses.append(f"{column} < ?")
+                        params.append(value)
+
+                query += " AND ".join(clauses)
+                query += " ORDER BY supplier, article"
+
+                # Execute query
+                self.db.connect()
+                results = self.db.execute_query(query, tuple(params))
+
+                # Update table
+                for item in self.tree.get_children():
+                    self.tree.delete(item)
+
+                for row in results:
+                    self.tree.insert('', 'end', values=row[:-2])  # Exclude timestamps
+
+                dialog.destroy()
+
+            except Exception as e:
+                messagebox.showerror("Error", f"Filter error: {str(e)}")
+            finally:
+                self.db.disconnect()
+
+        # Buttons
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill='x', pady=10)
+
+        ttk.Button(
+            button_frame,
+            text="Apply",
+            command=apply_filters
+        ).pack(side=tk.LEFT, padx=5)
+
+        ttk.Button(
+            button_frame,
+            text="Cancel",
+            command=dialog.destroy
+        ).pack(side=tk.LEFT, padx=5)
+
+    def show_search_dialog(self):
+        """Show search dialog"""
+        dialog = tk.Toplevel(self)
+        dialog.title("Search Items")
+        dialog.transient(self)
+        dialog.grab_set()
+
+        # Create main frame
+        main_frame = ttk.Frame(dialog, padding="10")
+        main_frame.pack(fill='both', expand=True)
+
+        # Search options
+        ttk.Label(main_frame, text="Search in:").pack(anchor='w')
+        target_var = tk.StringVar(value="all")
+        ttk.Radiobutton(
+            main_frame,
+            text="All Fields",
+            value="all",
+            variable=target_var
+        ).pack(anchor='w')
+        ttk.Radiobutton(
+            main_frame,
+            text="Supplier",
+            value="supplier",
+            variable=target_var
+        ).pack(anchor='w')
+        ttk.Radiobutton(
+            main_frame,
+            text="Article",
+            value="article",
+            variable=target_var
+        ).pack(anchor='w')
+
+        # Search text
+        ttk.Label(main_frame, text="Search for:").pack(anchor='w', pady=(10, 0))
+        search_var = tk.StringVar()
+        ttk.Entry(
+            main_frame,
+            textvariable=search_var
+        ).pack(fill='x', pady=5)
+
+        # Match case option
+        match_case = tk.BooleanVar()
+        ttk.Checkbutton(
+            main_frame,
+            text="Match case",
+            variable=match_case
+        ).pack(anchor='w')
+
+        def search():
+            """Perform search"""
+            search_text = search_var.get()
+            if not search_text:
+                messagebox.showwarning("Warning", "Please enter search text")
+                return
+
+            # Clear current selection
+            self.tree.selection_remove(*self.tree.selection())
+            found = False
+
+            for item in self.tree.get_children():
+                values = self.tree.item(item)['values']
+
+                if target_var.get() == "all":
+                    text = " ".join(str(v) for v in values)
+                else:
+                    col_idx = self.columns.index(target_var.get())
+                    text = str(values[col_idx])
+
+                if not match_case.get():
+                    text = text.lower()
+                    search_text = search_text.lower()
+
+                if search_text in text:
+                    self.tree.selection_add(item)
+                    self.tree.see(item)
+                    found = True
+
+            if not found:
+                messagebox.showinfo("Info", "No matches found")
+
+            dialog.destroy()
+
+        # Buttons
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill='x', pady=10)
+
+        ttk.Button(
+            button_frame,
+            text="Search",
+            command=search
+        ).pack(side=tk.LEFT, padx=5)
+
+        ttk.Button(
+            button_frame,
+            text="Cancel",
+            command=dialog.destroy
+        ).pack(side=tk.LEFT, padx=5)
+
     def __init__(self, parent):
         super().__init__(parent)
         self.db = DatabaseManager(DATABASE_PATH)

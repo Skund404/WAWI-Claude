@@ -451,38 +451,35 @@ class ShelfView(ttk.Frame):
         action = self.redo_stack.pop()
         action_type = action[0]
 
-        if action_type == 'edit':
-            item, new_values = action[1:]
-            # Store current values for undo
-            current_values = {col: self.tree.set(item, col) for col in self.columns}
-            self.undo_stack.append(('edit', item, current_values))
+        try:
+            self.db.connect()
 
-            # Restore new values
-            for col, value in new_values.items():
-                self.tree.set(item, col, value)
-                self.update_record(new_values['unique_id_leather'], col, value)
+            if action_type == 'edit':
+                # ... (edit code)
+            elif action_type == 'readd':
+                # ... (readd code)
+            elif action_type == 'undelete':
+                restored_items = action[1]
+                deleted_items = []
 
-        elif action_type == 'undelete':
-            restored_items = action[1]
-            deleted_items = []
+                for item, values in restored_items:
+                    # Delete from database
+                    self.db.delete_record(
+                        TABLES['SUPPLIER'],
+                        "company_name = ?",
+                        (values[0],)
+                    )
 
-            for item, values in restored_items:
-                # Remove from database
-                self.db.delete_record(
-                    TABLES['SHELF'],
-                    "unique_id_leather = ?",
-                    (values['unique_id_leather'],)
-                )
+                    # Delete from tree
+                    self.tree.delete(item)
+                    deleted_items.append((item, values))
 
-                # Remove from tree
-                self.tree.delete(item)
-                deleted_items.append((item, values))
+                self.undo_stack.append(('delete', deleted_items))
 
-            self.undo_stack.append(('delete', deleted_items))
-
-        elif action_type == 'readd':
-            values = action[1]
-            self.add_item(values)
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to redo: {str(e)}")
+        finally:
+            self.db.disconnect()
 
     def save_table(self):
         """Save current table state"""
