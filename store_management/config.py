@@ -7,7 +7,7 @@ WINDOW_SIZE = "1200x800"
 APP_VERSION = "1.0.0"
 
 # Database
-DATABASE_PATH = Path(__file__).parent / 'store_management.db'
+DATABASE_PATH = Path(__file__).parent / 'database' / 'store_management.db'
 
 # Table names
 TABLES = {

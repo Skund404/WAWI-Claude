@@ -6,7 +6,7 @@ from database.db_manager import DatabaseManager
 from config import DATABASE_PATH, TABLES, COLORS
 from gui.order.incoming_goods_view import IncomingGoodsView
 from gui.order.shopping_list_view import ShoppingListView
-from gui.order.supplier_view import SupplierView
+from gui.supplier_view import SupplierView
 
 
 class OrderManagementSystem(ttk.Frame):

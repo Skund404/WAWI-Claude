@@ -1,113 +1,170 @@
 # main.py
-import os
-import sys
 import tkinter as tk
 from tkinter import ttk
-from pathlib import Path
+import sys
+import os
 
-# Add the project root directory to Python path
-project_root = Path(__file__).parent
-sys.path.append(str(project_root))
+# Add the project root to the Python path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-try:
-    # Import configuration
-    from config import APP_NAME, WINDOW_SIZE, DATABASE_PATH
+# Ensure database exists and setup correctly
+from database.database_setup import ensure_database
+ensure_database()
 
-    # Import database initialization
-    from database.database_init import init_database
+from database.db_manager import DatabaseManager
+from utils.logger import logger, log_error
+from utils.error_handler import ErrorHandler, check_database_connection, DatabaseError
+from config import DATABASE_PATH, TABLES, COLORS
 
-    # Import views
-    from gui.supplier_view import SupplierView
-    from gui.storage_view import StorageView
-    from gui.shelf_view import ShelfView
-    from gui.sorting_system_view import SortingSystemView
-    from gui.recipe_view import RecipeView
-    from gui.order.incoming_goods_view import IncomingGoodsView
-    from gui.order.shopping_list_view import ShoppingListView
-
-except ImportError as e:
-    print(f"Import Error: {e}")
-    print(f"Current Python path: {sys.path}")
-    print(f"Current directory: {os.getcwd()}")
-    sys.exit(1)
+from config import APP_NAME, WINDOW_SIZE, DATABASE_PATH
+from gui.shelf_view import ShelfView
+from gui.recipe_view import RecipeView
+from gui.storage_view import StorageView
+from gui.sorting_system_view import SortingSystemView
+from gui.order.incoming_goods_view import IncomingGoodsView
+from gui.order.shopping_list_view import ShoppingListView
+from gui.Supplier_view import supplierView  # Corrected import
 
 
-class MainApplication(tk.Tk):
+class MainWindow:
     def __init__(self):
-        super().__init__()
+        self.root = tk.Tk()
+        self.root.title(APP_NAME)
+        self.root.geometry(WINDOW_SIZE)
 
-        # Configure main window
-        self.title(APP_NAME)
-        self.geometry(WINDOW_SIZE)
+        # Create main notebook for tabs
+        self.notebook = ttk.Notebook(self.root)
+        self.notebook.pack(expand=True, fill='both')
 
-        # Create notebook for tabs
-        self.notebook = ttk.Notebook(self)
-        self.notebook.pack(expand=True, fill='both', padx=5, pady=5)
+        # Initialize views
+        self.views: Dict[str, ttk.Frame] = {}
+        self.setup_views()
 
-        # Initialize database
-        init_database()
+        # Bind keyboard shortcuts
+        self.bind_shortcuts()
 
-        # Setup UI
-        self.setup_ui()
-
-    def setup_ui(self):
-        """Setup the main user interface"""
+    def setup_views(self):
+        """Setup all view tabs"""
         # Product group
         product_notebook = ttk.Notebook(self.notebook)
         self.notebook.add(product_notebook, text='Product')
 
-        # Storage view
+        # Add Storage view under Product
         storage_frame = ttk.Frame(product_notebook)
         product_notebook.add(storage_frame, text='Storage')
-        StorageView(storage_frame)
+        self.views['storage'] = StorageView(storage_frame)
+        self.views['storage'].pack(expand=True, fill='both')  # Pack the Storage view
 
-        # Recipe view
+        # Add Recipe view under Product
         recipe_frame = ttk.Frame(product_notebook)
         product_notebook.add(recipe_frame, text='Recipe')
-        RecipeView(recipe_frame)
+        self.views['recipe'] = RecipeView(recipe_frame)
+        self.views['recipe'].pack(expand=True, fill='both')  # Pack the Recipe view
 
         # Storage group
         storage_notebook = ttk.Notebook(self.notebook)
         self.notebook.add(storage_notebook, text='Storage')
 
-        # Shelf view
+        # Add Shelf view under Storage
         shelf_frame = ttk.Frame(storage_notebook)
         storage_notebook.add(shelf_frame, text='Shelf')
-        ShelfView(shelf_frame)
+        self.views['shelf'] = ShelfView(shelf_frame)
+        self.views['shelf'].pack(expand=True, fill='both')  # Pack the Shelf view
 
-        # Sorting system view
+        # Add Sorting System view under Storage
         sorting_frame = ttk.Frame(storage_notebook)
         storage_notebook.add(sorting_frame, text='Sorting System')
-        SortingSystemView(sorting_frame)
+        self.views['sorting'] = SortingSystemView(sorting_frame)
+        self.views['sorting'].pack(expand=True, fill='both')  # Pack the Sorting System view
 
         # Order group
         order_notebook = ttk.Notebook(self.notebook)
         self.notebook.add(order_notebook, text='Order')
 
-        # Incoming Goods view
+        # Add Incoming Goods view
         incoming_frame = ttk.Frame(order_notebook)
         order_notebook.add(incoming_frame, text='Incoming Goods')
-        IncomingGoodsView(incoming_frame)
+        self.views['incoming'] = IncomingGoodsView(incoming_frame)
+        self.views['incoming'].pack(expand=True, fill='both')  # Pack the Incoming Goods view
 
-        # Shopping List view
+        # Add Shopping List view
         shopping_frame = ttk.Frame(order_notebook)
         order_notebook.add(shopping_frame, text='Shopping List')
-        ShoppingListView(shopping_frame)
+        self.views['shopping'] = ShoppingListView(shopping_frame)
+        self.views['shopping'].pack(expand=True, fill='both')  # Pack the Shopping List view
 
-        # Supplier view
-        supplier_frame = ttk.Frame(self.notebook)
-        self.notebook.add(supplier_frame, text='Supplier')
-        SupplierView(supplier_frame)
+        # Add Supplier view
+        supplier_frame = ttk.Frame(order_notebook)
+        order_notebook.add(supplier_frame, text='Supplier')
+        self.views['supplier'] = supplierView(supplier_frame)
+        self.views['supplier'].pack(expand=True, fill='both')  # Pack the Supplier view
+
+    def bind_shortcuts(self):
+        """Bind global keyboard shortcuts"""
+        self.root.bind('<Control-z>', self.undo)
+        self.root.bind('<Control-y>', self.redo)
+        self.root.bind('<Control-s>', self.save)
+        self.root.bind('<Control-o>', self.load)
+        self.root.bind('<Control-f>', self.search)
+
+    def undo(self, event=None):
+        """Global undo function"""
+        current_view = self.get_current_view()
+        if current_view and hasattr(current_view, 'undo'):
+            current_view.undo()
+
+    def redo(self, event=None):
+        """Global redo function"""
+        current_view = self.get_current_view()
+        if current_view and hasattr(current_view, 'redo'):
+            current_view.redo()
+
+    def save(self, event=None):
+        """Global save function"""
+        current_view = self.get_current_view()
+        if current_view and hasattr(current_view, 'save'):
+            current_view.save()
+
+    def load(self, event=None):
+        """Global load function"""
+        current_view = self.get_current_view()
+        if current_view and hasattr(current_view, 'load'):
+            current_view.load()
+
+    def search(self, event=None):
+        """Global search function"""
+        current_view = self.get_current_view()
+        if current_view and hasattr(current_view, 'show_search_dialog'):
+            current_view.show_search_dialog()
+
+    def get_current_view(self):
+        """Get the currently active view"""
+        current_tab = self.notebook.select()
+        if current_tab:
+            tab_id = self.notebook.index(current_tab)
+
+            # Get the notebook widget for the current tab
+            notebook = self.notebook.nametowidget(current_tab)
+
+            # If it's a nested notebook, get the current subtab
+            if isinstance(notebook, ttk.Notebook):
+                current_subtab = notebook.select()
+                if current_subtab:
+                    subtab_id = notebook.index(current_subtab)
+                    subtab_name = notebook.tab(subtab_id, 'text').lower().replace(' ', '_')
+                    return self.views.get(subtab_name)
+
+            # If it's not a nested notebook, get the view directly
+            tab_name = self.notebook.tab(tab_id, 'text').lower()
+            return self.views.get(tab_name)
+
+        return None
+
+    def run(self):
+        """Start the application"""
+        self.root.mainloop()
 
 
-def main():
-    try:
-        app = MainApplication()
-        app.mainloop()
-    except Exception as e:
-        print(f"Error starting application: {e}")
-        sys.exit(1)
-
-
-if __name__ == '__main__':
-    main()
+if __name__ == "__main__":
+    app = MainWindow()
+    app.run()

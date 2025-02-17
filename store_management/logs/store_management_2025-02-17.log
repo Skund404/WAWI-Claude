@@ -1,0 +1,68 @@
+2025-02-17 22:06:36,400 - StoreManagement - DEBUG - db_manager.py:15 - DatabaseManager initialized with path: F:\WAWI Homebrew\WAWI Claude\store_management\database\store_management.db
+2025-02-17 22:06:36,434 - StoreManagement - DEBUG - db_manager.py:20 - Attempting to connect to database: F:\WAWI Homebrew\WAWI Claude\store_management\database\store_management.db
+2025-02-17 22:06:36,435 - StoreManagement - INFO - db_manager.py:30 - Database connection established successfully
+2025-02-17 22:06:36,435 - StoreManagement - DEBUG - db_manager.py:52 - Executing query: SELECT * FROM storage ORDER BY bin
+2025-02-17 22:06:36,437 - StoreManagement - DEBUG - db_manager.py:60 - Query returned 0 results
+2025-02-17 22:06:36,437 - StoreManagement - DEBUG - db_manager.py:45 - Database connection closed
+2025-02-17 22:06:36,441 - StoreManagement - DEBUG - db_manager.py:15 - DatabaseManager initialized with path: F:\WAWI Homebrew\WAWI Claude\store_management\database\store_management.db
+2025-02-17 22:06:36,493 - StoreManagement - DEBUG - db_manager.py:20 - Attempting to connect to database: F:\WAWI Homebrew\WAWI Claude\store_management\database\store_management.db
+2025-02-17 22:06:36,493 - StoreManagement - INFO - db_manager.py:30 - Database connection established successfully
+2025-02-17 22:06:36,493 - StoreManagement - DEBUG - db_manager.py:52 - Executing query: SELECT * FROM recipe_index ORDER BY name
+2025-02-17 22:06:36,494 - StoreManagement - DEBUG - db_manager.py:60 - Query returned 0 results
+2025-02-17 22:06:36,494 - StoreManagement - DEBUG - db_manager.py:45 - Database connection closed
+2025-02-17 22:06:36,499 - StoreManagement - DEBUG - db_manager.py:15 - DatabaseManager initialized with path: F:\WAWI Homebrew\WAWI Claude\store_management\database\store_management.db
+2025-02-17 22:06:36,529 - StoreManagement - DEBUG - db_manager.py:20 - Attempting to connect to database: F:\WAWI Homebrew\WAWI Claude\store_management\database\store_management.db
+2025-02-17 22:06:36,530 - StoreManagement - INFO - db_manager.py:30 - Database connection established successfully
+2025-02-17 22:06:36,530 - StoreManagement - DEBUG - db_manager.py:52 - Executing query: SELECT * FROM shelf ORDER BY shelf
+2025-02-17 22:06:36,530 - StoreManagement - DEBUG - db_manager.py:60 - Query returned 0 results
+2025-02-17 22:06:36,531 - StoreManagement - DEBUG - db_manager.py:45 - Database connection closed
+2025-02-17 22:09:10,966 - StoreManagement - DEBUG - db_manager.py:15 - DatabaseManager initialized with path: F:\WAWI Homebrew\WAWI Claude\store_management\database\store_management.db
+2025-02-17 22:09:11,039 - StoreManagement - DEBUG - db_manager.py:20 - Attempting to connect to database: F:\WAWI Homebrew\WAWI Claude\store_management\database\store_management.db
+2025-02-17 22:09:11,039 - StoreManagement - INFO - db_manager.py:30 - Database connection established successfully
+2025-02-17 22:09:11,040 - StoreManagement - DEBUG - db_manager.py:52 - Executing query: SELECT * FROM storage ORDER BY bin
+2025-02-17 22:09:11,040 - StoreManagement - DEBUG - db_manager.py:60 - Query returned 0 results
+2025-02-17 22:09:11,041 - StoreManagement - DEBUG - db_manager.py:45 - Database connection closed
+2025-02-17 22:09:11,044 - StoreManagement - DEBUG - db_manager.py:15 - DatabaseManager initialized with path: F:\WAWI Homebrew\WAWI Claude\store_management\database\store_management.db
+2025-02-17 22:09:11,081 - StoreManagement - DEBUG - db_manager.py:20 - Attempting to connect to database: F:\WAWI Homebrew\WAWI Claude\store_management\database\store_management.db
+2025-02-17 22:09:11,081 - StoreManagement - INFO - db_manager.py:30 - Database connection established successfully
+2025-02-17 22:09:11,081 - StoreManagement - DEBUG - db_manager.py:52 - Executing query: SELECT * FROM recipe_index ORDER BY name
+2025-02-17 22:09:11,082 - StoreManagement - DEBUG - db_manager.py:60 - Query returned 0 results
+2025-02-17 22:09:11,082 - StoreManagement - DEBUG - db_manager.py:45 - Database connection closed
+2025-02-17 22:09:11,085 - StoreManagement - DEBUG - db_manager.py:15 - DatabaseManager initialized with path: F:\WAWI Homebrew\WAWI Claude\store_management\database\store_management.db
+2025-02-17 22:09:11,104 - StoreManagement - DEBUG - db_manager.py:20 - Attempting to connect to database: F:\WAWI Homebrew\WAWI Claude\store_management\database\store_management.db
+2025-02-17 22:09:11,105 - StoreManagement - INFO - db_manager.py:30 - Database connection established successfully
+2025-02-17 22:09:11,105 - StoreManagement - DEBUG - db_manager.py:52 - Executing query: SELECT * FROM shelf ORDER BY shelf
+2025-02-17 22:09:11,105 - StoreManagement - DEBUG - db_manager.py:60 - Query returned 0 results
+2025-02-17 22:09:11,106 - StoreManagement - DEBUG - db_manager.py:45 - Database connection closed
+2025-02-17 22:09:11,109 - StoreManagement - DEBUG - db_manager.py:15 - DatabaseManager initialized with path: F:\WAWI Homebrew\WAWI Claude\store_management\database\store_management.db
+2025-02-17 22:09:11,131 - StoreManagement - DEBUG - db_manager.py:20 - Attempting to connect to database: F:\WAWI Homebrew\WAWI Claude\store_management\database\store_management.db
+2025-02-17 22:09:11,131 - StoreManagement - INFO - db_manager.py:30 - Database connection established successfully
+2025-02-17 22:09:11,132 - StoreManagement - DEBUG - db_manager.py:52 - Executing query: SELECT * FROM sorting_system ORDER BY bin
+2025-02-17 22:09:11,133 - StoreManagement - DEBUG - db_manager.py:60 - Query returned 0 results
+2025-02-17 22:09:11,133 - StoreManagement - DEBUG - db_manager.py:45 - Database connection closed
+2025-02-17 22:09:11,137 - StoreManagement - DEBUG - db_manager.py:15 - DatabaseManager initialized with path: F:\WAWI Homebrew\WAWI Claude\store_management\database\store_management.db
+2025-02-17 22:09:11,196 - StoreManagement - DEBUG - db_manager.py:20 - Attempting to connect to database: F:\WAWI Homebrew\WAWI Claude\store_management\database\store_management.db
+2025-02-17 22:09:11,197 - StoreManagement - INFO - db_manager.py:30 - Database connection established successfully
+2025-02-17 22:09:11,197 - StoreManagement - DEBUG - db_manager.py:52 - Executing query: 
+                SELECT 
+                    order_number, supplier, date_of_order, 
+                    status, payed, total_amount
+                FROM orders 
+                ORDER BY date_of_order DESC
+            
+2025-02-17 22:09:11,198 - StoreManagement - DEBUG - db_manager.py:60 - Query returned 0 results
+2025-02-17 22:09:11,199 - StoreManagement - DEBUG - db_manager.py:45 - Database connection closed
+2025-02-17 22:09:11,202 - StoreManagement - DEBUG - db_manager.py:15 - DatabaseManager initialized with path: F:\WAWI Homebrew\WAWI Claude\store_management\database\store_management.db
+2025-02-17 22:09:11,237 - StoreManagement - DEBUG - db_manager.py:20 - Attempting to connect to database: F:\WAWI Homebrew\WAWI Claude\store_management\database\store_management.db
+2025-02-17 22:09:11,238 - StoreManagement - INFO - db_manager.py:30 - Database connection established successfully
+2025-02-17 22:09:11,238 - StoreManagement - DEBUG - db_manager.py:52 - Executing query: SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'shopping_list_%'
+2025-02-17 22:09:11,239 - StoreManagement - DEBUG - db_manager.py:60 - Query returned 0 results
+2025-02-17 22:09:11,239 - StoreManagement - DEBUG - db_manager.py:45 - Database connection closed
+2025-02-17 22:09:11,243 - StoreManagement - DEBUG - db_manager.py:15 - DatabaseManager initialized with path: F:\WAWI Homebrew\WAWI Claude\store_management\database\store_management.db
+2025-02-17 22:09:11,243 - StoreManagement - DEBUG - db_manager.py:20 - Attempting to connect to database: F:\WAWI Homebrew\WAWI Claude\store_management\database\store_management.db
+2025-02-17 22:09:11,244 - StoreManagement - INFO - db_manager.py:30 - Database connection established successfully
+2025-02-17 22:09:11,285 - StoreManagement - DEBUG - Supplier_view.py:366 - Loading supplier data
+2025-02-17 22:09:11,286 - StoreManagement - DEBUG - db_manager.py:52 - Executing query: SELECT * FROM supplier
+2025-02-17 22:09:11,286 - StoreManagement - DEBUG - db_manager.py:60 - Query returned 0 results
+2025-02-17 22:09:11,286 - StoreManagement - INFO - Supplier_view.py:390 - No suppliers found in database
+2025-02-17 22:09:11,286 - StoreManagement - INFO - Supplier_view.py:261 - SupplierView initialized successfully

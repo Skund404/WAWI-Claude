@@ -15,7 +15,14 @@ from utils.error_handler import ErrorHandler, check_database_connection, Databas
 from config import DATABASE_PATH, TABLES, COLORS
 
 
-class SupplierView(ttk.Frame):
+class supplierView(ttk.Frame):
+    def handle_return(self, event=None):
+        """Handle Return key press"""
+        pass
+
+    def handle_escape(self, event=None):
+        """Handle Escape key press"""
+        pass
     def show_search_dialog(self):
         """Open dialog to search suppliers"""
         try:
@@ -249,13 +256,7 @@ class SupplierView(ttk.Frame):
             self.setup_table()
 
             # Load data with error handling
-            try:
-                self.load_data()
-            except Exception as load_error:
-                logger.error(f"Failed to load data: {load_error}")
-                ErrorHandler.show_error("Data Load Error",
-                                        "Failed to load supplier data",
-                                        load_error)
+            self.load_data()
 
             logger.info("SupplierView initialized successfully")
 
@@ -268,113 +269,95 @@ class SupplierView(ttk.Frame):
 
     def setup_toolbar(self):
         """Create the toolbar with all buttons"""
-        try:
-            logger.debug("Setting up toolbar")
+        toolbar = ttk.Frame(self)
+        toolbar.pack(fill=tk.X, padx=5, pady=5)
 
-            toolbar = ttk.Frame(self)
-            toolbar.pack(fill=tk.X, padx=5, pady=5)
+        # Left side buttons (ADD, Search, Filter)
+        left_frame = ttk.Frame(toolbar)
+        left_frame.pack(side=tk.LEFT, fill=tk.X)
 
-            # Left side buttons
-            ttk.Button(toolbar, text="ADD", command=self.show_add_dialog).pack(
-                side=tk.LEFT, padx=2)
-            ttk.Button(toolbar, text="Search", command=self.show_search_dialog).pack(
-                side=tk.LEFT, padx=2)
-            ttk.Button(toolbar, text="Filter", command=self.show_filter_dialog).pack(
-                side=tk.LEFT, padx=2)
+        ttk.Button(left_frame, text="ADD",
+                   command=self.show_add_dialog).pack(side=tk.LEFT, padx=2)
+        ttk.Button(left_frame, text="Search",
+                   command=self.show_search_dialog).pack(side=tk.LEFT, padx=2)
+        ttk.Button(left_frame, text="Filter",
+                   command=self.show_filter_dialog).pack(side=tk.LEFT, padx=2)
 
-            # Right side buttons
-            ttk.Button(toolbar, text="Undo", command=self.undo).pack(
-                side=tk.RIGHT, padx=2)
-            ttk.Button(toolbar, text="Redo", command=self.redo).pack(
-                side=tk.RIGHT, padx=2)
-            ttk.Button(toolbar, text="Save", command=self.save_table).pack(
-                side=tk.RIGHT, padx=2)
-            ttk.Button(toolbar, text="Load", command=self.load_table).pack(
-                side=tk.RIGHT, padx=2)
-            ttk.Button(toolbar, text="Reset View", command=self.reset_view).pack(
-                side=tk.RIGHT, padx=2)
+        # Right side buttons (Save, Load, Undo, Redo, Reset View)
+        right_frame = ttk.Frame(toolbar)
+        right_frame.pack(side=tk.RIGHT, fill=tk.X)
 
-            logger.debug("Toolbar setup completed")
-
-        except Exception as e:
-            error_msg = "Failed to setup toolbar"
-            log_error(e, error_msg)
-            ErrorHandler.show_error("Setup Error", error_msg, e)
+        ttk.Button(right_frame, text="Save",
+                   command=self.save_table).pack(side=tk.RIGHT, padx=2)
+        ttk.Button(right_frame, text="Load",
+                   command=self.load_table).pack(side=tk.RIGHT, padx=2)
+        ttk.Button(right_frame, text="Undo",
+                   command=self.undo).pack(side=tk.RIGHT, padx=2)
+        ttk.Button(right_frame, text="Redo",
+                   command=self.redo).pack(side=tk.RIGHT, padx=2)
+        ttk.Button(right_frame, text="Reset View",
+                   command=self.reset_view).pack(side=tk.RIGHT, padx=2)
 
     def setup_table(self):
         """Create the main table view"""
-        try:
-            logger.debug("Setting up table view")
+        # Create table frame
+        table_frame = ttk.Frame(self)
+        table_frame.pack(expand=True, fill='both', padx=5, pady=5)
 
-            # Define columns
-            self.columns = [
-                "company_name", "contact_person", "phone_number",
-                "email_address", "website", "street_address",
-                "city", "state_province", "postal_code", "country",
-                "tax_id", "business_type", "payment_terms",
-                "currency", "bank_details", "products_offered",
-                "lead_time", "last_order_date", "notes"
-            ]
+        # Define columns
+        self.columns = [
+            "Company Name", "Contact Person", "Phone Number",
+            "Email Address", "Website", "Street Address",
+            "City", "State/Province", "Postal Code", "Country",
+            "Tax ID", "Business Type", "Payment Terms",
+            "Currency", "Bank Details", "Products Offered",
+            "Lead Time", "Last Order Date", "Notes"
+        ]
 
-            # Create table frame
-            self.tree_frame = ttk.Frame(self)
-            self.tree_frame.pack(expand=True, fill='both', padx=5, pady=5)
+        # Create scrollbars
+        vsb = ttk.Scrollbar(table_frame, orient="vertical")
+        hsb = ttk.Scrollbar(table_frame, orient="horizontal")
 
-            # Create scrollbars
-            vsb = ttk.Scrollbar(self.tree_frame, orient="vertical")
-            hsb = ttk.Scrollbar(self.tree_frame, orient="horizontal")
+        # Create treeview
+        self.tree = ttk.Treeview(
+            table_frame,
+            columns=self.columns,
+            show='headings',
+            selectmode='extended',
+            yscrollcommand=vsb.set,
+            xscrollcommand=hsb.set
+        )
 
-            # Create treeview
-            self.tree = ttk.Treeview(
-                self.tree_frame,
-                columns=self.columns,
-                show="headings",
-                selectmode="extended",
-                yscrollcommand=vsb.set,
-                xscrollcommand=hsb.set
-            )
+        # Configure scrollbars
+        vsb.configure(command=self.tree.yview)
+        hsb.configure(command=self.tree.xview)
 
-            # Configure scrollbars
-            vsb.configure(command=self.tree.yview)
-            hsb.configure(command=self.tree.xview)
+        # Setup columns
+        for col in self.columns:
+            self.tree.heading(col, text=col, command=lambda c=col: self.sort_column(c))
 
-            # Setup headers and columns
-            for col in self.columns:
-                self.tree.heading(
-                    col,
-                    text=col.replace("_", " ").title(),
-                    command=lambda c=col: self.sort_column(c)
-                )
+            # Set column widths
+            if col in ["Notes", "Products Offered", "Bank Details"]:
+                width = 200
+            elif col in ["Street Address", "Email Address", "Website"]:
+                width = 150
+            else:
+                width = 100
 
-                # Set column width based on content type
-                if col in ["notes", "products_offered", "bank_details"]:
-                    width = 200
-                elif col in ["street_address", "email_address", "website"]:
-                    width = 150
-                else:
-                    width = 100
+            self.tree.column(col, width=width, minwidth=50)
 
-                self.tree.column(col, width=width, minwidth=50)
+        # Grid layout
+        self.tree.grid(row=0, column=0, sticky='nsew')
+        vsb.grid(row=0, column=1, sticky='ns')
+        hsb.grid(row=1, column=0, sticky='ew')
 
-            # Grid layout
-            self.tree.grid(row=0, column=0, sticky="nsew")
-            vsb.grid(row=0, column=1, sticky="ns")
-            hsb.grid(row=1, column=0, sticky="ew")
+        # Configure grid weights
+        table_frame.grid_columnconfigure(0, weight=1)
+        table_frame.grid_rowconfigure(0, weight=1)
 
-            # Configure grid weights
-            self.tree_frame.grid_columnconfigure(0, weight=1)
-            self.tree_frame.grid_rowconfigure(0, weight=1)
-
-            # Bind events
-            self.tree.bind("<Double-1>", self.on_double_click)
-            self.tree.bind("<Delete>", self.delete_selected)
-
-            logger.debug("Table setup completed")
-
-        except Exception as e:
-            error_msg = "Failed to setup table"
-            log_error(e, error_msg)
-            ErrorHandler.show_error("Setup Error", error_msg, e)
+        # Bind events
+        self.tree.bind('<Double-1>', self.on_double_click)
+        self.tree.bind('<Delete>', self.delete_selected)
 
     @check_database_connection
     def load_data(self):

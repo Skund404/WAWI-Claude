@@ -15,7 +15,7 @@ from gui.storage_view import StorageView
 from gui.sorting_system_view import SortingSystemView
 from gui.order.incoming_goods_view import IncomingGoodsView
 from gui.order.shopping_list_view import ShoppingListView
-from gui.order.supplier_view import SupplierView
+from gui.supplier_view import SupplierView
 
 
 class MainWindow:
