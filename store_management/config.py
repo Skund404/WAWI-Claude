@@ -2,6 +2,13 @@
 import os
 from pathlib import Path
 
+# Add the parent directory to Python path to ensure imports work correctly
+import sys
+sys.path.append(str(Path(__file__).parent))
+
+# Import from the database module
+from database.database_setup import ensure_database
+
 # Project root directory
 ROOT_DIR = Path(__file__).parent
 

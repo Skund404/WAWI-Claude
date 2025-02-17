@@ -90,34 +90,38 @@ class StatusNotification:
         while self.is_running:
             if not self.notification_queue.empty():
                 notification = self.notification_queue.get()
-                self._show_notification(notification)
+                # Schedule the notification display on the main thread
+                self.parent.after(0, lambda: self._show_notification(notification))
             time.sleep(0.1)
 
     def _show_notification(self, notification: dict):
         """Show notification"""
-        message = notification['message']
-        ntype = notification['type']
-        duration = notification.get('duration', 3000)
-        progress = notification.get('progress', False)
-        callback = notification.get('callback')
+        try:
+            message = notification['message']
+            ntype = notification['type']
+            duration = notification.get('duration', 3000)
+            progress = notification.get('progress', False)
+            callback = notification.get('callback')
 
-        # Update label style and text
-        self.status_label.configure(
-            style=f"{ntype.title()}.TLabel",
-            text=message
-        )
+            # Update label style and text
+            self.status_label.configure(
+                style=f"{ntype.value.title()}.TLabel",
+                text=message
+            )
 
-        # Show/hide progress bar
-        if progress:
-            self.progress.pack(side=tk.RIGHT, padx=5)
-            self.progress.start()
-        else:
-            self.progress.stop()
-            self.progress.pack_forget()
+            # Show/hide progress bar
+            if progress:
+                self.progress.pack(side=tk.RIGHT, padx=5)
+                self.progress.start()
+            else:
+                self.progress.stop()
+                self.progress.pack_forget()
 
-        # Schedule notification removal
-        if duration > 0:
-            self.parent.after(duration, lambda: self._clear_notification(callback))
+            # Schedule notification removal
+            if duration > 0:
+                self.parent.after(duration, lambda: self._clear_notification(callback))
+        except Exception as e:
+            print(f"Error showing notification: {e}")
 
     def _clear_notification(self, callback: Optional[Callable] = None):
         """Clear current notification"""
@@ -177,5 +181,5 @@ class StatusNotification:
     def cleanup(self):
         """Cleanup resources"""
         self.is_running = False
-        if self.notification_thread:
+        if self.notification_thread and self.notification_thread.is_alive():
             self.notification_thread.join(timeout=1.0)

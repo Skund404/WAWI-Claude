@@ -24,17 +24,43 @@ class SupplierView(ttk.Frame):
             # Connect to the database
             self.db.connect()
 
+            # Print out the table name to verify
+            print(f"Attempting to load from table: {TABLES['SUPPLIER']}")
+
             # Fetch all suppliers
             query = f"SELECT * FROM {TABLES['SUPPLIER']}"
-            results = self.db.execute_query(query)
+
+            try:
+                results = self.db.execute_query(query)
+            except Exception as query_error:
+                # More detailed error information
+                print(f"Query Error: {query_error}")
+                # Check if table exists
+                table_check_query = "SELECT name FROM sqlite_master WHERE type='table' AND name=?"
+                existing_tables = self.db.execute_query(table_check_query, (TABLES['SUPPLIER'],))
+                print(f"Table exists: {bool(existing_tables)}")
+
+                # List all tables in the database
+                list_tables_query = "SELECT name FROM sqlite_master WHERE type='table'"
+                tables = self.db.execute_query(list_tables_query)
+                print("Existing tables:")
+                for table in tables:
+                    print(table[0])
+
+                raise
 
             # Populate treeview
             if results:
                 for row in results:
                     self.tree.insert("", "end", values=row)
+            else:
+                print("No results found in the supplier table")
 
         except Exception as e:
-            messagebox.showerror("Load Error", f"Failed to load suppliers: {str(e)}")
+            # Capture the full error details
+            import traceback
+            error_details = traceback.format_exc()
+            messagebox.showerror("Load Error", f"Failed to load suppliers: {e}\n\nDetails: {error_details}")
 
         finally:
             # Always disconnect from the database
