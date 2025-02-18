@@ -8,6 +8,23 @@ from utils.error_handler import DatabaseError
 
 
 class DatabaseManager:
+    def print_all_table_columns(self):
+        """Print columns for all tables in the database"""
+        try:
+            # Get list of all tables
+            self.cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+            tables = self.cursor.fetchall()
+
+            for table in tables:
+                table_name = table[0]
+                print(f"\nColumns for table: {table_name}")
+                self.cursor.execute(f"PRAGMA table_info({table_name});")
+                columns = self.cursor.fetchall()
+                for column in columns:
+                    print(f"- {column[1]} (Type: {column[2]})")
+        except sqlite3.Error as e:
+            print(f"Error retrieving table columns: {e}")
+
     def __init__(self, db_path: Path):
         self.db_path = db_path
         self.conn = None

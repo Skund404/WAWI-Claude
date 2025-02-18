@@ -10,6 +10,59 @@ from gui.dialogs.search_dialog import SearchDialog
 from gui.dialogs.filter_dialog import FilterDialog
 
 
+def evaluate_math_expression(current_value, expression):
+    """
+    Evaluate a mathematical expression relative to the current value.
+
+    Args:
+        current_value (int): Current storage value
+        expression (str): Mathematical expression to evaluate
+
+    Returns:
+        int: Calculated new value
+
+    Raises:
+        ValueError: If expression is invalid or results in negative value
+    """
+    import math
+
+    try:
+        # Replace 'x' or '*' with multiplication operator
+        expression = expression.replace('x', '*')
+
+        # Strip any whitespace from the expression
+        expression = expression.strip()
+
+        # If the expression starts with an operator, prepend the current value
+        if expression[0] in ['+', '-', '*', '/']:
+            full_expression = f"{current_value}{expression}"
+        else:
+            full_expression = expression
+
+        # Safely evaluate the expression
+        # We use a restricted eval with only basic math operations
+        allowed_names = {
+            'abs': abs,
+            'int': int,
+            'round': round,
+            'min': min,
+            'max': max
+        }
+        allowed_names.update(vars(math))
+
+        # Evaluate the expression
+        result = eval(full_expression, {"__builtins__": None}, allowed_names)
+
+        # Ensure result is a non-negative integer
+        result = int(result)
+        if result < 0:
+            raise ValueError("Result cannot be negative")
+
+        return result
+
+    except Exception as e:
+        raise ValueError(f"Invalid mathematical expression: {str(e)}")
+
 class SortingSystemView(ttk.Frame):
     def show_add_dialog(self):
         """Wrapper method for backward compatibility"""
@@ -121,14 +174,13 @@ class SortingSystemView(ttk.Frame):
         main_frame = ttk.Frame(dialog, padding="10")
         main_frame.pack(fill=tk.BOTH, expand=True)
 
-        # Entry fields
+        # Entry fields dictionary
         entries = {}
         fields = [
-            ('unique_id_parts', 'Part ID', True),
             ('name', 'Part Name', True),
             ('color', 'Color', False),
             ('in_storage', 'Initial Stock', True),
-            ('bin', 'Bin Location', False),
+            ('bin', 'Bin Location', True),
             ('notes', 'Notes', False)
         ]
 
@@ -150,54 +202,171 @@ class SortingSystemView(ttk.Frame):
         # Configure grid
         main_frame.columnconfigure(1, weight=1)
 
-        def generate_part_id():
-            """Generate a unique part ID"""
-            import uuid
-            prefix = ''.join(word[0].upper() for word in entries['name'].get().split()[:2])
-            return f"P{prefix}{str(uuid.uuid4())[:8]}"
+        def generate_part_id(name, bin_location):
+            """
+            Generate a unique Part ID
+            - Always starts with 'P'
+            - Followed by first letters of first two words of name
+            - Ensures uniqueness with a random suffix
+
+            Args:
+                name (str): Name of the part
+                bin_location (str): Bin location (used for uniqueness check)
+
+            Returns:
+                str: Unique Part ID
+            """
+            import random
+            import string
+
+            # Sanitize name input
+            name = name.strip()
+
+            # Split name into words and get first two word initials
+            words = name.split()
+
+            # Determine first letters
+            if len(words) >= 2:
+                # Use first letters of first two words
+                first_letters = words[0][0].upper() + words[1][0].upper()
+            elif len(words) == 1:
+                # If only one word, use its first letter twice
+                first_letters = words[0][0].upper() * 2
+            else:
+                # Fallback for empty name
+                first_letters = 'XX'
+
+            # Check for existing IDs to ensure uniqueness
+            existing_ids = []
+            try:
+                # This assumes self.db is available and connection method exists
+                # You might need to adjust this based on your exact database access method
+                self.db.connect()
+                cursor = self.db.connection.cursor()
+                cursor.execute("SELECT unique_id_parts FROM sorting_system")
+                existing_ids = [row[0] for row in cursor.fetchall()]
+            except Exception as e:
+                print(f"Error checking existing IDs: {e}")
+            finally:
+                self.db.disconnect()
+
+            # Generate unique ID
+            while True:
+                # Generate random alphanumeric suffix
+                suffix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
+
+                # Construct Part ID: P + first letters of first two words + random suffix
+                part_id = f"P{first_letters}{suffix}"
+
+                # Check if ID is unique
+                if part_id not in existing_ids:
+                    return part_id
 
         def save_part():
             """Save the new part to the database"""
-            # Validate required fields
-            required_fields = [field for field, _, req in fields if req]
-            for field in required_fields:
-                if not entries[field].get():
-                    messagebox.showerror("Error", f"{field.replace('_', ' ').title()} is required")
+            # Validate and collect required fields
+            try:
+                # Collect input data
+                data = {}
+                required_fields = [
+                    ('name', 'Part Name'),
+                    ('bin', 'Bin Location'),
+                    ('in_storage', 'Initial Stock')
+                ]
+
+                for field, label in required_fields:
+                    value = entries[field].get().strip()
+                    if not value:
+                        messagebox.showerror("Error", f"{label} is required")
+                        return
+                    data[field] = value
+
+                # Collect optional fields
+                data['color'] = entries['color'].get().strip() or None
+                data['notes'] = entries['notes'].get().strip() or None
+
+                # Validate numeric input
+                try:
+                    data['in_storage'] = int(data['in_storage'])
+                    if data['in_storage'] < 0:
+                        raise ValueError("Stock cannot be negative")
+                except ValueError:
+                    messagebox.showerror("Error", "Initial stock must be a non-negative number")
                     return
 
-            try:
-                # Prepare data
-                data = {field: entries[field].get() for field in entries}
+                # Generate Part ID
+                part_id = generate_part_id(data['name'], data['bin'])
 
-                # Generate part ID if not provided
-                if not data['unique_id_parts']:
-                    data['unique_id_parts'] = generate_part_id()
+                # Prepare data for database insertion
+                insert_data = {
+                    'unique_id_parts': part_id,
+                    'name': data['name'],
+                    'color': data['color'],
+                    'in_storage': data['in_storage'],
+                    'bin': data['bin'],
+                    'notes': data['notes']
+                }
 
-                # Validate numeric fields
-                data['in_storage'] = int(data['in_storage'])
-
-                # Connect to database
+                # Attempt to insert record
                 self.db.connect()
                 try:
+                    # Print debug information
+                    print("Attempting to insert data:")
+                    for key, value in insert_data.items():
+                        print(f"{key}: {value}")
+
                     # Insert record
-                    if self.db.insert_record(TABLES['SORTING_SYSTEM'], data):
+                    success = self.db.insert_record(TABLES['SORTING_SYSTEM'], insert_data)
+
+                    if success:
+                        # Add to undo stack
+                        self.undo_stack.append(('add', insert_data))
+                        self.redo_stack.clear()
+
                         # Refresh the view
                         self.load_data()
 
                         # Show success message
-                        messagebox.showinfo("Success", "Part added successfully")
+                        messagebox.showinfo(
+                            "Success",
+                            f"Part added successfully\nPart ID: {part_id}"
+                        )
 
                         # Close dialog
                         dialog.destroy()
                     else:
-                        messagebox.showerror("Error", "Failed to add part")
+                        messagebox.showerror(
+                            "Error",
+                            "Failed to add part. Please check your database connection."
+                        )
+
+                except Exception as e:
+                    # Comprehensive error logging
+                    import traceback
+                    print("Error Details:")
+                    print(f"Error Type: {type(e).__name__}")
+                    print(f"Error Message: {str(e)}")
+                    print("Full Traceback:")
+                    traceback.print_exc()
+
+                    messagebox.showerror(
+                        "Database Error",
+                        f"An error occurred while adding the part:\n{str(e)}\n"
+                        "Please check the console for detailed error information."
+                    )
                 finally:
                     self.db.disconnect()
 
-            except ValueError:
-                messagebox.showerror("Error", "Invalid input. Please check your entries.")
             except Exception as e:
-                messagebox.showerror("Error", f"An error occurred: {str(e)}")
+                # Catch any unexpected errors
+                import traceback
+                print("Unexpected Error:")
+                traceback.print_exc()
+
+                messagebox.showerror(
+                    "Unexpected Error",
+                    f"An unexpected error occurred:\n{str(e)}"
+                )
 
         # Buttons
         button_frame = ttk.Frame(main_frame)
@@ -274,80 +443,196 @@ class SortingSystemView(ttk.Frame):
         self.tree.heading(col, text=f"{col.replace('_', ' ').title()} {arrow}")
 
     def on_double_click(self, event):
-        """Handle double-click on cell"""
+        """
+        Handle double-click event on treeview cells
+        Enables cell editing when a cell is double-clicked
+        """
+        # Print debug information
+        print("Double-click event triggered")
+
+        # Identify the region, column, and row of the click
         region = self.tree.identify("region", event.x, event.y)
+        print(f"Clicked region: {region}")
+
+        # Only proceed if clicked on a cell
         if region == "cell":
+            # Identify the column and row
             column = self.tree.identify_column(event.x)
             item = self.tree.identify_row(event.y)
 
-            if column == "#1":  # ID column
-                return  # Don't allow editing of ID
+            print(f"Column: {column}")
+            print(f"Item: {item}")
 
+            # Get the column index (remove the '#' and convert to zero-based index)
+            col_index = int(column[1:]) - 1
+
+            # Get the column name
+            col_name = self.columns[col_index]
+            print(f"Column Name: {col_name}")
+
+            # Skip editing for certain columns (like unique ID)
+            if col_name == 'unique_id_parts':
+                print("Skipping edit for unique_id_parts")
+                return
+
+            # Start cell editing
             self.start_cell_edit(item, column)
 
     def start_cell_edit(self, item, column):
-        """Start cell editing"""
-        col_num = int(column[1]) - 1
-        col_name = self.columns[col_num]
-        current_value = self.tree.set(item, col_name)
+        """
+        Enhanced cell editing with mathematical expression support
+        and comprehensive debugging
 
-        # Create edit frame
-        frame = ttk.Frame(self.tree)
+        Args:
+            item (str): Treeview item identifier
+            column (str): Column identifier (e.g., '#4')
+        """
+        try:
+            # Detailed debugging information
+            print("Starting cell edit")
+            print(f"Item: {item}")
+            print(f"Column: {column}")
 
-        # Create entry widget
-        entry = ttk.Entry(frame)
-        entry.insert(0, current_value)
-        entry.select_range(0, tk.END)
-        entry.pack(fill=tk.BOTH, expand=True)
+            # Get column index and name
+            try:
+                col_num = int(column[1:]) - 1
+                col_name = self.columns[col_num]
+            except (IndexError, ValueError) as e:
+                print(f"Error parsing column: {e}")
+                messagebox.showerror("Edit Error", f"Invalid column: {column}")
+                return
 
-        # Position frame
-        bbox = self.tree.bbox(item, column)
-        frame.place(x=bbox[0], y=bbox[1], width=bbox[2], height=bbox[3])
+            print(f"Column Name: {col_name}")
 
-        def save_edit(event=None):
-            """Save the edited value"""
-            new_value = entry.get()
-            if new_value != current_value:
-                # Validate numeric fields
-                if col_name == 'in_storage':
-                    try:
-                        value = int(new_value)
-                        if value < 0:
-                            messagebox.showerror("Error", "In Storage must be non-negative")
-                            return
-                    except ValueError:
-                        messagebox.showerror("Error", "In Storage must be a number")
-                        return
+            # Skip editing for certain columns
+            if col_name == 'unique_id_parts':
+                print("Skipping edit for unique_id_parts")
+                return
 
-                # Store for undo
-                old_values = {col: self.tree.set(item, col) for col in self.columns}
-                self.undo_stack.append(('edit', item, old_values))
-                self.redo_stack.clear()
+            # Get current value
+            try:
+                current_value = self.tree.set(item, col_name)
+            except Exception as e:
+                print(f"Error getting current value: {e}")
+                messagebox.showerror("Edit Error", f"Could not retrieve current value: {e}")
+                return
 
-                # Update database
-                unique_id = self.tree.set(item, 'unique_id_parts')
-                self.update_record(unique_id, col_name, new_value)
+            print(f"Current Value: {current_value}")
 
-                # Update tree
-                self.tree.set(item, col_name, new_value)
+            # Create edit frame
+            frame = ttk.Frame(self.tree)
 
-                # Update low stock warning
-                if col_name == 'in_storage':
-                    if int(new_value) <= 5:
-                        self.tree.item(item, tags=('low_stock',))
-                    else:
-                        self.tree.item(item, tags=())
+            # Create appropriate entry widget based on column
+            if col_name == 'in_storage':
+                # Numeric entry with mathematical expression support
+                entry = ttk.Entry(frame)
+            else:
+                # Standard text entry
+                entry = ttk.Entry(frame)
 
-            frame.destroy()
+            # Populate and configure entry
+            entry.insert(0, current_value)
+            entry.select_range(0, tk.END)
+            entry.pack(fill=tk.BOTH, expand=True)
 
-        def cancel_edit(event=None):
-            """Cancel the edit"""
-            frame.destroy()
+            # Position the edit frame
+            try:
+                bbox = self.tree.bbox(item, column)
+                print(f"Bounding Box: {bbox}")
 
-        entry.bind('<Return>', save_edit)
-        entry.bind('<Escape>', cancel_edit)
-        entry.bind('<FocusOut>', save_edit)
-        entry.focus_set()
+                if bbox:
+                    frame.place(x=bbox[0], y=bbox[1], width=bbox[2], height=bbox[3])
+                else:
+                    print("Warning: Could not get bounding box")
+                    messagebox.showwarning("Edit Error", "Could not position edit widget")
+                    return
+
+            except Exception as e:
+                print(f"Error positioning edit frame: {e}")
+                messagebox.showerror("Edit Error", f"Positioning error: {e}")
+                return
+
+            def save_edit(event=None):
+                """Save the edited value"""
+                try:
+                    new_value = entry.get().strip()
+                    print(f"New Value: {new_value}")
+
+                    # Validate and process the new value
+                    if col_name == 'in_storage':
+                        # Handle mathematical expressions for in_storage
+                        if any(op in new_value for op in ['-', '+', '*', '/', '(', ')']):
+                            try:
+                                # Convert current value to integer
+                                current_int = int(current_value)
+
+                                # Evaluate mathematical expression
+                                new_value_int = evaluate_math_expression(current_int, new_value)
+
+                                # Convert back to string for display
+                                new_value = str(new_value_int)
+                            except ValueError as e:
+                                messagebox.showerror("Error", str(e))
+                                frame.destroy()
+                                return
+                        else:
+                            # Regular numeric validation
+                            try:
+                                new_value_int = int(new_value)
+                                if new_value_int < 0:
+                                    messagebox.showerror("Error", "Value must be non-negative")
+                                    frame.destroy()
+                                    return
+                            except ValueError:
+                                messagebox.showerror("Error", "Must be a valid number")
+                                frame.destroy()
+                                return
+
+                    # Only update if value has changed
+                    if new_value != current_value:
+                        # Store current values for undo
+                        old_values = {col: self.tree.set(item, col) for col in self.columns}
+                        self.undo_stack.append(('edit', item, old_values))
+                        self.redo_stack.clear()
+
+                        # Update database
+                        unique_id = self.tree.set(item, 'unique_id_parts')
+                        self.update_record(unique_id, col_name, new_value)
+
+                        # Update treeview
+                        self.tree.set(item, col_name, new_value)
+
+                        # Update low stock warning for in_storage
+                        if col_name == 'in_storage':
+                            in_storage_value = int(new_value)
+                            if in_storage_value <= 5:
+                                self.tree.item(item, tags=('low_stock',))
+                            else:
+                                self.tree.item(item, tags=())
+
+                    # Close the edit frame
+                    frame.destroy()
+
+                except Exception as e:
+                    print(f"Unexpected save error: {e}")
+                    messagebox.showerror("Unexpected Error", str(e))
+                    frame.destroy()
+
+            def cancel_edit(event=None):
+                """Cancel the edit and destroy the frame"""
+                frame.destroy()
+
+            # Bind events to the entry widget
+            entry.bind('<Return>', save_edit)
+            entry.bind('<Escape>', cancel_edit)
+            entry.bind('<FocusOut>', save_edit)
+
+            # Set focus to the entry widget
+            entry.focus_set()
+
+        except Exception as e:
+            print(f"Unexpected error in start_cell_edit: {e}")
+            messagebox.showerror("Unexpected Error", str(e))
 
     def update_record(self, unique_id: str, column: str, value: str):
         """Update record in database"""
