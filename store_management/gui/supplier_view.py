@@ -15,7 +15,7 @@ from utils.error_handler import ErrorHandler, check_database_connection, Databas
 from config import DATABASE_PATH, TABLES, COLORS
 
 
-class supplierView(ttk.Frame):
+class SupplierView(ttk.Frame):
     def handle_return(self, event=None):
         """Handle Return key press"""
         pass
