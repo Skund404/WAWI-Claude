@@ -114,9 +114,7 @@ python main.py
 ## 8. Roadmap
 - User authentication system  
 - Advanced reporting and analytics  
-- Cloud backup integration  
-- Mobile application  
-- Machine learning inventory predictions  
+  
 
 ---
 
