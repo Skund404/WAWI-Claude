@@ -16,6 +16,111 @@ from gui.dialogs.search_dialog import SearchDialog
 
 
 class RecipeView(ttk.Frame):
+    def print_recipe_details(self):
+        """Print all records in the recipe_details table for debugging"""
+        try:
+            self.db.connect()
+
+            # Get all records from recipe_details
+            query = "SELECT * FROM recipe_details"
+            results = self.db.execute_query(query)
+
+            print("\n--- Recipe Details Table Contents ---")
+            print("Total records:", len(results))
+
+            # Print column headers
+            columns = self.db.get_table_columns('recipe_details')
+            print("Columns:", columns)
+
+            # Print each record
+            for record in results:
+                print(record)
+
+            print("--- End of Recipe Details ---\n")
+
+        except Exception as e:
+            print(f"Error printing recipe details: {e}")
+        finally:
+            self.db.disconnect()
+
+    def show_add_recipe_dialog(self):
+        """Show dialog for adding new recipe"""
+        dialog = tk.Toplevel(self)
+        dialog.title("Add New Recipe")
+        dialog.transient(self)
+        dialog.grab_set()
+
+        # Create main frame
+        main_frame = ttk.Frame(dialog, padding="10")
+        main_frame.grid(row=0, column=0, sticky='nsew')
+
+        # Create entry fields
+        entries = {}
+        fields = ['name', 'type', 'collection', 'color', 'pattern_id', 'notes']
+
+        for i, field in enumerate(fields):
+            ttk.Label(main_frame, text=field.title() + ":").grid(row=i, column=0, sticky='w')
+            entries[field] = ttk.Entry(main_frame)
+            entries[field].grid(row=i, column=1, sticky='ew')
+
+        def save():
+            """Save the new recipe"""
+            try:
+                # Generate unique ID from name and type
+                name = entries['name'].get()
+                type_ = entries['type'].get()
+                if not name or not type_:
+                    messagebox.showerror("Error", "Name and Type are required")
+                    return
+
+                prefix = ''.join(word[0].upper() for word in name.split())
+                unique_id = f"{prefix}{str(uuid.uuid4())[:8]}"
+
+                data = {
+                    'unique_id_product': unique_id,
+                    **{field: entries[field].get() for field in fields}
+                }
+
+                self.db.connect()
+                if self.db.insert_record(TABLES['RECIPE_INDEX'], data):
+                    # Add to undo stack
+                    self.undo_stack.append(('add_recipe', data))
+                    self.redo_stack.clear()
+
+                    # Refresh view and select new recipe
+                    self.load_data()
+                    self.current_recipe = unique_id
+
+                    # Close dialog
+                    dialog.destroy()
+
+                    # Show success message
+                    self.notifications.show_success("Recipe added successfully")
+
+                else:
+                    raise Exception("Failed to add recipe")
+
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to add recipe: {str(e)}")
+            finally:
+                self.db.disconnect()
+
+        # Buttons
+        button_frame = ttk.Frame(main_frame)
+        button_frame.grid(row=len(fields), column=0, columnspan=2, pady=10)
+
+        ttk.Button(button_frame, text="Continue", command=save).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
+
+        # Configure grid
+        main_frame.columnconfigure(1, weight=1)
+
+        # Set focus to name field
+        entries['name'].focus_set()
+
+        # Bind enter to save
+        dialog.bind('<Return>', lambda e: save())
+        dialog.bind('<Escape>', lambda e: dialog.destroy())
     def show_filter_dialog(self):
         """Show filter dialog for recipe view"""
         from tkinter import simpledialog, messagebox
@@ -226,17 +331,24 @@ class RecipeView(ttk.Frame):
                     FROM sorting_system ORDER BY name
                 """)
                 leather = self.db.execute_query("""
-                    SELECT unique_id_leather, name, color, size, shelf
+                    SELECT unique_id_leather, name, color, size_ft, shelf
                     FROM shelf ORDER BY name
                 """)
 
                 items = []
                 items.append(("create_part", "➕ Add New Part"))
                 items.append(("create_leather", "➕ Add New Leather"))
+
+                # Add parts to the list
                 items.extend((p[0], f"{p[1]} ({p[0]}) - Stock: {p[3]} - Bin: {p[4]}") for p in parts)
+
+                # Add leather items to the list
                 items.extend((l[0], f"{l[1]} ({l[0]}) - Size: {l[3]} - Shelf: {l[4]}") for l in leather)
 
                 return items
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to refresh items list: {str(e)}")
+                return []
             finally:
                 self.db.disconnect()
 
@@ -333,21 +445,42 @@ class RecipeView(ttk.Frame):
             for label in preview_labels.values():
                 label.configure(text="")
 
-            # Handle special cases
+            # Handle special cases for creating new items
             if selection.startswith("➕"):
+                # Get parent window (MainWindow)
+                parent_window = dialog.winfo_toplevel()
+
                 if "Part" in selection:
-                    dialog.withdraw()
-                    messagebox.showinfo("Add Part", "This will open the Add Part dialog")
-                    dialog.deiconify()
+                    # Open new part dialog
+                    part_dialog = parent_window.get_part_dialog(dialog)
+
+                    # After dialog closes, refresh items list
+                    if part_dialog:
+                        dialog.wait_window(part_dialog)
+                        local_items = refresh_items_list()
+                        item_combo['values'] = [item[1] for item in local_items]
+
                 elif "Leather" in selection:
-                    dialog.withdraw()
-                    messagebox.showinfo("Add Leather", "This will open the Add Leather dialog")
-                    dialog.deiconify()
+                    # Open new leather dialog
+                    leather_dialog = parent_window.get_leather_dialog(dialog)
+
+                    # After dialog closes, refresh items list
+                    if leather_dialog:
+                        dialog.wait_window(leather_dialog)
+                        local_items = refresh_items_list()
+                        item_combo['values'] = [item[1] for item in local_items]
+
                 return
+
+            # Refresh items list if not already done
+            try:
+                local_items
+            except NameError:
+                local_items = refresh_items_list()
 
             # Get selected item ID
             selected_id = None
-            for item_id, item_text in items:
+            for item_id, item_text in local_items:
                 if item_text == selection:
                     selected_id = item_id
                     break
@@ -360,7 +493,7 @@ class RecipeView(ttk.Frame):
             try:
                 if selected_id.startswith('L'):  # Leather item
                     result = self.db.execute_query("""
-                        SELECT name, 'Leather' as type, color, size, 
+                        SELECT name, 'Leather' as type, color, size_ft, 
                                NULL as in_storage, shelf as location
                         FROM shelf 
                         WHERE unique_id_leather = ?
@@ -387,13 +520,20 @@ class RecipeView(ttk.Frame):
                     if 'in_storage' in preview_labels:
                         in_storage = preview_labels['in_storage'].cget('text')
                         if in_storage != "N/A":
-                            if int(in_storage) <= 5:
-                                preview_labels['in_storage'].configure(foreground="red")
-                            else:
+                            try:
+                                storage_value = int(in_storage)
+                                if storage_value <= 5:
+                                    preview_labels['in_storage'].configure(foreground="red")
+                                else:
+                                    preview_labels['in_storage'].configure(foreground="black")
+                            except ValueError:
+                                # Handle case where in_storage is not a valid integer
                                 preview_labels['in_storage'].configure(foreground="black")
 
             finally:
                 self.db.disconnect()
+
+
 
         def add_to_batch():
             """Add current item to batch list"""
@@ -406,7 +546,7 @@ class RecipeView(ttk.Frame):
 
             # Get selected item ID
             selected_id = None
-            for item_id, item_text in items:
+            for item_id, item_text in local_items:
                 if item_text == selection:
                     selected_id = item_id
                     break
@@ -429,12 +569,18 @@ class RecipeView(ttk.Frame):
 
             # Check storage availability
             in_storage = preview_labels['in_storage'].cget('text')
-            if in_storage != "N/A" and int(in_storage) < amount:
-                if not messagebox.askyesno(
-                        "Warning",
-                        "Required amount exceeds available stock. Continue anyway?"
-                ):
-                    return
+            if in_storage != "N/A":
+                try:
+                    storage_value = int(in_storage)
+                    if storage_value < amount:
+                        if not messagebox.askyesno(
+                                "Warning",
+                                "Required amount exceeds available stock. Continue anyway?"
+                        ):
+                            return
+                except ValueError:
+                    # If storage value is not a valid integer, assume no stock check
+                    pass
 
             # Add to batch list
             batch_tree.insert('', 'end', values=[
@@ -491,7 +637,6 @@ class RecipeView(ttk.Frame):
         item_var.trace('w', update_preview)
 
         def save_batch():
-            """Save all items in batch to recipe"""
             batch_items = batch_tree.get_children()
             if not batch_items:
                 messagebox.showwarning("Warning", "No items to add")
@@ -509,13 +654,13 @@ class RecipeView(ttk.Frame):
                     size = values[3] if values[3] != "N/A" else None
 
                     # Query item details
-                    if item_id.startswith('L'):
+                    if item_id.startswith('L'):  # Leather item
                         result = self.db.execute_query("""
                             SELECT name, color
                             FROM shelf 
                             WHERE unique_id_leather = ?
                         """, (item_id,))
-                    else:
+                    else:  # Part item
                         result = self.db.execute_query("""
                             SELECT name, color, in_storage
                             FROM sorting_system 
@@ -528,7 +673,7 @@ class RecipeView(ttk.Frame):
                     # Prepare data
                     data = {
                         'recipe_id': self.current_recipe,
-                        'unique_id_parts': item_id,
+                        'unique_id_parts': item_id,  # This is the correct unique ID of the part/shelf item
                         'name': result[0][0],
                         'color': result[0][1],
                         'amount': amount,
@@ -584,6 +729,8 @@ class RecipeView(ttk.Frame):
 
         # Add required fields note
         ttk
+
+
     def __init__(self, parent):
         super().__init__(parent)
         self.parent = parent
@@ -702,7 +849,7 @@ class RecipeView(ttk.Frame):
         index_frame.pack(fill='both', expand=True, padx=5, pady=5)
 
         self.index_columns = [
-            'unique_id_product', 'name', 'type', 'collection', 'notes'
+            'unique_id_product', 'name', 'type', 'collection', 'color', 'pattern_id', 'notes'
         ]
 
         self.index_tree = self.create_treeview(
@@ -717,7 +864,7 @@ class RecipeView(ttk.Frame):
 
         self.details_columns = [
             'unique_id_parts', 'name', 'color', 'amount', 'size',
-            'in_storage', 'pattern_id', 'notes'
+            'in_storage', 'notes'
         ]
 
         self.details_tree = self.create_treeview(
@@ -799,10 +946,11 @@ class RecipeView(ttk.Frame):
         self.bind_all('<F5>', self.reset_view)
 
     def load_data(self):
+        self.db.print_table_info('recipe_index')
         """Load data from database into index table"""
         self.db.connect()
         try:
-            query = "SELECT * FROM recipe_index ORDER BY name"
+            query = "SELECT unique_id_product, name, type, collection, color, pattern_id, notes FROM recipe_index ORDER BY name"
             results = self.db.execute_query(query)
 
             # Clear existing items
@@ -811,7 +959,7 @@ class RecipeView(ttk.Frame):
 
             # Insert new data
             for row in results:
-                self.index_tree.insert('', 'end', values=row[:-2])  # Exclude timestamps
+                self.index_tree.insert('', 'end', values=row)
 
             # Update recipe count
             self.recipe_count.configure(text=f"Recipes: {len(results)}")
@@ -834,7 +982,6 @@ class RecipeView(ttk.Frame):
         self.current_recipe = recipe_id
 
     def load_recipe_details(self, recipe_id: str):
-        """Load details for selected recipe"""
         # Clear existing items
         for item in self.details_tree.get_children():
             self.details_tree.delete(item)
@@ -852,12 +999,21 @@ class RecipeView(ttk.Frame):
 
             if results:
                 for row in results:
-                    # Check if storage is less than required amount
-                    amount = row[3]  # amount column
-                    in_storage = row[5]  # in_storage column
-
-                    values = list(row[:-2])  # Exclude timestamps
+                    # Ensure correct order of values
+                    values = [
+                        row[1],  # unique_id_parts
+                        row[2],  # name
+                        row[3],  # color
+                        row[4],  # amount
+                        row[5],  # size
+                        row[10] if len(row) > 10 else None,  # in_storage (from join)
+                        row[7],  # notes
+                    ]
                     item_id = self.details_tree.insert('', 'end', values=values)
+
+                    # Check if storage is less than required amount
+                    amount = row[4]  # amount column
+                    in_storage = row[10] if len(row) > 10 else None  # in_storage column from join
 
                     if in_storage is not None and amount > in_storage:
                         self.details_tree.item(item_id, tags=('low_storage',))
@@ -865,84 +1021,432 @@ class RecipeView(ttk.Frame):
         finally:
             self.db.disconnect()
 
-    def show_add_recipe_dialog(self):
-        """Show dialog for adding new recipe"""
+    def show_add_item_dialog(self):
+        """Show dialog for adding item to recipe"""
+        if not self.current_recipe:
+            messagebox.showwarning("Warning", "Please select a recipe first")
+            return
+
         dialog = tk.Toplevel(self)
-        dialog.title("Add New Recipe")
+        dialog.title("Add Item to Recipe")
         dialog.transient(self)
         dialog.grab_set()
+        dialog.geometry("800x600")
 
-        # Create main frame
+        # Create main frame with padding
         main_frame = ttk.Frame(dialog, padding="10")
-        main_frame.grid(row=0, column=0, sticky='nsew')
+        main_frame.pack(fill=tk.BOTH, expand=True)
 
-        # Create entry fields
-        entries = {}
-        fields = ['name', 'type', 'collection', 'notes']
+        # Left panel for item selection and preview
+        left_panel = ttk.Frame(main_frame)
+        left_panel.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 5))
 
-        for i, field in enumerate(fields):
-            ttk.Label(main_frame, text=field.title() + ":").grid(row=i, column=0, sticky='w')
-            entries[field] = ttk.Entry(main_frame)
-            entries[field].grid(row=i, column=1, sticky='ew')
+        # Right panel for batch items list
+        right_panel = ttk.Frame(main_frame)
+        right_panel.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(5, 0))
 
-        def save():
-            """Save the new recipe"""
+        # === Left Panel Components ===
+        # Dropdown frame
+        dropdown_frame = ttk.LabelFrame(left_panel, text="Select Item")
+        dropdown_frame.pack(fill=tk.X, pady=(0, 10))
+
+        def refresh_items_list():
+            """Refresh the items list from database"""
+            self.db.connect()
             try:
-                # Generate unique ID from name and type
-                name = entries['name'].get()
-                type_ = entries['type'].get()
-                if not name or not type_:
-                    messagebox.showerror("Error", "Name and Type are required")
-                    return
+                parts = self.db.execute_query("""
+                    SELECT unique_id_parts, name, color, in_storage, bin 
+                    FROM sorting_system ORDER BY name
+                """)
+                leather = self.db.execute_query("""
+                    SELECT unique_id_leather, name, color, size_ft, shelf
+                    FROM shelf ORDER BY name
+                """)
 
-                prefix = ''.join(word[0].upper() for word in name.split())
-                unique_id = f"{prefix}{str(uuid.uuid4())[:8]}"
+                items = []
+                items.append(("create_part", "➕ Add New Part"))
+                items.append(("create_leather", "➕ Add New Leather"))
 
-                data = {
-                    'unique_id_product': unique_id,
-                    **{field: entries[field].get() for field in fields}
-                }
+                # Add parts to the list
+                items.extend((p[0], f"{p[1]} ({p[0]}) - Stock: {p[3]} - Bin: {p[4]}") for p in parts)
 
-                self.db.connect()
-                if self.db.insert_record(TABLES['RECIPE_INDEX'], data):
-                    # Add to undo stack
-                    self.undo_stack.append(('add_recipe', data))
-                    self.redo_stack.clear()
+                # Add leather items to the list
+                items.extend((l[0], f"{l[1]} ({l[0]}) - Size: {l[3]} - Shelf: {l[4]}") for l in leather)
 
-                    # Refresh view and select new recipe
-                    self.load_data()
-                    self.current_recipe = unique_id
-
-                    # Close dialog
-                    dialog.destroy()
-
-                    # Show success message
-                    self.notifications.show_success("Recipe added successfully")
-
-                else:
-                    raise Exception("Failed to add recipe")
-
+                return items
             except Exception as e:
-                messagebox.showerror("Error", f"Failed to add recipe: {str(e)}")
+                messagebox.showerror("Error", f"Failed to refresh items list: {str(e)}")
+                return []
             finally:
                 self.db.disconnect()
 
-        # Buttons
-        button_frame = ttk.Frame(main_frame)
-        button_frame.grid(row=len(fields), column=0, columnspan=2, pady=10)
+        ttk.Label(dropdown_frame, text="Item:").pack(side=tk.LEFT, padx=5)
+        item_var = tk.StringVar()
+        item_combo = ttk.Combobox(
+            dropdown_frame,
+            textvariable=item_var,
+            width=60
+        )
+        item_combo.pack(side=tk.LEFT, padx=5, fill=tk.X, expand=True)
 
-        ttk.Button(button_frame, text="Continue", command=save).pack(side=tk.LEFT, padx=5)
-        ttk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
+        # Initial items load
+        items = refresh_items_list()
+        item_combo['values'] = [item[1] for item in items]
 
-        # Configure grid
-        main_frame.columnconfigure(1, weight=1)
+        # Preview frame
+        preview_frame = ttk.LabelFrame(left_panel, text="Item Details")
+        preview_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
 
-        # Set focus to name field
-        entries['name'].focus_set()
+        # Create preview labels with grid layout
+        preview_labels = {}
+        preview_fields = [
+            ('name', 'Name'),
+            ('type', 'Type'),
+            ('color', 'Color'),
+            ('size', 'Size'),
+            ('in_storage', 'In Storage'),
+            ('location', 'Location')
+        ]
 
-        # Bind enter to save
-        dialog.bind('<Return>', lambda e: save())
-        dialog.bind('<Escape>', lambda e: dialog.destroy())
+        for i, (field, label) in enumerate(preview_fields):
+            ttk.Label(preview_frame, text=f"{label}:").grid(
+                row=i, column=0, sticky='w', padx=5, pady=2
+            )
+            preview_labels[field] = ttk.Label(preview_frame, text="", font=('', 9, 'bold'))
+            preview_labels[field].grid(
+                row=i, column=1, sticky='w', padx=5, pady=2
+            )
+
+        # Details frame for new item
+        details_frame = ttk.LabelFrame(left_panel, text="Add Details")
+        details_frame.pack(fill=tk.X, pady=(0, 10))
+
+        # Create entry fields
+        entries = {}
+        required_fields = {
+            'amount': 'Amount',
+            'size': 'Size',
+            'notes': 'Notes'
+        }
+
+        for i, (field, label) in enumerate(required_fields.items()):
+            ttk.Label(details_frame, text=f"{label}:").grid(
+                row=i, column=0, sticky='w', padx=5, pady=2
+            )
+            entries[field] = ttk.Entry(details_frame)
+            entries[field].grid(
+                row=i, column=1, sticky='ew', padx=5, pady=2
+            )
+
+            if field in ['amount']:
+                ttk.Label(details_frame, text="*", foreground="red").grid(
+                    row=i, column=2, sticky='w'
+                )
+
+        details_frame.columnconfigure(1, weight=1)
+
+        # Right panel - Batch Items Treeview
+        batch_frame = ttk.LabelFrame(right_panel, text="Items to Add")
+        batch_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Create treeview for batch items
+        columns = ["id", "name", "amount", "size"]
+        batch_tree = ttk.Treeview(
+            batch_frame,
+            columns=columns,
+            show="headings",
+            height=10
+        )
+
+        for col in columns:
+            batch_tree.heading(col, text=col.title())
+            batch_tree.column(col, width=100)
+
+        batch_tree.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+
+        # Batch operations frame
+        batch_ops_frame = ttk.Frame(right_panel)
+        batch_ops_frame.pack(fill=tk.X, pady=5)
+
+        def remove_from_batch():
+            """Remove selected items from batch"""
+            selected = batch_tree.selection()
+            if not selected:
+                return
+
+            for item in selected:
+                batch_tree.delete(item)
+
+        def clear_batch():
+            """Clear all items from batch"""
+            if batch_tree.get_children():
+                if messagebox.askyesno("Confirm", "Clear all items from the list?"):
+                    for item in batch_tree.get_children():
+                        batch_tree.delete(item)
+
+        ttk.Button(
+            batch_ops_frame,
+            text="Remove Selected",
+            command=remove_from_batch
+        ).pack(side=tk.LEFT, padx=5)
+
+        ttk.Button(
+            batch_ops_frame,
+            text="Clear All",
+            command=clear_batch
+        ).pack(side=tk.LEFT, padx=5)
+
+        def update_preview(*args):
+            """Update preview when item selection changes"""
+            selection = item_var.get()
+
+            # Clear preview fields
+            for label in preview_labels.values():
+                label.configure(text="")
+
+            # Handle special cases for creating new items
+            if selection.startswith("➕"):
+                # Get parent window (MainWindow)
+                parent_window = dialog.winfo_toplevel()
+
+                if "Part" in selection:
+                    # Open new part dialog
+                    part_dialog = parent_window.get_part_dialog(dialog)
+
+                    # After dialog closes, refresh items list
+                    if part_dialog:
+                        dialog.wait_window(part_dialog)
+                        local_items = refresh_items_list()
+                        item_combo['values'] = [item[1] for item in local_items]
+
+                elif "Leather" in selection:
+                    # Open new leather dialog
+                    leather_dialog = parent_window.get_leather_dialog(dialog)
+
+                    # After dialog closes, refresh items list
+                    if leather_dialog:
+                        dialog.wait_window(leather_dialog)
+                        local_items = refresh_items_list()
+                        item_combo['values'] = [item[1] for item in local_items]
+
+                return
+
+            # Use the previously loaded items
+            local_items = items
+
+            # Get selected item ID
+            selected_id = None
+            for item_id, item_text in local_items:
+                if item_text == selection:
+                    selected_id = item_id
+                    break
+
+            if not selected_id:
+                return
+
+            # Query database for item details
+            self.db.connect()
+            try:
+                if selected_id.startswith('L'):  # Leather item
+                    result = self.db.execute_query("""
+                        SELECT name, 'Leather' as type, color, size_ft, 
+                               NULL as in_storage, shelf as location
+                        FROM shelf 
+                        WHERE unique_id_leather = ?
+                    """, (selected_id,))
+                else:  # Part item
+                    result = self.db.execute_query("""
+                        SELECT name, 'Part' as type, color, NULL as size,
+                               in_storage, bin as location
+                        FROM sorting_system 
+                        WHERE unique_id_parts = ?
+                    """, (selected_id,))
+
+                if result:
+                    # Update preview labels
+                    for field, value in zip(
+                            ['name', 'type', 'color', 'size', 'in_storage', 'location'],
+                            result[0]
+                    ):
+                        preview_labels[field].configure(
+                            text=str(value) if value is not None else "N/A"
+                        )
+
+                    # Update stock level color
+                    if 'in_storage' in preview_labels:
+                        in_storage = preview_labels['in_storage'].cget('text')
+                        if in_storage != "N/A":
+                            try:
+                                storage_value = int(in_storage)
+                                if storage_value <= 5:
+                                    preview_labels['in_storage'].configure(foreground="red")
+                                else:
+                                    preview_labels['in_storage'].configure(foreground="black")
+                            except ValueError:
+                                preview_labels['in_storage'].configure(foreground="black")
+
+            finally:
+                self.db.disconnect()
+
+        def add_to_batch():
+            """Add current item to batch list"""
+            selection = item_var.get()
+
+            # Validate selection
+            if not selection or selection.startswith("➕"):
+                messagebox.showerror("Error", "Please select an item")
+                return
+
+            # Get selected item ID
+            selected_id = None
+            for item_id, item_text in items:
+                if item_text == selection:
+                    selected_id = item_id
+                    break
+
+            if not selected_id:
+                return
+
+            # Validate required fields
+            if not entries['amount'].get():
+                messagebox.showerror("Error", "Amount is required")
+                return
+
+            try:
+                amount = int(entries['amount'].get())
+                if amount <= 0:
+                    raise ValueError("Amount must be positive")
+            except ValueError as e:
+                messagebox.showerror("Error", str(e))
+                return
+
+            # Check storage availability
+            in_storage = preview_labels['in_storage'].cget('text')
+            if in_storage != "N/A":
+                try:
+                    storage_value = int(in_storage)
+                    if storage_value < amount:
+                        if not messagebox.askyesno(
+                                "Warning",
+                                "Required amount exceeds available stock. Continue anyway?"
+                        ):
+                            return
+                except ValueError:
+                    # If storage value is not a valid integer, assume no stock check
+                    pass
+
+            # Add to batch list
+            batch_tree.insert('', 'end', values=[
+                selected_id,
+                preview_labels['name'].cget('text'),
+                amount,
+                entries['size'].get() or "N/A"
+            ])
+
+            # Clear entry fields
+            for entry in entries.values():
+                entry.delete(0, tk.END)
+
+        # Add to List button
+        ttk.Button(
+            details_frame,
+            text="Add to List →",
+            command=add_to_batch
+        ).grid(row=len(required_fields), column=0, columnspan=3, pady=10)
+
+        # Bind preview update to combobox selection
+        item_var.trace('w', update_preview)
+
+        def save_batch():
+            """Save all items in batch to recipe"""
+            batch_items = batch_tree.get_children()
+            if not batch_items:
+                messagebox.showwarning("Warning", "No items to add")
+                return
+
+            try:
+                added_items = []
+                self.db.connect()
+                self.db.begin_transaction()
+
+                for item in batch_items:
+                    values = batch_tree.item(item)['values']
+                    item_id = values[0]
+                    amount = int(values[2])
+                    size = values[3] if values[3] != "N/A" else None
+
+                    # Query item details
+                    if item_id.startswith('L'):
+                        result = self.db.execute_query("""
+                            SELECT name, color
+                            FROM shelf 
+                            WHERE unique_id_leather = ?
+                        """, (item_id,))
+                    else:
+                        result = self.db.execute_query("""
+                            SELECT name, color, in_storage
+                            FROM sorting_system 
+                            WHERE unique_id_parts = ?
+                        """, (item_id,))
+
+                    if not result:
+                        raise ValueError(f"Item {item_id} not found in database")
+
+                    # Prepare data
+                    data = {
+                        'recipe_id': self.current_recipe,
+                        'unique_id_parts': item_id,
+                        'name': result[0][0],
+                        'color': result[0][1],
+                        'amount': amount,
+                        'size': size,
+                        'in_storage': result[0][2] if len(result[0]) > 2 else None,
+                        'notes': entries['notes'].get()
+                    }
+
+                    # Insert into database
+                    if self.db.insert_record(TABLES['RECIPE_DETAILS'], data):
+                        added_items.append(data)
+                    else:
+                        raise Exception(f"Failed to add item {item_id}")
+
+                # Commit transaction
+                self.db.commit_transaction()
+
+                # Add to undo stack
+                self.undo_stack.append(('add_items', self.current_recipe, added_items))
+                self.redo_stack.clear()
+
+                # Refresh recipe details
+                self.load_recipe_details(self.current_recipe)
+
+                messagebox.showinfo(
+                    "Success",
+                    f"Successfully added {len(added_items)} items to recipe"
+                )
+                dialog.destroy()
+
+            except Exception as e:
+                self.db.rollback_transaction()
+                messagebox.showerror("Error", f"Failed to add items: {str(e)}")
+            finally:
+                self.db.disconnect()
+
+        # Button frame
+        button_frame = ttk.Frame(right_panel)
+        button_frame.pack(fill=tk.X, pady=10)
+
+        ttk.Button(
+            button_frame,
+            text="Save All",
+            command=save_batch
+        ).pack(side=tk.RIGHT, padx=5)
+
+        ttk.Button(
+            button_frame,
+            text="Cancel",
+            command=dialog.destroy
+        ).pack(side=tk.RIGHT, padx=5)
 
     def sort_column(self, tree, col):
         """Sort treeview column"""
@@ -1095,28 +1599,46 @@ class RecipeView(ttk.Frame):
                                    "Are you sure you want to delete the selected items?"):
             return
 
-        self.db.connect()
         try:
+            # Ensure the database connection is open
+            if not self.db.is_connected():
+                self.db.connect()
+
+            self.db.begin_transaction()
+
+            # Debug: Print recipe details before deletion
+            self.print_recipe_details()
+
             deleted_items = []
 
             for item in selected:
-                values = {col: tree.set(item, col) for col in tree['columns']}
-                deleted_items.append((item, values))
+                # Correctly map values to columns
+                values = {}
+                for col_index, col_name in enumerate(tree['columns']):
+                    values[col_name] = tree.set(item, col_name)
 
-                unique_id = values[tree['columns'][0]]
+                logger.info(f"Full item values: {values}")
 
+                # Use the correct unique ID for deletion
                 if tree == self.index_tree:
+                    unique_id = values['unique_id_product']
+
                     # Delete recipe and its details
-                    self.db.delete_record(
+                    logger.info(f"Deleting recipe index with product ID: {unique_id}")
+                    index_delete_result = self.db.delete_record(
                         TABLES['RECIPE_INDEX'],
                         "unique_id_product = ?",
                         (unique_id,)
                     )
-                    self.db.delete_record(
+                    logger.info(f"Recipe index delete result: {index_delete_result}")
+
+                    logger.info(f"Deleting recipe details for recipe ID: {unique_id}")
+                    details_delete_result = self.db.delete_record(
                         TABLES['RECIPE_DETAILS'],
                         "recipe_id = ?",
                         (unique_id,)
                     )
+                    logger.info(f"Recipe details delete result: {details_delete_result}")
 
                     # Clear details if deleted current recipe
                     if self.current_recipe == unique_id:
@@ -1124,22 +1646,85 @@ class RecipeView(ttk.Frame):
                             self.details_tree.delete(detail_item)
                         self.current_recipe = None
 
+
                 else:  # details tree
-                    self.db.delete_record(
+
+                    recipe_id = self.current_recipe
+
+                    unique_id_parts = values['unique_id_parts']
+
+                    logger.info(f"Attempting to delete with recipe_id: {recipe_id}, unique_id_parts: {unique_id_parts}")
+
+                    details_delete_result = self.db.delete_record(
+
                         TABLES['RECIPE_DETAILS'],
+
                         "recipe_id = ? AND unique_id_parts = ?",
-                        (self.current_recipe, unique_id)
+
+                        (recipe_id, unique_id_parts)
+
                     )
 
+                    logger.info(f"Recipe detail delete result: {details_delete_result}")
+                    logger.info(f"Selected item values: {values}")
+                    logger.info(f"Current recipe: {self.current_recipe}")
+
+                # Store the full item values for potential undo
+                deleted_items.append((item, values))
+
+                # Remove item from treeview
                 tree.delete(item)
 
+            self.db.commit_transaction()
             self.undo_stack.append(('delete', tree, deleted_items))
             self.redo_stack.clear()
 
             self.notifications.show_success(f"Deleted {len(deleted_items)} items")
 
+            # Refresh the view to reflect changes
+            if tree == self.index_tree:
+                self.load_data()
+            else:
+                self.load_recipe_details(self.current_recipe)
+
         except Exception as e:
+            logger.error(f"Deletion failed: {e}")
+            if self.db.is_connected():
+                self.db.rollback_transaction()
             self.notifications.show_error(f"Failed to delete items: {str(e)}")
+        finally:
+            # Don't close the connection here, just end the transaction if it's still active
+            if self.db.is_connected():
+                if self.db.conn.in_transaction:
+                    self.db.conn.commit()
+
+    def print_recipe_details(self):
+        """Print all records in the recipe_details table for debugging"""
+        try:
+            self.db.connect()
+
+            # Get all records from recipe_details
+            query = "SELECT * FROM recipe_details"
+            results = self.db.execute_query(query)
+
+            print("\n--- Recipe Details Table Contents ---")
+            print("Total records:", len(results))
+
+            # Get column names
+            columns = self.db.get_table_columns('recipe_details')
+            print("Columns:", columns)
+
+            # Print column headers
+            print("\nRecords:")
+            for record in results:
+                # Create a dictionary of column:value pairs
+                record_dict = dict(zip(columns, record))
+                print(record_dict)
+
+            print("--- End of Recipe Details ---\n")
+
+        except Exception as e:
+            print(f"Error printing recipe details: {e}")
         finally:
             self.db.disconnect()
 

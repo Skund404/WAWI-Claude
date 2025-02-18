@@ -21,12 +21,14 @@ TABLES = {
 
 # Colors for UI
 COLORS = {
-    'WARNING': '#ffcccc',
-    'SUCCESS': '#ccffcc',
-    'NORMAL': '#ffffff',
-    'HEADER': '#f0f0f0',
-    'PRIMARY': '#007bff',
-    'SECONDARY': '#6c757d',
+    'WARNING': '#ffcccc',            # Light red for general warnings
+    'CRITICAL': '#ff8080',           # Dark red for critical stock levels
+    'WARNING_LIGHT': '#ffe6cc',      # Light orange for approaching warning threshold
+    'SUCCESS': '#ccffcc',            # Green for success messages
+    'NORMAL': '#ffffff',             # White for normal state
+    'HEADER': '#f0f0f0',             # Light gray for headers
+    'PRIMARY': '#007bff',            # Blue for primary actions
+    'SECONDARY': '#6c757d',          # Gray for secondary actions
 }
 
 # UI Settings

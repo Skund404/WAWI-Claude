@@ -8,6 +8,19 @@ from utils.error_handler import DatabaseError
 
 
 class DatabaseManager:
+    def print_table_info(self, table_name):
+        self.connect()
+        try:
+            self.cursor.execute(f"PRAGMA table_info({table_name})")
+            columns = self.cursor.fetchall()
+            print(f"Table structure for {table_name}:")
+            for column in columns:
+                print(f"- {column[1]} ({column[2]})")
+        finally:
+            self.disconnect()
+
+    def is_connected(self):
+        return self.conn is not None and self.cursor is not None
     def print_all_table_columns(self):
         """Print columns for all tables in the database"""
         try:
@@ -33,23 +46,17 @@ class DatabaseManager:
 
     def connect(self) -> bool:
         """Establish database connection with error handling"""
+        if self.is_connected():
+            return True
         try:
             logger.debug(f"Attempting to connect to database: {self.db_path}")
-
-            # Close any existing connection
-            if self.conn:
-                self.disconnect()
-
-            # Create new connection
             self.conn = sqlite3.connect(self.db_path)
             self.cursor = self.conn.cursor()
-
             logger.info("Database connection established successfully")
             return True
         except sqlite3.Error as e:
             error_msg = f"Failed to connect to database: {self.db_path}"
             log_error(e, error_msg)
-            # Reset connection objects
             self.conn = None
             self.cursor = None
             raise DatabaseError(error_msg, str(e))
@@ -58,7 +65,11 @@ class DatabaseManager:
         """Close database connection with error handling"""
         try:
             if self.conn:
+                if self.conn.in_transaction:
+                    self.conn.commit()
                 self.conn.close()
+                self.conn = None
+                self.cursor = None
                 logger.debug("Database connection closed")
         except sqlite3.Error as e:
             log_error(e, "Error closing database connection")
@@ -134,26 +145,56 @@ class DatabaseManager:
             raise DatabaseError(error_msg, str(e))
 
     def delete_record(self, table: str, condition: str, condition_params: tuple) -> bool:
-        """Delete a record with error handling"""
+        """Delete a record with enhanced error handling and logging"""
+        if not self.is_connected():
+            self.connect()
         try:
-            logger.debug(f"Deleting record from {table}")
+            logger.debug(f"Attempting to delete record from {table}")
+            logger.debug(f"Condition: {condition}")
+            logger.debug(f"Condition params: {condition_params}")
 
             # Verify table exists
             if not self.table_exists(table):
                 raise DatabaseError(f"Table does not exist: {table}")
 
+            # First, check how many records would be deleted
+            count_query = f"SELECT COUNT(*) FROM {table} WHERE {condition}"
+            self.cursor.execute(count_query, condition_params)
+            records_to_delete = self.cursor.fetchone()[0]
+            logger.info(f"Number of records to be deleted: {records_to_delete}")
+
+            # If no records to delete, log and return
+            if records_to_delete == 0:
+                logger.warning(f"No records found to delete from {table} with given condition")
+                return False
+
+            # Perform the actual deletion
             query = f"DELETE FROM {table} WHERE {condition}"
             self.cursor.execute(query, condition_params)
             self.conn.commit()
 
+            # Verify deletion
+            self.cursor.execute(count_query, condition_params)
+            remaining_records = self.cursor.fetchone()[0]
+            logger.info(f"Remaining records after deletion: {remaining_records}")
+
             rows_affected = self.cursor.rowcount
             logger.info(f"Successfully deleted {rows_affected} records from {table}")
-            return True
+
+            return rows_affected > 0
 
         except sqlite3.Error as e:
-            error_msg = f"Failed to delete record from {table}"
-            log_error(e, error_msg)
+            # More detailed error logging
+            error_msg = f"Detailed delete error in {table}: {str(e)}"
+            logger.error(error_msg)
+
+            # Log the full query and parameters for debugging
+            logger.error(f"Delete query: {query}")
+            logger.error(f"Parameters: {condition_params}")
+
+            # Rollback the transaction
             self.conn.rollback()
+
             raise DatabaseError(error_msg, str(e))
 
     def table_exists(self, table_name: str) -> bool:

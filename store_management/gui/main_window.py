@@ -19,6 +19,257 @@ from gui.supplier_view import SupplierView
 
 
 class MainWindow:
+    def get_part_dialog(self, parent):
+        """
+        Open the add part dialog from the sorting system view
+
+        Args:
+            parent (tk.Toplevel): Parent dialog window
+
+        Returns:
+            tk.Toplevel: Dialog for adding a new part
+        """
+        sorting_system_view = self.get_view('sorting_system')
+        if sorting_system_view:
+            dialog = tk.Toplevel(parent)
+            dialog.title("Add New Part")
+            dialog.geometry("600x400")
+            dialog.transient(parent)
+            dialog.grab_set()
+
+            # Main frame
+            main_frame = ttk.Frame(dialog, padding="10")
+            main_frame.pack(fill=tk.BOTH, expand=True)
+
+            # Entry fields dictionary
+            entries = {}
+            fields = [
+                ('name', 'Part Name', True),
+                ('color', 'Color', False),
+                ('in_storage', 'Initial Stock', True),
+                ('warning_threshold', 'Warning Threshold', True),
+                ('bin', 'Bin Location', True),
+                ('notes', 'Notes', False)
+            ]
+
+            for i, (field, label, required) in enumerate(fields):
+                ttk.Label(main_frame, text=f"{label}:").grid(row=i, column=0, sticky='w', padx=5, pady=2)
+
+                if field in ['in_storage', 'warning_threshold']:
+                    entries[field] = ttk.Spinbox(main_frame, from_=0, to=1000, width=20)
+                    if field == 'warning_threshold':
+                        entries[field].insert(0, "5")  # Default warning threshold
+                else:
+                    entries[field] = ttk.Entry(main_frame, width=40)
+
+                entries[field].grid(row=i, column=1, sticky='ew', padx=5, pady=2)
+
+                if required:
+                    ttk.Label(main_frame, text="*", foreground="red").grid(row=i, column=2, sticky='w')
+
+            # Configure grid
+            main_frame.columnconfigure(1, weight=1)
+
+            def save_part():
+                """Save the new part to the database"""
+                try:
+                    # Collect input data
+                    data = {}
+                    required_fields = [
+                        ('name', 'Part Name'),
+                        ('bin', 'Bin Location'),
+                        ('in_storage', 'Initial Stock'),
+                        ('warning_threshold', 'Warning Threshold')
+                    ]
+
+                    for field, label in required_fields:
+                        value = entries[field].get().strip()
+                        if not value:
+                            messagebox.showerror("Error", f"{label} is required")
+                            return
+                        data[field] = value
+
+                    # Collect optional fields
+                    data['color'] = entries['color'].get().strip() or None
+                    data['notes'] = entries['notes'].get().strip() or None
+
+                    # Validate numeric inputs
+                    try:
+                        data['in_storage'] = int(data['in_storage'])
+                        data['warning_threshold'] = int(data['warning_threshold'])
+
+                        if data['in_storage'] < 0:
+                            raise ValueError("Stock cannot be negative")
+                        if data['warning_threshold'] < 0:
+                            raise ValueError("Warning threshold cannot be negative")
+                    except ValueError as e:
+                        messagebox.showerror("Error", str(e))
+                        return
+
+                    # Generate Part ID
+                    import uuid
+                    prefix = ''.join(word[0].upper() for word in data['name'].split()[:2])
+                    unique_id = f"P{prefix}{str(uuid.uuid4())[:8]}"
+                    data['unique_id_parts'] = unique_id
+
+                    # Attempt to insert record
+                    sorting_system_view.add_item(data)
+
+                    messagebox.showinfo(
+                        "Success",
+                        f"Part added successfully\nPart ID: {unique_id}"
+                    )
+                    dialog.destroy()
+
+                except Exception as e:
+                    messagebox.showerror("Error", f"An error occurred: {str(e)}")
+
+            # Add buttons
+            button_frame = ttk.Frame(main_frame)
+            button_frame.grid(row=len(fields), column=0, columnspan=3, pady=10)
+            ttk.Button(button_frame, text="Save", command=save_part).pack(side=tk.LEFT, padx=5)
+            ttk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
+
+            # Required fields note
+            ttk.Label(
+                main_frame,
+                text="* Required fields",
+                foreground="red"
+            ).grid(row=len(fields) + 1, column=0, columnspan=3, sticky='w', pady=(5, 0))
+
+            # Set focus
+            entries['name'].focus_set()
+
+            return dialog
+        return None
+
+    def get_leather_dialog(self, parent):
+        """
+        Open the add leather dialog from the shelf view
+
+        Args:
+            parent (tk.Toplevel): Parent dialog window
+
+        Returns:
+            tk.Toplevel: Dialog for adding a new leather item
+        """
+        shelf_view = self.get_view('shelf')
+        if shelf_view:
+            dialog = tk.Toplevel(parent)
+            dialog.title("Add New Leather")
+            dialog.geometry("600x400")
+            dialog.transient(parent)
+            dialog.grab_set()
+
+            # Main frame
+            main_frame = ttk.Frame(dialog, padding="10")
+            main_frame.pack(fill=tk.BOTH, expand=True)
+
+            # Entry fields
+            entries = {}
+            fields = [
+                ('name', 'Leather Name', True),
+                ('color', 'Color', True),
+                ('thickness', 'Thickness', True),
+                ('size_ft', 'Size (ft)', True),
+                ('shelf', 'Shelf Location', False),
+                ('notes', 'Notes', False)
+            ]
+
+            for i, (field, label, required) in enumerate(fields):
+                ttk.Label(main_frame, text=f"{label}:").grid(row=i, column=0, sticky='w', padx=5, pady=2)
+
+                if field in ['thickness', 'size_ft']:
+                    entries[field] = ttk.Entry(main_frame, width=20)
+                else:
+                    entries[field] = ttk.Entry(main_frame, width=40)
+
+                entries[field].grid(row=i, column=1, sticky='ew', padx=5, pady=2)
+
+                # Add required field indicator
+                if required:
+                    ttk.Label(main_frame, text="*", foreground="red").grid(row=i, column=2, sticky='w')
+
+            # Configure grid
+            main_frame.columnconfigure(1, weight=1)
+
+            def save_leather():
+                """Save the new leather item to the database"""
+                # Validate required fields
+                try:
+                    # Collect input data
+                    data = {}
+                    required_fields = [
+                        ('name', 'Leather Name'),
+                        ('color', 'Color'),
+                        ('thickness', 'Thickness'),
+                        ('size_ft', 'Size')
+                    ]
+
+                    for field, label in required_fields:
+                        value = entries[field].get().strip()
+                        if not value:
+                            messagebox.showerror("Error", f"{label} is required")
+                            return
+                        data[field] = value
+
+                    # Collect optional fields
+                    data['shelf'] = entries['shelf'].get().strip() or None
+                    data['notes'] = entries['notes'].get().strip() or None
+
+                    # Validate numeric inputs
+                    try:
+                        thickness = float(data['thickness'])
+                        size_ft = float(data['size_ft'])
+                        data['area_sqft'] = thickness * size_ft
+
+                        if thickness <= 0 or size_ft <= 0:
+                            raise ValueError("Thickness and size must be positive")
+                    except ValueError as e:
+                        messagebox.showerror("Error", str(e))
+                        return
+
+                    # Call shelf view's add method
+                    result = shelf_view.add_item(data)
+
+                    if result:
+                        messagebox.showinfo("Success", "Leather item added successfully")
+                        dialog.destroy()
+
+                except Exception as e:
+                    messagebox.showerror("Error", f"An error occurred: {str(e)}")
+
+            # Add buttons
+            button_frame = ttk.Frame(main_frame)
+            button_frame.grid(row=len(fields), column=0, columnspan=3, pady=10)
+
+            ttk.Button(button_frame, text="Save", command=save_leather).pack(side=tk.LEFT, padx=5)
+            ttk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
+
+            # Add required fields note
+            ttk.Label(
+                main_frame,
+                text="* Required fields",
+                foreground="red"
+            ).grid(row=len(fields) + 1, column=0, columnspan=3, sticky='w', pady=(5, 0))
+
+            # Set focus
+            entries['name'].focus_set()
+
+            return dialog
+        return None
+    def get_view(self, view_name):
+        """
+        Get a specific view by name
+
+        Args:
+            view_name (str): Name of the view (e.g., 'sorting', 'shelf')
+
+        Returns:
+            ttk.Frame or None: The requested view or None if not found
+        """
+        return self.views.get(view_name)
+
     def __init__(self):
         self.root = tk.Tk()
         self.root.title(APP_NAME)

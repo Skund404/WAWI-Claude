@@ -27,6 +27,7 @@ def create_database():
                 name TEXT NOT NULL,
                 color TEXT NOT NULL,
                 in_storage INTEGER NOT NULL DEFAULT 0,
+                warning_threshold INTEGER NOT NULL DEFAULT 5,  
                 bin TEXT NOT NULL,
                 notes TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

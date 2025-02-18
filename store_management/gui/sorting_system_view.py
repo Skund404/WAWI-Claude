@@ -1,7 +1,9 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
 from typing import Dict, List, Optional
 import uuid
+import csv
+import traceback
 
 from database.db_manager import DatabaseManager
 from config import DATABASE_PATH, TABLES, COLORS
@@ -64,6 +66,105 @@ def evaluate_math_expression(current_value, expression):
         raise ValueError(f"Invalid mathematical expression: {str(e)}")
 
 class SortingSystemView(ttk.Frame):
+    def show_batch_threshold_dialog(self):
+        """Show dialog for batch updating warning thresholds"""
+        dialog = tk.Toplevel(self)
+        dialog.title("Update Warning Thresholds")
+        dialog.geometry("400x200")
+        dialog.transient(self)
+        dialog.grab_set()
+
+        main_frame = ttk.Frame(dialog, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Value entry
+        ttk.Label(main_frame, text="New Warning Threshold:").pack(pady=5)
+        threshold_entry = ttk.Spinbox(main_frame, from_=0, to=1000, width=20)
+        threshold_entry.pack(pady=5)
+        threshold_entry.insert(0, "5")
+
+        # Apply method choice
+        method_var = tk.StringVar(value="absolute")
+        ttk.Radiobutton(
+            main_frame,
+            text="Absolute Value",
+            variable=method_var,
+            value="absolute"
+        ).pack(pady=2)
+        ttk.Radiobutton(
+            main_frame,
+            text="Percentage of Current Stock",
+            variable=method_var,
+            value="percentage"
+        ).pack(pady=2)
+
+        def apply_update():
+            try:
+                new_value = threshold_entry.get().strip()
+                if not new_value:
+                    messagebox.showerror("Error", "Please enter a value")
+                    return
+
+                value = float(new_value)
+                if value < 0:
+                    messagebox.showerror("Error", "Value must be non-negative")
+                    return
+
+                selected = self.tree.selection()
+                if not selected:
+                    messagebox.showinfo("Info", "Please select items to update")
+                    return
+
+                self.db.connect()
+                try:
+                    updated_items = []
+                    for item in selected:
+                        old_values = {col: self.tree.set(item, col) for col in self.columns}
+
+                        if method_var.get() == "percentage":
+                            current_stock = int(self.tree.set(item, 'in_storage'))
+                            new_threshold = int(current_stock * (value / 100))
+                        else:
+                            new_threshold = int(value)
+
+                        # Update database
+                        unique_id = self.tree.set(item, 'unique_id_parts')
+                        self.update_record(unique_id, 'warning_threshold', str(new_threshold))
+
+                        # Update treeview
+                        self.tree.set(item, 'warning_threshold', str(new_threshold))
+
+                        # Update warning status
+                        in_storage = int(self.tree.set(item, 'in_storage'))
+                        warning_tag = self.get_warning_tag(in_storage, new_threshold)
+                        self.tree.item(item, tags=(warning_tag,))
+
+                        updated_items.append((item, old_values))
+
+                    # Add to undo stack
+                    if updated_items:
+                        self.undo_stack.append(('batch_edit', updated_items))
+                        self.redo_stack.clear()
+
+                    messagebox.showinfo(
+                        "Success",
+                        f"Updated warning thresholds for {len(updated_items)} items"
+                    )
+                    dialog.destroy()
+
+                finally:
+                    self.db.disconnect()
+
+            except ValueError as e:
+                messagebox.showerror("Error", f"Invalid value: {str(e)}")
+            except Exception as e:
+                messagebox.showerror("Error", f"An error occurred: {str(e)}")
+
+        # Buttons
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(pady=10)
+        ttk.Button(button_frame, text="Apply", command=apply_update).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
     def show_add_dialog(self):
         """Wrapper method for backward compatibility"""
         self.show_add_part_dialog()
@@ -101,6 +202,7 @@ class SortingSystemView(ttk.Frame):
         ttk.Button(toolbar, text="ADD", command=self.show_add_part_dialog).pack(side=tk.LEFT, padx=2)
         ttk.Button(toolbar, text="Search", command=self.show_search_dialog).pack(side=tk.LEFT, padx=2)
         ttk.Button(toolbar, text="Filter", command=self.show_filter_dialog).pack(side=tk.LEFT, padx=2)
+        ttk.Button(toolbar, text="Batch Update", command=self.show_batch_threshold_dialog).pack(side=tk.LEFT, padx=2)
 
         # Right side buttons
         ttk.Button(toolbar, text="Undo", command=self.undo).pack(side=tk.RIGHT, padx=2)
@@ -117,7 +219,7 @@ class SortingSystemView(ttk.Frame):
 
         # Define columns
         self.columns = [
-            'unique_id_parts', 'name', 'color', 'in_storage', 'bin', 'notes'
+            'unique_id_parts', 'name', 'color', 'in_storage', 'warning_threshold', 'bin', 'notes'
         ]
 
         # Create scrollbars
@@ -153,8 +255,10 @@ class SortingSystemView(ttk.Frame):
         self.tree_frame.grid_columnconfigure(0, weight=1)
         self.tree_frame.grid_rowconfigure(0, weight=1)
 
-        # Configure low stock warning
-        self.tree.tag_configure('low_stock', background=COLORS['WARNING'])
+        # Configure warning levels
+        self.tree.tag_configure('critical_stock', background='#ff8080')  # Dark red
+        self.tree.tag_configure('low_stock', background='#ffcccc')  # Light red
+        self.tree.tag_configure('warning_stock', background='#ffe6cc')  # Orange
 
         # Bind events
         self.tree.bind('<Double-1>', self.on_double_click)
@@ -180,6 +284,7 @@ class SortingSystemView(ttk.Frame):
             ('name', 'Part Name', True),
             ('color', 'Color', False),
             ('in_storage', 'Initial Stock', True),
+            ('warning_threshold', 'Warning Threshold', True),
             ('bin', 'Bin Location', True),
             ('notes', 'Notes', False)
         ]
@@ -187,15 +292,15 @@ class SortingSystemView(ttk.Frame):
         for i, (field, label, required) in enumerate(fields):
             ttk.Label(main_frame, text=f"{label}:").grid(row=i, column=0, sticky='w', padx=5, pady=2)
 
-            if field == 'in_storage':
-                # Use spinbox for stock to ensure numeric input
+            if field in ['in_storage', 'warning_threshold']:
                 entries[field] = ttk.Spinbox(main_frame, from_=0, to=1000, width=20)
+                if field == 'warning_threshold':
+                    entries[field].insert(0, "5")  # Default warning threshold
             else:
                 entries[field] = ttk.Entry(main_frame, width=40)
 
             entries[field].grid(row=i, column=1, sticky='ew', padx=5, pady=2)
 
-            # Add required field indicator
             if required:
                 ttk.Label(main_frame, text="*", foreground="red").grid(row=i, column=2, sticky='w')
 
@@ -264,14 +369,14 @@ class SortingSystemView(ttk.Frame):
 
         def save_part():
             """Save the new part to the database"""
-            # Validate and collect required fields
             try:
                 # Collect input data
                 data = {}
                 required_fields = [
                     ('name', 'Part Name'),
                     ('bin', 'Bin Location'),
-                    ('in_storage', 'Initial Stock')
+                    ('in_storage', 'Initial Stock'),
+                    ('warning_threshold', 'Warning Threshold')
                 ]
 
                 for field, label in required_fields:
@@ -285,13 +390,17 @@ class SortingSystemView(ttk.Frame):
                 data['color'] = entries['color'].get().strip() or None
                 data['notes'] = entries['notes'].get().strip() or None
 
-                # Validate numeric input
+                # Validate numeric inputs
                 try:
                     data['in_storage'] = int(data['in_storage'])
+                    data['warning_threshold'] = int(data['warning_threshold'])
+
                     if data['in_storage'] < 0:
                         raise ValueError("Stock cannot be negative")
-                except ValueError:
-                    messagebox.showerror("Error", "Initial stock must be a non-negative number")
+                    if data['warning_threshold'] < 0:
+                        raise ValueError("Warning threshold cannot be negative")
+                except ValueError as e:
+                    messagebox.showerror("Error", str(e))
                     return
 
                 # Generate Part ID
@@ -303,6 +412,7 @@ class SortingSystemView(ttk.Frame):
                     'name': data['name'],
                     'color': data['color'],
                     'in_storage': data['in_storage'],
+                    'warning_threshold': data['warning_threshold'],
                     'bin': data['bin'],
                     'notes': data['notes']
                 }
@@ -310,12 +420,6 @@ class SortingSystemView(ttk.Frame):
                 # Attempt to insert record
                 self.db.connect()
                 try:
-                    # Print debug information
-                    print("Attempting to insert data:")
-                    for key, value in insert_data.items():
-                        print(f"{key}: {value}")
-
-                    # Insert record
                     success = self.db.insert_record(TABLES['SORTING_SYSTEM'], insert_data)
 
                     if success:
@@ -326,13 +430,10 @@ class SortingSystemView(ttk.Frame):
                         # Refresh the view
                         self.load_data()
 
-                        # Show success message
                         messagebox.showinfo(
                             "Success",
                             f"Part added successfully\nPart ID: {part_id}"
                         )
-
-                        # Close dialog
                         dialog.destroy()
                     else:
                         messagebox.showerror(
@@ -341,32 +442,38 @@ class SortingSystemView(ttk.Frame):
                         )
 
                 except Exception as e:
-                    # Comprehensive error logging
-                    import traceback
-                    print("Error Details:")
-                    print(f"Error Type: {type(e).__name__}")
-                    print(f"Error Message: {str(e)}")
-                    print("Full Traceback:")
+                    print(f"Error Details: {str(e)}")
                     traceback.print_exc()
-
                     messagebox.showerror(
                         "Database Error",
-                        f"An error occurred while adding the part:\n{str(e)}\n"
-                        "Please check the console for detailed error information."
+                        f"An error occurred while adding the part:\n{str(e)}"
                     )
                 finally:
                     self.db.disconnect()
 
             except Exception as e:
-                # Catch any unexpected errors
-                import traceback
                 print("Unexpected Error:")
                 traceback.print_exc()
-
                 messagebox.showerror(
                     "Unexpected Error",
                     f"An unexpected error occurred:\n{str(e)}"
                 )
+
+        # Add buttons
+        button_frame = ttk.Frame(main_frame)
+        button_frame.grid(row=len(fields), column=0, columnspan=3, pady=10)
+        ttk.Button(button_frame, text="Save", command=save_part).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
+
+        # Required fields note
+        ttk.Label(
+            main_frame,
+            text="* Required fields",
+            foreground="red"
+        ).grid(row=len(fields) + 1, column=0, columnspan=3, sticky='w', pady=(5, 0))
+
+        # Set focus
+        entries['name'].focus_set()
 
         # Buttons
         button_frame = ttk.Frame(main_frame)
@@ -385,6 +492,32 @@ class SortingSystemView(ttk.Frame):
         # Set focus
         entries['name'].focus_set()
 
+    def get_warning_tag(self, in_storage: int, warning_threshold: int) -> str:
+        """
+        Determine the warning level tag based on stock level
+
+        Args:
+            in_storage (int): Current stock level
+            warning_threshold (int): Warning threshold level
+
+        Returns:
+            str: Warning tag level or empty string if no warning
+        """
+        try:
+            in_storage = int(in_storage)
+            warning_threshold = int(warning_threshold)
+
+            if in_storage <= warning_threshold * 0.5:  # Below 50% of threshold
+                return 'critical_stock'
+            elif in_storage <= warning_threshold * 0.75:  # Below 75% of threshold
+                return 'low_stock'
+            elif in_storage <= warning_threshold:  # At or below threshold
+                return 'warning_stock'
+            return ''
+        except (ValueError, TypeError):
+            # If either value can't be converted to int, return no warning
+            return ''
+
     def load_data(self):
         """Load data from database into table"""
         self.db.connect()
@@ -400,10 +533,18 @@ class SortingSystemView(ttk.Frame):
             for row in results:
                 item = self.tree.insert('', 'end', values=row[:-2])  # Exclude timestamps
 
-                # Check for low stock
-                in_storage = row[3]  # in_storage column
-                if in_storage is not None and in_storage <= 5:  # Threshold for low stock warning
-                    self.tree.item(item, tags=('low_stock',))
+                try:
+                    # Check against warning threshold
+                    in_storage = row[3]  # in_storage column
+                    warning_threshold = row[4]  # warning_threshold column
+
+                    if in_storage is not None and warning_threshold is not None:
+                        warning_tag = self.get_warning_tag(in_storage, warning_threshold)
+                        if warning_tag:
+                            self.tree.item(item, tags=(warning_tag,))
+                except (IndexError, ValueError, TypeError) as e:
+                    print(f"Warning: Could not process warning threshold for row: {row}. Error: {e}")
+                    continue
 
         finally:
             self.db.disconnect()
@@ -479,19 +620,9 @@ class SortingSystemView(ttk.Frame):
             self.start_cell_edit(item, column)
 
     def start_cell_edit(self, item, column):
-        """
-        Enhanced cell editing with mathematical expression support
-        and comprehensive debugging
-
-        Args:
-            item (str): Treeview item identifier
-            column (str): Column identifier (e.g., '#4')
-        """
+        """Start cell editing with support for warning threshold"""
         try:
-            # Detailed debugging information
-            print("Starting cell edit")
-            print(f"Item: {item}")
-            print(f"Column: {column}")
+            print(f"Starting cell edit for item: {item}, column: {column}")
 
             # Get column index and name
             try:
@@ -502,81 +633,50 @@ class SortingSystemView(ttk.Frame):
                 messagebox.showerror("Edit Error", f"Invalid column: {column}")
                 return
 
-            print(f"Column Name: {col_name}")
-
             # Skip editing for certain columns
             if col_name == 'unique_id_parts':
-                print("Skipping edit for unique_id_parts")
                 return
 
             # Get current value
-            try:
-                current_value = self.tree.set(item, col_name)
-            except Exception as e:
-                print(f"Error getting current value: {e}")
-                messagebox.showerror("Edit Error", f"Could not retrieve current value: {e}")
-                return
-
-            print(f"Current Value: {current_value}")
+            current_value = self.tree.set(item, col_name)
 
             # Create edit frame
             frame = ttk.Frame(self.tree)
 
-            # Create appropriate entry widget based on column
-            if col_name == 'in_storage':
-                # Numeric entry with mathematical expression support
+            # Create appropriate entry widget
+            if col_name in ['in_storage', 'warning_threshold']:
                 entry = ttk.Entry(frame)
             else:
-                # Standard text entry
                 entry = ttk.Entry(frame)
 
-            # Populate and configure entry
             entry.insert(0, current_value)
             entry.select_range(0, tk.END)
             entry.pack(fill=tk.BOTH, expand=True)
 
             # Position the edit frame
-            try:
-                bbox = self.tree.bbox(item, column)
-                print(f"Bounding Box: {bbox}")
-
-                if bbox:
-                    frame.place(x=bbox[0], y=bbox[1], width=bbox[2], height=bbox[3])
-                else:
-                    print("Warning: Could not get bounding box")
-                    messagebox.showwarning("Edit Error", "Could not position edit widget")
-                    return
-
-            except Exception as e:
-                print(f"Error positioning edit frame: {e}")
-                messagebox.showerror("Edit Error", f"Positioning error: {e}")
+            bbox = self.tree.bbox(item, column)
+            if bbox:
+                frame.place(x=bbox[0], y=bbox[1], width=bbox[2], height=bbox[3])
+            else:
+                frame.destroy()
                 return
 
             def save_edit(event=None):
-                """Save the edited value"""
                 try:
                     new_value = entry.get().strip()
-                    print(f"New Value: {new_value}")
 
                     # Validate and process the new value
-                    if col_name == 'in_storage':
-                        # Handle mathematical expressions for in_storage
+                    if col_name in ['in_storage', 'warning_threshold']:
                         if any(op in new_value for op in ['-', '+', '*', '/', '(', ')']):
                             try:
-                                # Convert current value to integer
                                 current_int = int(current_value)
-
-                                # Evaluate mathematical expression
                                 new_value_int = evaluate_math_expression(current_int, new_value)
-
-                                # Convert back to string for display
                                 new_value = str(new_value_int)
                             except ValueError as e:
                                 messagebox.showerror("Error", str(e))
                                 frame.destroy()
                                 return
                         else:
-                            # Regular numeric validation
                             try:
                                 new_value_int = int(new_value)
                                 if new_value_int < 0:
@@ -590,49 +690,43 @@ class SortingSystemView(ttk.Frame):
 
                     # Only update if value has changed
                     if new_value != current_value:
-                        # Store current values for undo
                         old_values = {col: self.tree.set(item, col) for col in self.columns}
                         self.undo_stack.append(('edit', item, old_values))
                         self.redo_stack.clear()
 
-                        # Update database
+                        # Update database and treeview
                         unique_id = self.tree.set(item, 'unique_id_parts')
                         self.update_record(unique_id, col_name, new_value)
-
-                        # Update treeview
                         self.tree.set(item, col_name, new_value)
 
-                        # Update low stock warning for in_storage
-                        if col_name == 'in_storage':
-                            in_storage_value = int(new_value)
-                            if in_storage_value <= 5:
-                                self.tree.item(item, tags=('low_stock',))
-                            else:
-                                self.tree.item(item, tags=())
+                        # Update low stock warning
+                        in_storage = int(self.tree.set(item, 'in_storage'))
+                        warning_threshold = int(self.tree.set(item, 'warning_threshold'))
 
-                    # Close the edit frame
+                        if in_storage <= warning_threshold:
+                            self.tree.item(item, tags=('low_stock',))
+                        else:
+                            self.tree.item(item, tags=())
+
                     frame.destroy()
 
                 except Exception as e:
-                    print(f"Unexpected save error: {e}")
-                    messagebox.showerror("Unexpected Error", str(e))
+                    print(f"Save error: {e}")
+                    messagebox.showerror("Error", str(e))
                     frame.destroy()
 
             def cancel_edit(event=None):
-                """Cancel the edit and destroy the frame"""
                 frame.destroy()
 
-            # Bind events to the entry widget
+            # Bind events
             entry.bind('<Return>', save_edit)
             entry.bind('<Escape>', cancel_edit)
             entry.bind('<FocusOut>', save_edit)
-
-            # Set focus to the entry widget
             entry.focus_set()
 
         except Exception as e:
-            print(f"Unexpected error in start_cell_edit: {e}")
-            messagebox.showerror("Unexpected Error", str(e))
+            print(f"Cell edit error: {e}")
+            messagebox.showerror("Error", str(e))
 
     def update_record(self, unique_id: str, column: str, value: str):
         """Update record in database"""

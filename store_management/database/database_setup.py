@@ -29,14 +29,15 @@ def create_database():
         cursor.executescript('''
             -- Sorting system (referenced by other tables)
             CREATE TABLE IF NOT EXISTS sorting_system (
-                unique_id_parts TEXT PRIMARY KEY,
-                name TEXT NOT NULL,
-                color TEXT NOT NULL,
-                in_storage INTEGER NOT NULL DEFAULT 0,
-                bin TEXT NOT NULL,
-                notes TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                modified_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            unique_id_parts TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            color TEXT NOT NULL,
+            in_storage INTEGER NOT NULL DEFAULT 0,
+            warning_threshold INTEGER NOT NULL DEFAULT 5,  -- Add this line
+            bin TEXT NOT NULL,
+            notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            modified_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
 
             -- Supplier table

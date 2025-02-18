@@ -243,9 +243,35 @@ class SupplierView(ttk.Frame):
         try:
             super().__init__(parent)
 
-            # Explicitly connect to the database
+            # Field mapping for display names to database columns
+            self.field_mapping = {
+                "Company Name": "company_name",
+                "Contact Person": "contact_person",
+                "Phone Number": "phone_number",
+                "Email Address": "email_address",
+                "Website": "website",
+                "Street Address": "street_address",
+                "City": "city",
+                "State/Province": "state_province",
+                "Postal Code": "postal_code",
+                "Country": "country",
+                "Tax ID": "tax_id",
+                "Business Type": "business_type",
+                "Payment Terms": "payment_terms",
+                "Currency": "currency",
+                "Bank Details": "bank_details",
+                "Products Offered": "products_offered",
+                "Lead Time": "lead_time",
+                "Last Order Date": "last_order_date",
+                "Notes": "notes"
+            }
+
+            # Reverse mapping for looking up display names
+            self.reverse_mapping = {v: k for k, v in self.field_mapping.items()}
+
+            # Initialize database and other components
             self.db = DatabaseManager(DATABASE_PATH)
-            self.db.connect()  # Explicitly call connect method
+            self.db.connect()
 
             # Initialize undo/redo stacks
             self.undo_stack = []
@@ -304,15 +330,8 @@ class SupplierView(ttk.Frame):
         table_frame = ttk.Frame(self)
         table_frame.pack(expand=True, fill='both', padx=5, pady=5)
 
-        # Define columns
-        self.columns = [
-            "Company Name", "Contact Person", "Phone Number",
-            "Email Address", "Website", "Street Address",
-            "City", "State/Province", "Postal Code", "Country",
-            "Tax ID", "Business Type", "Payment Terms",
-            "Currency", "Bank Details", "Products Offered",
-            "Lead Time", "Last Order Date", "Notes"
-        ]
+        # Define columns using display names from field mapping
+        self.columns = list(self.field_mapping.keys())
 
         # Create scrollbars
         vsb = ttk.Scrollbar(table_frame, orient="vertical")
@@ -430,37 +449,65 @@ class SupplierView(ttk.Frame):
             canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
             canvas.configure(yscrollcommand=scrollbar.set)
 
+            # Database field mapping
+            field_mapping = {
+                "Company Name": "company_name",
+                "Contact Person": "contact_person",
+                "Phone Number": "phone_number",
+                "Email Address": "email_address",
+                "Website": "website",
+                "Street Address": "street_address",
+                "City": "city",
+                "State/Province": "state_province",
+                "Postal Code": "postal_code",
+                "Country": "country",
+                "Tax ID": "tax_id",
+                "Business Type": "business_type",
+                "Payment Terms": "payment_terms",
+                "Currency": "currency",
+                "Bank Details": "bank_details",
+                "Products Offered": "products_offered",
+                "Lead Time": "lead_time",
+                "Last Order Date": "last_order_date",
+                "Notes": "notes"
+            }
+
             # Entry widgets
             entry_widgets = {}
-            for i, field in enumerate(self.columns):
-                label = ttk.Label(scrollable_frame, text=field.replace("_", " ").title())
+            for i, (display_name, db_field) in enumerate(field_mapping.items()):
+                label = ttk.Label(scrollable_frame, text=display_name)
                 label.grid(row=i, column=0, padx=5, pady=5, sticky="w")
 
                 entry = ttk.Entry(scrollable_frame, width=40)
                 entry.grid(row=i, column=1, padx=5, pady=5)
-                entry_widgets[field] = entry
+                entry_widgets[db_field] = entry
 
             def save_supplier():
                 try:
                     # Collect data
-                    data = {field: widget.get() for field, widget in entry_widgets.items()}
+                    data = {field: widget.get().strip() for field, widget in entry_widgets.items()}
 
                     # Validate required fields
                     if not data['company_name']:
-                        raise ValueError("Company Name is required")
+                        messagebox.showerror("Error", "Company Name is required")
+                        return
 
                     # Save to database
                     self.db.connect()
                     if self.db.insert_record(TABLES['SUPPLIER'], data):
-                        self.tree.insert("", "end", values=[data[col] for col in self.columns])
+                        # Add to undo stack
+                        self.undo_stack.append(("add", data))
+                        self.redo_stack.clear()
+
+                        # Refresh view and close dialog
+                        self.load_data()
                         add_dialog.destroy()
-                        self.load_data()  # Refresh view
                         messagebox.showinfo("Success", "Supplier added successfully")
                     else:
                         raise DatabaseError("Failed to add supplier")
 
                 except Exception as e:
-                    error_msg = "Failed to add supplier"
+                    error_msg = f"Failed to add supplier: {str(e)}"
                     log_error(e, error_msg)
                     ErrorHandler.show_error("Add Error", error_msg, e)
                 finally:
@@ -468,7 +515,7 @@ class SupplierView(ttk.Frame):
 
             # Buttons
             button_frame = ttk.Frame(scrollable_frame)
-            button_frame.grid(row=len(self.columns), column=0, columnspan=2, pady=10)
+            button_frame.grid(row=len(field_mapping), column=0, columnspan=2, pady=10)
 
             ttk.Button(button_frame, text="Save", command=save_supplier).pack(side=tk.LEFT, padx=5)
             ttk.Button(button_frame, text="Cancel", command=add_dialog.destroy).pack(side=tk.LEFT, padx=5)
@@ -555,7 +602,7 @@ class SupplierView(ttk.Frame):
 
             # Create edit dialog
             edit_dialog = tk.Toplevel(self)
-            edit_dialog.title(f"Edit {column.replace('_', ' ').title()}")
+            edit_dialog.title(f"Edit {column}")
 
             # Position dialog near the cell
             x, y, _, _ = self.tree.bbox(item, column)
@@ -571,21 +618,27 @@ class SupplierView(ttk.Frame):
                 try:
                     new_value = entry.get()
                     if new_value != current_value:
+                        # Get the database column name
+                        db_column = self.field_mapping[column]
+
                         # Update database
                         self.db.connect()
-                        data = {column: new_value}
+                        data = {db_column: new_value}
+                        company_name = self.tree.item(item)['values'][0]
+
                         if self.db.update_record(
                                 TABLES['SUPPLIER'],
                                 data,
                                 "company_name = ?",
-                                (self.tree.item(item)['values'][0],)
+                                (company_name,)
                         ):
                             # Update treeview
                             self.tree.set(item, column, new_value)
                             # Add to undo stack
                             self.undo_stack.append(("edit", item, column, current_value, new_value))
                             self.redo_stack.clear()
-                    edit_dialog.destroy()
+
+                        edit_dialog.destroy()
 
                 except Exception as e:
                     error_msg = "Failed to save edit"
