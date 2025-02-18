@@ -11,6 +11,10 @@ from gui.dialogs.filter_dialog import FilterDialog
 
 
 class SortingSystemView(ttk.Frame):
+    def show_add_dialog(self):
+        """Wrapper method for backward compatibility"""
+        self.show_add_part_dialog()
+
     def handle_return(self, event=None):
         """Handle Return key press - typically used for editing or confirming selection"""
         selected = self.tree.selection()
@@ -41,7 +45,7 @@ class SortingSystemView(ttk.Frame):
         toolbar.pack(fill=tk.X, padx=5, pady=5)
 
         # Left side buttons
-        ttk.Button(toolbar, text="ADD", command=self.show_add_dialog).pack(side=tk.LEFT, padx=2)
+        ttk.Button(toolbar, text="ADD", command=self.show_add_part_dialog).pack(side=tk.LEFT, padx=2)
         ttk.Button(toolbar, text="Search", command=self.show_search_dialog).pack(side=tk.LEFT, padx=2)
         ttk.Button(toolbar, text="Filter", command=self.show_filter_dialog).pack(side=tk.LEFT, padx=2)
 
@@ -105,89 +109,112 @@ class SortingSystemView(ttk.Frame):
         self.tree.bind('<Return>', self.handle_return)
         self.tree.bind('<Escape>', self.handle_escape)
 
-    def show_add_dialog(self):
-        """Show dialog for adding new part"""
+    def show_add_part_dialog(self):
+        """Show dialog for adding a new part to the sorting system"""
         dialog = tk.Toplevel(self)
         dialog.title("Add New Part")
+        dialog.geometry("600x400")
         dialog.transient(self)
         dialog.grab_set()
 
-        # Create main frame
+        # Main frame
         main_frame = ttk.Frame(dialog, padding="10")
-        main_frame.grid(row=0, column=0, sticky='nsew')
+        main_frame.pack(fill=tk.BOTH, expand=True)
 
         # Entry fields
         entries = {}
-        fields = ['name', 'color', 'in_storage', 'bin', 'notes']
+        fields = [
+            ('unique_id_parts', 'Part ID', True),
+            ('name', 'Part Name', True),
+            ('color', 'Color', False),
+            ('in_storage', 'Initial Stock', True),
+            ('bin', 'Bin Location', False),
+            ('notes', 'Notes', False)
+        ]
 
-        for i, field in enumerate(fields):
-            ttk.Label(main_frame, text=field.title() + ":").grid(row=i, column=0, sticky='w')
-            entries[field] = ttk.Entry(main_frame)
-            entries[field].grid(row=i, column=1, sticky='ew')
+        for i, (field, label, required) in enumerate(fields):
+            ttk.Label(main_frame, text=f"{label}:").grid(row=i, column=0, sticky='w', padx=5, pady=2)
+
+            if field == 'in_storage':
+                # Use spinbox for stock to ensure numeric input
+                entries[field] = ttk.Spinbox(main_frame, from_=0, to=1000, width=20)
+            else:
+                entries[field] = ttk.Entry(main_frame, width=40)
+
+            entries[field].grid(row=i, column=1, sticky='ew', padx=5, pady=2)
 
             # Add required field indicator
-            if field in ['name', 'color', 'bin']:
-                ttk.Label(main_frame, text="*", foreground="red").grid(row=i, column=2)
+            if required:
+                ttk.Label(main_frame, text="*", foreground="red").grid(row=i, column=2, sticky='w')
 
-        ttk.Label(main_frame, text="* Required fields",
-                  foreground="red").grid(row=len(fields), column=0, columnspan=2, sticky='w')
+        # Configure grid
+        main_frame.columnconfigure(1, weight=1)
 
-        def generate_unique_id(bin_value: str) -> str:
-            """Generate unique ID from bin value"""
-            # Get first letter of each word in bin
-            prefix = ''.join(word[0].upper() for word in bin_value.split())
-            # Add unique identifier
-            return f"{prefix}{str(uuid.uuid4())[:8]}"
+        def generate_part_id():
+            """Generate a unique part ID"""
+            import uuid
+            prefix = ''.join(word[0].upper() for word in entries['name'].get().split()[:2])
+            return f"P{prefix}{str(uuid.uuid4())[:8]}"
 
-        def save():
-            """Save the new part"""
-            try:
-                # Validate required fields
-                required = ['name', 'color', 'bin']
-                for field in required:
-                    if not entries[field].get().strip():
-                        messagebox.showerror("Error", f"{field.title()} is required")
-                        return
-
-                # Validate numeric fields
-                try:
-                    in_storage = int(entries['in_storage'].get()) if entries['in_storage'].get() else 0
-                    if in_storage < 0:
-                        messagebox.showerror("Error", "In Storage must be non-negative")
-                        return
-                except ValueError:
-                    messagebox.showerror("Error", "In Storage must be a number")
+        def save_part():
+            """Save the new part to the database"""
+            # Validate required fields
+            required_fields = [field for field, _, req in fields if req]
+            for field in required_fields:
+                if not entries[field].get():
+                    messagebox.showerror("Error", f"{field.replace('_', ' ').title()} is required")
                     return
 
-                # Generate unique ID from bin
-                unique_id = generate_unique_id(entries['bin'].get())
+            try:
+                # Prepare data
+                data = {field: entries[field].get() for field in entries}
 
-                data = {
-                    'unique_id_parts': unique_id,
-                    'name': entries['name'].get(),
-                    'color': entries['color'].get(),
-                    'in_storage': in_storage,
-                    'bin': entries['bin'].get(),
-                    'notes': entries['notes'].get()
-                }
+                # Generate part ID if not provided
+                if not data['unique_id_parts']:
+                    data['unique_id_parts'] = generate_part_id()
 
+                # Validate numeric fields
+                data['in_storage'] = int(data['in_storage'])
+
+                # Connect to database
                 self.db.connect()
-                if self.db.insert_record(TABLES['SORTING_SYSTEM'], data):
-                    self.undo_stack.append(('add', data))
-                    self.redo_stack.clear()
-                    self.load_data()
-                    dialog.destroy()
-                self.db.disconnect()
+                try:
+                    # Insert record
+                    if self.db.insert_record(TABLES['SORTING_SYSTEM'], data):
+                        # Refresh the view
+                        self.load_data()
 
+                        # Show success message
+                        messagebox.showinfo("Success", "Part added successfully")
+
+                        # Close dialog
+                        dialog.destroy()
+                    else:
+                        messagebox.showerror("Error", "Failed to add part")
+                finally:
+                    self.db.disconnect()
+
+            except ValueError:
+                messagebox.showerror("Error", "Invalid input. Please check your entries.")
             except Exception as e:
-                messagebox.showerror("Error", f"Failed to add part: {str(e)}")
+                messagebox.showerror("Error", f"An error occurred: {str(e)}")
 
         # Buttons
         button_frame = ttk.Frame(main_frame)
-        button_frame.grid(row=len(fields) + 1, column=0, columnspan=2, pady=10)
+        button_frame.grid(row=len(fields), column=0, columnspan=3, pady=10)
 
-        ttk.Button(button_frame, text="Save", command=save).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Save", command=save_part).pack(side=tk.LEFT, padx=5)
         ttk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
+
+        # Add required fields note
+        ttk.Label(
+            main_frame,
+            text="* Required fields",
+            foreground="red"
+        ).grid(row=len(fields) + 1, column=0, columnspan=3, sticky='w', pady=(5, 0))
+
+        # Set focus
+        entries['name'].focus_set()
 
     def load_data(self):
         """Load data from database into table"""

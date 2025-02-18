@@ -134,20 +134,32 @@ class MainWindow:
                 label.configure(text="")
 
             # Handle special cases
-            if selection.startswith("Add New"):
-                if selection == "Add New Part":
-                    # Call ADD function from sorting system
-                    dialog.withdraw()
-                    # TODO: Implement callback to sorting system ADD function
-                    messagebox.showinfo("Add Part", "This will open the Add Part dialog")
-                    dialog.deiconify()
-                elif selection == "Add New Leather":
-                    # Call ADD function from shelf
-                    dialog.withdraw()
-                    # TODO: Implement callback to shelf ADD function
-                    messagebox.showinfo("Add Leather", "This will open the Add Leather dialog")
-                    dialog.deiconify()
-                return
+            def show_add_item_dialog(self):
+                # ... existing code ...
+
+                # Handle special cases
+                if selection.startswith("Add New"):
+                    if selection == "Add New Part":
+                        # Call ADD function from sorting system
+                        dialog.withdraw()
+                        # Get the sorting system view and call its add dialog
+                        sorting_view = self.views.get('sorting')
+                        if sorting_view:
+                            sorting_view.show_add_part_dialog()
+                        else:
+                            messagebox.showerror("Error", "Sorting System view not found")
+                        dialog.deiconify()
+                    elif selection == "Add New Leather":
+                        # Call ADD function from shelf
+                        dialog.withdraw()
+                        # Get the shelf view and call its add dialog
+                        shelf_view = self.views.get('shelf')
+                        if shelf_view:
+                            shelf_view.show_add_leather_dialog()
+                        else:
+                            messagebox.showerror("Error", "Shelf view not found")
+                        dialog.deiconify()
+                    return
 
             # Get selected item ID
             selected_id = None

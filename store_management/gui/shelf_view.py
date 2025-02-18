@@ -12,6 +12,102 @@ from gui.dialogs.filter_dialog import FilterDialog
 
 
 class ShelfView(ttk.Frame):
+    def show_add_leather_dialog(self):
+        """Show dialog for adding a new leather item to the shelf"""
+        dialog = tk.Toplevel(self)
+        dialog.title("Add New Leather")
+        dialog.geometry("600x400")
+        dialog.transient(self)
+        dialog.grab_set()
+
+        # Main frame
+        main_frame = ttk.Frame(dialog, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Entry fields
+        entries = {}
+        fields = [
+            ('unique_id_leather', 'Leather ID', True),
+            ('name', 'Leather Name', True),
+            ('color', 'Color', True),
+            ('size', 'Size', True),
+            ('shelf', 'Shelf Location', False),
+            ('notes', 'Notes', False)
+        ]
+
+        for i, (field, label, required) in enumerate(fields):
+            ttk.Label(main_frame, text=f"{label}:").grid(row=i, column=0, sticky='w', padx=5, pady=2)
+
+            entries[field] = ttk.Entry(main_frame, width=40)
+            entries[field].grid(row=i, column=1, sticky='ew', padx=5, pady=2)
+
+            # Add required field indicator
+            if required:
+                ttk.Label(main_frame, text="*", foreground="red").grid(row=i, column=2, sticky='w')
+
+        # Configure grid
+        main_frame.columnconfigure(1, weight=1)
+
+        def generate_leather_id():
+            """Generate a unique leather ID"""
+            import uuid
+            prefix = ''.join(word[0].upper() for word in entries['name'].get().split()[:2])
+            return f"L{prefix}{str(uuid.uuid4())[:8]}"
+
+        def save_leather():
+            """Save the new leather item to the database"""
+            # Validate required fields
+            required_fields = [field for field, _, req in fields if req]
+            for field in required_fields:
+                if not entries[field].get():
+                    messagebox.showerror("Error", f"{field.replace('_', ' ').title()} is required")
+                    return
+
+            try:
+                # Prepare data
+                data = {field: entries[field].get() for field in entries}
+
+                # Generate leather ID if not provided
+                if not data['unique_id_leather']:
+                    data['unique_id_leather'] = generate_leather_id()
+
+                # Connect to database
+                self.db.connect()
+                try:
+                    # Insert record
+                    if self.db.insert_record(TABLES['SHELF'], data):
+                        # Refresh the view
+                        self.load_data()
+
+                        # Show success message
+                        messagebox.showinfo("Success", "Leather item added successfully")
+
+                        # Close dialog
+                        dialog.destroy()
+                    else:
+                        messagebox.showerror("Error", "Failed to add leather item")
+                finally:
+                    self.db.disconnect()
+
+            except Exception as e:
+                messagebox.showerror("Error", f"An error occurred: {str(e)}")
+
+        # Buttons
+        button_frame = ttk.Frame(main_frame)
+        button_frame.grid(row=len(fields), column=0, columnspan=3, pady=10)
+
+        ttk.Button(button_frame, text="Save", command=save_leather).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
+
+        # Add required fields note
+        ttk.Label(
+            main_frame,
+            text="* Required fields",
+            foreground="red"
+        ).grid(row=len(fields) + 1, column=0, columnspan=3, sticky='w', pady=(5, 0))
+
+        # Set focus
+        entries['name'].focus_set()
     def handle_return(self, event=None):
         """Handle Return key press - typically used for editing or confirming selection"""
         selected = self.tree.selection()
@@ -24,6 +120,7 @@ class ShelfView(ttk.Frame):
         self.tree.selection_remove(self.tree.selection())
     def __init__(self, parent):
         super().__init__(parent)
+        self.show_add_dialog = None
         self.db = DatabaseManager(DATABASE_PATH)
 
         # Initialize undo/redo stacks
@@ -41,7 +138,7 @@ class ShelfView(ttk.Frame):
         toolbar.pack(fill=tk.X, padx=5, pady=5)
 
         # Left side buttons
-        ttk.Button(toolbar, text="ADD", command=self.show_add_dialog).pack(side=tk.LEFT, padx=2)
+        ttk.Button(toolbar, text="ADD", command=self.show_add_leather_dialog).pack(side=tk.LEFT, padx=2)
         ttk.Button(toolbar, text="Search", command=self.show_search_dialog).pack(side=tk.LEFT, padx=2)
         ttk.Button(toolbar, text="Filter", command=self.show_filter_dialog).pack(side=tk.LEFT, padx=2)
 
@@ -115,10 +212,6 @@ class ShelfView(ttk.Frame):
         finally:
             self.db.disconnect()
 
-    def show_add_dialog(self):
-        """Show dialog for adding new item"""
-        dialog = AddDialog(self, self.columns[1:], self.add_item)  # Exclude ID column
-        self.wait_window(dialog)
 
     def add_item(self, data: Dict[str, str]):
         """Add new item to database and table"""
