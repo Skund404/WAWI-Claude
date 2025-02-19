@@ -1,10 +1,14 @@
-# incoming_goods_view.py
+# Add these imports at the top of the file
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from typing import Dict, List, Optional, Any
 import uuid
+import sqlite3  # Add this import
 from datetime import datetime
 from pathlib import Path
+import logging
+
+logging.basicConfig(level=logging.INFO)
 
 from store_management.database.db_manager import DatabaseManager
 from store_management.config import TABLES, COLORS
@@ -17,6 +21,7 @@ from store_management.config import get_database_path
 
 
 class IncomingGoodsView(ttk.Frame):
+
     def __init__(self, parent):
         super().__init__(parent)
         self.parent = parent
@@ -46,6 +51,8 @@ class IncomingGoodsView(ttk.Frame):
 
         # Bind events
         self.bind_events()
+
+
 
     def create_ui(self):
         """Create the complete user interface"""
@@ -180,7 +187,21 @@ class IncomingGoodsView(ttk.Frame):
         )
 
     def create_details_table(self, parent):
-        """Create the order details table"""
+        """Create the order details table with Add Item button"""
+        # Create frame for button and table
+        details_frame = ttk.Frame(parent)
+        details_frame.pack(expand=True, fill='both', padx=5, pady=5)
+
+        # Add Item button frame
+        button_frame = ttk.Frame(details_frame)
+        button_frame.pack(fill='x', pady=(0, 5))
+
+        ttk.Button(
+            button_frame,
+            text="Add Item",
+            command=self.show_add_item_dialog
+        ).pack(side=tk.LEFT, padx=2)
+
         # Define columns
         self.details_columns = [
             'article',
@@ -192,13 +213,206 @@ class IncomingGoodsView(ttk.Frame):
         ]
 
         # Create treeview with scrollbars
-        table_frame = ttk.Frame(parent)
-        table_frame.pack(expand=True, fill='both', padx=5, pady=5)
+        table_frame = ttk.Frame(details_frame)
+        table_frame.pack(expand=True, fill='both')
 
         self.details_tree = self.create_treeview(
             table_frame,
             self.details_columns
         )
+
+    def show_add_item_dialog(self):
+        """Show dialog for adding an item to the order"""
+        if not self.current_order:
+            self.notifications.show_warning("Please select an order first")
+            return
+
+        dialog = tk.Toplevel(self)
+        dialog.title("Add Item to Order")
+        dialog.transient(self)
+        dialog.grab_set()
+
+        main_frame = ttk.Frame(dialog, padding="10")
+        main_frame.pack(fill='both', expand=True)
+
+        # Article Selection Section
+        ttk.Label(main_frame, text="Article:").pack(anchor='w')
+
+        def get_combined_items():
+            """Get list of items from both shelf and sorting system"""
+            try:
+                self.db.connect()
+
+                # Get shelf items
+                shelf_items = self.db.execute_query(
+                    "SELECT name, unique_id_leather FROM shelf ORDER BY name"
+                )
+
+                # Get sorting system items
+                sorting_items = self.db.execute_query(
+                    "SELECT name, unique_id_parts FROM sorting_system ORDER BY name"
+                )
+
+                # Combine items with special options at top
+                items = ["+ Add New Sorting System Part", "+ Add New Shelf Part"]
+
+                # Add existing items with their sources
+                if shelf_items:
+                    items.extend([f"{item[0]} (Shelf)" for item in shelf_items])
+                if sorting_items:
+                    items.extend([f"{item[0]} (Parts)" for item in sorting_items])
+
+                # Store mapping of display names to IDs
+                self.item_id_mapping = {}
+                for item in shelf_items:
+                    self.item_id_mapping[f"{item[0]} (Shelf)"] = ('shelf', item[1])
+                for item in sorting_items:
+                    self.item_id_mapping[f"{item[0]} (Parts)"] = ('sorting', item[1])
+
+                return items
+
+            except Exception as e:
+                self.notifications.show_error(f"Failed to fetch items: {str(e)}")
+                return ["+ Add New Sorting System Part", "+ Add New Shelf Part"]
+            finally:
+                self.db.disconnect()
+
+        def on_article_select(event):
+            """Handle article selection"""
+            selected = article_combo.get()
+
+            if selected == "+ Add New Sorting System Part":
+                dialog.destroy()
+                # Show sorting system add dialog
+                from store_management.gui.sorting_system_view import SortingSystemView
+                SortingSystemView.show_add_part_dialog(self)
+                # Reopen this dialog after adding
+                self.show_add_item_dialog()
+
+            elif selected == "+ Add New Shelf Part":
+                dialog.destroy()
+                # Show shelf add dialog
+                from store_management.gui.shelf_view import ShelfView
+                ShelfView.show_add_leather_dialog(self)
+                # Reopen this dialog after adding
+                self.show_add_item_dialog()
+
+            else:
+                # Update unique ID when an existing item is selected
+                if selected in self.item_id_mapping:
+                    source, unique_id = self.item_id_mapping[selected]
+                    unique_id_var.set(unique_id)
+
+                    # Clear and disable unique ID field
+                    unique_id_entry.configure(state='readonly')
+
+        article_var = tk.StringVar()
+        article_combo = ttk.Combobox(
+            main_frame,
+            textvariable=article_var,
+            values=get_combined_items(),
+            state='readonly'
+        )
+        article_combo.pack(fill='x', pady=5)
+        article_combo.bind('<<ComboboxSelected>>', on_article_select)
+
+        # Unique ID field
+        ttk.Label(main_frame, text="Unique ID:").pack(anchor='w')
+        unique_id_var = tk.StringVar()
+        unique_id_entry = ttk.Entry(
+            main_frame,
+            textvariable=unique_id_var,
+            state='readonly'
+        )
+        unique_id_entry.pack(fill='x', pady=5)
+
+        # Price field
+        ttk.Label(main_frame, text="Price:").pack(anchor='w')
+        price_var = tk.StringVar(value="0.0")
+        price_entry = ttk.Entry(main_frame, textvariable=price_var)
+        price_entry.pack(fill='x', pady=5)
+
+        # Amount field
+        ttk.Label(main_frame, text="Amount:").pack(anchor='w')
+        amount_var = tk.StringVar(value="1")
+        amount_spinbox = ttk.Spinbox(
+            main_frame,
+            from_=1,
+            to=1000,
+            textvariable=amount_var
+        )
+        amount_spinbox.pack(fill='x', pady=5)
+
+        # Notes field
+        ttk.Label(main_frame, text="Notes:").pack(anchor='w')
+        notes_var = tk.StringVar()
+        notes_entry = ttk.Entry(main_frame, textvariable=notes_var)
+        notes_entry.pack(fill='x', pady=5)
+
+        def add_item():
+            """Add item to order details"""
+            if not article_var.get() or article_var.get() in ["+ Add New Sorting System Part", "+ Add New Shelf Part"]:
+                self.notifications.show_error("Please select an article")
+                return
+
+            try:
+                price = float(price_var.get())
+                amount = int(amount_var.get())
+
+                if price < 0:
+                    self.notifications.show_error("Price must be non-negative")
+                    return
+                if amount < 1:
+                    self.notifications.show_error("Amount must be at least 1")
+                    return
+
+                # Calculate total
+                total = price * amount
+
+                # Create item data
+                article_name = article_var.get().split(" (")[0]  # Remove the (Shelf)/(Parts) suffix
+                item_data = {
+                    'article': article_name,
+                    'unique_id': unique_id_var.get(),
+                    'price': price,
+                    'amount': amount,
+                    'total': total,
+                    'notes': notes_var.get()
+                }
+
+                # Insert into database
+                table_name = f"order_details_{self.current_order}"
+                self.db.connect()
+                if self.db.insert_record(table_name, item_data):
+                    # Refresh details view
+                    self.load_order_details(self.current_order)
+                    dialog.destroy()
+                    self.notifications.show_success("Item added successfully")
+                else:
+                    raise Exception("Failed to add item to database")
+
+            except ValueError as e:
+                self.notifications.show_error("Invalid price or amount value")
+            except Exception as e:
+                self.notifications.show_error(f"Failed to add item: {str(e)}")
+            finally:
+                self.db.disconnect()
+
+        # Buttons
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill='x', pady=10)
+
+        ttk.Button(
+            button_frame,
+            text="Add",
+            command=add_item
+        ).pack(side=tk.LEFT, padx=5)
+
+        ttk.Button(
+            button_frame,
+            text="Cancel",
+            command=dialog.destroy
+        ).pack(side=tk.LEFT, padx=5)
 
     def create_treeview(self, parent, columns, select_callback=None):
         """Create a treeview with scrollbars"""
@@ -270,119 +484,233 @@ class IncomingGoodsView(ttk.Frame):
         self.order_count.pack(side=tk.RIGHT, padx=5)
 
     def show_add_order_dialog(self):
-        """Show dialog for adding new order"""
+        """Show dialog for adding a new order"""
         dialog = tk.Toplevel(self)
         dialog.title("Add New Order")
         dialog.transient(self)
         dialog.grab_set()
 
-        # Set dialog size
-        dialog.geometry("500x400")
-
-        # Create main frame
         main_frame = ttk.Frame(dialog, padding="10")
         main_frame.pack(fill='both', expand=True)
 
-        # Get suppliers list
-        self.db.connect()
-        suppliers = self.db.execute_query(
-            "SELECT company_name FROM supplier ORDER BY company_name"
-        )
-        self.db.disconnect()
-
-        # Create fields dictionary
+        # Create input fields
         fields = {}
 
-        # Supplier selection
-        ttk.Label(main_frame, text="Supplier:").grid(row=0, column=0, sticky='w', pady=5)
-        supplier_var = tk.StringVar()
-        supplier_combo = ttk.Combobox(main_frame, textvariable=supplier_var)
-        supplier_combo['values'] = ['Add New Supplier'] + \
-                                   [s[0] for s in suppliers] if suppliers else []
-        supplier_combo.grid(row=0, column=1, sticky='ew', pady=5)
-        fields['supplier'] = supplier_var
+        # Order Number (user input)
+        ttk.Label(main_frame, text="Order Number:").pack(anchor='w')
+        order_number = tk.StringVar()
+        ttk.Entry(main_frame, textvariable=order_number).pack(fill='x', pady=5)
+        fields['order_number'] = order_number
 
-        # Date of order
-        ttk.Label(main_frame, text="Date of Order:").grid(row=1, column=0, sticky='w', pady=5)
-        date_var = tk.StringVar(value=datetime.now().strftime('%Y-%m-%d'))
-        ttk.Entry(main_frame, textvariable=date_var).grid(row=1, column=1, sticky='ew', pady=5)
-        fields['date_of_order'] = date_var
+        # Supplier Selection
+        ttk.Label(main_frame, text="Supplier:").pack(anchor='w')
 
-        # Order number
-        ttk.Label(main_frame, text="Order Number:").grid(row=2, column=0, sticky='w', pady=5)
-        order_num_var = tk.StringVar()
-        ttk.Entry(main_frame, textvariable=order_num_var).grid(row=2, column=1, sticky='ew', pady=5)
-        fields['order_number'] = order_num_var
-
-        # Status selection
-        ttk.Label(main_frame, text="Status:").grid(row=3, column=0, sticky='w', pady=5)
-        status_var = tk.StringVar(value='ordered')
-        status_combo = ttk.Combobox(main_frame, textvariable=status_var)
-        status_combo['values'] = [
-            'ordered', 'being processed', 'shipped',
-            'received', 'returned', 'partially returned'
-        ]
-        status_combo.grid(row=3, column=1, sticky='ew', pady=5)
-        fields['status'] = status_var
-
-        # Payment status
-        ttk.Label(main_frame, text="Payment Status:").grid(row=4, column=0, sticky='w', pady=5)
-        payment_var = tk.StringVar(value='no')
-        payment_combo = ttk.Combobox(main_frame, textvariable=payment_var)
-        payment_combo['values'] = ['yes', 'no']
-        payment_combo.grid(row=4, column=1, sticky='ew', pady=5)
-        fields['payed'] = payment_var
-
-        def validate_and_save():
-            """Validate and save the new order"""
-            # Get field values
-            data = {field: var.get().strip() for field, var in fields.items()}
-
-            # Validate data
-            valid, error = OrderValidator.validate_order(data)
-            if not valid:
-                self.notifications.show_error(error)
-                return
-
+        def get_suppliers():
+            """Get list of suppliers from database with 'Add New Supplier' option"""
             try:
-                # Create backup
-                self.backup.create_backup('add_order')
-
-                # Sanitize data
-                data = DataSanitizer.sanitize_order_data(data)
-
                 self.db.connect()
-                # Insert order
-                if self.db.insert_record(TABLES['ORDERS'], data):
-                    # Create order details table
-                    table_name = f"order_details_{data['order_number']}"
-                    self.create_order_details_table(table_name)
-
-                    # Add to undo stack
-                    self.undo_stack.append(('add_order', data))
-                    self.redo_stack.clear()
-
-                    # Refresh data and show success
-                    self.load_data()
-                    self.notifications.show_success("Order added successfully")
-
-                    # Show details dialog
-                    dialog.destroy()
-                    self.show_order_details_dialog(data, table_name)
-
+                query = f"SELECT company_name FROM supplier ORDER BY company_name"
+                results = self.db.execute_query(query)
+                # Add the "Add New Supplier" option at the top
+                suppliers = ["+ Add New Supplier"]
+                suppliers.extend([result[0] for result in results] if results else [])
+                return suppliers
             except Exception as e:
-                self.notifications.show_error(f"Failed to add order: {str(e)}")
+                self.notifications.show_error(f"Failed to fetch suppliers: {str(e)}")
+                return ["+ Add New Supplier"]  # Return at least the add option
             finally:
                 self.db.disconnect()
 
-        # Buttons
+        def on_supplier_select(event):
+            """Handle supplier selection"""
+            if supplier_combo.get() == "+ Add New Supplier":
+                # Create add supplier dialog
+                add_dialog = tk.Toplevel(dialog)
+                add_dialog.title("Add New Supplier")
+                add_dialog.transient(dialog)
+                add_dialog.grab_set()
+
+                # Add supplier frame
+                add_frame = ttk.Frame(add_dialog, padding="10")
+                add_frame.pack(fill='both', expand=True)
+
+                ttk.Label(add_frame, text="Company Name:").pack(anchor='w')
+                new_supplier = tk.StringVar()
+                ttk.Entry(add_frame, textvariable=new_supplier).pack(fill='x', pady=5)
+
+                def save_supplier():
+                    company_name = new_supplier.get().strip()
+                    if not company_name:
+                        self.notifications.show_warning("Please enter a company name")
+                        return
+
+                    try:
+                        self.db.connect()
+                        # Check if supplier exists
+                        exists = self.db.execute_query(
+                            f"SELECT company_name FROM supplier WHERE company_name = ?",
+                            (company_name,)
+                        )
+
+                        if exists:
+                            self.notifications.show_warning("Supplier already exists")
+                            return
+
+                        # Insert new supplier
+                        supplier_data = {
+                            'company_name': company_name,
+                            'date_added': datetime.now().strftime('%Y-%m-%d')
+                        }
+
+                        if self.db.insert_record('supplier', supplier_data):
+                            # Update supplier list and select new supplier
+                            suppliers = get_suppliers()
+                            supplier_combo['values'] = suppliers
+                            supplier_combo.set(company_name)
+                            add_dialog.destroy()
+                            self.notifications.show_success("Supplier added successfully")
+                        else:
+                            raise Exception("Failed to add supplier")
+
+                    except Exception as e:
+                        self.notifications.show_error(f"Failed to add supplier: {str(e)}")
+                    finally:
+                        self.db.disconnect()
+
+                # Add supplier dialog buttons
+                button_frame = ttk.Frame(add_frame)
+                button_frame.pack(fill='x', pady=10)
+
+                ttk.Button(
+                    button_frame,
+                    text="Save",
+                    command=save_supplier
+                ).pack(side=tk.LEFT, padx=5)
+
+                ttk.Button(
+                    button_frame,
+                    text="Cancel",
+                    command=lambda: [add_dialog.destroy(), supplier_combo.set('')]
+                ).pack(side=tk.LEFT, padx=5)
+
+        supplier = tk.StringVar()
+        supplier_combo = ttk.Combobox(
+            main_frame,
+            textvariable=supplier,
+            values=get_suppliers(),
+            state='readonly'
+        )
+        supplier_combo.pack(fill='x', pady=5)
+        supplier_combo.bind('<<ComboboxSelected>>', on_supplier_select)
+        fields['supplier'] = supplier
+
+        # Date
+        ttk.Label(main_frame, text="Date of Order:").pack(anchor='w')
+        date = tk.StringVar(value=datetime.now().strftime('%Y-%m-%d'))
+        ttk.Entry(main_frame, textvariable=date).pack(fill='x', pady=5)
+        fields['date_of_order'] = date
+
+        # Status
+        ttk.Label(main_frame, text="Status:").pack(anchor='w')
+        status = tk.StringVar(value='ordered')
+        status_combo = ttk.Combobox(main_frame, textvariable=status)
+        status_combo['values'] = ['ordered', 'being processed', 'shipped',
+                                  'received', 'returned', 'partially returned', 'completed']
+        status_combo.pack(fill='x', pady=5)
+        fields['status'] = status
+
+        # Payment Status
+        ttk.Label(main_frame, text="Payment Status:").pack(anchor='w')
+        payed = tk.StringVar(value='no')
+        payment_combo = ttk.Combobox(main_frame, textvariable=payed)
+        payment_combo['values'] = ['yes', 'no']
+        payment_combo.pack(fill='x', pady=5)
+        fields['payed'] = payed
+
+        # Total Amount
+        ttk.Label(main_frame, text="Total Amount:").pack(anchor='w')
+        total_amount = tk.StringVar(value='0.0')
+        total_entry = ttk.Entry(main_frame, textvariable=total_amount)
+        total_entry.pack(fill='x', pady=5)
+        fields['total_amount'] = total_amount
+
+        def validate_fields():
+            """Validate input fields"""
+            if not order_number.get().strip():
+                self.notifications.show_error("Please enter an order number")
+                return False
+
+            if not supplier.get() or supplier.get() == "+ Add New Supplier":
+                self.notifications.show_error("Please select a supplier")
+                return False
+
+            try:
+                amount = float(total_amount.get())
+                if amount < 0:
+                    self.notifications.show_error("Total amount must be non-negative")
+                    return False
+            except ValueError:
+                self.notifications.show_error("Total amount must be a valid number")
+                return False
+
+            try:
+                datetime.strptime(date.get(), '%Y-%m-%d')
+            except ValueError:
+                self.notifications.show_error("Invalid date format (YYYY-MM-DD)")
+                return False
+
+            return True
+
+        def create_order():
+            """Handle order creation"""
+            if not validate_fields():
+                return
+
+            try:
+                # Create order data
+                order_data = {
+                    'order_number': order_number.get().strip(),
+                    'supplier': supplier.get(),
+                    'date_of_order': date.get(),
+                    'status': status.get(),
+                    'payed': payed.get(),
+                    'total_amount': float(total_amount.get())
+                }
+
+                # Create backup before adding
+                self.backup.create_backup('add_order')
+
+                # Insert order
+                self.db.connect()
+                if self.db.insert_record('orders', order_data):
+                    # Create details table
+                    table_name = f"order_details_{order_data['order_number']}"
+                    self.create_order_details_table(table_name)
+
+                    # Refresh view
+                    self.load_data()
+
+                    # Show details dialog
+                    dialog.destroy()
+                    self.show_order_details_dialog(order_data, table_name)
+
+                    self.notifications.show_success("Order created successfully")
+
+            except Exception as e:
+                self.notifications.show_error(f"Failed to create order: {str(e)}")
+                # Attempt to restore from backup
+                self.backup.restore_backup()
+            finally:
+                self.db.disconnect()
+
+        # Main dialog buttons
         button_frame = ttk.Frame(main_frame)
-        button_frame.grid(row=5, column=0, columnspan=2, pady=20)
+        button_frame.pack(fill='x', pady=10)
 
         ttk.Button(
             button_frame,
-            text="Save",
-            command=validate_and_save
+            text="Create",
+            command=create_order
         ).pack(side=tk.LEFT, padx=5)
 
         ttk.Button(
@@ -391,164 +719,9 @@ class IncomingGoodsView(ttk.Frame):
             command=dialog.destroy
         ).pack(side=tk.LEFT, padx=5)
 
-        # Configure grid
-        main_frame.columnconfigure(1, weight=1)
-
-    def show_order_details_dialog(self, order_data: Dict, table_name: str):
-        """Show dialog for entering order details"""
-        dialog = tk.Toplevel(self)
-        dialog.title(f"Order Details - {order_data['order_number']}")
-        dialog.transient(self)
-        dialog.grab_set()
-
-        # Set dialog size
-        dialog.geometry("600x500")
-
-        # Create main frame
-        main_frame = ttk.Frame(dialog, padding="10")
-        main_frame.pack(fill='both', expand=True)
-
-        # Create upper frame for item addition
-        upper_frame = ttk.LabelFrame(main_frame, text="Add Item")
-        upper_frame.pack(fill='x', pady=(0, 10))
-
-        # Get parts and leather items
-        self.db.connect()
-        parts = self.db.execute_query(
-            "SELECT unique_id_parts, name FROM sorting_system ORDER BY name"
-        )
-        leather = self.db.execute_query(
-            "SELECT unique_id_leather, name FROM shelf ORDER BY name"
-        )
-        self.db.disconnect()
-
-        # Create fields
-        fields = {}
-
-        # Item selection
-        ttk.Label(upper_frame, text="Item:").grid(row=0, column=0, sticky='w', pady=5)
-        item_var = tk.StringVar()
-        item_combo = ttk.Combobox(upper_frame, textvariable=item_var, width=40)
-        item_combo['values'] = ['Add Part', 'Add Leather'] + \
-                               [f"{p[0]} - {p[1]}" for p in parts] + \
-                               [f"{l[0]} - {l[1]}" for l in leather]
-        item_combo.grid(row=0, column=1, columnspan=3, sticky='ew', pady=5, padx=5)
-        fields['item'] = item_var
-
-        # Price
-        ttk.Label(upper_frame, text="Price:").grid(row=1, column=0, sticky='w', pady=5)
-        price_var = tk.StringVar()
-        ttk.Entry(upper_frame, textvariable=price_var).grid(row=1, column=1, sticky='ew', pady=5, padx=5)
-        fields['price'] = price_var
-
-        # Amount
-        ttk.Label(upper_frame, text="Amount:").grid(row=1, column=2, sticky='w', pady=5)
-        amount_var = tk.StringVar()
-        ttk.Entry(upper_frame, textvariable=amount_var).grid(row=1, column=3, sticky='ew', pady=5, padx=5)
-        fields['amount'] = amount_var
-
-        # Notes
-        ttk.Label(upper_frame, text="Notes:").grid(row=2, column=0, sticky='w', pady=5)
-        notes_var = tk.StringVar()
-        ttk.Entry(upper_frame, textvariable=notes_var).grid(row=2, column=1, columnspan=3, sticky='ew', pady=5, padx=5)
-        fields['notes'] = notes_var
-
-        def add_item():
-            """Add item to order"""
-            try:
-                # Validate fields
-                if not all([fields['item'].get(), fields['price'].get(), fields['amount'].get()]):
-                    self.notifications.show_error("Item, Price, and Amount are required")
-                    return
-
-                # Parse item selection
-                item_parts = fields['item'].get().split(' - ')
-                if len(item_parts) != 2:
-                    self.notifications.show_error("Invalid item selection")
-                    return
-
-                # Create item data
-                item_data = {
-                    'unique_id': item_parts[0],
-                    'article': item_parts[1],
-                    'price': float(fields['price'].get()),
-                    'amount': int(fields['amount'].get()),
-                    'total': float(fields['price'].get()) * int(fields['amount'].get()),
-                    'notes': fields['notes'].get()
-                }
-
-                # Validate data
-                valid, error = OrderValidator.validate_order_details(item_data)
-                if not valid:
-                    self.notifications.show_error(error)
-                    return
-
-                # Add to database
-                self.db.connect()
-                if self.db.insert_record(table_name, item_data):
-                    # Update treeview
-                    self.details_tree.insert('', 'end', values=[
-                        item_data['article'],
-                        item_data['unique_id'],
-                        item_data['price'],
-                        item_data['amount'],
-                        item_data['total'],
-                        item_data['notes']
-                    ])
-
-                    # Clear fields
-                    for var in fields.values():
-                        var.set('')
-
-                    self.notifications.show_success("Item added successfully")
-
-            except ValueError:
-                self.notifications.show_error("Invalid price or amount")
-            except Exception as e:
-                self.notifications.show_error(f"Failed to add item: {str(e)}")
-            finally:
-                self.db.disconnect()
-
-        # Add button
-        ttk.Button(
-            upper_frame,
-            text="Add Item",
-            command=add_item
-        ).grid(row=3, column=0, columnspan=4, pady=10)
-
-        # Configure grid
-        for i in range(4):
-            upper_frame.columnconfigure(i, weight=1)
-
-        # Create lower frame for items list
-        lower_frame = ttk.LabelFrame(main_frame, text="Order Items")
-        lower_frame.pack(fill='both', expand=True)
-
-        # Create treeview
-        columns = ['article', 'unique_id', 'price', 'amount', 'total', 'notes']
-        tree = self.create_treeview(lower_frame, columns)
-
-        # Load existing items
-        self.db.connect()
-        items = self.db.execute_query(f"SELECT * FROM {table_name}")
-        self.db.disconnect()
-
-        if items:
-            for item in items:
-                tree.insert('', 'end', values=item[:-2])  # Exclude timestamps
-
-        # Buttons
-        button_frame = ttk.Frame(main_frame)
-        button_frame.pack(fill='x', pady=10)
-
-        ttk.Button(
-            button_frame,
-            text="Close",
-            command=dialog.destroy
-        ).pack(side=tk.RIGHT, padx=5)
-
     def create_order_details_table(self, table_name: str):
         """Create table for order details"""
+        logging.info(f"Creating order details table: {table_name}")
         query = f"""
             CREATE TABLE IF NOT EXISTS {table_name} (
                 article TEXT NOT NULL,
@@ -561,7 +734,12 @@ class IncomingGoodsView(ttk.Frame):
                 modified_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """
-        self.db.execute_query(query)
+        try:
+            self.db.execute_query(query)
+            logging.info(f"Successfully created table: {table_name}")
+        except Exception as e:
+            logging.error(f"Error creating order details table: {str(e)}")
+            raise
 
     def bind_events(self):
         """Bind global events"""

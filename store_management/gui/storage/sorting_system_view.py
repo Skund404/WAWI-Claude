@@ -4,6 +4,8 @@ from typing import Dict, List, Optional
 import uuid
 import csv
 import traceback
+import random
+import string
 
 from store_management.database.db_manager import DatabaseManager
 from store_management.config import TABLES, COLORS
@@ -68,6 +70,224 @@ def evaluate_math_expression(current_value, expression):
         raise ValueError(f"Invalid mathematical expression: {str(e)}")
 
 class SortingSystemView(ttk.Frame):
+
+    def generate_part_id(self, name, bin_location):
+        """
+        Generate a unique Part ID
+        - Always starts with 'P'
+        - Followed by first letters of first two words of name
+        - Ensures uniqueness with a random suffix
+        """
+        import random
+        import string
+
+        # Sanitize name input
+        name = name.strip()
+
+        # Split name into words and get first two word initials
+        words = name.split()
+
+        # Determine first letters
+        if len(words) >= 2:
+            # Use first letters of first two words
+            first_letters = words[0][0].upper() + words[1][0].upper()
+        elif len(words) == 1:
+            # If only one word, use its first letter twice
+            first_letters = words[0][0].upper() * 2
+        else:
+            # Fallback for empty name
+            first_letters = 'XX'
+
+        # Check for existing IDs
+        existing_ids = []
+        try:
+            self.db.connect()
+            results = self.db.execute_query("SELECT unique_id_parts FROM sorting_system")
+            existing_ids = [row[0] for row in results] if results else []
+        except Exception as e:
+            print(f"Error checking existing IDs: {e}")
+        finally:
+            self.db.disconnect()
+
+        # Generate unique ID
+        while True:
+            # Generate random alphanumeric suffix
+            suffix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
+
+            # Construct Part ID: P + first letters of first two words + random suffix
+            part_id = f"P{first_letters}{suffix}"
+
+            # Check if ID is unique
+            if part_id not in existing_ids:
+                return part_id
+
+    def save_part(self, entries, dialog):
+        """Save the new part to the database"""
+        try:
+            # Collect input data
+            data = {}
+            required_fields = [
+                ('name', 'Part Name'),
+                ('bin', 'Bin Location'),
+                ('in_storage', 'Initial Stock'),
+                ('warning_threshold', 'Warning Threshold')
+            ]
+
+            for field, label in required_fields:
+                value = entries[field].get().strip()
+                if not value:
+                    messagebox.showerror("Error", f"{label} is required")
+                    return
+                data[field] = value
+
+            # Collect optional fields
+            data['color'] = entries['color'].get().strip() or None
+            data['notes'] = entries['notes'].get().strip() or None
+
+            # Validate numeric inputs
+            try:
+                data['in_storage'] = int(data['in_storage'])
+                data['warning_threshold'] = int(data['warning_threshold'])
+
+                if data['in_storage'] < 0:
+                    raise ValueError("Stock cannot be negative")
+                if data['warning_threshold'] < 0:
+                    raise ValueError("Warning threshold cannot be negative")
+            except ValueError as e:
+                messagebox.showerror("Error", str(e))
+                return
+
+            # Generate Part ID
+            part_id = self.generate_part_id(data['name'], data['bin'])
+
+            # Prepare data for database insertion
+            insert_data = {
+                'unique_id_parts': part_id,
+                'name': data['name'],
+                'color': data['color'],
+                'in_storage': data['in_storage'],
+                'warning_threshold': data['warning_threshold'],
+                'bin': data['bin'],
+                'notes': data['notes']
+            }
+
+            # Attempt to insert record
+            self.db.connect()
+            try:
+                success = self.db.insert_record('sorting_system', insert_data)
+
+                if success:
+                    # Add to undo stack
+                    self.undo_stack.append(('add', insert_data))
+                    self.redo_stack.clear()
+
+                    # Refresh the view
+                    self.load_data()
+
+                    messagebox.showinfo(
+                        "Success",
+                        f"Part added successfully\nPart ID: {part_id}"
+                    )
+                    dialog.destroy()
+                else:
+                    messagebox.showerror(
+                        "Error",
+                        "Failed to add part. Please check your database connection."
+                    )
+
+            except Exception as e:
+                print(f"Error Details: {str(e)}")
+                traceback.print_exc()
+                messagebox.showerror(
+                    "Database Error",
+                    f"An error occurred while adding the part:\n{str(e)}"
+                )
+            finally:
+                self.db.disconnect()
+
+        except Exception as e:
+            print("Unexpected Error:")
+            traceback.print_exc()
+            messagebox.showerror(
+                "Unexpected Error",
+                f"An unexpected error occurred:\n{str(e)}"
+            )
+
+    def show_add_part_dialog(self):
+        """Show dialog for adding a new part to the sorting system"""
+        dialog = tk.Toplevel(self)
+        dialog.title("Add New Part")
+        dialog.geometry("600x400")
+        dialog.transient(self)
+        dialog.grab_set()
+
+        # Main frame
+        main_frame = ttk.Frame(dialog, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Entry fields dictionary
+        entries = {}
+        fields = [
+            ('name', 'Part Name', True),
+            ('color', 'Color', False),  # Optional
+            ('in_storage', 'Initial Stock', True),
+            ('warning_threshold', 'Warning Threshold', True),
+            ('bin', 'Bin Location', True),
+            ('notes', 'Notes', False)
+        ]
+
+        for i, (field, label, required) in enumerate(fields):
+            ttk.Label(main_frame, text=f"{label}:").grid(row=i, column=0, sticky='w', padx=5, pady=2)
+
+            if field in ['in_storage', 'warning_threshold']:
+                entries[field] = ttk.Spinbox(main_frame, from_=0, to=1000, width=20)
+                if field == 'warning_threshold':
+                    entries[field].insert(0, "5")  # Default warning threshold
+            else:
+                entries[field] = ttk.Entry(main_frame, width=40)
+
+            entries[field].grid(row=i, column=1, sticky='ew', padx=5, pady=2)
+
+            if required:
+                ttk.Label(main_frame, text="*", foreground="red").grid(row=i, column=2, sticky='w')
+
+        # Configure grid
+        main_frame.columnconfigure(1, weight=1)
+
+        # Buttons
+        button_frame = ttk.Frame(main_frame)
+        button_frame.grid(row=len(fields), column=0, columnspan=3, pady=10)
+
+        ttk.Button(
+            button_frame,
+            text="Save",
+            command=lambda: self.save_part(entries, dialog)
+        ).pack(side=tk.LEFT, padx=5)
+
+        ttk.Button(
+            button_frame,
+            text="Cancel",
+            command=dialog.destroy
+        ).pack(side=tk.LEFT, padx=5)
+
+        # Add required fields note
+        ttk.Label(
+            main_frame,
+            text="* Required fields",
+            foreground="red"
+        ).grid(row=len(fields) + 1, column=0, columnspan=3, sticky='w', pady=(5, 0))
+
+        # Set focus
+        entries['name'].focus_set()
+
+    def show_add_dialog(self):
+        """Wrapper method for backward compatibility"""
+        self.show_add_part_dialog()
+
+
+
+
+
     def show_batch_threshold_dialog(self):
         """Show dialog for batch updating warning thresholds"""
         dialog = tk.Toplevel(self)
@@ -268,231 +488,7 @@ class SortingSystemView(ttk.Frame):
         self.tree.bind('<Return>', self.handle_return)
         self.tree.bind('<Escape>', self.handle_escape)
 
-    def show_add_part_dialog(self):
-        """Show dialog for adding a new part to the sorting system"""
-        dialog = tk.Toplevel(self)
-        dialog.title("Add New Part")
-        dialog.geometry("600x400")
-        dialog.transient(self)
-        dialog.grab_set()
 
-        # Main frame
-        main_frame = ttk.Frame(dialog, padding="10")
-        main_frame.pack(fill=tk.BOTH, expand=True)
-
-        # Entry fields dictionary
-        entries = {}
-        fields = [
-            ('name', 'Part Name', True),
-            ('color', 'Color', False),
-            ('in_storage', 'Initial Stock', True),
-            ('warning_threshold', 'Warning Threshold', True),
-            ('bin', 'Bin Location', True),
-            ('notes', 'Notes', False)
-        ]
-
-        for i, (field, label, required) in enumerate(fields):
-            ttk.Label(main_frame, text=f"{label}:").grid(row=i, column=0, sticky='w', padx=5, pady=2)
-
-            if field in ['in_storage', 'warning_threshold']:
-                entries[field] = ttk.Spinbox(main_frame, from_=0, to=1000, width=20)
-                if field == 'warning_threshold':
-                    entries[field].insert(0, "5")  # Default warning threshold
-            else:
-                entries[field] = ttk.Entry(main_frame, width=40)
-
-            entries[field].grid(row=i, column=1, sticky='ew', padx=5, pady=2)
-
-            if required:
-                ttk.Label(main_frame, text="*", foreground="red").grid(row=i, column=2, sticky='w')
-
-        # Configure grid
-        main_frame.columnconfigure(1, weight=1)
-
-        def generate_part_id(name, bin_location):
-            """
-            Generate a unique Part ID
-            - Always starts with 'P'
-            - Followed by first letters of first two words of name
-            - Ensures uniqueness with a random suffix
-
-            Args:
-                name (str): Name of the part
-                bin_location (str): Bin location (used for uniqueness check)
-
-            Returns:
-                str: Unique Part ID
-            """
-            import random
-            import string
-
-            # Sanitize name input
-            name = name.strip()
-
-            # Split name into words and get first two word initials
-            words = name.split()
-
-            # Determine first letters
-            if len(words) >= 2:
-                # Use first letters of first two words
-                first_letters = words[0][0].upper() + words[1][0].upper()
-            elif len(words) == 1:
-                # If only one word, use its first letter twice
-                first_letters = words[0][0].upper() * 2
-            else:
-                # Fallback for empty name
-                first_letters = 'XX'
-
-            # Check for existing IDs to ensure uniqueness
-            existing_ids = []
-            try:
-                # This assumes self.db is available and connection method exists
-                # You might need to adjust this based on your exact database access method
-                self.db.connect()
-                cursor = self.db.connection.cursor()
-                cursor.execute("SELECT unique_id_parts FROM sorting_system")
-                existing_ids = [row[0] for row in cursor.fetchall()]
-            except Exception as e:
-                print(f"Error checking existing IDs: {e}")
-            finally:
-                self.db.disconnect()
-
-            # Generate unique ID
-            while True:
-                # Generate random alphanumeric suffix
-                suffix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
-
-                # Construct Part ID: P + first letters of first two words + random suffix
-                part_id = f"P{first_letters}{suffix}"
-
-                # Check if ID is unique
-                if part_id not in existing_ids:
-                    return part_id
-
-        def save_part():
-            """Save the new part to the database"""
-            try:
-                # Collect input data
-                data = {}
-                required_fields = [
-                    ('name', 'Part Name'),
-                    ('bin', 'Bin Location'),
-                    ('in_storage', 'Initial Stock'),
-                    ('warning_threshold', 'Warning Threshold')
-                ]
-
-                for field, label in required_fields:
-                    value = entries[field].get().strip()
-                    if not value:
-                        messagebox.showerror("Error", f"{label} is required")
-                        return
-                    data[field] = value
-
-                # Collect optional fields
-                data['color'] = entries['color'].get().strip() or None
-                data['notes'] = entries['notes'].get().strip() or None
-
-                # Validate numeric inputs
-                try:
-                    data['in_storage'] = int(data['in_storage'])
-                    data['warning_threshold'] = int(data['warning_threshold'])
-
-                    if data['in_storage'] < 0:
-                        raise ValueError("Stock cannot be negative")
-                    if data['warning_threshold'] < 0:
-                        raise ValueError("Warning threshold cannot be negative")
-                except ValueError as e:
-                    messagebox.showerror("Error", str(e))
-                    return
-
-                # Generate Part ID
-                part_id = generate_part_id(data['name'], data['bin'])
-
-                # Prepare data for database insertion
-                insert_data = {
-                    'unique_id_parts': part_id,
-                    'name': data['name'],
-                    'color': data['color'],
-                    'in_storage': data['in_storage'],
-                    'warning_threshold': data['warning_threshold'],
-                    'bin': data['bin'],
-                    'notes': data['notes']
-                }
-
-                # Attempt to insert record
-                self.db.connect()
-                try:
-                    success = self.db.insert_record(TABLES['SORTING_SYSTEM'], insert_data)
-
-                    if success:
-                        # Add to undo stack
-                        self.undo_stack.append(('add', insert_data))
-                        self.redo_stack.clear()
-
-                        # Refresh the view
-                        self.load_data()
-
-                        messagebox.showinfo(
-                            "Success",
-                            f"Part added successfully\nPart ID: {part_id}"
-                        )
-                        dialog.destroy()
-                    else:
-                        messagebox.showerror(
-                            "Error",
-                            "Failed to add part. Please check your database connection."
-                        )
-
-                except Exception as e:
-                    print(f"Error Details: {str(e)}")
-                    traceback.print_exc()
-                    messagebox.showerror(
-                        "Database Error",
-                        f"An error occurred while adding the part:\n{str(e)}"
-                    )
-                finally:
-                    self.db.disconnect()
-
-            except Exception as e:
-                print("Unexpected Error:")
-                traceback.print_exc()
-                messagebox.showerror(
-                    "Unexpected Error",
-                    f"An unexpected error occurred:\n{str(e)}"
-                )
-
-        # Add buttons
-        button_frame = ttk.Frame(main_frame)
-        button_frame.grid(row=len(fields), column=0, columnspan=3, pady=10)
-        ttk.Button(button_frame, text="Save", command=save_part).pack(side=tk.LEFT, padx=5)
-        ttk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
-
-        # Required fields note
-        ttk.Label(
-            main_frame,
-            text="* Required fields",
-            foreground="red"
-        ).grid(row=len(fields) + 1, column=0, columnspan=3, sticky='w', pady=(5, 0))
-
-        # Set focus
-        entries['name'].focus_set()
-
-        # Buttons
-        button_frame = ttk.Frame(main_frame)
-        button_frame.grid(row=len(fields), column=0, columnspan=3, pady=10)
-
-        ttk.Button(button_frame, text="Save", command=save_part).pack(side=tk.LEFT, padx=5)
-        ttk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
-
-        # Add required fields note
-        ttk.Label(
-            main_frame,
-            text="* Required fields",
-            foreground="red"
-        ).grid(row=len(fields) + 1, column=0, columnspan=3, sticky='w', pady=(5, 0))
-
-        # Set focus
-        entries['name'].focus_set()
 
     def get_warning_tag(self, in_storage: int, warning_threshold: int) -> str:
         """
