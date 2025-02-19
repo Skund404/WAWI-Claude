@@ -9,10 +9,11 @@ import csv
 import pandas as pd
 
 # Update imports to use absolute paths from project root
-from database.db_manager import DatabaseManager
 from utils.logger import logger, log_error
 from utils.error_handler import ErrorHandler, check_database_connection, DatabaseError
-from config import DATABASE_PATH, TABLES, COLORS
+from config import TABLES, COLORS
+from store_management.config import get_database_path
+from store_management.database.db_manager import DatabaseManager
 
 
 class SupplierView(ttk.Frame):
@@ -242,6 +243,7 @@ class SupplierView(ttk.Frame):
     def __init__(self, parent):
         try:
             super().__init__(parent)
+            self.db = DatabaseManager(get_database_path())
 
             # Field mapping for display names to database columns
             self.field_mapping = {
@@ -270,7 +272,6 @@ class SupplierView(ttk.Frame):
             self.reverse_mapping = {v: k for k, v in self.field_mapping.items()}
 
             # Initialize database and other components
-            self.db = DatabaseManager(DATABASE_PATH)
             self.db.connect()
 
             # Initialize undo/redo stacks

@@ -8,14 +8,14 @@ import os
 # Add the project root to the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from config import APP_NAME, WINDOW_SIZE, DATABASE_PATH
-from gui.shelf_view import ShelfView
-from gui.recipe_view import RecipeView
-from gui.storage_view import StorageView
-from gui.sorting_system_view import SortingSystemView
-from gui.order.incoming_goods_view import IncomingGoodsView
-from gui.order.shopping_list_view import ShoppingListView
-from gui.supplier_view import SupplierView
+from store_management.config import APP_NAME, WINDOW_SIZE, DATABASE_PATH
+from store_management.gui.storage.shelf_view import ShelfView
+from store_management.gui.product.recipe_view import RecipeView
+from store_management.gui.product.storage_view import StorageView
+from store_management.gui.storage.sorting_system_view import SortingSystemView
+from store_management.gui.order.incoming_goods_view import IncomingGoodsView
+from store_management.gui.order.shopping_list_view import ShoppingListView
+from store_management.gui.order.supplier_view import SupplierView
 
 
 class MainWindow:

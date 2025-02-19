@@ -5,11 +5,13 @@ import uuid
 import csv
 import traceback
 
-from database.db_manager import DatabaseManager
-from config import DATABASE_PATH, TABLES, COLORS
-from gui.dialogs.add_dialog import AddDialog
-from gui.dialogs.search_dialog import SearchDialog
-from gui.dialogs.filter_dialog import FilterDialog
+from store_management.database.db_manager import DatabaseManager
+from store_management.config import TABLES, COLORS
+from store_management.gui.dialogs.add_dialog import AddDialog
+from store_management.gui.dialogs.search_dialog import SearchDialog
+from store_management.gui.dialogs.filter_dialog import FilterDialog
+from store_management.config import get_database_path
+
 
 
 def evaluate_math_expression(current_value, expression):
@@ -182,7 +184,7 @@ class SortingSystemView(ttk.Frame):
 
     def __init__(self, parent):
         super().__init__(parent)
-        self.db = DatabaseManager(DATABASE_PATH)
+        self.db = DatabaseManager(get_database_path())
 
         # Initialize undo/redo stacks
         self.undo_stack = []

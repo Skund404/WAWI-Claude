@@ -6,12 +6,14 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-from database.db_manager import DatabaseManager
-from config import DATABASE_PATH, TABLES, COLORS
-from utils.validators import OrderValidator, DataSanitizer
-from utils.exporters import OrderExporter, OrderImporter
-from utils.backup import DatabaseBackup
-from utils.notifications import StatusNotification
+from store_management.database.db_manager import DatabaseManager
+from store_management.config import TABLES, COLORS
+from store_management.utils.validators import OrderValidator, DataSanitizer
+from store_management.utils.exporters import OrderExporter, OrderImporter
+from store_management.utils.backup import DatabaseBackup
+from store_management.utils.notifications import StatusNotification
+from store_management.config import get_database_path
+
 
 
 class IncomingGoodsView(ttk.Frame):
@@ -20,10 +22,10 @@ class IncomingGoodsView(ttk.Frame):
         self.parent = parent
 
         # Initialize database manager
-        self.db = DatabaseManager(DATABASE_PATH)
+        self.db = DatabaseManager(get_database_path())
 
         # Initialize utilities
-        self.backup = DatabaseBackup(Path(DATABASE_PATH))
+        self.backup = DatabaseBackup(get_database_path())
         self.notifications = StatusNotification(self)
 
         # Initialize undo/redo stacks

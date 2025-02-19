@@ -2,15 +2,148 @@ import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 import pandas as pd
 import csv
+from store_management.utils.logger import logger
 from typing import Dict, List, Optional
 import uuid
 from datetime import datetime
 from pathlib import Path
-from database.db_manager import DatabaseManager
-from config import DATABASE_PATH, TABLES, COLORS
+
+from store_management.config import TABLES, COLORS
+from store_management.database.db_manager import DatabaseManager
+from store_management.config import get_database_path
+
 
 
 class ShoppingListView(ttk.Frame):
+
+    def _setup_caching(self):
+        """Setup caching for frequently accessed data"""
+        self.supplier_cache = {}
+        self.parts_cache = {}
+        self.cache_timeout = 300  # 5 minutes
+
+    def refresh_cache(self):
+        """Refresh cached data"""
+        self.db.connect()
+        try:
+            # Cache suppliers
+            suppliers = self.db.execute_query(
+                "SELECT company_name FROM supplier ORDER BY company_name"
+            )
+            self.supplier_cache = {
+                'data': suppliers,
+                'timestamp': datetime.now()
+            }
+
+            # Cache parts
+            parts = self.db.execute_query(
+                "SELECT unique_id_parts, name, color FROM sorting_system ORDER BY name"
+            )
+            self.parts_cache = {
+                'data': parts,
+                'timestamp': datetime.now()
+            }
+        finally:
+            self.db.disconnect()
+
+    def get_data_chunks(self, table, chunk_size=1000):
+        """Get data in chunks to handle large datasets"""
+        offset = 0
+        while True:
+            query = f"""
+                SELECT * FROM {table}
+                ORDER BY supplier, article
+                LIMIT {chunk_size} OFFSET {offset}
+            """
+            results = self.db.execute_query(query)
+            if not results:
+                break
+            yield results
+            offset += chunk_size
+
+    def get_suppliers(self):
+        """Get suppliers with caching"""
+        now = datetime.now()
+        if (not self.supplier_cache or
+                (now - self.supplier_cache['timestamp']).seconds > self.cache_timeout):
+            self.refresh_cache()
+        return self.supplier_cache['data']
+
+    def batch_update(self, table: str, updates: List[Dict]):
+        """Perform batch updates"""
+        self.db.connect()
+        try:
+            self.db.begin_transaction()
+            for update in updates:
+                self.db.update_record(table, update['data'], update['condition'], update['params'])
+            self.db.commit_transaction()
+        except Exception as e:
+            self.db.rollback_transaction()
+            raise e
+        finally:
+            self.db.disconnect()
+
+    def update_tree_batch(self, rows):
+        """Update tree with batch of rows"""
+        for row in rows:
+            self.tree.insert('', 'end', values=row[:-2])  # Exclude timestamps
+
+    def show_loading(self):
+        """Show loading indicator"""
+        self.loading_label = ttk.Label(self, text="Loading...")
+        self.loading_label.pack()
+        self.update_idletasks()
+
+    def hide_loading(self):
+        """Hide loading indicator"""
+        if hasattr(self, 'loading_label'):
+            self.loading_label.destroy()
+
+    def cleanup(self):
+        """Cleanup resources"""
+        self.supplier_cache.clear()
+        self.parts_cache.clear()
+
+    def __del__(self):
+        """Destructor to ensure cleanup"""
+        self.cleanup()
+
+    def update_shopping_list_tables(self):
+        """Update existing shopping list tables to include status and urgency columns"""
+        self.db.connect()
+        try:
+            # Get all shopping list tables
+            tables = self.db.execute_query(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'shopping_list_%'"
+            )
+
+            for table in tables:
+                table_name = table[0]
+
+                # Check if status column exists
+                columns = self.db.execute_query(f"PRAGMA table_info({table_name})")
+                column_names = [col[1] for col in columns]
+
+                # Add status column if it doesn't exist
+                if 'status' not in column_names:
+                    self.db.execute_query(
+                        f"ALTER TABLE {table_name} ADD COLUMN status TEXT DEFAULT 'not ordered'"
+                    )
+                    logger.info(f"Added status column to {table_name}")
+
+                # Add urgency column if it doesn't exist
+                if 'urgency' not in column_names:
+                    self.db.execute_query(
+                        f"ALTER TABLE {table_name} ADD COLUMN urgency TEXT DEFAULT 'None'"
+                    )
+                    logger.info(f"Added urgency column to {table_name}")
+
+        except Exception as e:
+            logger.error(f"Failed to update shopping list tables: {str(e)}")
+            raise
+        finally:
+            self.db.disconnect()
+
     def save_table(self):
         """Save current table state"""
         if not self.current_list:
@@ -387,8 +520,13 @@ class ShoppingListView(ttk.Frame):
         ).pack(side=tk.LEFT, padx=5)
 
     def __init__(self, parent):
+        # Initialize ttk.Frame first
         super().__init__(parent)
-        self.db = DatabaseManager(DATABASE_PATH)
+        self.db = DatabaseManager(get_database_path())
+
+
+        # Setup caching
+        self._setup_caching()
 
         # Initialize undo/redo stacks
         self.undo_stack = []
@@ -397,20 +535,18 @@ class ShoppingListView(ttk.Frame):
         # Current shopping list
         self.current_list = None
 
-        # Setup UI components
-        self.setup_toolbar()
-        self.setup_table_selection()
-        self.setup_table()
-        self.load_shopping_lists()
+        # Setup UI components in correct order
+        self.setup_table_selection()  # Setup top table first
+        self.setup_toolbar()  # Then toolbar
+        self.setup_table()  # Then bottom table
+        self.load_shopping_lists()  # Finally load data
 
     def setup_toolbar(self):
-        """Create the toolbar with all buttons"""
+        """Create the toolbar with all buttons (except New List, Delete List, and Add Item)"""
         toolbar = ttk.Frame(self)
         toolbar.pack(fill=tk.X, padx=5, pady=5)
 
-        # Left side buttons
-        ttk.Button(toolbar, text="ADD",
-                   command=self.show_add_dialog).pack(side=tk.LEFT, padx=2)
+        # Left side buttons (Search and Filter)
         ttk.Button(toolbar, text="Search",
                    command=self.show_search_dialog).pack(side=tk.LEFT, padx=2)
         ttk.Button(toolbar, text="Filter",
@@ -425,22 +561,81 @@ class ShoppingListView(ttk.Frame):
                    command=self.reset_view).pack(side=tk.RIGHT, padx=2)
 
     def setup_table_selection(self):
-        """Create shopping list selection dropdown"""
-        selection_frame = ttk.Frame(self)
-        selection_frame.pack(fill=tk.X, padx=5, pady=5)
+        """Create shopping list selection table view"""
+        # Create list frame with label
+        list_frame = ttk.LabelFrame(self, text="Shopping Lists")
+        list_frame.pack(fill=tk.X, padx=5, pady=5)
 
-        ttk.Label(selection_frame, text="Select Shopping List:").pack(side=tk.LEFT, padx=5)
+        # Top button frame for New List and Delete List
+        top_button_frame = ttk.Frame(list_frame)
+        top_button_frame.pack(fill=tk.X, padx=5, pady=5)
 
-        self.list_var = tk.StringVar()
-        self.list_combo = ttk.Combobox(selection_frame, textvariable=self.list_var)
-        self.list_combo.pack(side=tk.LEFT, padx=5)
+        ttk.Button(top_button_frame, text="New List",
+                   command=self.create_new_list).pack(side=tk.LEFT, padx=2)
+        ttk.Button(top_button_frame, text="Delete List",
+                   command=self.delete_list).pack(side=tk.LEFT, padx=2)
 
-        ttk.Button(selection_frame, text="New List",
-                   command=self.create_new_list).pack(side=tk.LEFT, padx=5)
-        ttk.Button(selection_frame, text="Delete List",
-                   command=self.delete_list).pack(side=tk.LEFT, padx=5)
+        # Create list tree components
+        self.list_tree_frame = ttk.Frame(list_frame)
+        self.list_tree_frame.pack(expand=True, fill='both', padx=5, pady=5)
 
-        self.list_var.trace('w', self.on_list_select)
+        # Define columns for list selection
+        self.list_columns = ['name', 'supplier', 'status', 'urgency', 'notes']
+
+        # Create scrollbars for list selection
+        list_vsb = ttk.Scrollbar(self.list_tree_frame, orient="vertical")
+        list_hsb = ttk.Scrollbar(self.list_tree_frame, orient="horizontal")
+
+        # Create list selection treeview
+        self.list_tree = ttk.Treeview(
+            self.list_tree_frame,
+            columns=self.list_columns,
+            show='headings',
+            selectmode='browse',  # Only allow single selection
+            height=5,  # Show 5 rows by default
+            yscrollcommand=list_vsb.set,
+            xscrollcommand=list_hsb.set
+        )
+
+        # Configure scrollbars
+        list_vsb.configure(command=self.list_tree.yview)
+        list_hsb.configure(command=self.list_tree.xview)
+
+        # Setup headers and columns for list selection
+        for col in self.list_columns:
+            self.list_tree.heading(col, text=col.title())
+            # Adjust column widths based on content
+            if col == 'supplier':
+                width = 200
+            elif col in ['status', 'urgency', 'name']:
+                width = 100
+            else:
+                width = 150
+            self.list_tree.column(col, width=width, minwidth=50)
+
+        # Configure urgency color tags
+        self.list_tree.tag_configure('urgency_green', background='#90EE90')  # Light green
+        self.list_tree.tag_configure('urgency_yellow', background='#FFFFE0')  # Light yellow
+        self.list_tree.tag_configure('urgency_red', background='#FFB6C1')  # Light red
+
+        # Grid layout for list selection
+        self.list_tree.grid(row=0, column=0, sticky='nsew')
+        list_vsb.grid(row=0, column=1, sticky='ns')
+        list_hsb.grid(row=1, column=0, sticky='ew')
+
+        # Configure grid weights for list selection
+        self.list_tree_frame.grid_columnconfigure(0, weight=1)
+        self.list_tree_frame.grid_rowconfigure(0, weight=1)
+
+        # Bottom button frame for Add Item
+        bottom_button_frame = ttk.Frame(list_frame)
+        bottom_button_frame.pack(fill=tk.X, padx=5, pady=5)
+
+        ttk.Button(bottom_button_frame, text="Add Item to List",
+                   command=self.show_add_dialog).pack(side=tk.LEFT, padx=2)
+
+        # Bind selection event
+        self.list_tree.bind('<<TreeviewSelect>>', self.on_list_select)
 
     def setup_table(self):
         """Create the main table view"""
@@ -453,23 +648,19 @@ class ShoppingListView(ttk.Frame):
             'supplier', 'unique_id', 'article', 'color', 'amount', 'price', 'notes'
         ]
 
-        # Create scrollbars
-        vsb = ttk.Scrollbar(self.tree_frame, orient="vertical")
-        hsb = ttk.Scrollbar(self.tree_frame, orient="horizontal")
-
-        # Create treeview
+        # Create treeview with scrollbars
         self.tree = ttk.Treeview(
             self.tree_frame,
             columns=self.columns,
             show='headings',
-            selectmode='extended',
-            yscrollcommand=vsb.set,
-            xscrollcommand=hsb.set
+            selectmode='extended'
         )
+        self.tree.focus_set()  # Set focus to the Treeview
 
-        # Configure scrollbars
-        vsb.configure(command=self.tree.yview)
-        hsb.configure(command=self.tree.xview)
+        # Setup scrollbars
+        vsb = ttk.Scrollbar(self.tree_frame, orient="vertical", command=self.tree.yview)
+        hsb = ttk.Scrollbar(self.tree_frame, orient="horizontal", command=self.tree.xview)
+        self.tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
 
         # Setup headers and columns
         for col in self.columns:
@@ -486,12 +677,52 @@ class ShoppingListView(ttk.Frame):
         self.tree_frame.grid_columnconfigure(0, weight=1)
         self.tree_frame.grid_rowconfigure(0, weight=1)
 
+        # Custom event handlers
+        def on_delete(event):
+            from store_management.utils.logger import logger
+            logger.debug("Delete key pressed")
+            self.delete_selected(event)
+            return 'break'
+
+        def on_return(event):
+            from store_management.utils.logger import logger
+            logger.debug("Return key pressed")
+            selected = self.tree.selection()
+            if selected:
+                logger.debug(f"Selected item: {selected}")
+                self.start_cell_edit(selected[0], '#2')
+            return 'break'
+
+        def on_escape(event):
+            from store_management.utils.logger import logger
+            logger.debug("Escape key pressed")
+            self.tree.selection_remove(self.tree.selection())
+            return 'break'
+
+        def on_key_press(event):
+            from store_management.utils.logger import logger
+            logger.debug(f"Key pressed: {event.keysym}")
+
         # Bind events
         self.tree.bind('<Double-1>', self.on_double_click)
-        self.tree.bind('<Delete>', self.delete_selected)
+        self.tree.bind('<Delete>', on_delete)
+        self.tree.bind('<Return>', on_return)
+        self.tree.bind('<Escape>', on_escape)
+        self.tree.bind('<Key>', on_key_press)
+
+    def handle_return(self, event=None):
+        """Handle Return key press - typically used for editing or confirming selection"""
+        selected = self.tree.selection()
+        if selected:
+            # Start editing the second column (unique_id)
+            self.start_cell_edit(selected[0], '#2')
+
+    def handle_escape(self, event=None):
+        """Handle Escape key press - typically used to clear selection"""
+        self.tree.selection_remove(self.tree.selection())
 
     def create_new_list(self):
-        """Create a new shopping list"""
+        """Create a new shopping list with supplier selection"""
         dialog = tk.Toplevel(self)
         dialog.title("Create New Shopping List")
         dialog.transient(self)
@@ -501,65 +732,165 @@ class ShoppingListView(ttk.Frame):
         main_frame = ttk.Frame(dialog, padding="10")
         main_frame.grid(row=0, column=0, sticky='nsew')
 
-        # List name entry
-        ttk.Label(main_frame, text="List Name:").grid(row=0, column=0, sticky='w')
+        # Get suppliers from database
+        self.db.connect()
+        try:
+            suppliers = self.db.execute_query(
+                "SELECT company_name FROM supplier ORDER BY company_name"
+            )
+        except Exception as e:
+            suppliers = []
+            logger.error(f"Failed to fetch suppliers: {e}")
+        finally:
+            self.db.disconnect()
+
+        # Supplier selection
+        row = 0
+        # Add name field
+        ttk.Label(main_frame, text="List Name:").grid(row=row, column=0, sticky='w', pady=2)
         name_var = tk.StringVar()
-        ttk.Entry(main_frame, textvariable=name_var).grid(row=0, column=1, sticky='ew')
+        ttk.Entry(main_frame, textvariable=name_var).grid(row=row, column=1, sticky='ew', pady=2)
+
+        row += 1
+        ttk.Label(main_frame, text="Supplier:").grid(row=row, column=0, sticky='w', pady=2)
+        supplier_var = tk.StringVar()
+        supplier_combo = ttk.Combobox(main_frame, textvariable=supplier_var)
+        supplier_combo['values'] = ['➕ Add New Supplier'] + [s[0] for s in suppliers]
+        supplier_combo.grid(row=row, column=1, sticky='ew', pady=2)
+
+        row += 1
+        # Status dropdown
+        ttk.Label(main_frame, text="Status:").grid(row=row, column=0, sticky='w', pady=2)
+        status_var = tk.StringVar(value="not ordered")
+        status_combo = ttk.Combobox(main_frame, textvariable=status_var, state='readonly')
+        status_combo['values'] = ["not ordered", "ordered", "template"]
+        status_combo.grid(row=row, column=1, sticky='ew', pady=2)
+
+        row += 1
+        # Urgency dropdown
+        ttk.Label(main_frame, text="Urgency:").grid(row=row, column=0, sticky='w', pady=2)
+        urgency_var = tk.StringVar(value="None")
+        urgency_combo = ttk.Combobox(main_frame, textvariable=urgency_var, state='readonly')
+        urgency_combo['values'] = ["None", "Green", "Yellow", "Red"]
+        urgency_combo.grid(row=row, column=1, sticky='ew', pady=2)
+
+        row += 1
+        # Notes field
+        ttk.Label(main_frame, text="Notes:").grid(row=row, column=0, sticky='w', pady=2)
+        notes_var = tk.StringVar()
+        ttk.Entry(main_frame, textvariable=notes_var).grid(row=row, column=1, sticky='ew', pady=2)
 
         def save():
             """Save new shopping list"""
-            name = name_var.get().strip()
-            if not name:
-                messagebox.showerror("Error", "List name is required")
-                return
-
-            # Check if name exists
-            self.db.connect()
             try:
-                existing = self.db.execute_query(
-                    "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
-                    (f"shopping_list_{name}",)
-                )
-
-                if existing:
-                    messagebox.showerror("Error", "List name already exists")
+                supplier = supplier_var.get()
+                if supplier == '➕ Add New Supplier' or not supplier:
+                    messagebox.showerror("Error", "Please select a supplier")
                     return
 
-                # Create new table
-                query = f"""
-                    CREATE TABLE shopping_list_{name} (
-                        supplier TEXT NOT NULL,
-                        unique_id TEXT,
-                        article TEXT NOT NULL,
-                        color TEXT,
-                        amount INTEGER NOT NULL,
-                        price REAL,
-                        notes TEXT,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        modified_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    )
-                """
-                self.db.execute_query(query)
+                # Validate input values
+                status = status_var.get()
+                urgency = urgency_var.get()
+                notes = notes_var.get()
+                list_name = name_var.get().strip() or supplier
 
-                # Refresh shopping lists
-                self.load_shopping_lists()
-                self.list_var.set(name)
+                logger.info(f"Attempting to create shopping list:")
+                logger.info(f"Supplier: {supplier}")
+                logger.info(f"Name: {list_name}")
+                logger.info(f"Status: {status}")
+                logger.info(f"Urgency: {urgency}")
+                logger.info(f"Notes: {notes}")
 
-                dialog.destroy()
+                self.db.connect()
+                try:
+                    # Validate urgency value
+                    valid_urgencies = ["None", "Green", "Yellow", "Red"]
+                    if urgency not in valid_urgencies:
+                        raise ValueError(f"Invalid urgency value: {urgency}")
 
-            except Exception as e:
-                messagebox.showerror("Error", f"Failed to create list: {str(e)}")
-            finally:
-                self.db.disconnect()
+                    # Generate a unique table name
+                    base_table_name = f"shopping_list_{supplier}"
+                    table_name = base_table_name
+                    counter = 1
+
+                    # Check if table exists and generate a unique name
+                    while self.db.execute_query(
+                            "SELECT name FROM sqlite_master WHERE type='table' AND name = ?",
+                            (table_name,)
+                    ):
+                        table_name = f"{base_table_name}_{counter}"
+                        counter += 1
+
+                    # Create table with all necessary columns
+                    query = f"""
+                        CREATE TABLE {table_name} (
+                            supplier TEXT NOT NULL,
+                            unique_id TEXT,
+                            article TEXT NOT NULL,
+                            color TEXT,
+                            amount INTEGER NOT NULL DEFAULT 0,
+                            price REAL DEFAULT 0,
+                            notes TEXT DEFAULT '',
+                            name TEXT DEFAULT '',
+                            status TEXT DEFAULT 'not ordered',
+                            urgency TEXT DEFAULT 'None',
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            modified_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            CHECK (urgency IN ('None', 'Green', 'Yellow', 'Red'))
+                        )
+                    """
+                    self.db.execute_query(query)
+
+                    # Insert initial metadata row
+                    metadata = {
+                        'supplier': supplier,
+                        'unique_id': 'META',
+                        'article': 'Metadata',
+                        'status': status,
+                        'urgency': urgency,
+                        'amount': 0,
+                        'color': '',
+                        'price': 0,
+                        'notes': notes,
+                        'name': list_name
+                    }
+
+                    # Attempt to insert metadata
+                    try:
+                        self.db.insert_record(table_name, metadata)
+                        logger.info(f"Metadata inserted successfully for {table_name}")
+                        logger.info(f"Metadata details: {metadata}")
+                    except Exception as insert_e:
+                        logger.error(f"Failed to insert metadata: {insert_e}")
+                        raise
+
+                    # Refresh shopping lists
+                    self.load_shopping_lists()
+                    dialog.destroy()
+
+                except Exception as e:
+                    logger.error(f"List creation failed: {str(e)}")
+                    # Convert exception to user-friendly message
+                    error_message = str(e)
+                    if "CHECK constraint failed" in error_message:
+                        error_message = "Invalid urgency value. Please select a valid urgency."
+                    messagebox.showerror("Error", f"Failed to create list: {error_message}")
+                finally:
+                    self.db.disconnect()
+
+            except Exception as overall_e:
+                logger.error(f"Unexpected error in save method: {overall_e}")
+                messagebox.showerror("Unexpected Error", str(overall_e))
 
         # Buttons
         button_frame = ttk.Frame(main_frame)
-        button_frame.grid(row=1, column=0, columnspan=2, pady=10)
+        button_frame.grid(row=row + 1, column=0, columnspan=2, pady=10)
 
-        ttk.Button(button_frame, text="Create",
-                   command=save).pack(side=tk.LEFT, padx=5)
-        ttk.Button(button_frame, text="Cancel",
-                   command=dialog.destroy).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Create", command=save).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
+
+        # Configure grid weights
+        main_frame.columnconfigure(1, weight=1)
 
     def delete_list(self):
         """Delete current shopping list"""
@@ -574,7 +905,6 @@ class ShoppingListView(ttk.Frame):
                 self.db.execute_query(f"DROP TABLE shopping_list_{self.current_list}")
                 self.load_shopping_lists()
                 self.current_list = None
-                self.list_var.set('')
 
                 # Clear table
                 for item in self.tree.get_children():
@@ -586,28 +916,160 @@ class ShoppingListView(ttk.Frame):
                 self.db.disconnect()
 
     def load_shopping_lists(self):
-        """Load available shopping lists"""
+        """Load available shopping lists with metadata and apply urgency colors"""
         self.db.connect()
         try:
+            # Clear existing items
+            for item in self.list_tree.get_children():
+                self.list_tree.delete(item)
+
+            # Get all shopping list tables
             tables = self.db.execute_query(
                 "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'shopping_list_%'"
             )
 
-            lists = [table[0].replace('shopping_list_', '') for table in tables]
-            self.list_combo['values'] = lists
+            for table in tables:
+                table_name = table[0]
 
+                # Get metadata from the special metadata row
+                metadata_query = f"""
+                    SELECT 
+                        supplier, 
+                        status, 
+                        urgency, 
+                        name,
+                        notes
+                    FROM {table_name} 
+                    WHERE unique_id = 'META'
+                    LIMIT 1
+                """
+                try:
+                    metadata = self.db.execute_query(metadata_query)
+
+                    if not metadata:
+                        logger.warning(f"No metadata found for table {table_name}")
+                        continue
+
+                    supplier = metadata[0][0] or 'Unknown'
+                    status = metadata[0][1] or 'not ordered'
+                    urgency = metadata[0][2] or 'None'
+                    name = metadata[0][3] or table_name.replace('shopping_list_', '')
+                    notes = metadata[0][4] or ''
+
+                    # Sanitize urgency value
+                    if urgency not in ['None', 'Green', 'Yellow', 'Red']:
+                        logger.warning(f"Invalid urgency value for {table_name}: {urgency}")
+                        urgency = 'None'
+
+                    # Insert into tree with metadata
+                    item = self.list_tree.insert('', 'end', values=(name, supplier, status, urgency, notes))
+
+                    # Apply urgency color
+                    if urgency == 'Green':
+                        self.list_tree.item(item, tags=('urgency_green',))
+                    elif urgency == 'Yellow':
+                        self.list_tree.item(item, tags=('urgency_yellow',))
+                    elif urgency == 'Red':
+                        self.list_tree.item(item, tags=('urgency_red',))
+
+                except Exception as e:
+                    logger.error(f"Error processing table {table_name}: {e}")
+
+        except Exception as e:
+            logger.error(f"Failed to load shopping lists: {e}")
+            messagebox.showerror("Error", f"Failed to load shopping lists: {e}")
         finally:
             self.db.disconnect()
 
-    def on_list_select(self, *args):
+    def on_list_select(self, event):
         """Handle shopping list selection"""
-        selected = self.list_var.get()
+        # Log the event details
+        logger.info("on_list_select method called")
+
+        # Get the selected items from the list tree
+        selected = self.list_tree.selection()
+
+        # Log the selected items
+        logger.info(f"Selected items: {selected}")
+
+        # Clear the lower table view regardless of selection
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+
         if selected:
-            self.current_list = selected
-            self.load_data()
+            # Get the list values from the selected item
+            values = self.list_tree.item(selected[0])['values']
+            logger.info(f"Selected list values: {values}")
+
+            if values:
+                # Get the name and supplier (first two columns)
+                name = values[0]  # Name
+                supplier = values[1]  # Supplier
+
+                logger.info(f"Attempting to select list - Name: {name}, Supplier: {supplier}")
+
+                # Find the corresponding table name
+                self.db.connect()
+                try:
+                    # Find tables that match the supplier
+                    tables = self.db.execute_query(
+                        """
+                        SELECT name FROM sqlite_master 
+                        WHERE type='table' 
+                        AND name LIKE 'shopping_list_%'
+                        """)
+
+                    logger.info(f"Found {len(tables)} shopping list tables:")
+                    for table in tables:
+                        logger.info(f"Table: {table[0]}")
+
+                    # Find the matching table by checking its metadata
+                    matching_table = None
+                    for table in tables:
+                        table_name = table[0]
+                        try:
+                            # Fetch metadata for this table
+                            metadata = self.db.execute_query(
+                                f"SELECT name, supplier FROM {table_name} WHERE unique_id = 'META'"
+                            )
+
+                            logger.info(f"Checking table {table_name}")
+                            logger.info(f"Metadata found: {metadata}")
+
+                            # Check if metadata matches the selected list
+                            if metadata and metadata[0][0] == name and metadata[0][1] == supplier:
+                                matching_table = table_name
+                                break
+                        except Exception as meta_e:
+                            logger.error(f"Error checking metadata for {table_name}: {meta_e}")
+
+                    if matching_table:
+                        # Set the current list to the full table name
+                        self.current_list = matching_table.replace('shopping_list_', '')
+                        logger.info(f"Selected list: {self.current_list}")
+
+                        # Load data for the selected list
+                        self.load_data()
+                    else:
+                        logger.warning("No matching table found")
+                        logger.warning(f"Searched for Name: {name}, Supplier: {supplier}")
+                        self.current_list = None
+
+                        # Ensure the lower table is cleared
+                        for item in self.tree.get_children():
+                            self.tree.delete(item)
+                except Exception as e:
+                    logger.error(f"Error selecting list: {e}")
+                    self.current_list = None
+
+                    # Ensure the lower table is cleared
+                    for item in self.tree.get_children():
+                        self.tree.delete(item)
+                finally:
+                    self.db.disconnect()
         else:
+            # No selection - ensure current list is None and lower table is cleared
             self.current_list = None
-            # Clear table
             for item in self.tree.get_children():
                 self.tree.delete(item)
 
@@ -653,6 +1115,8 @@ class ShoppingListView(ttk.Frame):
                                    [s[0] for s in suppliers] if suppliers else []
         supplier_combo.grid(row=row, column=1, sticky='ew')
         entries['supplier'] = supplier_var
+
+
 
         def handle_supplier_selection(*args):
             if supplier_var.get() == 'Add Supplier':
@@ -755,100 +1219,146 @@ class ShoppingListView(ttk.Frame):
                    command=dialog.destroy).pack(side=tk.LEFT, padx=5)
 
     def load_data(self):
-        """Load data for current shopping list"""
+        """Load data with optimized UI updates"""
+        # Log the current list being loaded
+        logger.info(f"Loading data for current list: {self.current_list}")
+
         if not self.current_list:
+            logger.warning("No current list selected")
+            # Clear the tree view
+            for item in self.tree.get_children():
+                self.tree.delete(item)
             return
 
-        self.db.connect()
-        try:
-            query = f"SELECT * FROM shopping_list_{self.current_list} ORDER BY supplier, article"
-            results = self.db.execute_query(query)
+        # Show loading indicator
+        self.show_loading()
 
-            # Clear existing items
+        try:
+            # Clear existing items efficiently
             for item in self.tree.get_children():
                 self.tree.delete(item)
 
-            # Insert new data
-            for row in results:
-                self.tree.insert('', 'end', values=row[:-2])  # Exclude timestamps
+            self.db.connect()
 
+            # Construct the full table name
+            full_table_name = f"shopping_list_{self.current_list}"
+
+            # Verify table exists
+            tables = self.db.execute_query(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name = ?",
+                (full_table_name,)
+            )
+
+            if not tables:
+                logger.error(f"Table {full_table_name} does not exist")
+                return
+
+            # Query to get all rows except the metadata row
+            query = f"""
+                SELECT * FROM {full_table_name} 
+                WHERE unique_id != 'META'
+                ORDER BY supplier, article
+            """
+
+            # Execute query and fetch results
+            results = self.db.execute_query(query)
+
+            logger.info(f"Found {len(results)} items in the list")
+
+            # Update tree with results
+            for row in results:
+                # Exclude last two columns (timestamps)
+                self.tree.insert('', 'end', values=row[:-2])
+
+        except Exception as e:
+            logger.error(f"Error loading data: {e}")
+            messagebox.showerror("Error", f"Failed to load shopping list: {e}")
         finally:
+            # Always hide loading and disconnect
+            self.hide_loading()
             self.db.disconnect()
 
     def on_double_click(self, event):
         """Handle double-click on cell"""
         region = self.tree.identify("region", event.x, event.y)
         if region == "cell":
-            column = self.tree.identify_column(event.x)
             item = self.tree.identify_row(event.y)
+            column = self.tree.identify_column(event.x)
+            col_num = int(column[1:]) - 1  # Get column index (remove '#')
+            col_name = self.columns[col_num]  # Get column name
 
-            if column == "#2":  # unique_id column
-                return  # Don't allow editing of unique_id
+            print(f"Clicked column: {col_name} (index {col_num})")  # Debugging line
+
+            if col_name in ('unique_id', 'article', 'color'):  # Disallow editing these columns
+                return
 
             self.start_cell_edit(item, column)
 
     def start_cell_edit(self, item, column):
         """Start cell editing"""
-        col_num = int(column[1]) - 1
+        print(f"start_cell_edit called! item={item}, column={column}")  # Debugging line
+        from store_management.utils.logger import logger
+
+        logger.debug(f"Start cell edit: item={item}, column={column}")
+
+        # Prevent editing metadata row
+        unique_id = self.tree.set(item, 'unique_id')
+        if unique_id == 'META':
+            logger.warning("Attempted to edit metadata row")
+            return
+
+        # Get column name and current value
+        col_num = int(column[1:]) - 1
         col_name = self.columns[col_num]
         current_value = self.tree.set(item, col_name)
+        logger.debug(f"Editing column: {col_name}, current value: {current_value}")
 
         # Create edit frame
         frame = ttk.Frame(self.tree)
 
-        # Create edit widget based on column
+        # Special handling for specific columns
         if col_name == 'supplier':
             # Get suppliers list
             self.db.connect()
-            suppliers = self.db.execute_query(
-                "SELECT company_name FROM supplier ORDER BY company_name"
-            )
-            self.db.disconnect()
+            try:
+                suppliers = self.db.execute_query(
+                    "SELECT company_name FROM supplier ORDER BY company_name"
+                )
+                suppliers = [s[0] for s in suppliers] if suppliers else []
+            except Exception as e:
+                logger.error(f"Error fetching suppliers: {e}")
+                suppliers = []
+            finally:
+                self.db.disconnect()
 
-            var = tk.StringVar(value=current_value)
-            widget = ttk.Combobox(frame, textvariable=var)
-            widget['values'] = [s[0] for s in suppliers] if suppliers else []
+            # Create combobox
+            entry = ttk.Combobox(frame, values=suppliers)
+            entry.set(current_value)
+        elif col_name in ['amount', 'price']:
+            # Numeric entry with validation
+            entry = ttk.Entry(frame, validate='key')
+            entry.insert(0, current_value)
+            entry['validatecommand'] = (entry.register(self.validate_numeric), '%P')
         else:
-            var = tk.StringVar(value=current_value)
-            widget = ttk.Entry(frame, textvariable=var)
+            # Standard entry for other columns
+            entry = ttk.Entry(frame)
+            entry.insert(0, current_value)
 
-        widget.pack(fill=tk.BOTH, expand=True)
-
-        # Position frame
-        bbox = self.tree.bbox(item, column)
-        frame.place(x=bbox[0], y=bbox[1], width=bbox[2], height=bbox[3])
+        entry.select_range(0, tk.END)
+        entry.pack(fill=tk.BOTH, expand=True)
 
         def save_edit(event=None):
             """Save the edited value"""
-            new_value = var.get()
+            new_value = entry.get()
             if new_value != current_value:
-                # Validate numeric fields
-                if col_name == 'amount':
-                    try:
-                        value = int(new_value)
-                        if value < 0:
-                            messagebox.showerror("Error", "Amount must be non-negative")
-                            return
-                    except ValueError:
-                        messagebox.showerror("Error", "Amount must be a number")
-                        return
-                elif col_name == 'price':
-                    try:
-                        value = float(new_value)
-                        if value < 0:
-                            messagebox.showerror("Error", "Price must be non-negative")
-                            return
-                    except ValueError:
-                        messagebox.showerror("Error", "Price must be a number")
-                        return
-
                 # Store for undo
                 old_values = {col: self.tree.set(item, col) for col in self.columns}
                 self.undo_stack.append(('edit', item, old_values))
                 self.redo_stack.clear()
 
                 # Update database
-                self.update_record(old_values['unique_id'], col_name, new_value)
+                unique_id = self.tree.set(item, 'unique_id')
+                self.update_record(unique_id, col_name, new_value)
 
                 # Update tree
                 self.tree.set(item, col_name, new_value)
@@ -859,10 +1369,20 @@ class ShoppingListView(ttk.Frame):
             """Cancel the edit"""
             frame.destroy()
 
-        widget.bind('<Return>', save_edit)
-        widget.bind('<Escape>', cancel_edit)
-        widget.bind('<FocusOut>', save_edit)
-        widget.focus_set()
+        entry.bind('<Return>', save_edit)
+        entry.bind('<Escape>', cancel_edit)
+        entry.bind('<FocusOut>', save_edit)
+        entry.focus_set()
+
+    def validate_numeric(self, value):
+        """Validate numeric input for amount and price"""
+        if value == "":
+            return True
+        try:
+            float(value)
+            return True
+        except ValueError:
+            return False
 
     def update_record(self, unique_id: str, column: str, value: str):
         """Update record in database"""
@@ -884,11 +1404,56 @@ class ShoppingListView(ttk.Frame):
 
     def delete_selected(self, event=None):
         """Delete selected items"""
-        if not self.current_list:
-            return
+        from store_management.utils.logger import logger
+
+        logger.debug("Delete_selected method called")
+
+        # Add logging to check current list state
+        logger.debug(f"Current list before deletion: {self.current_list}")
 
         selected = self.tree.selection()
+        logger.debug(f"Selected items: {selected}")
+
+        # If no current list, check if we can derive it from the list selection
+        if not self.current_list:
+            list_selected = self.list_tree.selection()
+            if list_selected:
+                values = self.list_tree.item(list_selected[0])['values']
+                if values:
+                    # Reconstruct current list name
+                    name = values[0]
+                    supplier = values[1]
+                    # Attempt to find the correct table name
+                    self.db.connect()
+                    try:
+                        tables = self.db.execute_query(
+                            """
+                            SELECT name FROM sqlite_master 
+                            WHERE type='table' 
+                            AND name LIKE 'shopping_list_%'
+                            """
+                        )
+
+                        # Find the matching table
+                        for table in tables:
+                            table_name = table[0]
+                            metadata = self.db.execute_query(
+                                f"SELECT name, supplier FROM {table_name} WHERE unique_id = 'META'"
+                            )
+                            if metadata and metadata[0][0] == name and metadata[0][1] == supplier:
+                                self.current_list = table_name.replace('shopping_list_', '')
+                                break
+                    except Exception as e:
+                        logger.error(f"Error finding current list: {e}")
+                    finally:
+                        self.db.disconnect()
+
+        if not self.current_list:
+            messagebox.showwarning("Warning", "Please select a shopping list first")
+            return
+
         if not selected:
+            logger.debug("No items selected")
             return
 
         if messagebox.askyesno("Confirm Delete",
@@ -903,6 +1468,13 @@ class ShoppingListView(ttk.Frame):
 
                     # Delete from database
                     unique_id = values['unique_id']
+                    logger.debug(f"Deleting item with unique_id: {unique_id}")
+
+                    # Prevent deletion of metadata row
+                    if unique_id == 'META':
+                        logger.warning("Attempted to delete metadata row")
+                        continue
+
                     self.db.delete_record(
                         f"shopping_list_{self.current_list}",
                         "unique_id = ?",
@@ -912,11 +1484,21 @@ class ShoppingListView(ttk.Frame):
                     # Delete from tree
                     self.tree.delete(item)
 
-                self.undo_stack.append(('delete', deleted_items))
-                self.redo_stack.clear()
+                # Only append to undo stack if items were actually deleted
+                if deleted_items:
+                    self.undo_stack.append(('delete', deleted_items))
+                    self.redo_stack.clear()
 
+            except Exception as e:
+                logger.error(f"Error in delete_selected: {e}")
+                messagebox.showerror("Error", f"Failed to delete items: {str(e)}")
             finally:
                 self.db.disconnect()
+
+            # Reload data to ensure view is up to date
+            self.load_data()
+
+
 
     def sort_column(self, col):
         """Sort table by column"""

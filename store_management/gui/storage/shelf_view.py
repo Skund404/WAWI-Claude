@@ -4,11 +4,14 @@ from typing import Dict, List, Optional
 import uuid
 from datetime import datetime
 
-from database.db_manager import DatabaseManager
-from config import DATABASE_PATH, TABLES, COLORS
-from gui.dialogs.add_dialog import AddDialog
-from gui.dialogs.search_dialog import SearchDialog
-from gui.dialogs.filter_dialog import FilterDialog
+
+from store_management.config import TABLES, COLORS
+from store_management.gui.dialogs.add_dialog import AddDialog
+from store_management.gui.dialogs.search_dialog import SearchDialog
+from store_management.gui.dialogs.filter_dialog import FilterDialog
+from store_management.config import get_database_path
+from store_management.database.db_manager import DatabaseManager
+
 
 
 class ShelfView(ttk.Frame):
@@ -121,7 +124,7 @@ class ShelfView(ttk.Frame):
     def __init__(self, parent):
         super().__init__(parent)
         self.show_add_dialog = None
-        self.db = DatabaseManager(DATABASE_PATH)
+        self.db = DatabaseManager(get_database_path())
 
         # Initialize undo/redo stacks
         self.undo_stack = []

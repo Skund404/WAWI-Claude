@@ -7,12 +7,14 @@ import uuid
 import json
 from datetime import datetime
 
-from database.db_manager import DatabaseManager
-from utils.logger import logger
-from utils.error_handler import ErrorHandler
-from utils.notifications import StatusNotification
-from config import DATABASE_PATH, TABLES, COLORS
-from gui.dialogs.search_dialog import SearchDialog
+from store_management.database.db_manager import DatabaseManager
+from store_management.utils.logger import logger
+from store_management.utils.error_handler import ErrorHandler
+from store_management.utils.notifications import StatusNotification
+from store_management.config import TABLES, COLORS
+from store_management.gui.dialogs.search_dialog import SearchDialog
+from store_management.config import get_database_path
+from store_management.database.db_manager import DatabaseManager
 
 
 class RecipeView(ttk.Frame):
@@ -732,11 +734,12 @@ class RecipeView(ttk.Frame):
 
 
     def __init__(self, parent):
+
         super().__init__(parent)
+        self.db = DatabaseManager(get_database_path())
         self.parent = parent
 
-        # Initialize database manager
-        self.db = DatabaseManager(DATABASE_PATH)
+
 
         # Initialize notifications
         self.notifications = StatusNotification(self)

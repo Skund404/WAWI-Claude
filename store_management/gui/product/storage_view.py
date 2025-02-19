@@ -4,17 +4,21 @@ from tkinter import ttk, messagebox
 from typing import Dict, List
 import uuid
 
-from database.db_manager import DatabaseManager
-from config import DATABASE_PATH, TABLES, COLORS
-from gui.dialogs.add_dialog import AddDialog
-from gui.dialogs.search_dialog import SearchDialog
-from gui.dialogs.filter_dialog import FilterDialog
+
+from store_management.config import TABLES, COLORS
+from store_management.gui.dialogs.add_dialog import AddDialog
+from store_management.gui.dialogs.search_dialog import SearchDialog
+from store_management.gui.dialogs.filter_dialog import FilterDialog
+from store_management.config import get_database_path
+from store_management.database.db_manager import DatabaseManager
+from store_management.config import get_database_path
+
 
 
 class StorageView(ttk.Frame):
     def __init__(self, parent):
         super().__init__(parent)
-        self.db = DatabaseManager(DATABASE_PATH)
+        self.db = DatabaseManager(get_database_path())
 
         # Initialize undo/redo stacks
         self.undo_stack = []
@@ -50,7 +54,7 @@ class StorageView(ttk.Frame):
 
         # Define columns
         self.columns = [
-            'unique_id_product', 'name', 'type', 'collection', 
+            'unique_id_product', 'name', 'type', 'collection',
             'color', 'amount', 'bin', 'notes'
         ]
 
@@ -111,10 +115,251 @@ class StorageView(ttk.Frame):
         finally:
             self.db.disconnect()
 
+    # gui/storage_view.py
+
+    # gui/storage_view.py
+
+    # gui/storage_view.py
+
     def show_add_dialog(self):
         """Show dialog for adding new item"""
-        dialog = AddDialog(self, self.columns[1:], self.add_item)  # Exclude ID column
-        self.wait_window(dialog)
+        dialog = tk.Toplevel(self)
+        dialog.title("Add New Item")
+        dialog.transient(self)
+        dialog.grab_set()
+
+        # Create main frame
+        main_frame = ttk.Frame(dialog, padding="10")
+        main_frame.grid(row=0, column=0, sticky='nsew')
+
+        # Create entry fields
+        entries = {}
+        # Define required and optional fields
+        required_fields = {
+            'name': 'Name',  # The dropdown menu
+            'type': 'Type',
+            'amount': 'Amount'
+        }
+
+        optional_fields = {
+            'bin': 'Bin',  # Moved from required to optional
+            'collection': 'Collection',
+            'color': 'Color',
+            'notes': 'Notes'
+        }
+
+        # Get recipes from database for dropdown
+        self.db.connect()
+        try:
+            recipes = self.db.execute_query("""
+                SELECT unique_id_product, name, type, collection, color
+                FROM recipe_index
+                ORDER BY name
+            """)
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to fetch recipes: {str(e)}")
+            recipes = []
+        finally:
+            self.db.disconnect()
+
+        # Create recipe dropdown frame with required field marker
+        name_frame = ttk.Frame(main_frame)
+        name_frame.grid(row=0, column=0, columnspan=2, sticky='ew', pady=(0, 5))
+
+        ttk.Label(name_frame, text="Name:").pack(side=tk.LEFT)
+        ttk.Label(name_frame, text="*", foreground="red").pack(side=tk.LEFT)
+
+        # Create dropdown variable and widget
+        recipe_var = tk.StringVar()
+        recipe_combo = ttk.Combobox(name_frame, textvariable=recipe_var, width=40)
+
+        # Add "Create New Recipe" option and existing recipes
+        recipe_options = [("new", "➕ Create New Recipe")]
+        recipe_options.extend((r[0], f"{r[1]} ({r[0]})") for r in recipes)
+
+        recipe_combo['values'] = [opt[1] for opt in recipe_options]
+        recipe_combo.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(5, 0))
+        entries['name'] = recipe_combo
+
+        # Helper function to create field row
+        def create_field_row(field, label, row, required=False):
+            field_frame = ttk.Frame(main_frame)
+            field_frame.grid(row=row, column=0, columnspan=2, sticky='ew', pady=2)
+
+            ttk.Label(field_frame, text=f"{label}:").pack(side=tk.LEFT)
+            if required:
+                ttk.Label(field_frame, text="*", foreground="red").pack(side=tk.LEFT)
+
+            entry = ttk.Entry(field_frame)
+            entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(5, 0))
+            entries[field] = entry
+            return entry
+
+        # Create required fields
+        row = 1
+        for field, label in required_fields.items():
+            if field != 'name':  # Skip name as it's already created
+                create_field_row(field, label, row, required=True)
+                row += 1
+
+        # Create optional fields
+        for field, label in optional_fields.items():
+            create_field_row(field, label, row)
+            row += 1
+
+        def update_fields(*args):
+            """Update fields when recipe is selected"""
+            selection = recipe_var.get()
+
+            # Clear all fields first
+            for field in list(required_fields.keys())[1:] + list(optional_fields.keys()):  # Skip name
+                entries[field].delete(0, tk.END)
+                entries[field].configure(state='normal')
+
+            if selection.startswith('➕'):  # New recipe selected
+                # Enable all fields for editing
+                pass
+            else:
+                # Find selected recipe
+                recipe_id = None
+                for rid, text in recipe_options:
+                    if text == selection:
+                        recipe_id = rid
+                        break
+
+                if recipe_id:
+                    # Get recipe details
+                    self.db.connect()
+                    try:
+                        recipe = self.db.execute_query("""
+                            SELECT type, collection, color
+                            FROM recipe_index
+                            WHERE unique_id_product = ?
+                        """, (recipe_id,))
+
+                        if recipe:
+                            # Fill in fields from recipe
+                            entries['type'].insert(0, recipe[0][0] or '')
+                            entries['collection'].insert(0, recipe[0][1] or '')
+                            entries['color'].insert(0, recipe[0][2] or '')
+
+                            # Disable recipe-linked fields
+                            entries['type'].configure(state='disabled')
+                            entries['collection'].configure(state='disabled')
+                            entries['color'].configure(state='disabled')
+
+                    finally:
+                        self.db.disconnect()
+
+        # Bind update function to recipe selection
+        recipe_var.trace('w', update_fields)
+
+        def validate_fields():
+            """Validate required fields"""
+            missing_fields = []
+
+            # Check name (recipe selection)
+            if not recipe_var.get():
+                missing_fields.append("Name")
+
+            # Check other required fields
+            for field in required_fields:
+                if field != 'name':  # Skip name as it's handled above
+                    if not entries[field].get().strip():
+                        missing_fields.append(required_fields[field])
+
+            # Check amount is a positive number
+            try:
+                amount = float(entries['amount'].get())
+                if amount <= 0:
+                    messagebox.showerror("Error", "Amount must be a positive number")
+                    return False
+            except ValueError:
+                messagebox.showerror("Error", "Amount must be a valid number")
+                return False
+
+            if missing_fields:
+                messagebox.showerror(
+                    "Error",
+                    f"Required fields cannot be empty:\n{', '.join(missing_fields)}"
+                )
+                return False
+
+            return True
+
+        def save():
+            """Save the new item"""
+            if not validate_fields():
+                return
+
+            try:
+                selection = recipe_var.get()
+
+                # Generate unique ID
+                if selection.startswith('➕'):
+                    # New recipe
+                    name = "New Recipe"  # You might want to prompt for a name
+                    prefix = 'NR'
+                else:
+                    # Existing recipe
+                    for rid, text in recipe_options:
+                        if text == selection:
+                            recipe_id = rid
+                            name = text.split(' (')[0]
+                            prefix = ''.join(word[0].upper() for word in name.split())
+                            break
+
+                unique_id = f"{prefix}{str(uuid.uuid4())[:8]}"
+
+                # Collect data
+                data = {
+                    'unique_id_product': unique_id,
+                    'name': name,
+                    **{field: entries[field].get() for field in
+                       list(required_fields.keys())[1:] + list(optional_fields.keys())}
+                }
+
+                self.db.connect()
+                if self.db.insert_record(TABLES['STORAGE'], data):
+                    # Add to undo stack
+                    self.undo_stack.append(('add', unique_id, data))
+                    self.redo_stack.clear()
+
+                    # Refresh table
+                    self.load_data()
+                    dialog.destroy()
+                else:
+                    raise Exception("Failed to add item")
+
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to add item: {str(e)}")
+            finally:
+                self.db.disconnect()
+
+        # Add required fields note
+        ttk.Label(
+            main_frame,
+            text="* Required fields",
+            foreground="red",
+            font=('', 8)
+        ).grid(row=row, column=0, columnspan=2, sticky='w', pady=(10, 0))
+
+        # Buttons
+        button_frame = ttk.Frame(main_frame)
+        button_frame.grid(row=row + 1, column=0, columnspan=2, pady=10)
+
+        ttk.Button(button_frame, text="Save", command=save).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
+
+        # Configure grid
+        main_frame.columnconfigure(1, weight=1)
+
+        # Set focus to name field
+        recipe_combo.focus_set()
+
+        # Bind enter to save
+        dialog.bind('<Return>', lambda e: save())
+        dialog.bind('<Escape>', lambda e: dialog.destroy())
 
     def add_item(self, data: Dict[str, str]):
         """Add new item to database and table"""

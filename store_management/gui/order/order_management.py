@@ -2,11 +2,11 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from typing import Dict, Optional
 
-from database.db_manager import DatabaseManager
-from config import DATABASE_PATH, TABLES, COLORS
-from gui.order.incoming_goods_view import IncomingGoodsView
-from gui.order.shopping_list_view import ShoppingListView
-from gui.supplier_view import SupplierView
+from store_management.database.db_manager import DatabaseManager
+from store_management.config import DATABASE_PATH, TABLES, COLORS
+from store_management.gui.order.incoming_goods_view import IncomingGoodsView
+from store_management.gui.order.shopping_list_view import ShoppingListView
+from store_management.gui.order.supplier_view import SupplierView
 
 
 class OrderManagementSystem(ttk.Frame):

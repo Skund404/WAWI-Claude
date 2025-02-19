@@ -1,13 +1,29 @@
 # config.py
 from pathlib import Path
+import os
 
 # Application Settings
 APP_NAME = "Store Management System"
 WINDOW_SIZE = "1200x800"
 APP_VERSION = "1.0.0"
 
-# Database
-DATABASE_PATH = Path(__file__).parent / 'database' / 'store_management.db'
+# Get the directory of the current file (config.py)
+CONFIG_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Database file name (without path)
+DATABASE_FILENAME = 'store_management.db'
+
+# Database path (private - not to be accessed directly)
+_DATABASE_PATH = Path(os.path.join(CONFIG_DIR, 'database', DATABASE_FILENAME))
+
+def get_database_path():
+    """
+    Returns the absolute path to the database file.
+
+    Returns:
+        Path: The absolute path to the database file.
+    """
+    return _DATABASE_PATH
 
 # Table names
 TABLES = {
@@ -38,9 +54,11 @@ DEFAULT_FONT = ('Arial', 10)
 HEADER_FONT = ('Arial', 11, 'bold')
 
 # File paths
-BACKUP_DIR = Path(__file__).parent / 'backups'
-LOG_DIR = Path(__file__).parent / 'logs'
+BACKUP_DIR = Path(os.path.join(CONFIG_DIR, 'backups'))
+LOG_DIR = Path(os.path.join(CONFIG_DIR, 'logs'))
 
 # Ensure required directories exist
 BACKUP_DIR.mkdir(exist_ok=True)
 LOG_DIR.mkdir(exist_ok=True)
+
+
