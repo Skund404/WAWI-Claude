@@ -2,6 +2,7 @@
 from pathlib import Path
 import os
 
+
 # Application Settings
 APP_NAME = "Store Management System"
 WINDOW_SIZE = "1200x800"

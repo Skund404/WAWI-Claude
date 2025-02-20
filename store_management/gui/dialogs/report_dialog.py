@@ -1,42 +1,36 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
-from typing import Dict, Any
-import json
+from tkinter import ttk, messagebox, filedialog
+from typing import Dict, List, Optional
 from datetime import datetime
 import csv
-from pathlib import Path
 
-from utils.database_utilities import DatabaseUtilities
-from config import DATABASE_PATH
+from store_management.database.sqlalchemy.manager import ReportManager
+from store_management.database.sqlalchemy.session import get_session
+from store_management.gui.dialogs.base_dialog import BaseDialog
+from store_management.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
-class ReportDialog(tk.Toplevel):
+class ReportDialog(BaseDialog):
     def __init__(self, parent):
-        super().__init__(parent)
-        self.title("Generate Reports")
-        self.geometry("800x600")
+        super().__init__(
+            parent,
+            title="Generate Reports",
+            size=(800, 600),
+            modal=True
+        )
 
-        # Make dialog modal
-        self.transient(parent)
-        self.grab_set()
-
-        # Initialize database utilities
-        self.db_utils = DatabaseUtilities(DATABASE_PATH)
-
-        # Initialize UI
-        self.create_ui()
-
-        # Current report data
+        self.report_manager = ReportManager(get_session)
         self.current_report = None
+
+        # Create UI components
+        self.create_ui()
 
     def create_ui(self):
         """Create the report dialog UI"""
-        # Main container
-        main_frame = ttk.Frame(self, padding="10")
-        main_frame.pack(fill='both', expand=True)
-
         # Left panel - Report selection and controls
-        left_panel = ttk.Frame(main_frame)
+        left_panel = ttk.Frame(self.main_frame)
         left_panel.pack(side='left', fill='y', padx=(0, 10))
 
         # Report type selection
@@ -51,14 +45,14 @@ class ReportDialog(tk.Toplevel):
 
         for text, value in report_types:
             ttk.Radiobutton(
-                left_panel, text=text, value=value,
+                left_panel,
+                text=text,
+                value=value,
                 variable=self.report_type,
                 command=self.on_report_type_change
             ).pack(fill='x', pady=2)
 
-        ttk.Separator(left_panel, orient='horizontal').pack(
-            fill='x', pady=10
-        )
+        ttk.Separator(left_panel, orient='horizontal').pack(fill='x', pady=10)
 
         # Report options
         self.options_frame = ttk.LabelFrame(left_panel, text="Options")
@@ -78,7 +72,9 @@ class ReportDialog(tk.Toplevel):
 
         for text, value in date_ranges:
             ttk.Radiobutton(
-                self.date_range_frame, text=text, value=value,
+                self.date_range_frame,
+                text=text,
+                value=value,
                 variable=self.date_range
             ).pack(fill='x', pady=2)
 
@@ -95,7 +91,9 @@ class ReportDialog(tk.Toplevel):
 
         for text, value in detail_levels:
             ttk.Radiobutton(
-                self.detail_frame, text=text, value=value,
+                self.detail_frame,
+                text=text,
+                value=value,
                 variable=self.detail_level
             ).pack(fill='x', pady=2)
 
@@ -104,7 +102,8 @@ class ReportDialog(tk.Toplevel):
 
         # Generate button
         ttk.Button(
-            left_panel, text="Generate Report",
+            left_panel,
+            text="Generate Report",
             command=self.generate_report
         ).pack(fill='x', pady=10)
 
@@ -113,22 +112,25 @@ class ReportDialog(tk.Toplevel):
         export_frame.pack(fill='x', pady=5)
 
         ttk.Button(
-            export_frame, text="Export as PDF",
-            command=self.export_pdf
+            export_frame,
+            text="Export as CSV",
+            command=self.export_csv
         ).pack(fill='x', pady=2)
 
         ttk.Button(
-            export_frame, text="Export as Excel",
+            export_frame,
+            text="Export as Excel",
             command=self.export_excel
         ).pack(fill='x', pady=2)
 
         ttk.Button(
-            export_frame, text="Export as CSV",
-            command=self.export_csv
+            export_frame,
+            text="Export as PDF",
+            command=self.export_pdf
         ).pack(fill='x', pady=2)
 
         # Right panel - Report display
-        right_panel = ttk.Frame(main_frame)
+        right_panel = ttk.Frame(self.main_frame)
         right_panel.pack(side='left', fill='both', expand=True)
 
         # Report display area with scrollbars
@@ -136,14 +138,14 @@ class ReportDialog(tk.Toplevel):
 
     def create_report_display(self, parent):
         """Create the report display area"""
-        # Container frame
         display_frame = ttk.LabelFrame(parent, text="Report")
         display_frame.pack(fill='both', expand=True)
 
         # Create canvas and scrollbar
         self.canvas = tk.Canvas(display_frame)
         scrollbar = ttk.Scrollbar(
-            display_frame, orient="vertical",
+            display_frame,
+            orient="vertical",
             command=self.canvas.yview
         )
 
@@ -153,7 +155,9 @@ class ReportDialog(tk.Toplevel):
         # Create frame for report content
         self.report_frame = ttk.Frame(self.canvas)
         self.canvas_frame = self.canvas.create_window(
-            (0, 0), window=self.report_frame, anchor="nw"
+            (0, 0),
+            window=self.report_frame,
+            anchor="nw"
         )
 
         # Grid layout
@@ -176,7 +180,8 @@ class ReportDialog(tk.Toplevel):
         self.canvas.bind(
             "<Configure>",
             lambda e: self.canvas.itemconfig(
-                self.canvas_frame, width=e.width
+                self.canvas_frame,
+                width=e.width
             )
         )
 
@@ -190,9 +195,7 @@ class ReportDialog(tk.Toplevel):
         if self.report_type.get() == "orders":
             self.date_range_frame.pack(fill='x', pady=5)
             self.detail_frame.pack(fill='x', pady=5)
-        elif self.report_type.get() == "inventory":
-            self.detail_frame.pack(fill='x', pady=5)
-        elif self.report_type.get() == "suppliers":
+        else:
             self.detail_frame.pack(fill='x', pady=5)
 
     def on_report_type_change(self):
@@ -208,14 +211,22 @@ class ReportDialog(tk.Toplevel):
             for widget in self.report_frame.winfo_children():
                 widget.destroy()
 
-            # Generate report
-            report_type = self.report_type.get()
-            self.current_report = self.db_utils.generate_report(report_type)
+            # Get report parameters
+            params = {
+                'report_type': self.report_type.get(),
+                'detail_level': self.detail_level.get()
+            }
+
+            if self.report_type.get() == "orders":
+                params['date_range'] = self.date_range.get()
+
+            # Generate report using ReportManager
+            self.current_report = self.report_manager.generate_report(params)
 
             # Display report header
             ttk.Label(
                 self.report_frame,
-                text=f"{report_type.title()} Report",
+                text=f"{params['report_type'].title()} Report",
                 font=('', 14, 'bold')
             ).pack(fill='x', pady=10)
 
@@ -224,19 +235,21 @@ class ReportDialog(tk.Toplevel):
                 text=f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
             ).pack(fill='x')
 
-            ttk.Separator(self.report_frame, orient='horizontal').pack(
-                fill='x', pady=10
-            )
+            ttk.Separator(
+                self.report_frame,
+                orient='horizontal'
+            ).pack(fill='x', pady=10)
 
             # Display report sections
-            if report_type == "inventory":
+            if params['report_type'] == "inventory":
                 self.display_inventory_report()
-            elif report_type == "orders":
+            elif params['report_type'] == "orders":
                 self.display_orders_report()
-            elif report_type == "suppliers":
+            elif params['report_type'] == "suppliers":
                 self.display_suppliers_report()
 
         except Exception as e:
+            logger.error(f"Failed to generate report: {str(e)}")
             messagebox.showerror(
                 "Error",
                 f"Failed to generate report: {str(e)}"
@@ -248,14 +261,17 @@ class ReportDialog(tk.Toplevel):
 
         # Shelf inventory section
         shelf_frame = ttk.LabelFrame(
-            self.report_frame, text="Shelf Inventory"
+            self.report_frame,
+            text="Shelf Inventory"
         )
         shelf_frame.pack(fill='x', pady=5)
 
         # Create treeview for shelf summary
         columns = ['Type', 'Count', 'Total Area', 'Color Count']
         tree = self.create_treeview(
-            shelf_frame, columns, report['sections']['shelf']['summary']
+            shelf_frame,
+            columns,
+            report['sections']['shelf']['summary']
         )
         tree.pack(fill='x', pady=5)
 
@@ -269,21 +285,24 @@ class ReportDialog(tk.Toplevel):
 
             columns = ['Name', 'Type', 'Color', 'Amount']
             tree = self.create_treeview(
-                shelf_frame, columns,
+                shelf_frame,
+                columns,
                 report['sections']['shelf']['low_stock']
             )
             tree.pack(fill='x', pady=5)
 
         # Parts inventory section
         parts_frame = ttk.LabelFrame(
-            self.report_frame, text="Parts Inventory"
+            self.report_frame,
+            text="Parts Inventory"
         )
         parts_frame.pack(fill='x', pady=5)
 
         # Create treeview for parts summary
         columns = ['Bin', 'Count', 'Total Stock']
         tree = self.create_treeview(
-            parts_frame, columns,
+            parts_frame,
+            columns,
             report['sections']['parts']['summary']
         )
         tree.pack(fill='x', pady=5)
@@ -298,7 +317,8 @@ class ReportDialog(tk.Toplevel):
 
             columns = ['Name', 'Color', 'In Storage', 'Bin']
             tree = self.create_treeview(
-                parts_frame, columns,
+                parts_frame,
+                columns,
                 report['sections']['parts']['low_stock']
             )
             tree.pack(fill='x', pady=5)
@@ -309,26 +329,30 @@ class ReportDialog(tk.Toplevel):
 
         # Status summary section
         summary_frame = ttk.LabelFrame(
-            self.report_frame, text="Order Status Summary"
+            self.report_frame,
+            text="Order Status Summary"
         )
         summary_frame.pack(fill='x', pady=5)
 
         columns = ['Status', 'Count', 'Paid Count']
         tree = self.create_treeview(
-            summary_frame, columns,
+            summary_frame,
+            columns,
             report['sections']['status_summary']
         )
         tree.pack(fill='x', pady=5)
 
         # Recent orders section
         recent_frame = ttk.LabelFrame(
-            self.report_frame, text="Recent Orders"
+            self.report_frame,
+            text="Recent Orders"
         )
         recent_frame.pack(fill='x', pady=5)
 
         columns = ['Supplier', 'Date', 'Status', 'Order Number', 'Paid']
         tree = self.create_treeview(
-            recent_frame, columns,
+            recent_frame,
+            columns,
             report['sections']['recent_orders']
         )
         tree.pack(fill='x', pady=5)
@@ -336,13 +360,15 @@ class ReportDialog(tk.Toplevel):
         # Pending payments section
         if report['sections']['pending_payments']:
             pending_frame = ttk.LabelFrame(
-                self.report_frame, text="Pending Payments"
+                self.report_frame,
+                text="Pending Payments"
             )
             pending_frame.pack(fill='x', pady=5)
 
             columns = ['Supplier', 'Date', 'Order Number']
             tree = self.create_treeview(
-                pending_frame, columns,
+                pending_frame,
+                columns,
                 report['sections']['pending_payments']
             )
             tree.pack(fill='x', pady=5)
@@ -353,51 +379,56 @@ class ReportDialog(tk.Toplevel):
 
         # Summary section
         summary_frame = ttk.LabelFrame(
-            self.report_frame, text="Supplier Summary"
+            self.report_frame,
+            text="Supplier Summary"
         )
         summary_frame.pack(fill='x', pady=5)
 
         summary = report['sections']['summary']
         ttk.Label(
             summary_frame,
-            text=f"Total Suppliers: {summary[0]}"
+            text=f"Total Suppliers: {summary['total']}"
         ).pack(fill='x')
         ttk.Label(
             summary_frame,
-            text=f"Countries: {summary[1]}"
+            text=f"Countries: {summary['countries']}"
         ).pack(fill='x')
         ttk.Label(
             summary_frame,
-            text=f"Currencies: {summary[2]}"
+            text=f"Currencies: {summary['currencies']}"
         ).pack(fill='x')
 
         # Orders by supplier section
         orders_frame = ttk.LabelFrame(
-            self.report_frame, text="Orders by Supplier"
+            self.report_frame,
+            text="Orders by Supplier"
         )
         orders_frame.pack(fill='x', pady=5)
 
         columns = ['Company Name', 'Order Count', 'Last Order']
         tree = self.create_treeview(
-            orders_frame, columns,
+            orders_frame,
+            columns,
             report['sections']['supplier_orders']
         )
         tree.pack(fill='x', pady=5)
 
         # Payment terms section
         terms_frame = ttk.LabelFrame(
-            self.report_frame, text="Payment Terms Analysis"
+            self.report_frame,
+            text="Payment Terms Analysis"
         )
         terms_frame.pack(fill='x', pady=5)
 
         columns = ['Payment Terms', 'Supplier Count']
         tree = self.create_treeview(
-            terms_frame, columns,
+            terms_frame,
+            columns,
             report['sections']['payment_terms']
         )
         tree.pack(fill='x', pady=5)
 
-    def create_treeview(self, parent, columns, data):
+    def create_treeview(self, parent, columns: List[str], data: List[tuple]) -> ttk.Treeview:
         """Create a treeview with given columns and data"""
         tree = ttk.Treeview(
             parent,
@@ -417,36 +448,6 @@ class ReportDialog(tk.Toplevel):
 
         return tree
 
-    def export_pdf(self):
-        """Export current report as PDF"""
-        if not self.current_report:
-            messagebox.showwarning(
-                "Warning",
-                "Please generate a report first"
-            )
-            return
-
-        # To be implemented
-        messagebox.showinfo(
-            "Info",
-            "PDF export will be implemented in a future version"
-        )
-
-    def export_excel(self):
-        """Export current report as Excel"""
-        if not self.current_report:
-            messagebox.showwarning(
-                "Warning",
-                "Please generate a report first"
-            )
-            return
-
-        # To be implemented
-        messagebox.showinfo(
-            "Info",
-            "Excel export will be implemented in a future version"
-        )
-
         def export_csv(self):
             """Export current report as CSV"""
             if not self.current_report:
@@ -455,7 +456,6 @@ class ReportDialog(tk.Toplevel):
 
             try:
                 # Get file path
-                from tkinter import filedialog
                 file_path = filedialog.asksaveasfilename(
                     defaultextension=".csv",
                     filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
@@ -465,9 +465,9 @@ class ReportDialog(tk.Toplevel):
                 if not file_path:
                     return
 
-                report_type = self.report_type.get()
                 with open(file_path, 'w', newline='') as csvfile:
                     writer = csv.writer(csvfile)
+                    report_type = self.report_type.get()
 
                     # Write header
                     writer.writerow(['Report Type:', report_type.title()])
@@ -484,6 +484,7 @@ class ReportDialog(tk.Toplevel):
                 messagebox.showinfo("Success", "Report exported successfully")
 
             except Exception as e:
+                logger.error(f"Failed to export report as CSV: {str(e)}")
                 messagebox.showerror("Error", f"Failed to export report: {str(e)}")
 
         def _export_inventory_csv(self, writer):
@@ -502,8 +503,7 @@ class ReportDialog(tk.Toplevel):
                 writer.writerow(['Name', 'Type', 'Color', 'Amount'])
                 for row in self.current_report['sections']['shelf']['low_stock']:
                     writer.writerow(row)
-
-                writer.writerow([])  # Spacing
+                writer.writerow([])
 
             # Parts inventory section
             writer.writerow(['Parts Inventory'])
@@ -511,7 +511,7 @@ class ReportDialog(tk.Toplevel):
             for row in self.current_report['sections']['parts']['summary']:
                 writer.writerow(row)
 
-            writer.writerow([])  # Spacing
+            writer.writerow([])
 
             # Low stock parts
             if self.current_report['sections']['parts']['low_stock']:
@@ -528,7 +528,7 @@ class ReportDialog(tk.Toplevel):
             for row in self.current_report['sections']['status_summary']:
                 writer.writerow(row)
 
-            writer.writerow([])  # Spacing
+            writer.writerow([])
 
             # Recent orders
             writer.writerow(['Recent Orders'])
@@ -536,7 +536,7 @@ class ReportDialog(tk.Toplevel):
             for row in self.current_report['sections']['recent_orders']:
                 writer.writerow(row)
 
-            writer.writerow([])  # Spacing
+            writer.writerow([])
 
             # Pending payments
             if self.current_report['sections']['pending_payments']:
@@ -550,11 +550,11 @@ class ReportDialog(tk.Toplevel):
             # Summary
             summary = self.current_report['sections']['summary']
             writer.writerow(['Supplier Summary'])
-            writer.writerow(['Total Suppliers', summary[0]])
-            writer.writerow(['Countries', summary[1]])
-            writer.writerow(['Currencies', summary[2]])
+            writer.writerow(['Total Suppliers', summary['total']])
+            writer.writerow(['Countries', summary['countries']])
+            writer.writerow(['Currencies', summary['currencies']])
 
-            writer.writerow([])  # Spacing
+            writer.writerow([])
 
             # Orders by supplier
             writer.writerow(['Orders by Supplier'])
@@ -562,13 +562,63 @@ class ReportDialog(tk.Toplevel):
             for row in self.current_report['sections']['supplier_orders']:
                 writer.writerow(row)
 
-            writer.writerow([])  # Spacing
+            writer.writerow([])
 
             # Payment terms
             writer.writerow(['Payment Terms Analysis'])
             writer.writerow(['Payment Terms', 'Supplier Count'])
             for row in self.current_report['sections']['payment_terms']:
                 writer.writerow(row)
+
+        def export_excel(self):
+            """Export current report as Excel"""
+            if not self.current_report:
+                messagebox.showwarning("Warning", "Please generate a report first")
+                return
+
+            try:
+                # Get file path
+                file_path = filedialog.asksaveasfilename(
+                    defaultextension=".xlsx",
+                    filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")],
+                    initialfile=f"{self.report_type.get()}_report_{datetime.now().strftime('%Y%m%d')}"
+                )
+
+                if not file_path:
+                    return
+
+                # Use the report manager to handle the Excel export
+                self.report_manager.export_to_excel(self.current_report, file_path)
+                messagebox.showinfo("Success", "Report exported successfully")
+
+            except Exception as e:
+                logger.error(f"Failed to export report as Excel: {str(e)}")
+                messagebox.showerror("Error", f"Failed to export report: {str(e)}")
+
+        def export_pdf(self):
+            """Export current report as PDF"""
+            if not self.current_report:
+                messagebox.showwarning("Warning", "Please generate a report first")
+                return
+
+            try:
+                # Get file path
+                file_path = filedialog.asksaveasfilename(
+                    defaultextension=".pdf",
+                    filetypes=[("PDF files", "*.pdf"), ("All files", "*.*")],
+                    initialfile=f"{self.report_type.get()}_report_{datetime.now().strftime('%Y%m%d')}"
+                )
+
+                if not file_path:
+                    return
+
+                # Use the report manager to handle the PDF export
+                self.report_manager.export_to_pdf(self.current_report, file_path)
+                messagebox.showinfo("Success", "Report exported successfully")
+
+            except Exception as e:
+                logger.error(f"Failed to export report as PDF: {str(e)}")
+                messagebox.showerror("Error", f"Failed to export report: {str(e)}")
 
         def print_report(self):
             """Print current report"""
@@ -577,38 +627,31 @@ class ReportDialog(tk.Toplevel):
                 return
 
             try:
-                # Create print dialog
                 dialog = PrintDialog(self, self.current_report)
                 self.wait_window(dialog)
 
             except Exception as e:
+                logger.error(f"Failed to print report: {str(e)}")
                 messagebox.showerror("Error", f"Failed to print report: {str(e)}")
 
-    class PrintDialog(tk.Toplevel):
+    class PrintDialog(BaseDialog):
         """Dialog for print preview and printing"""
 
-        def __init__(self, parent, report_data):
-            super().__init__(parent)
-            self.title("Print Report")
-            self.geometry("600x800")
-
-            # Make dialog modal
-            self.transient(parent)
-            self.grab_set()
+        def __init__(self, parent, report_data: Dict):
+            super().__init__(
+                parent,
+                title="Print Report",
+                size=(600, 800),
+                modal=True
+            )
 
             self.report_data = report_data
-
-            # Create UI
             self.create_ui()
 
         def create_ui(self):
             """Create print dialog UI"""
-            # Main container
-            main_frame = ttk.Frame(self, padding="10")
-            main_frame.pack(fill='both', expand=True)
-
             # Print options
-            options_frame = ttk.LabelFrame(main_frame, text="Print Options")
+            options_frame = ttk.LabelFrame(self.main_frame, text="Print Options")
             options_frame.pack(fill='x', pady=(0, 10))
 
             # Page setup
@@ -617,7 +660,8 @@ class ReportDialog(tk.Toplevel):
             ttk.Combobox(
                 options_frame,
                 textvariable=self.page_size,
-                values=["A4", "Letter", "Legal"]
+                values=["A4", "Letter", "Legal"],
+                state='readonly'
             ).grid(row=0, column=1, padx=5)
 
             ttk.Label(options_frame, text="Orientation:").grid(row=1, column=0, sticky='w')
@@ -625,7 +669,8 @@ class ReportDialog(tk.Toplevel):
             ttk.Combobox(
                 options_frame,
                 textvariable=self.orientation,
-                values=["Portrait", "Landscape"]
+                values=["Portrait", "Landscape"],
+                state='readonly'
             ).grid(row=1, column=1, padx=5)
 
             # Content options
@@ -644,8 +689,11 @@ class ReportDialog(tk.Toplevel):
                 variable=self.include_details
             ).grid(row=3, column=1, sticky='w')
 
+            # Configure grid
+            options_frame.columnconfigure(1, weight=1)
+
             # Preview frame
-            preview_frame = ttk.LabelFrame(main_frame, text="Print Preview")
+            preview_frame = ttk.LabelFrame(self.main_frame, text="Print Preview")
             preview_frame.pack(fill='both', expand=True, pady=(0, 10))
 
             # Create canvas for preview
@@ -657,21 +705,8 @@ class ReportDialog(tk.Toplevel):
             )
             self.preview_canvas.pack(fill='both', expand=True, padx=5, pady=5)
 
-            # Buttons
-            button_frame = ttk.Frame(main_frame)
-            button_frame.pack(fill='x')
-
-            ttk.Button(
-                button_frame,
-                text="Print",
-                command=self.print_report
-            ).pack(side='right', padx=5)
-
-            ttk.Button(
-                button_frame,
-                text="Cancel",
-                command=self.destroy
-            ).pack(side='right', padx=5)
+            # Add standard buttons
+            self.add_ok_cancel_buttons("Print", "Cancel", self.print_report)
 
             # Update preview when options change
             self.page_size.trace('w', lambda *args: self.update_preview())
@@ -684,7 +719,6 @@ class ReportDialog(tk.Toplevel):
 
         def update_preview(self):
             """Update print preview"""
-            # Clear canvas
             self.preview_canvas.delete('all')
 
             # Draw page outline
@@ -706,12 +740,13 @@ class ReportDialog(tk.Toplevel):
                 outline='gray'
             )
 
-            # Draw content preview
-            # To be implemented
+            # TODO: Draw preview content
+            # This would be implemented based on the specific report formatting needs
 
         def print_report(self):
             """Send report to printer"""
-            # To be implemented
+            # TODO: Implement actual printing functionality
+            logger.info("Print functionality to be implemented")
             messagebox.showinfo(
                 "Info",
                 "Printing will be implemented in a future version"

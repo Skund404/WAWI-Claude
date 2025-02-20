@@ -1,24 +1,13 @@
-# main.py
 import tkinter as tk
-from tkinter import ttk, messagebox
+import tkinter.ttk as ttk
+import tkinter.messagebox as messagebox
 import sys
 import os
+from pathlib import Path
 from typing import Dict
 
-# Determine the absolute path to the project root
-project_root = os.path.abspath(os.path.dirname(__file__))
-sys.path.insert(0, project_root)
-
-# Ensure the project root is in the Python path
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
-
-from store_management.config import APP_NAME, WINDOW_SIZE, TABLES, get_database_path
-
-# Ensure the database is initialized before other modules are imported
-from database.database_setup import ensure_database
-ensure_database()
-
+from store_management.config import APP_NAME, WINDOW_SIZE
+from store_management.database.sqlalchemy.config import get_database_path
 from store_management.gui.storage.shelf_view import ShelfView
 from store_management.gui.product.recipe_view import RecipeView
 from store_management.gui.product.storage_view import StorageView
@@ -26,7 +15,6 @@ from store_management.gui.storage.sorting_system_view import SortingSystemView
 from store_management.gui.order.incoming_goods_view import IncomingGoodsView
 from store_management.gui.order.shopping_list_view import ShoppingListView
 from store_management.gui.order.supplier_view import SupplierView
-
 
 class MainWindow:
     def __init__(self):

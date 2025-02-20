@@ -1,8 +1,11 @@
+# store_management/utils/logger.py
+
 import logging
-import sys
-from datetime import datetime
+import logging.handlers
+import os
 from pathlib import Path
-from logging.handlers import RotatingFileHandler
+from typing import Optional
+from store_management.config import LOG_DIR
 
 
 class AppLogger:
@@ -10,68 +13,95 @@ class AppLogger:
 
     def __new__(cls):
         if cls._instance is None:
-            cls._instance = super(AppLogger, cls).__new__(cls)
+            cls._instance = super().__new__(cls)
             cls._instance._initialize_logger()
         return cls._instance
 
     def _initialize_logger(self):
-        """Initialize the logger with both file and console handlers"""
-        self.logger = logging.getLogger('StoreManagement')
+        """Initialize the application logger with file and console handlers."""
+        # Create logs directory if it doesn't exist
+        LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+        # Create logger
+        self.logger = logging.getLogger('store_management')
         self.logger.setLevel(logging.DEBUG)
 
-        # Create logs directory if it doesn't exist
-        log_dir = Path(__file__).parent.parent / 'logs'
-        log_dir.mkdir(exist_ok=True)
+        # Prevent duplicate handlers
+        if not self.logger.handlers:
+            # File handler
+            log_file = LOG_DIR / 'store_management.log'
+            file_handler = logging.handlers.RotatingFileHandler(
+                log_file,
+                maxBytes=5 * 1024 * 1024,  # 5MB
+                backupCount=5
+            )
+            file_handler.setLevel(logging.DEBUG)
+            file_formatter = logging.Formatter(
+                '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+            )
+            file_handler.setFormatter(file_formatter)
+            self.logger.addHandler(file_handler)
 
-        # Create formatters
-        file_formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s'
-        )
-        console_formatter = logging.Formatter(
-            '%(asctime)s - %(levelname)s - %(message)s'
-        )
-
-        # File handler (rotates at 5MB, keeps 5 backup files)
-        today = datetime.now().strftime('%Y-%m-%d')
-        file_handler = RotatingFileHandler(
-            log_dir / f'store_management_{today}.log',
-            maxBytes=5 * 1024 * 1024,  # 5MB
-            backupCount=5
-        )
-        file_handler.setLevel(logging.DEBUG)
-        file_handler.setFormatter(file_formatter)
-
-        # Console handler
-        console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setLevel(logging.INFO)
-        console_handler.setFormatter(console_formatter)
-
-        # Add handlers to logger
-        self.logger.addHandler(file_handler)
-        self.logger.addHandler(console_handler)
+            # Console handler
+            console_handler = logging.StreamHandler()
+            console_handler.setLevel(logging.INFO)
+            console_formatter = logging.Formatter(
+                '%(levelname)s: %(message)s'
+            )
+            console_handler.setFormatter(console_formatter)
+            self.logger.addHandler(console_handler)
 
     def get_logger(self):
-        """Get the logger instance"""
+        """Get the configured logger instance."""
         return self.logger
 
 
-# Create a global logger instance
-logger = AppLogger().get_logger()
+# Global logger instance
+logger_instance = AppLogger()
+logger = logger_instance.get_logger()
 
 
-def log_error(error, context=""):
-    """Utility function to log errors with stack trace"""
-    import traceback
-    error_msg = f"{context} - {str(error)}\n{traceback.format_exc()}"
-    logger.error(error_msg)
-    return error_msg
+def get_logger(name: Optional[str] = None) -> logging.Logger:
+    """Get a logger instance, optionally with a specific name.
+
+    Args:
+        name: Optional name for the logger. If provided, returns a child logger
+             of the main application logger.
+
+    Returns:
+        logging.Logger: Configured logger instance
+    """
+    if name:
+        return logging.getLogger(f'store_management.{name}')
+    return logger
 
 
-def log_info(message):
-    """Utility function to log info messages"""
+def log_error(error: Exception, context: Optional[dict] = None):
+    """Log an error with optional context information.
+
+    Args:
+        error: The exception to log
+        context: Optional dictionary with additional context
+    """
+    error_msg = f"Error: {str(error)}"
+    if context:
+        error_msg += f" Context: {context}"
+    logger.error(error_msg, exc_info=True)
+
+
+def log_info(message: str):
+    """Log an info message.
+
+    Args:
+        message: The message to log
+    """
     logger.info(message)
 
 
-def log_debug(message):
-    """Utility function to log debug messages"""
+def log_debug(message: str):
+    """Log a debug message.
+
+    Args:
+        message: The message to log
+    """
     logger.debug(message)

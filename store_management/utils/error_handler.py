@@ -1,71 +1,55 @@
-import tkinter as tk
-from tkinter import messagebox
+import tkinter
+import tkinter.messagebox
+import functools
 from functools import wraps
-from .logger import log_error, logger
+from store_management.utils.logger import log_error, logger #modified
 import traceback
 
-
 class ErrorHandler:
-    @staticmethod
-    def show_error(title, message, error=None):
+    """
+    """
+
+    def log_database_action(action, details):
+        """Log database-related actions"""
+        logger.info(f"Database {action}: {details}")
+
+    def validate_positive_integer(value, field_name):
+        """Validate that a value is a positive integer"""
+        if not isinstance(value, int) or value <= 0:
+            raise ValueError(f"{field_name} must be a positive integer")
+
+    def show_error(self, title, message, error=None):
         """Show error message to user and log it"""
-        if error:
-            log_error(error, message)
-            error_message = f"{message}\n\nError: {str(error)}"
-        else:
-            logger.error(message)
-            error_message = message
+        logger.error(f"{title}: {message} - {str(error)}")
+        tkinter.messagebox.showerror(title, message)
 
-        messagebox.showerror(title, error_message)
-
-    @staticmethod
-    def show_warning(title, message):
+    def show_warning(self, title, message):
         """Show warning message to user and log it"""
-        logger.warning(message)
-        messagebox.showwarning(title, message)
+        logger.warning(f"{title}: {message}")
+        tkinter.messagebox.showwarning(title, message)
 
-    @staticmethod
-    def handle_error(func):
+    def handle_error(self, func):
         """Decorator for handling errors in functions"""
-
         @wraps(func)
         def wrapper(*args, **kwargs):
             try:
                 return func(*args, **kwargs)
-            except Exception as e:
-                error_msg = f"Error in {func.__name__}: {str(e)}"
-                log_error(e, error_msg)
-                messagebox.showerror("Error", f"{error_msg}\n\nCheck logs for details.")
+            except Exception as error:
+                error_context = get_error_context()
+                log_error(error, context=error_context)
+                self.show_error("Error", f"An error occurred: {str(error)}", error)
                 return None
 
         return wrapper
 
 
-def check_database_connection(func):
-    """Decorator to check database connection before executing database operations"""
-
-    @wraps(func)
-    def wrapper(self, *args, **kwargs):
-        try:
-            if not hasattr(self, 'db') or not self.db:
-                raise Exception("Database connection not initialized")
-            return func(self, *args, **kwargs)
-        except Exception as e:
-            error_msg = f"Database error in {func.__name__}"
-            log_error(e, error_msg)
-            messagebox.showerror("Database Error", f"{error_msg}\n\nError: {str(e)}")
-            return None
-
-    return wrapper
-
-
 class ApplicationError(Exception):
     """Base class for application-specific errors"""
 
-    def __init__(self, message, details=None):
-        super().__init__(message)
+    def __init__(self, message="Application Error", details=None):
+        self.message = message
         self.details = details
-        log_error(self, message)
+        super().__init__(self.message)
 
 
 class DatabaseError(ApplicationError):
@@ -78,6 +62,28 @@ class ValidationError(ApplicationError):
     pass
 
 
+def check_database_connection(func):
+    """Decorator to check database connection before executing database operations"""
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            # Replace this with your actual database connection check logic
+            # For example, attempt to connect to the database
+            # If the connection fails, raise a DatabaseError
+            return func(*args, **kwargs)
+        except Exception as e:
+            log_error(e, context="Database Connection Check Failed")
+            tkinter.messagebox.showerror("Database Error", "Failed to connect to the database.")
+            return None
+
+    return wrapper
+
+
 def get_error_context():
     """Get current error context including stack trace"""
-    return traceback.format_exc()
+    import traceback
+    stack_summary = traceback.extract_stack()
+    # Get the last few entries for context
+    relevant_stack = stack_summary[-3:]
+    formatted_context = " | ".join([f"{f.filename}:{f.lineno} ({f.name})" for f in relevant_stack])
+    return formatted_context

@@ -1,70 +1,82 @@
 import tkinter as tk
 from tkinter import ttk
-from typing import List, Callable
+from typing import List, Callable, Dict
 
 
 class SearchDialog(tk.Toplevel):
-    def __init__(self, parent, columns: List[str], callback: Callable):
-        super().__init__(parent)
-        self.title("Search")
-        self.callback = callback
+    def __init__(self, parent, columns: List[str], search_callback: Callable[[Dict], None]):
+        """
+        Initialize search dialog
 
-        # Make dialog modal
+        Args:
+            parent: Parent window
+            columns: List of column names to search in
+            search_callback: Function to call with search parameters
+        """
+        super().__init__(parent)
+        self.title("Search Items")
+        self.geometry("400x200")
         self.transient(parent)
         self.grab_set()
 
-        # Create main frame
+        self.columns = ['All'] + columns
+        self.search_callback = search_callback
+
+        self.setup_ui()
+
+    def setup_ui(self):
+        """Setup the dialog UI components"""
+        # Main frame
         main_frame = ttk.Frame(self, padding="10")
-        main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        main_frame.pack(fill=tk.BOTH, expand=True)
 
-        # Create search widgets
-        ttk.Label(main_frame, text="Search in:").grid(row=0, column=0, sticky=tk.W)
+        # Search field selection
+        ttk.Label(main_frame, text="Search in:").grid(row=0, column=0, sticky='w', padx=5, pady=2)
+        self.column_var = tk.StringVar(value='All')
+        column_combo = ttk.Combobox(main_frame, textvariable=self.column_var)
+        column_combo['values'] = [col.replace('_', ' ').title() for col in self.columns]
+        column_combo.grid(row=0, column=1, sticky='ew', padx=5, pady=2)
+        column_combo.state(['readonly'])
 
-        self.column_var = tk.StringVar(value="All")
-        column_choices = ["All"] + columns
-        self.column_combo = ttk.Combobox(main_frame, textvariable=self.column_var,
-                                         values=column_choices)
-        self.column_combo.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=5, pady=5)
+        # Search text
+        ttk.Label(main_frame, text="Search for:").grid(row=1, column=0, sticky='w', padx=5, pady=2)
+        self.search_entry = ttk.Entry(main_frame)
+        self.search_entry.grid(row=1, column=1, sticky='ew', padx=5, pady=2)
 
-        ttk.Label(main_frame, text="Search for:").grid(row=1, column=0, sticky=tk.W)
-        self.search_var = tk.StringVar()
-        self.search_entry = ttk.Entry(main_frame, textvariable=self.search_var)
-        self.search_entry.grid(row=1, column=1, sticky=(tk.W, tk.E), padx=5, pady=5)
+        # Match case checkbox
+        self.match_case_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(
+            main_frame,
+            text="Match case",
+            variable=self.match_case_var
+        ).grid(row=2, column=1, sticky='w', padx=5, pady=2)
 
-        # Options
-        self.match_case = tk.BooleanVar()
-        ttk.Checkbutton(main_frame, text="Match case",
-                        variable=self.match_case).grid(row=2, column=0, columnspan=2)
+        # Configure grid
+        main_frame.columnconfigure(1, weight=1)
 
         # Buttons
         button_frame = ttk.Frame(main_frame)
         button_frame.grid(row=3, column=0, columnspan=2, pady=10)
 
-        ttk.Button(button_frame, text="Search",
-                   command=self.search).pack(side=tk.LEFT, padx=5)
-        ttk.Button(button_frame, text="Cancel",
-                   command=self.destroy).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Search", command=self.search).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Cancel", command=self.destroy).pack(side=tk.LEFT, padx=5)
 
-        # Configure grid
-        main_frame.columnconfigure(1, weight=1)
-
-        # Set focus to search entry
+        # Set focus
         self.search_entry.focus_set()
-
-        # Bind enter key
-        self.bind('<Return>', lambda e: self.search())
+        self.search_entry.bind('<Return>', lambda e: self.search())
 
     def search(self):
-        """Collect search parameters and call callback"""
+        """Execute the search"""
+        # Get selected column (convert display name back to field name)
+        column_display = self.column_var.get()
+        column = self.columns[0] if column_display == 'All' else \
+            '_'.join(column_display.lower().split())
+
         search_params = {
-            "column": self.column_var.get(),
-            "text": self.search_var.get(),
-            "match_case": self.match_case.get()
+            'column': column,
+            'text': self.search_entry.get(),
+            'match_case': self.match_case_var.get()
         }
 
-        if not search_params["text"]:
-            tk.messagebox.showwarning("Warning", "Please enter search text")
-            return
-
-        self.callback(search_params)
+        self.search_callback(search_params)
         self.destroy()

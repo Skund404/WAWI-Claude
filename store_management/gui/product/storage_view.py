@@ -1,24 +1,22 @@
-# gui/storage_view.py
+"""Storage View using SQLAlchemy ORM."""
+
 import tkinter as tk
 from tkinter import ttk, messagebox
-from typing import Dict, List
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import or_
+from typing import Optional, Dict, Any
 import uuid
 
-
-from store_management.config import TABLES, COLORS
-from store_management.gui.dialogs.add_dialog import AddDialog
-from store_management.gui.dialogs.search_dialog import SearchDialog
-from store_management.gui.dialogs.filter_dialog import FilterDialog
-from store_management.config import get_database_path
-from store_management.database.db_manager import DatabaseManager
-from store_management.config import get_database_path
-
+from store_management.database.sqlalchemy.models import (
+    Storage, Product, Recipe
+)
+from store_management.database.sqlalchemy.manager import DatabaseManagerSQLAlchemy
 
 
 class StorageView(ttk.Frame):
     def __init__(self, parent):
         super().__init__(parent)
-        self.db = DatabaseManager(get_database_path())
+        self.db = DatabaseManagerSQLAlchemy()
 
         # Initialize undo/redo stacks
         self.undo_stack = []
@@ -35,16 +33,20 @@ class StorageView(ttk.Frame):
         toolbar.pack(fill=tk.X, padx=5, pady=5)
 
         # Left side buttons
-        ttk.Button(toolbar, text="ADD", command=self.show_add_dialog).pack(side=tk.LEFT, padx=2)
-        ttk.Button(toolbar, text="Search", command=self.show_search_dialog).pack(side=tk.LEFT, padx=2)
-        ttk.Button(toolbar, text="Filter", command=self.show_filter_dialog).pack(side=tk.LEFT, padx=2)
+        ttk.Button(toolbar, text="ADD",
+                   command=self.show_add_dialog).pack(side=tk.LEFT, padx=2)
+        ttk.Button(toolbar, text="Search",
+                   command=self.show_search_dialog).pack(side=tk.LEFT, padx=2)
+        ttk.Button(toolbar, text="Filter",
+                   command=self.show_filter_dialog).pack(side=tk.LEFT, padx=2)
 
         # Right side buttons
-        ttk.Button(toolbar, text="Undo", command=self.undo).pack(side=tk.RIGHT, padx=2)
-        ttk.Button(toolbar, text="Redo", command=self.redo).pack(side=tk.RIGHT, padx=2)
-        ttk.Button(toolbar, text="Save", command=self.save_table).pack(side=tk.RIGHT, padx=2)
-        ttk.Button(toolbar, text="Load", command=self.load_table).pack(side=tk.RIGHT, padx=2)
-        ttk.Button(toolbar, text="Reset View", command=self.reset_view).pack(side=tk.RIGHT, padx=2)
+        ttk.Button(toolbar, text="Undo",
+                   command=self.undo).pack(side=tk.RIGHT, padx=2)
+        ttk.Button(toolbar, text="Redo",
+                   command=self.redo).pack(side=tk.RIGHT, padx=2)
+        ttk.Button(toolbar, text="Reset View",
+                   command=self.reset_view).pack(side=tk.RIGHT, padx=2)
 
     def setup_table(self):
         """Create the main table view"""
@@ -54,7 +56,7 @@ class StorageView(ttk.Frame):
 
         # Define columns
         self.columns = [
-            'unique_id_product', 'name', 'type', 'collection',
+            'unique_id', 'name', 'type', 'collection',
             'color', 'amount', 'bin', 'notes'
         ]
 
@@ -80,7 +82,8 @@ class StorageView(ttk.Frame):
         for col in self.columns:
             self.tree.heading(col, text=col.replace('_', ' ').title(),
                               command=lambda c=col: self.sort_column(c))
-            self.tree.column(col, width=100, minwidth=50)
+            width = 200 if col in ['name', 'notes'] else 100
+            self.tree.column(col, width=width, minwidth=50)
 
         # Grid layout
         self.tree.grid(row=0, column=0, sticky='nsew')
@@ -91,427 +94,496 @@ class StorageView(ttk.Frame):
         self.tree_frame.grid_columnconfigure(0, weight=1)
         self.tree_frame.grid_rowconfigure(0, weight=1)
 
+        # Configure warning colors
+        self.tree.tag_configure('low_stock', background='#FFB6C1')
+
         # Bind events
         self.tree.bind('<Double-1>', self.on_double_click)
         self.tree.bind('<Delete>', self.delete_selected)
-        self.tree.bind('<Return>', self.handle_return)
-        self.tree.bind('<Escape>', self.handle_escape)
 
     def load_data(self):
-        """Load data from database into table"""
-        self.db.connect()
+        """Load storage data using SQLAlchemy"""
         try:
-            query = "SELECT * FROM storage ORDER BY bin"
-            results = self.db.execute_query(query)
+            with self.db.session_scope() as session:
+                # Query all storage items with products and recipes
+                storage_items = session.query(Storage) \
+                    .join(Storage.product) \
+                    .join(Product.recipe) \
+                    .order_by(Storage.bin) \
+                    .all()
 
-            # Clear existing items
-            for item in self.tree.get_children():
-                self.tree.delete(item)
+                # Clear existing items
+                for item in self.tree.get_children():
+                    self.tree.delete(item)
 
-            # Insert new data
-            for row in results:
-                self.tree.insert('', 'end', values=row[:-2])  # Exclude timestamps
+                # Insert items
+                for storage in storage_items:
+                    values = [
+                        storage.product.unique_id,
+                        storage.product.name,
+                        storage.product.recipe.type,
+                        storage.product.recipe.collection,
+                        storage.product.recipe.color,
+                        storage.amount,
+                        storage.bin,
+                        storage.notes
+                    ]
+                    item = self.tree.insert('', 'end', values=values)
 
-        finally:
-            self.db.disconnect()
+                    # Add low stock warning if needed
+                    if storage.amount <= storage.warning_threshold:
+                        self.tree.item(item, tags=('low_stock',))
 
-    # gui/storage_view.py
-
-    # gui/storage_view.py
-
-    # gui/storage_view.py
+        except SQLAlchemyError as e:
+            messagebox.showerror("Error", f"Failed to load storage data: {str(e)}")
 
     def show_add_dialog(self):
-        """Show dialog for adding new item"""
+        """Show dialog for adding new storage item"""
         dialog = tk.Toplevel(self)
-        dialog.title("Add New Item")
+        dialog.title("Add New Storage Item")
         dialog.transient(self)
         dialog.grab_set()
 
         # Create main frame
         main_frame = ttk.Frame(dialog, padding="10")
-        main_frame.grid(row=0, column=0, sticky='nsew')
+        main_frame.pack(fill=tk.BOTH, expand=True)
 
-        # Create entry fields
-        entries = {}
-        # Define required and optional fields
-        required_fields = {
-            'name': 'Name',  # The dropdown menu
-            'type': 'Type',
-            'amount': 'Amount'
-        }
+        # Get recipes for dropdown
+        with self.db.session_scope() as session:
+            recipes = session.query(Recipe.unique_id, Recipe.name).all()
 
-        optional_fields = {
-            'bin': 'Bin',  # Moved from required to optional
-            'collection': 'Collection',
-            'color': 'Color',
-            'notes': 'Notes'
-        }
-
-        # Get recipes from database for dropdown
-        self.db.connect()
-        try:
-            recipes = self.db.execute_query("""
-                SELECT unique_id_product, name, type, collection, color
-                FROM recipe_index
-                ORDER BY name
-            """)
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to fetch recipes: {str(e)}")
-            recipes = []
-        finally:
-            self.db.disconnect()
-
-        # Create recipe dropdown frame with required field marker
-        name_frame = ttk.Frame(main_frame)
-        name_frame.grid(row=0, column=0, columnspan=2, sticky='ew', pady=(0, 5))
-
-        ttk.Label(name_frame, text="Name:").pack(side=tk.LEFT)
-        ttk.Label(name_frame, text="*", foreground="red").pack(side=tk.LEFT)
-
-        # Create dropdown variable and widget
+        # Create fields
+        ttk.Label(main_frame, text="Recipe:").grid(row=0, column=0, sticky='w')
         recipe_var = tk.StringVar()
-        recipe_combo = ttk.Combobox(name_frame, textvariable=recipe_var, width=40)
+        recipe_combo = ttk.Combobox(
+            main_frame,
+            textvariable=recipe_var,
+            values=[f"{r[1]} ({r[0]})" for r in recipes]
+        )
+        recipe_combo.grid(row=0, column=1, sticky='ew')
 
-        # Add "Create New Recipe" option and existing recipes
-        recipe_options = [("new", "➕ Create New Recipe")]
-        recipe_options.extend((r[0], f"{r[1]} ({r[0]})") for r in recipes)
+        ttk.Label(main_frame, text="Amount:").grid(row=1, column=0, sticky='w')
+        amount_var = tk.StringVar(value="1")
+        ttk.Spinbox(
+            main_frame,
+            from_=1,
+            to=1000,
+            textvariable=amount_var
+        ).grid(row=1, column=1, sticky='ew')
 
-        recipe_combo['values'] = [opt[1] for opt in recipe_options]
-        recipe_combo.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(5, 0))
-        entries['name'] = recipe_combo
+        ttk.Label(main_frame, text="Bin:").grid(row=2, column=0, sticky='w')
+        bin_var = tk.StringVar()
+        ttk.Entry(main_frame, textvariable=bin_var).grid(row=2, column=1, sticky='ew')
 
-        # Helper function to create field row
-        def create_field_row(field, label, row, required=False):
-            field_frame = ttk.Frame(main_frame)
-            field_frame.grid(row=row, column=0, columnspan=2, sticky='ew', pady=2)
+        ttk.Label(main_frame, text="Warning Threshold:").grid(row=3, column=0, sticky='w')
+        threshold_var = tk.StringVar(value="5")
+        ttk.Spinbox(
+            main_frame,
+            from_=1,
+            to=100,
+            textvariable=threshold_var
+        ).grid(row=3, column=1, sticky='ew')
 
-            ttk.Label(field_frame, text=f"{label}:").pack(side=tk.LEFT)
-            if required:
-                ttk.Label(field_frame, text="*", foreground="red").pack(side=tk.LEFT)
-
-            entry = ttk.Entry(field_frame)
-            entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(5, 0))
-            entries[field] = entry
-            return entry
-
-        # Create required fields
-        row = 1
-        for field, label in required_fields.items():
-            if field != 'name':  # Skip name as it's already created
-                create_field_row(field, label, row, required=True)
-                row += 1
-
-        # Create optional fields
-        for field, label in optional_fields.items():
-            create_field_row(field, label, row)
-            row += 1
-
-        def update_fields(*args):
-            """Update fields when recipe is selected"""
-            selection = recipe_var.get()
-
-            # Clear all fields first
-            for field in list(required_fields.keys())[1:] + list(optional_fields.keys()):  # Skip name
-                entries[field].delete(0, tk.END)
-                entries[field].configure(state='normal')
-
-            if selection.startswith('➕'):  # New recipe selected
-                # Enable all fields for editing
-                pass
-            else:
-                # Find selected recipe
-                recipe_id = None
-                for rid, text in recipe_options:
-                    if text == selection:
-                        recipe_id = rid
-                        break
-
-                if recipe_id:
-                    # Get recipe details
-                    self.db.connect()
-                    try:
-                        recipe = self.db.execute_query("""
-                            SELECT type, collection, color
-                            FROM recipe_index
-                            WHERE unique_id_product = ?
-                        """, (recipe_id,))
-
-                        if recipe:
-                            # Fill in fields from recipe
-                            entries['type'].insert(0, recipe[0][0] or '')
-                            entries['collection'].insert(0, recipe[0][1] or '')
-                            entries['color'].insert(0, recipe[0][2] or '')
-
-                            # Disable recipe-linked fields
-                            entries['type'].configure(state='disabled')
-                            entries['collection'].configure(state='disabled')
-                            entries['color'].configure(state='disabled')
-
-                    finally:
-                        self.db.disconnect()
-
-        # Bind update function to recipe selection
-        recipe_var.trace('w', update_fields)
-
-        def validate_fields():
-            """Validate required fields"""
-            missing_fields = []
-
-            # Check name (recipe selection)
-            if not recipe_var.get():
-                missing_fields.append("Name")
-
-            # Check other required fields
-            for field in required_fields:
-                if field != 'name':  # Skip name as it's handled above
-                    if not entries[field].get().strip():
-                        missing_fields.append(required_fields[field])
-
-            # Check amount is a positive number
-            try:
-                amount = float(entries['amount'].get())
-                if amount <= 0:
-                    messagebox.showerror("Error", "Amount must be a positive number")
-                    return False
-            except ValueError:
-                messagebox.showerror("Error", "Amount must be a valid number")
-                return False
-
-            if missing_fields:
-                messagebox.showerror(
-                    "Error",
-                    f"Required fields cannot be empty:\n{', '.join(missing_fields)}"
-                )
-                return False
-
-            return True
+        ttk.Label(main_frame, text="Notes:").grid(row=4, column=0, sticky='w')
+        notes_var = tk.StringVar()
+        ttk.Entry(main_frame, textvariable=notes_var).grid(row=4, column=1, sticky='ew')
 
         def save():
-            """Save the new item"""
-            if not validate_fields():
-                return
-
+            """Save new storage item"""
             try:
-                selection = recipe_var.get()
+                recipe_text = recipe_var.get()
+                if not recipe_text:
+                    messagebox.showerror("Error", "Please select a recipe")
+                    return
 
-                # Generate unique ID
-                if selection.startswith('➕'):
-                    # New recipe
-                    name = "New Recipe"  # You might want to prompt for a name
-                    prefix = 'NR'
-                else:
-                    # Existing recipe
-                    for rid, text in recipe_options:
-                        if text == selection:
-                            recipe_id = rid
-                            name = text.split(' (')[0]
-                            prefix = ''.join(word[0].upper() for word in name.split())
-                            break
+                # Get recipe ID from selection
+                recipe_id = recipe_text.split('(')[1].strip(')')
 
-                unique_id = f"{prefix}{str(uuid.uuid4())[:8]}"
+                # Validate numeric inputs
+                try:
+                    amount = int(amount_var.get())
+                    threshold = int(threshold_var.get())
+                    if amount < 0 or threshold < 0:
+                        raise ValueError("Values must be non-negative")
+                except ValueError as e:
+                    messagebox.showerror("Error", str(e))
+                    return
 
-                # Collect data
-                data = {
-                    'unique_id_product': unique_id,
-                    'name': name,
-                    **{field: entries[field].get() for field in
-                       list(required_fields.keys())[1:] + list(optional_fields.keys())}
-                }
+                with self.db.session_scope() as session:
+                    # Get or create product
+                    recipe = session.query(Recipe) \
+                        .filter(Recipe.unique_id == recipe_id) \
+                        .first()
 
-                self.db.connect()
-                if self.db.insert_record(TABLES['STORAGE'], data):
+                    if not recipe:
+                        messagebox.showerror("Error", "Recipe not found")
+                        return
+
+                    product = Product(
+                        unique_id=f"P{str(uuid.uuid4())[:8]}",
+                        name=recipe.name,
+                        recipe_id=recipe.id
+                    )
+                    session.add(product)
+                    session.flush()  # Get product ID
+
+                    # Create storage item
+                    storage = Storage(
+                        product_id=product.id,
+                        amount=amount,
+                        warning_threshold=threshold,
+                        bin=bin_var.get().strip(),
+                        notes=notes_var.get().strip()
+                    )
+                    session.add(storage)
+                    session.commit()
+
                     # Add to undo stack
-                    self.undo_stack.append(('add', unique_id, data))
+                    self.undo_stack.append(('add', storage.id))
                     self.redo_stack.clear()
 
-                    # Refresh table
+                    # Refresh view
                     self.load_data()
                     dialog.destroy()
-                else:
-                    raise Exception("Failed to add item")
 
-            except Exception as e:
+            except SQLAlchemyError as e:
                 messagebox.showerror("Error", f"Failed to add item: {str(e)}")
-            finally:
-                self.db.disconnect()
-
-        # Add required fields note
-        ttk.Label(
-            main_frame,
-            text="* Required fields",
-            foreground="red",
-            font=('', 8)
-        ).grid(row=row, column=0, columnspan=2, sticky='w', pady=(10, 0))
 
         # Buttons
         button_frame = ttk.Frame(main_frame)
-        button_frame.grid(row=row + 1, column=0, columnspan=2, pady=10)
+        button_frame.grid(row=5, column=0, columnspan=2, pady=10)
 
         ttk.Button(button_frame, text="Save", command=save).pack(side=tk.LEFT, padx=5)
-        ttk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
+        ttk.Button(
+            button_frame,
+            text="Cancel",
+            command=dialog.destroy
+        ).pack(side=tk.LEFT, padx=5)
 
         # Configure grid
         main_frame.columnconfigure(1, weight=1)
 
-        # Set focus to name field
-        recipe_combo.focus_set()
-
-        # Bind enter to save
-        dialog.bind('<Return>', lambda e: save())
-        dialog.bind('<Escape>', lambda e: dialog.destroy())
-
-    def add_item(self, data: Dict[str, str]):
-        """Add new item to database and table"""
-        try:
-            # Generate unique ID
-            unique_id = f"P{str(uuid.uuid4())[:8]}"
-            data['unique_id_product'] = unique_id
-
-            self.db.connect()
-            success = self.db.insert_record(TABLES['STORAGE'], data)
-            if success:
-                # Add to undo stack
-                self.undo_stack.append(('add', unique_id, data))
-                self.redo_stack.clear()
-
-                # Refresh table
-                self.load_data()
-                return True
-
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to add item: {str(e)}")
-            return False
-        finally:
-            self.db.disconnect()
-
     def show_search_dialog(self):
         """Show search dialog"""
-        dialog = SearchDialog(self, self.columns, self.search_items)
-        self.wait_window(dialog)
+        dialog = tk.Toplevel(self)
+        dialog.title("Search Storage")
+        dialog.transient(self)
+        dialog.grab_set()
 
-    def search_items(self, search_params: Dict):
-        """Search items based on search parameters"""
-        column = search_params['column']
-        search_text = search_params['text']
-        match_case = search_params['match_case']
+        # Create main frame
+        main_frame = ttk.Frame(dialog, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
 
-        # Clear current selection
-        self.tree.selection_remove(*self.tree.selection())
+        # Search options
+        ttk.Label(main_frame, text="Search in:").pack(anchor='w')
+        target_var = tk.StringVar(value="all")
+        ttk.Radiobutton(
+            main_frame,
+            text="All Fields",
+            value="all",
+            variable=target_var
+        ).pack(anchor='w')
 
-        for item in self.tree.get_children():
-            values = self.tree.item(item)['values']
+        for col in ['name', 'type', 'bin']:
+            ttk.Radiobutton(
+                main_frame,
+                text=col.title(),
+                value=col,
+                variable=target_var
+            ).pack(anchor='w')
 
-            # Get the value to search in
-            if column == 'All':
-                search_in = ' '.join(str(v) for v in values)
-            else:
-                col_idx = self.columns.index(column)
-                search_in = str(values[col_idx])
+        # Search text
+        ttk.Label(main_frame, text="Search for:").pack(anchor='w', pady=(10, 0))
+        search_var = tk.StringVar()
+        ttk.Entry(
+            main_frame,
+            textvariable=search_var
+        ).pack(fill='x', pady=5)
 
-            # Perform search
-            if not match_case:
-                search_in = search_in.lower()
-                search_text = search_text.lower()
+        # Match case option
+        match_case = tk.BooleanVar()
+        ttk.Checkbutton(
+            main_frame,
+            text="Match case",
+            variable=match_case
+        ).pack(anchor='w')
 
-            if search_text in search_in:
-                self.tree.selection_add(item)
-                self.tree.see(item)
+        def search():
+            """Perform search"""
+            try:
+                search_text = search_var.get().strip()
+                if not search_text:
+                    messagebox.showwarning("Warning", "Please enter search text")
+                    return
+
+                with self.db.session_scope() as session:
+                    query = session.query(Storage) \
+                        .join(Storage.product) \
+                        .join(Product.recipe)
+
+                    # Build search conditions
+                    if target_var.get() == "all":
+                        conditions = [
+                            Product.name.ilike(f"%{search_text}%"),
+                            Recipe.type.ilike(f"%{search_text}%"),
+                            Storage.bin.ilike(f"%{search_text}%")
+                        ]
+                        query = query.filter(or_(*conditions))
+                    else:
+                        if target_var.get() == 'name':
+                            query = query.filter(Product.name.ilike(f"%{search_text}%"))
+                        elif target_var.get() == 'type':
+                            query = query.filter(Recipe.type.ilike(f"%{search_text}%"))
+                        elif target_var.get() == 'bin':
+                            query = query.filter(Storage.bin.ilike(f"%{search_text}%"))
+
+                    results = query.all()
+
+                    # Update view with results
+                    for item in self.tree.get_children():
+                        self.tree.delete(item)
+
+                    for storage in results:
+                        values = [
+                            storage.product.unique_id,
+                            storage.product.name,
+                            storage.product.recipe.type,
+                            storage.product.recipe.collection,
+                            storage.product.recipe.color,
+                            storage.amount,
+                            storage.bin,
+                            storage.notes
+                        ]
+                        item = self.tree.insert('', 'end', values=values)
+                        if storage.amount <= storage.warning_threshold:
+                            self.tree.item(item, tags=('low_stock',))
+
+                    dialog.destroy()
+
+                    if not results:
+                        messagebox.showinfo("Search", "No matches found")
+
+            except SQLAlchemyError as e:
+                messagebox.showerror("Error", f"Search failed: {str(e)}")
+
+        # Buttons
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill='x', pady=10)
+
+        ttk.Button(
+            button_frame,
+            text="Search",
+            command=search
+        ).pack(side=tk.LEFT, padx=5)
+
+        ttk.Button(
+            button_frame,
+            text="Cancel",
+            command=dialog.destroy
+        ).pack(side=tk.LEFT, padx=5)
 
     def show_filter_dialog(self):
         """Show filter dialog"""
-        dialog = FilterDialog(self, self.columns, self.apply_filters)
-        self.wait_window(dialog)
+        dialog = tk.Toplevel(self)
+        dialog.title("Filter Storage")
+        dialog.transient(self)
+        dialog.grab_set()
 
-    def apply_filters(self, filters: List[Dict]):
-        """Apply filters to the table view"""
-        query = "SELECT * FROM storage WHERE "
-        conditions = []
-        params = []
+        # Create main frame
+        main_frame = ttk.Frame(dialog, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
 
-        for filter_condition in filters:
-            column = filter_condition['column']
-            operator = filter_condition['operator']
-            value = filter_condition['value']
+        # Filter options
+        filter_frame = ttk.LabelFrame(main_frame, text="Filter Conditions")
+        filter_frame.pack(fill='both', expand=True, padx=5, pady=5)
 
-            if operator == 'equals':
-                conditions.append(f"{column} = ?")
-                params.append(value)
-            elif operator == 'contains':
-                conditions.append(f"{column} LIKE ?")
-                params.append(f"%{value}%")
-            elif operator == 'greater than':
-                conditions.append(f"{column} > ?")
-                params.append(value)
-            elif operator == 'less than':
-                conditions.append(f"{column} < ?")
-                params.append(value)
+        # Type filter
+        ttk.Label(filter_frame, text="Type:").grid(row=0, column=0, sticky='w', padx=5)
+        # Get unique types from database
+        with self.db.session_scope() as session:
+            types = session.query(Recipe.type) \
+                .distinct() \
+                .order_by(Recipe.type) \
+                .all()
+            type_list = ['All'] + [t[0] for t in types if t[0]]
 
-        query += " AND ".join(conditions)
-        query += " ORDER BY bin"
+        type_var = tk.StringVar(value='All')
+        ttk.Combobox(
+            filter_frame,
+            textvariable=type_var,
+            values=type_list
+        ).grid(row=0, column=1, sticky='ew', padx=5)
 
-        self.db.connect()
+        # Amount filter
+        ttk.Label(filter_frame, text="Amount:").grid(row=1, column=0, sticky='w', padx=5)
+        amount_frame = ttk.Frame(filter_frame)
+        amount_frame.grid(row=1, column=1, sticky='ew', padx=5)
+
+        amount_op_var = tk.StringVar(value='>=')
+        ttk.Combobox(
+            amount_frame,
+            textvariable=amount_op_var,
+            values=['>=', '<=', '='],
+            width=5
+        ).pack(side=tk.LEFT, padx=2)
+
+        amount_var = tk.StringVar()
+        ttk.Entry(
+            amount_frame,
+            textvariable=amount_var,
+            width=10
+        ).pack(side=tk.LEFT, padx=2)
+
+        # Low stock filter
+        low_stock_var = tk.BooleanVar()
+        ttk.Checkbutton(
+            filter_frame,
+            text="Show only low stock items",
+            variable=low_stock_var
+        ).grid(row=2, column=0, columnspan=2, sticky='w', padx=5, pady=5)
+
+        def apply_filters():
+            """Apply the selected filters"""
+            try:
+                with self.db.session_scope() as session:
+                    # Start with base query
+                    query = session.query(Storage) \
+                        .join(Storage.product) \
+                        .join(Product.recipe)
+
+                    # Apply type filter
+                    if type_var.get() != 'All':
+                        query = query.filter(Recipe.type == type_var.get())
+
+                    # Apply amount filter
+                    if amount_var.get().strip():
+                        try:
+                            amount = int(amount_var.get())
+                            op = amount_op_var.get()
+                            if op == '>=':
+                                query = query.filter(Storage.amount >= amount)
+                            elif op == '<=':
+                                query = query.filter(Storage.amount <= amount)
+                            elif op == '=':
+                                query = query.filter(Storage.amount == amount)
+                        except ValueError:
+                            messagebox.showerror("Error", "Invalid amount value")
+                            return
+
+                    # Apply low stock filter
+                    if low_stock_var.get():
+                        query = query.filter(Storage.amount <= Storage.warning_threshold)
+
+                    # Get results
+                    results = query.order_by(Storage.bin).all()
+
+                    # Update view
+                    for item in self.tree.get_children():
+                        self.tree.delete(item)
+
+                    # Insert filtered results
+                    for storage in results:
+                        values = [
+                            storage.product.unique_id,
+                            storage.product.name,
+                            storage.product.recipe.type,
+                            storage.product.recipe.collection,
+                            storage.product.recipe.color,
+                            storage.amount,
+                            storage.bin,
+                            storage.notes
+                        ]
+                        item = self.tree.insert('', 'end', values=values)
+                        if storage.amount <= storage.warning_threshold:
+                            self.tree.item(item, tags=('low_stock',))
+
+                    dialog.destroy()
+
+                    if not results:
+                        messagebox.showinfo("Filter", "No items match the selected criteria")
+
+            except SQLAlchemyError as e:
+                messagebox.showerror("Error", f"Filter failed: {str(e)}")
+
+        # Buttons
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill='x', pady=10)
+
+        ttk.Button(button_frame, text="Apply", command=apply_filters).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
+
+        # Configure grid
+        filter_frame.columnconfigure(1, weight=1)
+
+    def delete_selected(self, event=None):
+        """Delete selected storage items"""
+        selected = self.tree.selection()
+        if not selected:
+            return
+
+        if not messagebox.askyesno("Confirm Delete",
+                                   f"Delete {len(selected)} items?"):
+            return
+
         try:
-            results = self.db.execute_query(query, tuple(params))
+            with self.db.session_scope() as session:
+                deleted_items = []
+                for item_id in selected:
+                    values = self.tree.item(item_id)['values']
+                    unique_id = values[0]  # product unique_id
 
-            # Update table
-            for item in self.tree.get_children():
-                self.tree.delete(item)
+                    # Find and delete storage item
+                    storage = session.query(Storage) \
+                        .join(Storage.product) \
+                        .filter(Product.unique_id == unique_id) \
+                        .first()
 
-            for row in results:
-                self.tree.insert('', 'end', values=row[:-2])
+                    if storage:
+                        # Store data for undo
+                        data = {
+                            'product_data': {
+                                column.name: getattr(storage.product, column.name)
+                                for column in Product.__table__.columns
+                            },
+                            'storage_data': {
+                                column.name: getattr(storage, column.name)
+                                for column in Storage.__table__.columns
+                            }
+                        }
+                        deleted_items.append(data)
 
-        finally:
-            self.db.disconnect()
+                        # Delete storage and product
+                        session.delete(storage.product)  # Will cascade to storage
 
-    def sort_column(self, col):
-        """Sort table by column"""
-        # Get all items
-        l = [(self.tree.set(k, col), k) for k in self.tree.get_children('')]
+                session.commit()
 
-        # Determine sort direction
-        reverse = False
-        if hasattr(self, '_last_sort') and self._last_sort == (col, False):
-            reverse = True
+                if deleted_items:
+                    self.undo_stack.append(('delete', deleted_items))
+                    self.redo_stack.clear()
 
-        # Store sort state
-        self._last_sort = (col, reverse)
+                    # Refresh view
+                    self.load_data()
 
-        # Sort items
-        try:
-            # Try numeric sort for amount column
-            if col == 'amount':
-                l.sort(key=lambda x: float(x[0]) if x[0] else 0, reverse=reverse)
-            else:
-                l.sort(reverse=reverse)
-        except ValueError:
-            l.sort(reverse=reverse)
-
-        # Rearrange items
-        for index, (_, k) in enumerate(l):
-            self.tree.move(k, '', index)
-
-        # Update header arrow
-        for column in self.columns:
-            if column != col:
-                self.tree.heading(column, text=column.replace('_', ' ').title())
-        arrow = "▼" if reverse else "▲"
-        self.tree.heading(col, text=f"{col.replace('_', ' ').title()} {arrow}")
+        except SQLAlchemyError as e:
+            messagebox.showerror("Error", f"Failed to delete items: {str(e)}")
 
     def on_double_click(self, event):
-        """Handle double-click on cell"""
+        """Handle double-click for cell editing"""
         region = self.tree.identify("region", event.x, event.y)
         if region == "cell":
             column = self.tree.identify_column(event.x)
             item = self.tree.identify_row(event.y)
 
-            if column == "#1":  # ID column
-                return  # Don't allow editing of ID
+            # Only allow editing certain columns
+            col_num = int(column[1]) - 1
+            col_name = self.columns[col_num]
+            if col_name not in ['amount', 'bin', 'notes']:
+                return
 
             self.start_cell_edit(item, column)
 
     def start_cell_edit(self, item, column):
-        """Start cell editing"""
+        """Start editing a cell"""
         col_num = int(column[1]) - 1
         col_name = self.columns[col_num]
         current_value = self.tree.set(item, col_name)
@@ -519,90 +591,79 @@ class StorageView(ttk.Frame):
         # Create edit frame
         frame = ttk.Frame(self.tree)
 
-        # Create entry widget
-        entry = ttk.Entry(frame)
-        entry.insert(0, current_value)
-        entry.select_range(0, tk.END)
-        entry.pack(fill=tk.BOTH, expand=True)
+        # Create appropriate widget based on column
+        if col_name == 'amount':
+            widget = ttk.Spinbox(frame, from_=0, to=1000)
+            widget.set(current_value)
+        else:
+            widget = ttk.Entry(frame)
+            widget.insert(0, current_value)
+            widget.select_range(0, tk.END)
+
+        widget.pack(fill=tk.BOTH, expand=True)
 
         # Position frame
         bbox = self.tree.bbox(item, column)
         frame.place(x=bbox[0], y=bbox[1], width=bbox[2], height=bbox[3])
 
         def save_edit(event=None):
-            """Save the edited value"""
-            new_value = entry.get()
-            if new_value != current_value:
-                # Store for undo
-                old_values = {col: self.tree.set(item, col) for col in self.columns}
-                self.undo_stack.append(('edit', item, old_values))
-                self.redo_stack.clear()
+            try:
+                new_value = widget.get().strip()
+                if new_value == current_value:
+                    frame.destroy()
+                    return
 
-                # Update database
-                unique_id = self.tree.set(item, 'unique_id_product')
-                self.update_record(unique_id, col_name, new_value)
+                # Validate amount
+                if col_name == 'amount':
+                    try:
+                        new_value = int(new_value)
+                        if new_value < 0:
+                            raise ValueError("Amount must be non-negative")
+                    except ValueError as e:
+                        messagebox.showerror("Error", str(e))
+                        return
 
-                # Update tree
-                self.tree.set(item, col_name, new_value)
+                with self.db.session_scope() as session:
+                    # Get storage item
+                    unique_id = self.tree.set(item, 'unique_id')
+                    storage = session.query(Storage) \
+                        .join(Storage.product) \
+                        .filter(Product.unique_id == unique_id) \
+                        .first()
 
-            frame.destroy()
+                    if storage:
+                        # Store old value for undo
+                        old_value = getattr(storage, col_name)
+                        self.undo_stack.append(('edit', storage.id, col_name, old_value))
+                        self.redo_stack.clear()
+
+                        # Update value
+                        setattr(storage, col_name, new_value)
+                        session.commit()
+
+                        # Update tree
+                        self.tree.set(item, col_name, str(new_value))
+
+                        # Update warning tag if needed
+                        if col_name == 'amount':
+                            if new_value <= storage.warning_threshold:
+                                self.tree.item(item, tags=('low_stock',))
+                            else:
+                                self.tree.item(item, tags=())
+
+            except SQLAlchemyError as e:
+                messagebox.showerror("Error", f"Failed to save edit: {str(e)}")
+            finally:
+                frame.destroy()
 
         def cancel_edit(event=None):
-            """Cancel the edit"""
             frame.destroy()
 
-        entry.bind('<Return>', save_edit)
-        entry.bind('<Escape>', cancel_edit)
-        entry.bind('<FocusOut>', save_edit)
-        entry.focus_set()
-
-    def update_record(self, unique_id: str, column: str, value: str):
-        """Update record in database"""
-        self.db.connect()
-        try:
-            success = self.db.update_record(
-                TABLES['STORAGE'],
-                {column: value},
-                "unique_id_product = ?",
-                (unique_id,)
-            )
-            if not success:
-                messagebox.showerror("Error", "Failed to update database")
-        finally:
-            self.db.disconnect()
-
-    def delete_selected(self, event=None):
-        """Delete selected items"""
-        selected = self.tree.selection()
-        if not selected:
-            return
-
-        if messagebox.askyesno("Confirm Delete",
-                               "Are you sure you want to delete the selected items?"):
-            self.db.connect()
-            try:
-                # Store for undo
-                deleted_items = []
-                for item in selected:
-                    values = {col: self.tree.set(item, col) for col in self.columns}
-                    deleted_items.append((item, values))
-
-                    # Delete from database
-                    unique_id = values['unique_id_product']
-                    self.db.delete_record(
-                        TABLES['STORAGE'],
-                        "unique_id_product = ?",
-                        (unique_id,)
-                    )
-
-                    # Delete from tree
-                    self.tree.delete(item)
-
-                self.undo_stack.append(('delete', deleted_items))
-                self.redo_stack.clear()
-
-            finally:
-                self.db.disconnect()
+        # Bind events
+        widget.bind('<Return>', save_edit)
+        widget.bind('<Escape>', cancel_edit)
+        widget.bind('<FocusOut>', save_edit)
+        widget.focus_set()
 
     def undo(self, event=None):
         """Undo last action"""
@@ -612,47 +673,61 @@ class StorageView(ttk.Frame):
         action = self.undo_stack.pop()
         action_type = action[0]
 
-        if action_type == 'edit':
-            item, old_values = action[1:]
-            # Store current values for redo
-            current_values = {col: self.tree.set(item, col) for col in self.columns}
-            self.redo_stack.append(('edit', item, current_values))
+        try:
+            with self.db.session_scope() as session:
+                if action_type == 'add':
+                    storage_id = action[1]
+                    storage = session.query(Storage).get(storage_id)
+                    if storage:
+                        # Store for redo
+                        data = {
+                            'product_data': {
+                                column.name: getattr(storage.product, column.name)
+                                for column in Product.__table__.columns
+                            },
+                            'storage_data': {
+                                column.name: getattr(storage, column.name)
+                                for column in Storage.__table__.columns
+                            }
+                        }
+                        session.delete(storage.product)  # Will cascade to storage
+                        self.redo_stack.append(('readd', data))
 
-            # Restore old values
-            for col, value in old_values.items():
-                self.tree.set(item, col, value)
-                self.update_record(old_values['unique_id_product'], col, value)
+                elif action_type == 'edit':
+                    storage_id, col_name, old_value = action[1:]
+                    storage = session.query(Storage).get(storage_id)
+                    if storage:
+                        # Store current value for redo
+                        current_value = getattr(storage, col_name)
+                        self.redo_stack.append(('reedit', storage_id, col_name, current_value))
 
-        elif action_type == 'delete':
-            deleted_items = action[1]
-            restored_items = []
+                        # Restore old value
+                        setattr(storage, col_name, old_value)
 
-            for item_id, values in deleted_items:
-                # Restore to database
-                self.db.insert_record(TABLES['STORAGE'], values)
+                elif action_type == 'delete':
+                    deleted_items = action[1]
+                    restored_items = []
+                    for data in deleted_items:
+                        # Recreate product and storage
+                        product = Product(**data['product_data'])
+                        session.add(product)
+                        session.flush()
 
-                # Restore to tree
-                new_item = self.tree.insert('', 'end', values=list(values.values()))
-                restored_items.append((new_item, values))
+                        storage_data = data['storage_data']
+                        storage_data['product_id'] = product.id
+                        storage = Storage(**storage_data)
+                        session.add(storage)
+                        session.flush()
 
-            self.redo_stack.append(('undelete', restored_items))
+                        restored_items.append((product.id, storage.id))
 
-        elif action_type == 'add':
-            unique_id, data = action[1], action[2]
-            # Remove from database
-            self.db.delete_record(
-                TABLES['STORAGE'],
-                "unique_id_product = ?",
-                (unique_id,)
-            )
+                    self.redo_stack.append(('redelete', restored_items))
 
-            # Remove from tree
-            for item in self.tree.get_children():
-                if self.tree.set(item, 'unique_id_product') == unique_id:
-                    self.tree.delete(item)
-                    break
+                session.commit()
+                self.load_data()
 
-            self.redo_stack.append(('readd', data))
+        except SQLAlchemyError as e:
+            messagebox.showerror("Error", f"Undo failed: {str(e)}")
 
     def redo(self, event=None):
         """Redo last undone action"""
@@ -663,72 +738,60 @@ class StorageView(ttk.Frame):
         action_type = action[0]
 
         try:
-            self.db.connect()
+            with self.db.session_scope() as session:
+                if action_type == 'readd':
+                    data = action[1]
+                    # Recreate product and storage
+                    product = Product(**data['product_data'])
+                    session.add(product)
+                    session.flush()
 
-            if action_type == 'edit':
-                item, current_values = action[1:]
-                # Store old values for potential undo
-                old_values = {col: self.tree.set(item, col) for col in self.columns}
-                self.undo_stack.append(('edit', item, old_values))
+                    storage_data = data['storage_data']
+                    storage_data['product_id'] = product.id
+                    storage = Storage(**storage_data)
+                    session.add(storage)
+                    session.flush()
 
-                # Restore current values
-                for col, value in current_values.items():
-                    self.tree.set(item, col, value)
-                    self.update_record(current_values['unique_id_product'], col, value)
+                    self.undo_stack.append(('add', storage.id))
 
-            elif action_type == 'readd':
-                # Re-add the item
-                data = action[1]
+                elif action_type == 'reedit':
+                    storage_id, col_name, new_value = action[1:]
+                    storage = session.query(Storage).get(storage_id)
+                    if storage:
+                        # Store current value for undo
+                        old_value = getattr(storage, col_name)
+                        self.undo_stack.append(('edit', storage_id, col_name, old_value))
 
-                # Insert back into database
-                success = self.db.insert_record(TABLES['STORAGE'], data)
+                        # Apply new value
+                        setattr(storage, col_name, new_value)
 
-                if success:
-                    # Add back to tree
-                    self.tree.insert('', 'end', values=list(data.values()))
+                elif action_type == 'redelete':
+                    restored_items = action[1]
+                    deleted_items = []
+                    for product_id, storage_id in restored_items:
+                        storage = session.query(Storage).get(storage_id)
+                        if storage:
+                            data = {
+                                'product_data': {
+                                    column.name: getattr(storage.product, column.name)
+                                    for column in Product.__table__.columns
+                                },
+                                'storage_data': {
+                                    column.name: getattr(storage, column.name)
+                                    for column in Storage.__table__.columns
+                                }
+                            }
+                            deleted_items.append(data)
+                            session.delete(storage.product)  # Will cascade to storage
 
-                    # Add to undo stack for potential future undo
-                    self.undo_stack.append(('add', data['unique_id_product'], data))
+                    self.undo_stack.append(('delete', deleted_items))
 
-            elif action_type == 'undelete':
-                restored_items = action[1]
-                deleted_items = []
+                session.commit()
+                self.load_data()
 
-                for item, values in restored_items:
-                    # Delete from database
-                    self.db.delete_record(
-                        TABLES['STORAGE'],
-                        "unique_id_product = ?",
-                        (values['unique_id_product'],)
-                    )
-
-                    # Delete from tree
-                    self.tree.delete(item)
-                    deleted_items.append((item, values))
-
-                self.undo_stack.append(('delete', deleted_items))
-
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to redo: {str(e)}")
-        finally:
-            self.db.disconnect()
-
-    def handle_return(self, event=None):
-        """Handle Return key press"""
-        pass
-
-    def handle_escape(self, event=None):
-        """Handle Escape key press"""
-        pass
-
-    def save_table(self):
-        """Save current table state"""
-        pass
-
-    def load_table(self):
-        """Load saved table state"""
-        pass
+        except SQLAlchemyError as e:
+            messagebox.showerror("Error", f"Redo failed: {str(e)}")
 
     def reset_view(self):
-        """Reset table to default view"""
+        """Reset view to default state"""
         self.load_data()
