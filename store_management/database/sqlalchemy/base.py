@@ -1,6 +1,9 @@
-# store_management/database/sqlalchemy/base.py
+# File: store_management/database/sqlalchemy/base.py
+"""
+Base declarative model for SQLAlchemy ORM.
+"""
 
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 
-# Create the declarative base
+# Create the Base class for declarative models
 Base = declarative_base()

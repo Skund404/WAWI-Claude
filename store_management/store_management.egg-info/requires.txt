@@ -1,2 +1,4 @@
-sqlalchemy
-alembic
+sqlalchemy>=2.0.19
+alembic>=1.11.1
+python-dotenv>=1.0.0
+sqlalchemy-utils>=0.41.1

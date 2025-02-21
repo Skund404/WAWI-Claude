@@ -1,70 +1,42 @@
-# main.py
-
-import os
-import sys
-import logging
+# Path: store_management/main.py
 import tkinter as tk
-from pathlib import Path
+import sys
+import os
+
+# Add the project root to the Python path
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, project_root)
+
+# Import the necessary modules
 from store_management.application import Application
 from store_management.gui.main_window import MainWindow
-
-
-def setup_logging():
-    """Configure logging for the application"""
-    log_dir = Path.home() / ".store_management" / "logs"
-    log_dir.mkdir(parents=True, exist_ok=True)
-
-    log_file = log_dir / "store_management.log"
-
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        handlers=[
-            logging.FileHandler(log_file),
-            logging.StreamHandler(sys.stdout)
-        ]
-    )
-
-    return logging.getLogger(__name__)
-
+from store_management.di.config import ApplicationConfig
 
 def main():
-    """Main entry point for the application"""
-    # Set up logging
-    logger = setup_logging()
-    logger.info("Starting Store Management application")
+    """
+    Main entry point of the application.
 
-    # Get database URL from environment or use default
-    db_dir = Path.home() / ".store_management" / "data"
-    db_dir.mkdir(parents=True, exist_ok=True)
-    db_path = db_dir / "store_management.db"
-
-    db_url = os.environ.get("SM_DATABASE_URL", f"sqlite:///{db_path}")
-    logger.info(f"Using database URL: {db_url}")
-
+    This function initializes the main application window and starts the GUI event loop.
+    """
     try:
-        # Initialize application
-        app = Application(db_url)
-        app.initialize()
-
-        # Create main window
+        # Initialize Tkinter root window
         root = tk.Tk()
-        main_window = MainWindow(root, app)
-        app.main_window = main_window  # Store reference to main window
 
-        # Start the application
-        logger.info("Starting GUI main loop")
+        # Configure dependency injection container
+        app_config = ApplicationConfig()
+        container = app_config.configure_container()
+
+        # Create main application window
+        main_window = MainWindow(root, container)
+
+        # Start the main event loop
         main_window.run()
-    except Exception as e:
-        logger.exception(f"Error starting application: {str(e)}")
-        if "root" in locals():
-            tk.messagebox.showerror("Error", f"Application error: {str(e)}")
-    finally:
-        # Clean up resources
-        if "app" in locals():
-            logger.info("Cleaning up application resources")
-            app.cleanup()
 
+    except Exception as e:
+        # Log any unhandled exceptions
+        print(f"An error occurred: {e}")
+        import traceback
+        traceback.print_exc()
 
 if __name__ == "__main__":
     main()

@@ -1,145 +1,164 @@
+# File: store_management/gui/dialogs/add_dialog.py
+# Description: Generic Add Dialog for Creating New Entries
+
 import tkinter as tk
-from tkinter import ttk, messagebox
-from typing import Dict, Callable, Optional
+import tkinter.ttk as ttk
+import tkinter.messagebox as messagebox
+from typing import Dict, Callable, Optional, List, Union, Tuple
 import uuid
+from typing import Dict, Callable, Optional, List, Union, Tuple, Any
 
 
 class AddDialog(tk.Toplevel):
+    """
+    A flexible dialog for adding new entries with dynamic field generation.
 
-    def __init__(self, parent, save_callback: Callable[[Dict], bool], fields: list):
+    Supports different field types and provides validation mechanisms.
+
+    Attributes:
+        _parent: Parent window
+        _save_callback: Function to call when save is triggered
+        _fields: List of field configurations
+        _entries: Dictionary to store entry widgets
+    """
+
+    def __init__(
+            self,
+            parent: tk.Tk,
+            save_callback: Callable[[Dict[str, Any]], None],
+            fields: List[Tuple[str, str, bool, str]] = [],
+            title: str = "Add Entry"
+    ):
         """
-        Initialize add dialog
+        Initialize the add dialog.
 
         Args:
             parent: Parent window
-            save_callback: Function to call with form data on save
-            fields: List of tuples (field_name, display_name, required, field_type)
-                   field_type can be 'string', 'float', or 'text'
+            save_callback: Function called with form data on save
+            fields: List of field tuples (field_name, display_name, required, field_type)
+            title: Dialog title
+
+        Field Types:
+            - 'string': Text entry
+            - 'text': Multiline text entry
+            - 'float': Numeric entry (floating-point)
+            - 'int': Integer entry
+            - 'boolean': Checkbox
         """
         super().__init__(parent)
-        self.title("Add New Item")
-        self.geometry("600x400")
-        self.transient(parent)
-        self.grab_set()
 
-        self.save_callback = save_callback
-        self.fields = fields
-        self.entries = {}
+        # Store parameters
+        self._parent = parent
+        self._save_callback = save_callback
+        self._fields = fields
+        self._entries: Dict[str, Union[tk.Entry, tk.Text, ttk.Checkbutton]] = {}
 
-        self.setup_ui()
+        # Configure dialog
+        self.title(title)
+        self.geometry("400x500")
+        self.resizable(False, False)
 
-    # gui/dialogs/add_dialog.py
-    def show_storage_dialog(self):
-        dialog = AddDialog(self, "Add Storage Location", self.add_storage_callback)
+        # Create UI
+        self._create_ui()
 
-    def setup_ui(self):
-        """Setup the dialog UI components"""
+    def _create_ui(self) -> None:
+        """
+        Create dialog user interface with dynamic fields.
+        """
         # Main frame
-        main_frame = ttk.Frame(self, padding="10")
+        main_frame = ttk.Frame(self, padding="10 10 10 10")
         main_frame.pack(fill=tk.BOTH, expand=True)
-
-        # Entry fields
-        for i, (field_name, display_name, required, field_type) in enumerate(self.fields):
-            # Label
-            ttk.Label(main_frame, text=f"{display_name}:").grid(
-                row=i, column=0, sticky='w', padx=5, pady=2
-            )
-
-            # Entry or Text widget based on field type
-            if field_type == 'text':
-                entry = tk.Text(main_frame, width=40, height=4)
-                entry.grid(row=i, column=1, sticky='ew', padx=5, pady=2)
-            else:
-                entry = ttk.Entry(main_frame, width=40)
-                entry.grid(row=i, column=1, sticky='ew', padx=5, pady=2)
-
-            self.entries[field_name] = entry
-
-            # Required field indicator
-            if required:
-                ttk.Label(main_frame, text="*", foreground="red").grid(
-                    row=i, column=2, sticky='w'
-                )
-
-        # Configure grid
         main_frame.columnconfigure(1, weight=1)
 
-        # Buttons
-        button_frame = ttk.Frame(main_frame)
-        button_frame.grid(row=len(self.fields), column=0, columnspan=3, pady=10)
+        # Create fields dynamically
+        for i, (field_name, display_name, required, field_type) in enumerate(self._fields):
+            # Label
+            label = ttk.Label(main_frame, text=f"{display_name}:")
+            label.grid(row=i, column=0, sticky=tk.W, padx=5, pady=5)
 
-        ttk.Button(button_frame, text="Save", command=self.save).pack(side=tk.LEFT, padx=5)
-        ttk.Button(button_frame, text="Cancel", command=self.destroy).pack(side=tk.LEFT, padx=5)
+            # Create appropriate entry widget based on type
+            if field_type == 'string':
+                entry = ttk.Entry(main_frame, width=40)
+                entry.grid(row=i, column=1, sticky=tk.EW, padx=5, pady=5)
+                self._entries[field_name] = entry
 
-        # Required fields note
-        ttk.Label(
-            main_frame,
-            text="* Required fields",
-            foreground="red"
-        ).grid(row=len(self.fields) + 1, column=0, columnspan=3, sticky='w', pady=(5, 0))
+            elif field_type == 'text':
+                entry = tk.Text(main_frame, height=4, width=40)
+                entry.grid(row=i, column=1, sticky=tk.EW, padx=5, pady=5)
+                self._entries[field_name] = entry
 
-        # Set focus to first entry
-        first_entry = next(iter(self.entries.values()))
-        first_entry.focus_set()
+            elif field_type == 'float':
+                entry = ttk.Entry(main_frame, width=40)
+                entry.grid(row=i, column=1, sticky=tk.EW, padx=5, pady=5)
+                self._entries[field_name] = entry
 
-    def get_field_values(self) -> Dict:
-        """Get all field values from entries"""
-        values = {}
-        for field_name, display_name, _, field_type in self.fields:
-            widget = self.entries[field_name]
-            if isinstance(widget, tk.Text):
-                value = widget.get("1.0", tk.END).strip()
-            else:
-                value = widget.get().strip()
+            elif field_type == 'int':
+                entry = ttk.Entry(main_frame, width=40)
+                entry.grid(row=i, column=1, sticky=tk.EW, padx=5, pady=5)
+                self._entries[field_name] = entry
 
-            # Convert types if needed
-            if field_type == 'float' and value:
+            elif field_type == 'boolean':
+                var = tk.BooleanVar()
+                entry = ttk.Checkbutton(main_frame, variable=var)
+                entry.grid(row=i, column=1, sticky=tk.W, padx=5, pady=5)
+                self._entries[field_name] = var
+
+        # Buttons frame
+        buttons_frame = ttk.Frame(main_frame)
+        buttons_frame.grid(row=len(self._fields), column=0, columnspan=2, sticky=tk.EW, pady=10)
+
+        # Save button
+        save_btn = ttk.Button(buttons_frame, text="Save", command=self._on_save)
+        save_btn.pack(side=tk.RIGHT, padx=5)
+
+        # Cancel button
+        cancel_btn = ttk.Button(buttons_frame, text="Cancel", command=self.destroy)
+        cancel_btn.pack(side=tk.RIGHT)
+
+    def _on_save(self) -> None:
+        """
+        Handle save action, validate and process form data.
+        """
+        # Collect and validate form data
+        form_data = {}
+
+        for (field_name, _, required, field_type) in self._fields:
+            entry = self._entries[field_name]
+
+            # Get value based on field type
+            if field_type == 'string':
+                value = entry.get()
+            elif field_type == 'text':
+                value = entry.get("1.0", tk.END).strip()
+            elif field_type == 'float':
                 try:
-                    value = float(value)
+                    value = float(entry.get())
                 except ValueError:
-                    messagebox.showerror(
-                        "Error",
-                        f"{display_name} must be a valid number"
-                    )
-                    return None
+                    messagebox.showerror("Invalid Input", f"Invalid float value for {field_name}")
+                    return
+            elif field_type == 'int':
+                try:
+                    value = int(entry.get())
+                except ValueError:
+                    messagebox.showerror("Invalid Input", f"Invalid integer value for {field_name}")
+                    return
+            elif field_type == 'boolean':
+                value = entry.get()
 
-            values[field_name] = value
+            # Check required fields
+            if required and not value:
+                messagebox.showerror("Missing Input", f"{field_name} is required")
+                return
 
-        return values
+            form_data[field_name] = value
 
-    def validate_required_fields(self) -> bool:
-        """Validate that all required fields have values"""
-        required_fields = [(name, display) for name, display, req, _ in self.fields if req]
+        # Generate unique ID if not provided
+        if 'id' not in form_data:
+            form_data['id'] = str(uuid.uuid4())
 
-        for field_name, display_name in required_fields:
-            widget = self.entries[field_name]
-            if isinstance(widget, tk.Text):
-                value = widget.get("1.0", tk.END).strip()
-            else:
-                value = widget.get().strip()
-
-            if not value:
-                messagebox.showerror(
-                    "Error",
-                    f"{display_name} is required"
-                )
-                widget.focus_set()
-                return False
-        return True
-
-    def save(self):
-        """Validate and save the form data"""
-        if not self.validate_required_fields():
-            return
-
-        values = self.get_field_values()
-        if values is None:  # Validation failed
-            return
-
+        # Call save callback
         try:
-            if self.save_callback(values):
-                self.destroy()
-            else:
-                messagebox.showerror("Error", "Failed to save item")
+            self._save_callback(form_data)
+            self.destroy()
         except Exception as e:
-            messagebox.showerror("Error", f"An error occurred: {str(e)}")
+            messagebox.showerror("Save Error", str(e))

@@ -1,102 +1,77 @@
+# File: store_management/services/storage_service.py
 from typing import List, Optional, Dict, Any
-from store_management.database.sqlalchemy.models.storage import Storage
-from store_management.database.sqlalchemy.models.product import Product
-from store_management.database.sqlalchemy.manager_factory import get_manager
+from store_management.database.sqlalchemy.models import Storage, Product
+from store_management.services.interfaces.storage_service import IStorageService
 
-
-class StorageService:
-    """Service for storage and product placement operations"""
-
-    def __init__(self):
-        """Initialize with appropriate managers"""
-        self.storage_manager = get_manager(Storage)
-        self.product_manager = get_manager(Product)
-
-    def assign_product_to_storage(self, product_id: int, storage_id: int) -> bool:
-        """Assign a product to a storage location.
+class StorageService(IStorageService):
+    """
+    Service for managing storage locations.
+    """
+    def __init__(self, db_manager):
+        """
+        Initialize StorageService with a database manager.
 
         Args:
-            product_id: Product ID
-            storage_id: Storage location ID
+            db_manager: Database manager for storage operations
+        """
+        self._db_manager = db_manager
+
+    def get_all_storage_locations(self) -> List[Dict[str, Any]]:
+        """
+        Retrieve all storage locations.
 
         Returns:
-            True if assignment succeeded, False otherwise
+            List of storage location dictionaries
         """
-        try:
-            # Check if product exists
-            product = self.product_manager.get(product_id)
-            if not product:
-                return False
+        storages = self._db_manager.get_all_records(Storage)
+        return [self._to_dict(storage) for storage in storages]
 
-            # Check if storage location exists
-            storage = self.storage_manager.get(storage_id)
-            if not storage:
-                return False
-
-            # Update product with storage location
-            self.product_manager.update(product_id, {"storage_id": storage_id})
-
-            return True
-        except Exception as e:
-            # Log error
-            print(f"Error assigning product to storage: {str(e)}")
-            return False
-
-    def get_storage_utilization(self) -> List[Dict[str, Any]]:
-        """Get utilization metrics for all storage locations.
-
-        Returns:
-            List of dictionaries with utilization metrics
+    def get_storage_by_id(self, storage_id: int) -> Optional[Dict[str, Any]]:
         """
-        try:
-            utilization = []
-            storage_locations = self.storage_manager.get_all()
-
-            for storage in storage_locations:
-                # Get products in this storage location
-                products = self.product_manager.filter_by(storage_id=storage.id)
-
-                # Calculate capacity and utilization
-                product_count = len(products)
-                capacity = storage.capacity or 0
-                used_space = sum(1 for _ in products)  # Simple count, could be more complex
-                utilization_percent = (used_space / capacity * 100) if capacity > 0 else 0
-
-                utilization.append({
-                    "id": storage.id,
-                    "location": storage.location,
-                    "capacity": capacity,
-                    "used_space": used_space,
-                    "available_space": capacity - used_space,
-                    "utilization_percent": utilization_percent,
-                    "product_count": product_count
-                })
-
-            return utilization
-        except Exception as e:
-            # Log error and return empty list
-            print(f"Error getting storage utilization: {str(e)}")
-            return []
-
-    def create_storage_location(self, data: Dict[str, Any]) -> Optional[Storage]:
-        """Create a new storage location.
+        Retrieve a specific storage location by ID.
 
         Args:
-            data: Storage location data
+            storage_id: ID of the storage location
 
         Returns:
-            Created storage location or None if failed
+            Storage location details or None if not found
         """
-        try:
-            # Validate required fields
-            if 'location' not in data:
-                return None
+        storage = self._db_manager.get_record(Storage, storage_id)
+        return self._to_dict(storage) if storage else None
 
-            # Create storage location
-            storage = self.storage_manager.create(data)
+    def _to_dict(self, storage: Storage) -> Dict[str, Any]:
+        """
+        Convert a Storage model to a dictionary.
 
-            return storage
-        except Exception as e:
-            # Log error
-            print(f"Error creating storage location: {str(e)}")
-            return None
+        Args:
+            storage: Storage model instance
+
+        Returns:
+            Dictionary representation of the storage location
+        """
+        return {
+            'id': storage.id,
+            'location': storage.location,
+            'description': storage.description,
+            'capacity': storage.capacity,
+            'current_usage': storage.current_usage,
+            'products': [self._product_to_dict(product) for product in storage.products]
+        }
+
+    def _product_to_dict(self, product: Product) -> Dict[str, Any]:
+        """
+        Convert a Product model to a dictionary.
+
+        Args:
+            product: Product model instance
+
+        Returns:
+            Dictionary representation of the product
+        """
+        return {
+            'id': product.id,
+            'name': product.name,
+            'description': product.description,
+            'category': product.category,
+            'unit_price': product.unit_price
+        }

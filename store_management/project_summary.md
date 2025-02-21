@@ -1,40 +1,47 @@
 # Project Analysis: store_management
-Total Python files: 133
+Total Python files: 189
 
 ## application.py
 
 ### Imports:
-- store_management.services.storage_service.StorageService
-- store_management.services.inventory_service.InventoryService
-- store_management.services.order_service.OrderService
-- store_management.services.recipe_service.RecipeService
-- store_management.database.sqlalchemy.session.init_database
-- logging
+- typing.Type
+- typing.TypeVar
+- store_management.di.config.ApplicationConfig
+- store_management.di.container.DependencyContainer
 
 ### Classes:
 
 #### Application
 ```
-Main application class responsible for initialization and service creation
+Main application class that manages dependency injection and service resolution.
+
+This class is responsible for initializing the application's dependency container
+and providing access to application services.
 ```
 
 Methods:
-- __init__(self, db_url)
+- __init__(self)
   ```
-  Initialize application with optional database URL
+  Initialize the Application instance.
+
+Sets up the dependency injection container using ApplicationConfig.
   ```
-- initialize(self)
+- get_service(self, service_type)
   ```
-  Initialize the application, database connection and create services
+  Retrieve a service instance from the dependency container.
+
+Args:
+    service_type: The type of service to retrieve.
+
+Returns:
+    An instance of the requested service.
+
+Raises:
+    ValueError: If the service cannot be resolved.
   ```
-- get_service(self, service_name)
-  ```
-  Get a service by name
-  ```
-- cleanup(self)
-  ```
-  Clean up resources
-  ```
+
+### Global Variables:
+- T
 
 ---
 
@@ -72,28 +79,35 @@ Returns:
 
 ---
 
+## import_test.py
+
+### Imports:
+- sys
+- os
+
+---
+
 ## main.py
 
 ### Imports:
-- os
-- sys
-- logging
 - tkinter
-- pathlib.Path
+- sys
+- os
 - store_management.application.Application
 - store_management.gui.main_window.MainWindow
+- store_management.di.config.ApplicationConfig
 
 ### Functions:
 
-#### setup_logging()
-```
-Configure logging for the application
-```
-
 #### main()
 ```
-Main entry point for the application
+Main entry point of the application.
+
+This function initializes the main application window and starts the GUI event loop.
 ```
+
+### Global Variables:
+- project_root
 
 ---
 
@@ -139,18 +153,36 @@ Methods:
 
 ### Imports:
 - setuptools.setup
-- setuptools.find_packages
+- setuptools.find_namespace_packages
+
+---
+
+## tkinter_test.py
+
+### Imports:
+- sys
+- os
+- logging
+
+### Functions:
+
+#### print_import_chain()
+```
+Try to trace the import chain to identify circular import issues.
+```
+
+#### test_tkinter()
+
+### Global Variables:
+- project_root
+- logger
 
 ---
 
 ## __init__.py
 
-### Imports:
-- application.Application
-
 ### Global Variables:
 - __version__
-- __author__
 
 ---
 
@@ -384,6 +416,7 @@ Returns:
 
 ### Imports:
 - os
+- typing
 - typing.Dict
 - typing.Any
 - typing.Optional
@@ -425,29 +458,37 @@ Returns:
     Dictionary with database configuration
 ```
 
+### Global Variables:
+- database_manager
+
 ---
 
 ## database\initialize.py
 
 ### Imports:
 - logging
-- sqlalchemy_utils.drop_database
-- config.database_manager
-- sqlalchemy.models.Base
+- sqlalchemy.create_engine
+- sqlalchemy.orm.sessionmaker
+- sqlalchemy.base.Base
+- sqlalchemy.models.storage.Storage
+- config.settings.get_database_path
 
 ### Functions:
 
 #### initialize_database(drop_existing)
 ```
-Comprehensive database initialization process
+Initialize the database, creating or resetting tables.
 
 Args:
-    drop_existing (bool): Whether to drop existing database before creation
+    drop_existing (bool): Whether to drop existing tables before creation
 ```
 
-#### add_initial_data()
+#### add_initial_data(engine)
 ```
-Optional method to add initial data to the database
+Add initial default data to the database.
+
+Args:
+    engine: SQLAlchemy engine (optional)
 ```
 
 ### Global Variables:
@@ -459,15 +500,15 @@ Optional method to add initial data to the database
 
 ### Imports:
 - os
-- contextlib.contextmanager
+- logging
 - typing.Optional
+- sqlalchemy
 - sqlalchemy.create_engine
 - sqlalchemy.orm.sessionmaker
 - sqlalchemy.orm.scoped_session
-- sqlalchemy.pool.NullPool
 - sqlalchemy_utils.database_exists
 - sqlalchemy_utils.create_database
-- config.get_database_url
+- config.settings.get_database_path
 - utils.error_handling.DatabaseError
 
 ### Functions:
@@ -478,62 +519,256 @@ Initialize the database, creating it if it doesn't exist.
 
 Args:
     db_url: Optional database URL (uses default if not provided)
+
+Raises:
+    DatabaseError: If database initialization fails
 ```
 
 #### get_db_session()
 ```
-Context manager for database sessions.
-
-Provides a transactional scope for database operations.
-Automatically handles session creation, commit, and rollback.
+Provide a database session.
 
 Yields:
     SQLAlchemy session object
 
 Raises:
-    DatabaseError: If session management fails
+    DatabaseError: If session creation fails
 ```
 
-#### get_session_factory()
+#### close_db_session()
 ```
-Get a thread-local scoped session factory.
-
-Returns:
-    Scoped session factory
+Close all database sessions.
 ```
 
-#### close_all_sessions()
-```
-Close all active database sessions.
-Useful for cleanup and testing.
-```
+### Global Variables:
+- logger
+- engine
+- SessionLocal
 
 ---
 
 ## database\__init__.py
 
+---
+
+## di\config.py
+
 ### Imports:
-- store_management.database.base.BaseManager
-- store_management.database.sqlalchemy.models.Base
-- store_management.database.sqlalchemy.models.Supplier
-- store_management.database.sqlalchemy.models.Part
-- store_management.database.sqlalchemy.models.Leather
-- store_management.database.sqlalchemy.models.Recipe
-- store_management.database.sqlalchemy.models.RecipeItem
-- store_management.database.sqlalchemy.models.ShoppingList
-- store_management.database.sqlalchemy.models.ShoppingListItem
-- store_management.database.sqlalchemy.models.Order
-- store_management.database.sqlalchemy.models.OrderItem
-- base_mixins.BaseMixin
-- base_mixins.SearchMixin
-- base_mixins.FilterMixin
-- base_mixins.PaginationMixin
-- base_mixins.TransactionMixin
-- store_management.database.sqlalchemy.manager.DatabaseManagerSQLAlchemy
+- typing.Dict
+- typing.Any
+- typing.Type
+- typing.TypeVar
+- store_management.di.container.DependencyContainer
+- store_management.database.sqlalchemy.session.get_db_session
+- store_management.database.sqlalchemy.core.base_manager.BaseManager
+- store_management.database.sqlalchemy.core.manager_factory.get_manager
+- store_management.services.interfaces.storage_service.IStorageService
+- store_management.services.implementations.storage_service.StorageService
+- store_management.services.interfaces.order_service.IOrderService
+- store_management.services.implementations.order_service.OrderService
+- store_management.services.interfaces.recipe_service.IRecipeService
+- store_management.services.implementations.recipe_service.RecipeService
+- store_management.services.interfaces.shopping_list_service.IShoppingListService
+- store_management.services.implementations.shopping_list_service.ShoppingListService
+- store_management.services.interfaces.supplier_service.ISupplierService
+- store_management.services.implementations.supplier_service.SupplierService
+- store_management.database.sqlalchemy.core.specialized.storage_manager.StorageManager
+- store_management.database.sqlalchemy.core.specialized.order_manager.OrderManager
+- store_management.database.sqlalchemy.core.specialized.recipe_manager.RecipeManager
+- store_management.database.sqlalchemy.core.specialized.shopping_list_manager.ShoppingListManager
+- store_management.database.sqlalchemy.core.specialized.supplier_manager.SupplierManager
+
+### Classes:
+
+#### ApplicationConfig
+```
+Dependency Injection Configuration for the Store Management Application.
+
+Responsible for:
+- Configuring the dependency injection container
+- Registering services and their dependencies
+- Providing a centralized configuration mechanism
+```
+
+Methods:
+- configure_container(cls)
+  ```
+  Configure the dependency injection container.
+
+This method sets up the entire dependency graph for the application.
+
+Returns:
+    Configured DependencyContainer instance
+  ```
+- _register_services(cls, container)
+  ```
+  Register all application services in the dependency container.
+
+Args:
+    container: Dependency container to register services in
+  ```
+- get_service(cls, container, service_type)
+  ```
+  Retrieve a service from the dependency container.
+
+Args:
+    container: Dependency container
+    service_type: Type of service to retrieve
+
+Returns:
+    Resolved service instance
+  ```
 
 ### Global Variables:
-- __all__
-- __all__
+- T
+
+---
+
+## di\container.py
+
+### Imports:
+- typing.Any
+- typing.Type
+- typing.Callable
+- typing.Dict
+- typing.Optional
+- typing.TypeVar
+
+### Classes:
+
+#### DependencyContainer
+```
+Advanced dependency injection container with comprehensive capabilities.
+
+Provides:
+- Singleton and transient dependency registration
+- Lazy initialization
+- Type-safe dependency resolution
+- Circular dependency detection
+- Flexible dependency management
+```
+
+Methods:
+- __init__(self)
+  ```
+  Initialize the dependency container with empty registries.
+  ```
+- _get_type_key(self, type_)
+  ```
+  Generate a unique string key for a given type.
+
+Args:
+    type_: The type to generate a key for
+
+Returns:
+    A unique string representation of the type
+  ```
+- register(self, interface_type, implementation_factory, singleton, dependencies)
+  ```
+  Register a dependency with advanced configuration options.
+
+Args:
+    interface_type: The interface or base type to register
+    implementation_factory: Factory function to create the implementation
+    singleton: Whether to cache the instance (default: True)
+    dependencies: Optional dictionary of dependencies to inject
+
+Raises:
+    ValueError: If the dependency is already registered
+  ```
+- resolve(self, interface_type)
+  ```
+  Resolve a dependency with advanced resolution strategy.
+
+Args:
+    interface_type: The type/interface to resolve
+
+Returns:
+    Instance of the requested dependency
+
+Raises:
+    ValueError: If dependency is not registered or circular dependency is detected
+  ```
+- get_service(self, interface_type)
+  ```
+  Alias for resolve method to maintain compatibility.
+
+Args:
+    interface_type: The type/interface to resolve
+
+Returns:
+    Instance of the requested dependency
+  ```
+- clear(self)
+  ```
+  Clear all registered dependencies, singleton instances, and resolving state.
+  ```
+- get_all_registered_types(self)
+  ```
+  Retrieve all registered dependency types.
+
+Returns:
+    List of registered type keys
+  ```
+- is_registered(self, interface_type)
+  ```
+  Check if a dependency is already registered.
+
+Args:
+    interface_type: The type to check for registration
+
+Returns:
+    bool: True if the dependency is registered, False otherwise
+  ```
+
+### Global Variables:
+- T
+
+---
+
+## di\service.py
+
+### Imports:
+- abc
+- typing.TypeVar
+- typing.Type
+- typing.Generic
+- typing.Any
+- store_management.di.container.DependencyContainer
+
+### Classes:
+
+#### Service
+Inherits from: abc.ABC
+```
+Base class for services that use dependency injection.
+```
+
+Methods:
+- __init__(self, container)
+  ```
+  Initialize the service with a dependency container.
+
+Args:
+    container: Dependency injection container
+  ```
+- get_dependency(self, dependency_type)
+  ```
+  Get a dependency from the container.
+
+Args:
+    dependency_type: Type of dependency to retrieve
+
+Returns:
+    Instance of the requested dependency
+  ```
+
+### Global Variables:
+- T
+
+---
+
+## di\__init__.py
 
 ---
 
@@ -543,53 +778,121 @@ Useful for cleanup and testing.
 - tkinter
 - tkinter.ttk
 - tkinter.messagebox
-- application.Application
+- typing.Any
+- typing.Optional
+- typing.Type
+- store_management.application.Application
+- store_management.services.interfaces.base_service.IBaseService
 
 ### Classes:
 
 #### BaseView
 Inherits from: ttk.Frame
 ```
-Base class for all view components
+Base class for all view components in the application.
+
+Provides common functionality for GUI views:
+- Service resolution
+- Basic error handling
+- Message dialogs
+- Lifecycle management methods
+
+Attributes:
+    _app (Application): Reference to the main application instance
+    _parent (tk.Widget): Parent widget for this view
 ```
 
 Methods:
 - __init__(self, parent, app)
+  ```
+  Initialize the base view.
+
+Args:
+    parent: Parent widget
+    app: Main application instance
+  ```
+- get_service(self, service_type)
+  ```
+  Retrieve a service from the application's dependency container.
+
+Args:
+    service_type: Type of service to retrieve
+
+Returns:
+    Resolved service instance
+
+Raises:
+    ValueError: If service cannot be resolved
+  ```
 - load_data(self)
   ```
-  Load data into the view
+  Load initial data for the view.
+
+Subclasses should override this method to implement
+data loading logic specific to the view.
   ```
 - save(self)
   ```
-  Save current data
+  Save current view data.
+
+Subclasses should override this method to implement
+data saving logic specific to the view.
   ```
 - undo(self)
   ```
-  Undo the last action
+  Undo the last action in the view.
+
+Subclasses should override this method to implement
+undo functionality specific to the view.
   ```
 - redo(self)
   ```
-  Redo the last undone action
+  Redo the last undone action in the view.
+
+Subclasses should override this method to implement
+redo functionality specific to the view.
   ```
 - show_error(self, title, message)
   ```
-  Show error message
+  Display an error message dialog.
+
+Args:
+    title: Title of the error dialog
+    message: Error message to display
   ```
 - show_info(self, title, message)
   ```
-  Show information message
+  Display an information message dialog.
+
+Args:
+    title: Title of the info dialog
+    message: Information message to display
   ```
 - show_warning(self, title, message)
   ```
-  Show warning message
+  Display a warning message dialog.
+
+Args:
+    title: Title of the warning dialog
+    message: Warning message to display
   ```
 - confirm(self, title, message)
   ```
-  Show confirmation dialog
+  Show a confirmation dialog with Yes/No options.
+
+Args:
+    title: Title of the confirmation dialog
+    message: Confirmation message to display
+
+Returns:
+    True if user clicks Yes, False otherwise
   ```
 - set_status(self, message)
   ```
-  Set status message in main window
+  Set status message in the main window.
+
+Args:
+    message: Status message to display
   ```
 
 ---
@@ -599,64 +902,108 @@ Methods:
 ### Imports:
 - tkinter
 - tkinter.ttk
-- tkinter.messagebox
 - sys
 - os
-- pathlib.Path
-- application.Application
-- storage.storage_view.StorageView
-- product.product_view.ProductView
-- order.order_view.OrderView
-- shopping_list.shopping_list_view.ShoppingListView
+- store_management.application.Application
+- store_management.gui.order.order_view.OrderView
+- store_management.gui.storage.storage_view.StorageView
+- store_management.gui.recipe.recipe_view.RecipeView
+- store_management.gui.shopping_list.shopping_list_view.ShoppingListView
+- store_management.services.interfaces.storage_service.IStorageService
+- store_management.services.interfaces.order_service.IOrderService
+- store_management.services.interfaces.inventory_service.IInventoryService
+- store_management.services.interfaces.recipe_service.IRecipeService
+- store_management.services.interfaces.shopping_list_service.IShoppingListService
 
 ### Classes:
 
 #### MainWindow
 ```
-Main application window
+Main application window managing the core GUI structure.
+
+Responsibilities:
+- Create main application window
+- Manage application tabs
+- Handle global application-level interactions
+- Provide status bar and menu functionality
 ```
 
 Methods:
 - __init__(self, root, app)
-- setup_ui(self)
   ```
-  Set up the main UI components
+  Initialize the main application window.
+
+Args:
+    root: Tkinter root window
+    app: Application instance for dependency management
   ```
-- bind_shortcuts(self)
+- _create_menu(self)
   ```
-  Bind global keyboard shortcuts
+  Create the main menu bar with application-wide options.
   ```
-- save(self, event)
+- _create_main_notebook(self)
   ```
-  Global save function
+  Create a notebook (tabbed) interface for different views.
   ```
-- load(self, event)
+- _create_status_bar(self)
   ```
-  Global load function
+  Create a status bar at the bottom of the application window.
   ```
-- search(self, event)
+- _bind_global_shortcuts(self)
   ```
-  Global search function
-  ```
-- undo(self, event)
-  ```
-  Global undo function
-  ```
-- redo(self, event)
-  ```
-  Global redo function
-  ```
-- get_current_view(self)
-  ```
-  Get the currently active view
+  Bind global keyboard shortcuts for common actions.
   ```
 - set_status(self, message)
   ```
-  Set status bar message
+  Update the status bar message.
+
+Args:
+    message: Status message to display
+  ```
+- _on_new(self, event)
+  ```
+  Handle 'New' menu action.
+  ```
+- _on_open(self, event)
+  ```
+  Handle 'Open' menu action.
+  ```
+- _on_save(self, event)
+  ```
+  Handle 'Save' menu action.
+
+Args:
+    event: Optional tkinter event (for keyboard shortcut)
+  ```
+- _on_undo(self, event)
+  ```
+  Handle 'Undo' menu action.
+
+Args:
+    event: Optional tkinter event (for keyboard shortcut)
+  ```
+- _on_redo(self, event)
+  ```
+  Handle 'Redo' menu action.
+
+Args:
+    event: Optional tkinter event (for keyboard shortcut)
+  ```
+- _get_current_view(self)
+  ```
+  Get the currently selected view in the notebook.
+
+Returns:
+    Currently selected view or None
+  ```
+- _on_exit(self)
+  ```
+  Handle application exit.
+Performs cleanup and closes the application.
   ```
 - run(self)
   ```
-  Start the application main loop
+  Start the main application event loop.
   ```
 
 ---
@@ -678,25 +1025,24 @@ Methods:
 - typing.Any
 - typing.Tuple
 - datetime.datetime
-- store_management.database.sqlalchemy.models.part.Part
-- store_management.database.sqlalchemy.models.leather.Leather
-- store_management.database.sqlalchemy.models.supplier.Supplier
-- store_management.database.sqlalchemy.models.enums.InventoryStatus
-- store_management.database.sqlalchemy.models.enums.TransactionType
-- store_management.database.sqlalchemy.models.transaction.InventoryTransaction
-- store_management.database.sqlalchemy.manager_factory.get_manager
+- store_management.database.sqlalchemy.models.Part.Part
+- store_management.database.sqlalchemy.models.Leather.Leather
+- store_management.database.sqlalchemy.models.InventoryStatus.InventoryStatus
+- store_management.database.sqlalchemy.models.TransactionType.TransactionType
+- store_management.database.sqlalchemy.models.InventoryTransaction.InventoryTransaction
+- store_management.database.sqlalchemy.core.manager_factory.get_manager
 
 ### Classes:
 
 #### InventoryService
 ```
-Service for inventory management operations
+Service for inventory management operations.
 ```
 
 Methods:
 - __init__(self)
   ```
-  Initialize service with appropriate managers
+  Initialize service with appropriate managers.
   ```
 - update_part_stock(self, part_id, quantity_change, transaction_type, notes)
   ```
@@ -710,6 +1056,40 @@ Args:
 
 Returns:
     Tuple of (success, message)
+  ```
+- update_leather_area(self, leather_id, area_change, transaction_type, notes, wastage)
+  ```
+  Update leather area with transaction tracking.
+
+Args:
+    leather_id: Leather ID
+    area_change: Change in area (positive or negative)
+    transaction_type: Type of transaction
+    notes: Optional notes
+    wastage: Optional wastage area
+
+Returns:
+    Tuple of (success, message)
+  ```
+- get_low_stock_parts(self, include_out_of_stock)
+  ```
+  Get parts with low stock levels.
+
+Args:
+    include_out_of_stock: Whether to include out of stock items
+
+Returns:
+    List of parts with low stock
+  ```
+- get_low_stock_leather(self, include_out_of_stock)
+  ```
+  Get leather with low stock levels.
+
+Args:
+    include_out_of_stock: Whether to include out of stock items
+
+Returns:
+    List of leather with low stock
   ```
 
 ---
@@ -908,54 +1288,74 @@ Returns:
 - typing.Optional
 - typing.Dict
 - typing.Any
-- store_management.database.sqlalchemy.models.storage.Storage
-- store_management.database.sqlalchemy.models.product.Product
-- store_management.database.sqlalchemy.manager_factory.get_manager
+- store_management.database.sqlalchemy.models.Storage
+- store_management.database.sqlalchemy.models.Product
+- store_management.services.interfaces.storage_service.IStorageService
 
 ### Classes:
 
 #### StorageService
+Inherits from: IStorageService
 ```
-Service for storage and product placement operations
+Service for managing storage locations.
 ```
 
 Methods:
-- __init__(self)
+- __init__(self, db_manager)
   ```
-  Initialize with appropriate managers
-  ```
-- assign_product_to_storage(self, product_id, storage_id)
-  ```
-  Assign a product to a storage location.
+  Initialize StorageService with a database manager.
 
 Args:
-    product_id: Product ID
-    storage_id: Storage location ID
+    db_manager: Database manager for storage operations
+  ```
+- get_all_storage_locations(self)
+  ```
+  Retrieve all storage locations.
 
 Returns:
-    True if assignment succeeded, False otherwise
+    List of storage location dictionaries
   ```
-- get_storage_utilization(self)
+- get_storage_by_id(self, storage_id)
   ```
-  Get utilization metrics for all storage locations.
-
-Returns:
-    List of dictionaries with utilization metrics
-  ```
-- create_storage_location(self, data)
-  ```
-  Create a new storage location.
+  Retrieve a specific storage location by ID.
 
 Args:
-    data: Storage location data
+    storage_id: ID of the storage location
 
 Returns:
-    Created storage location or None if failed
+    Storage location details or None if not found
+  ```
+- _to_dict(self, storage)
+  ```
+  Convert a Storage model to a dictionary.
+
+Args:
+    storage: Storage model instance
+
+Returns:
+    Dictionary representation of the storage location
+  ```
+- _product_to_dict(self, product)
+  ```
+  Convert a Product model to a dictionary.
+
+Args:
+    product: Product model instance
+
+Returns:
+    Dictionary representation of the product
   ```
 
 ---
 
 ## services\__init__.py
+
+### Imports:
+- implementations.storage_service.StorageService
+- interfaces.storage_service.IStorageService
+
+### Global Variables:
+- __all__
 
 ---
 
@@ -2002,6 +2402,1210 @@ Methods:
 
 ---
 
+## services\implementations\inventory_service.py
+
+### Imports:
+- typing.List
+- typing.Optional
+- typing.Dict
+- typing.Any
+- typing.Tuple
+- typing.Type
+- typing.cast
+- datetime.datetime
+- store_management.di.service.Service
+- store_management.di.container.DependencyContainer
+- store_management.services.interfaces.inventory_service.IInventoryService
+- store_management.database.sqlalchemy.base_manager.BaseManager
+- store_management.database.sqlalchemy.models.part.Part
+- store_management.database.sqlalchemy.models.leather.Leather
+- store_management.database.sqlalchemy.models.enums.InventoryStatus
+- store_management.database.sqlalchemy.models.enums.TransactionType
+
+### Classes:
+
+#### InventoryService
+Inherits from: Service, IInventoryService
+```
+Service for inventory management operations.
+```
+
+Methods:
+- __init__(self, container)
+  ```
+  Initialize service with appropriate managers.
+  ```
+- update_part_stock(self, part_id, quantity_change, transaction_type, notes)
+  ```
+  Update part stock with transaction tracking.
+
+Args:
+    part_id: Part ID
+    quantity_change: Change in quantity (positive or negative)
+    transaction_type: Type of transaction
+    notes: Optional notes
+
+Returns:
+    Tuple of (success, message)
+  ```
+- update_leather_area(self, leather_id, area_change, transaction_type, notes, wastage)
+  ```
+  Update leather area with transaction tracking.
+
+Args:
+    leather_id: Leather ID
+    area_change: Change in area (positive or negative)
+    transaction_type: Type of transaction
+    notes: Optional notes
+    wastage: Optional wastage area
+
+Returns:
+    Tuple of (success, message)
+  ```
+- get_low_stock_parts(self, include_out_of_stock)
+  ```
+  Get parts with low stock levels.
+
+Args:
+    include_out_of_stock: Whether to include out of stock items
+
+Returns:
+    List of parts with low stock
+  ```
+- get_low_stock_leather(self, include_out_of_stock)
+  ```
+  Get leather with low stock levels.
+
+Args:
+    include_out_of_stock: Whether to include out of stock items
+
+Returns:
+    List of leather with low stock
+  ```
+- _part_to_dict(self, part)
+  ```
+  Convert Part model to dictionary.
+  ```
+- _leather_to_dict(self, leather)
+  ```
+  Convert Leather model to dictionary.
+  ```
+
+---
+
+## services\implementations\order_service.py
+
+### Imports:
+- typing.List
+- typing.Dict
+- typing.Any
+- typing.Optional
+- typing.Tuple
+- store_management.di.service.Service
+- store_management.di.container.DependencyContainer
+- store_management.services.interfaces.order_service.IOrderService
+- store_management.database.sqlalchemy.core.specialized.order_manager.OrderManager
+
+### Classes:
+
+#### OrderService
+Inherits from: Service, IOrderService
+```
+Service for order management operations
+```
+
+Methods:
+- __init__(self, container)
+  ```
+  Initialize with appropriate managers.
+
+Args:
+    container: Dependency injection container
+  ```
+- get_all_orders(self)
+  ```
+  Retrieve all orders.
+
+Returns:
+    List of order dictionaries
+  ```
+- get_order_by_id(self, order_id)
+  ```
+  Get order details by ID.
+
+Args:
+    order_id: Order ID
+
+Returns:
+    Order details or None if not found
+  ```
+- create_order(self, order_data)
+  ```
+  Create a new order.
+
+Args:
+    order_data: Dictionary with order data
+
+Returns:
+    Created order or None
+  ```
+- update_order(self, order_data)
+  ```
+  Update an existing order.
+
+Args:
+    order_data: Dictionary with updated order information
+
+Returns:
+    Updated order or None
+  ```
+- delete_order(self, order_id)
+  ```
+  Delete an order.
+
+Args:
+    order_id: ID of the order to delete
+
+Returns:
+    True if deletion successful, False otherwise
+  ```
+- _to_dict(self, order)
+  ```
+  Convert order model to dictionary.
+
+Args:
+    order: Order model instance
+
+Returns:
+    Dictionary representation of the order
+  ```
+
+---
+
+## services\implementations\recipe_service.py
+
+### Imports:
+- typing.List
+- typing.Dict
+- typing.Any
+- typing.Optional
+- typing.Tuple
+- store_management.di.service.Service
+- store_management.di.container.DependencyContainer
+- store_management.services.interfaces.recipe_service.IRecipeService
+- store_management.database.sqlalchemy.core.specialized.recipe_manager.RecipeManager
+
+### Classes:
+
+#### RecipeService
+Inherits from: Service, IRecipeService
+```
+Service for recipe management operations
+```
+
+Methods:
+- __init__(self, container)
+  ```
+  Initialize with appropriate managers.
+
+Args:
+    container: Dependency injection container
+  ```
+- get_all_recipes(self)
+  ```
+  Retrieve all recipes.
+
+Returns:
+    List of recipe dictionaries
+  ```
+- get_recipe_by_id(self, recipe_id)
+  ```
+  Get recipe details by ID.
+
+Args:
+    recipe_id: Recipe ID
+
+Returns:
+    Recipe details or None if not found
+  ```
+- create_recipe(self, recipe_data, items)
+  ```
+  Create a new recipe with items.
+
+Args:
+    recipe_data: Dictionary with recipe data
+    items: Optional list of recipe item data
+
+Returns:
+    Tuple of (created recipe or None, result message)
+  ```
+- update_recipe(self, recipe_id, recipe_data, items)
+  ```
+  Update an existing recipe.
+
+Args:
+    recipe_id: ID of the recipe to update
+    recipe_data:
+    Updated recipe data
+    items: Optional list of recipe item data
+
+Returns:
+    Updated recipe or None
+  ```
+- delete_recipe(self, recipe_id)
+  ```
+  Delete a recipe.
+
+Args:
+    recipe_id: ID of the recipe to delete
+
+Returns:
+    True if deletion successful, False otherwise
+  ```
+- check_materials_availability(self, recipe_id, quantity)
+  ```
+  Check if materials for a recipe are available in sufficient quantity.
+
+Args:
+    recipe_id: Recipe ID
+    quantity: Number of items to produce
+
+Returns:
+    Tuple of (all materials available, list of missing items)
+  ```
+- _to_dict(self, recipe)
+  ```
+  Convert recipe model to dictionary.
+
+Args:
+    recipe: Recipe model instance
+
+Returns:
+    Dictionary representation of the recipe
+  ```
+
+---
+
+## services\implementations\shopping_list_service.py
+
+### Imports:
+- typing.List
+- typing.Dict
+- typing.Any
+- typing.Optional
+- typing.Tuple
+- typing.cast
+- datetime.datetime
+- store_management.di.service.Service
+- store_management.di.container.DependencyContainer
+- store_management.services.interfaces.shopping_list_service.IShoppingListService
+- store_management.database.sqlalchemy.base_manager.BaseManager
+- store_management.database.sqlalchemy.models.shopping_list.ShoppingList
+- store_management.database.sqlalchemy.models.shopping_list.ShoppingListItem
+- store_management.database.sqlalchemy.models.part.Part
+- store_management.database.sqlalchemy.models.leather.Leather
+- store_management.database.sqlalchemy.models.supplier.Supplier
+
+### Classes:
+
+#### ShoppingListService
+Inherits from: Service, IShoppingListService
+```
+Service for shopping list management operations
+```
+
+Methods:
+- __init__(self, container)
+  ```
+  Initialize with appropriate managers
+  ```
+- create_shopping_list(self, list_data, items)
+  ```
+  Create a new shopping list with optional items.
+
+Args:
+    list_data: Shopping list data
+    items: Optional list of item data
+
+Returns:
+    Tuple of (created shopping list or None, result message)
+  ```
+- add_item_to_list(self, list_id, item_data)
+  ```
+  Add an item to a shopping list.
+
+Args:
+    list_id: Shopping list ID
+    item_data: Item data
+
+Returns:
+    Tuple of (created item or None, result message)
+  ```
+- mark_item_purchased(self, item_id, purchase_data)
+  ```
+  Mark a shopping list item as purchased with purchase details.
+
+Args:
+    item_id: Shopping list item ID
+    purchase_data: Purchase details (date, price)
+
+Returns:
+    Tuple of (success, message)
+  ```
+- get_pending_items_by_supplier(self)
+  ```
+  Get pending items grouped by supplier.
+
+Returns:
+    Dictionary mapping supplier IDs to lists of pending items
+  ```
+- _get_shopping_list_with_items(self, list_id)
+  ```
+  Get shopping list with its items.
+
+Args:
+    list_id: Shopping list ID
+
+Returns:
+    Dictionary with shopping list and items or None if not found
+  ```
+- _shopping_list_to_dict(self, shopping_list)
+  ```
+  Convert ShoppingList model to dictionary.
+  ```
+- _shopping_list_item_to_dict(self, item)
+  ```
+  Convert ShoppingListItem model to dictionary.
+  ```
+
+---
+
+## services\implementations\storage_service.py
+
+### Imports:
+- typing.List
+- typing.Optional
+- typing.Dict
+- typing.Any
+- store_management.di.service.Service
+- store_management.di.container.DependencyContainer
+- store_management.services.interfaces.storage_service.IStorageService
+- store_management.database.sqlalchemy.core.specialized.storage_manager.StorageManager
+
+### Classes:
+
+#### StorageService
+Inherits from: Service, IStorageService
+```
+Concrete implementation of the IStorageService interface.
+
+This class provides methods for managing storage locations and their inventory.
+```
+
+Methods:
+- __init__(self, container)
+  ```
+  Initialize StorageService with a dependency container.
+
+Args:
+    container: Dependency injection container
+  ```
+- get_all_storage_locations(self)
+  ```
+  Retrieve all storage locations.
+
+Returns:
+    A list of dictionaries, each representing a storage location.
+  ```
+- get_storage_by_id(self, storage_id)
+  ```
+  Retrieve a specific storage location by its ID.
+
+Args:
+    storage_id: The unique identifier of the storage location.
+
+Returns:
+    A dictionary representing the storage location if found, None otherwise.
+  ```
+- create_storage_location(self, storage_data)
+  ```
+  Create a new storage location.
+
+Args:
+    storage_data: Dictionary containing storage location information
+
+Returns:
+    Created storage location dictionary or None if creation fails
+  ```
+- update_storage_location(self, storage_id, storage_data)
+  ```
+  Update an existing storage location.
+
+Args:
+    storage_id: ID of the storage location to update
+    storage_data: Dictionary with updated storage location information
+
+Returns:
+    Updated storage location dictionary or None if update fails
+  ```
+- delete_storage_location(self, storage_id)
+  ```
+  Delete a storage location.
+
+Args:
+    storage_id: ID of the storage location to delete
+
+Returns:
+    True if deletion was successful, False otherwise
+  ```
+- search_storage_locations(self, search_term)
+  ```
+  Search storage locations by location or description.
+
+Args:
+    search_term: Term to search for
+
+Returns:
+    List of matching storage locations
+  ```
+- get_storage_status(self, storage_id)
+  ```
+  Get detailed status of a storage location.
+
+Args:
+    storage_id: ID of the storage location
+
+Returns:
+    Dictionary containing storage status details or None
+  ```
+- _to_dict(self, storage)
+  ```
+  Convert storage model to dictionary.
+
+Args:
+    storage: Storage model instance
+
+Returns:
+    Dictionary representation of the storage location
+  ```
+
+---
+
+## services\implementations\supplier_service.py
+
+### Imports:
+- typing.List
+- typing.Optional
+- typing.Dict
+- typing.Any
+- store_management.di.service.Service
+- store_management.di.container.DependencyContainer
+- store_management.services.interfaces.supplier_service.ISupplierService
+- store_management.database.sqlalchemy.core.specialized.supplier_manager.SupplierManager
+
+### Classes:
+
+#### SupplierService
+Inherits from: Service, ISupplierService
+```
+Concrete implementation of the ISupplierService interface.
+
+Provides methods for managing supplier-related operations using the SupplierManager.
+```
+
+Methods:
+- __init__(self, container)
+  ```
+  Initialize the SupplierService with a dependency container.
+
+Args:
+    container: Dependency injection container
+  ```
+- get_all_suppliers(self)
+  ```
+  Retrieve all suppliers.
+
+Returns:
+    List of dictionaries containing supplier information
+  ```
+- get_supplier_by_id(self, supplier_id)
+  ```
+  Retrieve a supplier by their ID.
+
+Args:
+    supplier_id: The unique identifier of the supplier
+
+Returns:
+    Dictionary containing supplier information or None if not found
+  ```
+- create_supplier(self, supplier_data)
+  ```
+  Create a new supplier.
+
+Args:
+    supplier_data: Dictionary containing the new supplier's information
+
+Returns:
+    Dictionary containing the created supplier's information
+  ```
+- update_supplier(self, supplier_id, supplier_data)
+  ```
+  Update an existing supplier's information.
+
+Args:
+    supplier_id: The unique identifier of the supplier to update
+    supplier_data: Dictionary containing the updated supplier information
+
+Returns:
+    Updated supplier information or None if update fails
+  ```
+- delete_supplier(self, supplier_id)
+  ```
+  Delete a supplier by their ID.
+
+Args:
+    supplier_id: The unique identifier of the supplier to delete
+
+Returns:
+    True if the supplier was successfully deleted, False otherwise
+  ```
+- _to_dict(self, supplier)
+  ```
+  Convert a supplier model to a dictionary.
+
+Args:
+    supplier: Supplier model instance
+
+Returns:
+    Dictionary representation of the supplier
+  ```
+
+---
+
+## services\implementations\__init__.py
+
+---
+
+## services\interfaces\base_service.py
+
+### Imports:
+- abc.ABC
+- abc.abstractmethod
+
+### Classes:
+
+#### IBaseService
+Inherits from: ABC
+```
+Base interface for all services.
+
+This abstract base class serves as a common ancestor for all service interfaces
+in the application. It doesn't define any methods itself but acts as a marker
+interface to identify service classes.
+```
+
+---
+
+## services\interfaces\inventory_service.py
+
+### Imports:
+- abc.ABC
+- abc.abstractmethod
+- typing.List
+- typing.Optional
+- typing.Dict
+- typing.Any
+- typing.Tuple
+
+### Classes:
+
+#### IInventoryService
+Inherits from: ABC
+```
+Interface for inventory management operations.
+```
+
+Methods:
+- update_part_stock(self, part_id, quantity_change, transaction_type, notes)
+  ```
+  Update part stock with transaction tracking.
+
+Args:
+    part_id: Part ID
+    quantity_change: Change in quantity (positive or negative)
+    transaction_type: Type of transaction
+    notes: Optional notes
+
+Returns:
+    Tuple of (success, message)
+  ```
+- update_leather_area(self, leather_id, area_change, transaction_type, notes, wastage)
+  ```
+  Update leather area with transaction tracking.
+
+Args:
+    leather_id: Leather ID
+    area_change: Change in area (positive or negative)
+    transaction_type: Type of transaction
+    notes: Optional notes
+    wastage: Optional wastage area
+
+Returns:
+    Tuple of (success, message)
+  ```
+- get_low_stock_parts(self, include_out_of_stock)
+  ```
+  Get parts with low stock levels.
+
+Args:
+    include_out_of_stock: Whether to include out of stock items
+
+Returns:
+    List of parts with low stock
+  ```
+- get_low_stock_leather(self, include_out_of_stock)
+  ```
+  Get leather with low stock levels.
+
+Args:
+    include_out_of_stock: Whether to include out of stock items
+
+Returns:
+    List of leather with low stock
+  ```
+
+---
+
+## services\interfaces\order_service.py
+
+### Imports:
+- abc.ABC
+- abc.abstractmethod
+- typing.List
+- typing.Dict
+- typing.Any
+- typing.Optional
+- typing.Tuple
+- store_management.services.interfaces.base_service.IBaseService
+
+### Classes:
+
+#### IOrderService
+Inherits from: IBaseService
+```
+Interface for order management operations.
+
+Defines the contract for services handling order-related functionality.
+```
+
+Methods:
+- get_all_orders(self)
+  ```
+  Retrieve all orders.
+
+Returns:
+    List of order dictionaries
+  ```
+- get_order_by_id(self, order_id)
+  ```
+  Get order details by ID.
+
+Args:
+    order_id: Order ID
+
+Returns:
+    Order details or None if not found
+  ```
+- create_order(self, order_data)
+  ```
+  Create a new order.
+
+Args:
+    order_data: Dictionary with order data
+
+Returns:
+    Created order or None
+  ```
+- update_order(self, order_data)
+  ```
+  Update an existing order.
+
+Args:
+    order_data: Dictionary with updated order information
+
+Returns:
+    Updated order or None
+  ```
+- delete_order(self, order_id)
+  ```
+  Delete an order.
+
+Args:
+    order_id: ID of the order to delete
+
+Returns:
+    True if deletion successful, False otherwise
+  ```
+
+---
+
+## services\interfaces\recipe_service.py
+
+### Imports:
+- abc.ABC
+- abc.abstractmethod
+- typing.List
+- typing.Dict
+- typing.Any
+- typing.Optional
+- typing.Tuple
+- store_management.services.interfaces.base_service.IBaseService
+
+### Classes:
+
+#### IRecipeService
+Inherits from: IBaseService
+```
+Interface for recipe management operations.
+
+Defines the contract for services handling recipe-related functionality.
+```
+
+Methods:
+- get_all_recipes(self)
+  ```
+  Retrieve all recipes.
+
+Returns:
+    List of recipe dictionaries
+  ```
+- get_recipe_by_id(self, recipe_id)
+  ```
+  Get recipe details by ID.
+
+Args:
+    recipe_id: Recipe ID
+
+Returns:
+    Recipe details or None if not found
+  ```
+- create_recipe(self, recipe_data, items)
+  ```
+  Create a new recipe with items.
+
+Args:
+    recipe_data: Dictionary with recipe data
+    items: Optional list of recipe item data
+
+Returns:
+    Created recipe or None
+  ```
+- update_recipe(self, recipe_id, recipe_data, items)
+  ```
+  Update an existing recipe.
+
+Args:
+    recipe_id: ID of the recipe to update
+    recipe_data: Updated recipe data
+    items: Optional list of updated recipe items
+
+Returns:
+    Updated recipe or None
+  ```
+- delete_recipe(self, recipe_id)
+  ```
+  Delete a recipe.
+
+Args:
+    recipe_id: ID of the recipe to delete
+
+Returns:
+    True if deletion successful, False otherwise
+  ```
+- check_materials_availability(self, recipe_id, quantity)
+  ```
+  Check if materials for a recipe are available in sufficient quantity.
+
+Args:
+    recipe_id: Recipe ID
+    quantity: Number of items to produce
+
+Returns:
+    Tuple of (all materials available, list of missing items)
+  ```
+
+---
+
+## services\interfaces\shopping_list_service.py
+
+### Imports:
+- abc.ABC
+- abc.abstractmethod
+- typing.List
+- typing.Dict
+- typing.Any
+- typing.Optional
+- typing.Tuple
+- store_management.services.interfaces.base_service.IBaseService
+
+### Classes:
+
+#### IShoppingListService
+Inherits from: IBaseService
+```
+Interface for shopping list management operations.
+
+Defines the contract for services handling shopping list-related functionality.
+```
+
+Methods:
+- get_all_shopping_lists(self)
+  ```
+  Retrieve all shopping lists.
+
+Returns:
+    List of shopping list dictionaries
+  ```
+- get_shopping_list_by_id(self, list_id)
+  ```
+  Get shopping list details by ID.
+
+Args:
+    list_id: Shopping list ID
+
+Returns:
+    Shopping list details or None if not found
+  ```
+- create_shopping_list(self, list_data, items)
+  ```
+  Create a new shopping list with optional items.
+
+Args:
+    list_data: Shopping list data
+    items: Optional list of item data
+
+Returns:
+    Created shopping list or None
+  ```
+- update_shopping_list(self, list_id, list_data, items)
+  ```
+  Update an existing shopping list.
+
+Args:
+    list_id: ID of the shopping list to update
+    list_data: Updated shopping list data
+    items: Optional list of updated items
+
+Returns:
+    Updated shopping list or None
+  ```
+- delete_shopping_list(self, list_id)
+  ```
+  Delete a shopping list.
+
+Args:
+    list_id: ID of the shopping list to delete
+
+Returns:
+    True if deletion successful, False otherwise
+  ```
+- add_item_to_list(self, list_id, item_data)
+  ```
+  Add an item to a shopping list.
+
+Args:
+    list_id: Shopping list ID
+    item_data: Item data to add
+
+Returns:
+    Added item or None
+  ```
+- remove_item_from_list(self, list_id, item_id)
+  ```
+  Remove an item from a shopping list.
+
+Args:
+    list_id: Shopping list ID
+    item_id: Item ID to remove
+
+Returns:
+    True if removal successful, False otherwise
+  ```
+- mark_item_purchased(self, item_id, purchase_data)
+  ```
+  Mark a shopping list item as purchased.
+
+Args:
+    item_id: Shopping list item ID
+    purchase_data: Purchase details
+
+Returns:
+    Updated item or None
+  ```
+- search_shopping_lists(self, search_term)
+  ```
+  Search shopping lists by name or description.
+
+Args:
+    search_term: Term to search for
+
+Returns:
+    List of matching shopping lists
+  ```
+
+---
+
+## services\interfaces\storage_service.py
+
+### Imports:
+- abc.ABC
+- abc.abstractmethod
+- typing.List
+- typing.Optional
+- typing.Dict
+- typing.Any
+- store_management.services.interfaces.base_service.IBaseService
+
+### Classes:
+
+#### IStorageService
+Inherits from: IBaseService
+```
+Interface for storage-related operations.
+
+Defines the contract for services managing storage locations
+This interface establishes a standard set of methods for interacting
+with storage locations in the application.
+```
+
+Methods:
+- get_all_storage_locations(self)
+  ```
+  Retrieve all storage locations.
+
+Returns:
+    A list of dictionaries, each representing a storage location.
+  ```
+- get_storage_by_id(self, storage_id)
+  ```
+  Retrieve a specific storage location by its ID.
+
+Args:
+    storage_id: The unique identifier of the storage location.
+
+Returns:
+    A dictionary representing the storage location if found, None otherwise.
+  ```
+- create_storage_location(self, storage_data)
+  ```
+  Create a new storage location.
+
+Args:
+    storage_data: Dictionary containing storage location information
+
+Returns:
+    Created storage location dictionary or None if creation fails
+  ```
+- update_storage_location(self, storage_id, storage_data)
+  ```
+  Update an existing storage location.
+
+Args:
+    storage_id: ID of the storage location to update
+    storage_data: Dictionary with updated storage location information
+
+Returns:
+    Updated storage location dictionary or None if update fails
+  ```
+- delete_storage_location(self, storage_id)
+  ```
+  Delete a storage location.
+
+Args:
+    storage_id: ID of the storage location to delete
+
+Returns:
+    True if deletion was successful, False otherwise
+  ```
+- search_storage_locations(self, search_term)
+  ```
+  Search storage locations by location or description.
+
+Args:
+    search_term: Term to search for
+
+Returns:
+    List of matching storage locations
+  ```
+- get_storage_status(self, storage_id)
+  ```
+  Get detailed status of a storage location.
+
+Args:
+    storage_id: ID of the storage location
+
+Returns:
+    Dictionary containing storage status details or None
+  ```
+
+---
+
+## services\interfaces\supplier_service.py
+
+### Imports:
+- abc.ABC
+- abc.abstractmethod
+- typing.List
+- typing.Optional
+- typing.Dict
+- typing.Any
+- store_management.services.interfaces.base_service.IBaseService
+
+### Classes:
+
+#### ISupplierService
+Inherits from: IBaseService
+```
+Abstract base class defining the interface for supplier-related operations.
+
+This interface provides a contract for supplier management services,
+ensuring consistent method signatures across different implementations.
+```
+
+Methods:
+- get_all_suppliers(self)
+  ```
+  Retrieve all suppliers.
+
+Returns:
+    List[Dict[str, Any]]: A list of dictionaries containing supplier information.
+  ```
+- get_supplier_by_id(self, supplier_id)
+  ```
+  Retrieve a supplier by their ID.
+
+Args:
+    supplier_id (int): The unique identifier of the supplier.
+
+Returns:
+    Optional[Dict[str, Any]]: A dictionary containing supplier information if found, None otherwise.
+  ```
+- create_supplier(self, supplier_data)
+  ```
+  Create a new supplier.
+
+Args:
+    supplier_data (Dict[str, Any]): A dictionary containing the new supplier's information.
+
+Returns:
+    Optional[Dict[str, Any]]: A dictionary containing the created supplier's information.
+  ```
+- update_supplier(self, supplier_id, supplier_data)
+  ```
+  Update an existing supplier's information.
+
+Args:
+    supplier_id (int): The unique identifier of the supplier to update.
+    supplier_data (Dict[str, Any]): A dictionary containing the updated supplier information.
+
+Returns:
+    Optional[Dict[str, Any]]: A dictionary containing the updated supplier information if successful, None otherwise.
+  ```
+- delete_supplier(self, supplier_id)
+  ```
+  Delete a supplier by their ID.
+
+Args:
+    supplier_id (int): The unique identifier of the supplier to delete.
+
+Returns:
+    bool: True if the supplier was successfully deleted, False otherwise.
+  ```
+
+---
+
+## services\interfaces\__init__.py
+
+---
+
+## services\services\storage_service.py
+
+### Imports:
+- abc.ABC
+- abc.abstractmethod
+- typing.List
+- typing.Optional
+- typing.Dict
+- typing.Any
+
+### Classes:
+
+#### IStorageService
+Inherits from: ABC
+```
+Interface for storage service operations.
+```
+
+Methods:
+- get_all_storage_locations(self)
+  ```
+  Get all storage locations.
+  ```
+- get_storage_by_id(self, storage_id)
+  ```
+  Get a storage location by ID.
+  ```
+
+---
+
+## services\services\__init__.py
+
+---
+
+## services\services\implementations\stoarage_service.py
+
+### Imports:
+- typing.List
+- typing.Optional
+- typing.Dict
+- typing.Any
+- typing.Type
+- typing.cast
+- store_management.di.service.Service
+- store_management.di.container.DependencyContainer
+- store_management.services.interfaces.storage_service.IStorageService
+- store_management.database.sqlalchemy.base_manager.BaseManager
+- store_management.database.sqlalchemy.models.storage.Storage
+
+### Classes:
+
+#### StorageService
+Inherits from: Service, IStorageService
+```
+Service for managing storage locations and their inventory.
+```
+
+Methods:
+- __init__(self, container)
+- get_all_storage_locations(self)
+  ```
+  Get all storage locations.
+  ```
+- get_storage_by_id(self, storage_id)
+  ```
+  Get a storage location by ID.
+  ```
+- _to_dict(self, storage)
+  ```
+  Convert Storage model to dictionary.
+  ```
+
+---
+
+## services\services\implementations\__init__.py
+
+---
+
 ## gui\dialogs\add_dialog.py
 
 ### Imports:
@@ -2011,40 +3615,59 @@ Methods:
 - typing.Dict
 - typing.Callable
 - typing.Optional
+- typing.List
+- typing.Union
+- typing.Tuple
 - uuid
+- typing.Dict
+- typing.Callable
+- typing.Optional
+- typing.List
+- typing.Union
+- typing.Tuple
+- typing.Any
 
 ### Classes:
 
 #### AddDialog
 Inherits from: tk.Toplevel
+```
+A flexible dialog for adding new entries with dynamic field generation.
+
+Supports different field types and provides validation mechanisms.
+
+Attributes:
+    _parent: Parent window
+    _save_callback: Function to call when save is triggered
+    _fields: List of field configurations
+    _entries: Dictionary to store entry widgets
+```
 
 Methods:
-- __init__(self, parent, save_callback, fields)
+- __init__(self, parent, save_callback, fields, title)
   ```
-  Initialize add dialog
+  Initialize the add dialog.
 
 Args:
     parent: Parent window
-    save_callback: Function to call with form data on save
-    fields: List of tuples (field_name, display_name, required, field_type)
-           field_type can be 'string', 'float', or 'text'
+    save_callback: Function called with form data on save
+    fields: List of field tuples (field_name, display_name, required, field_type)
+    title: Dialog title
+
+Field Types:
+    - 'string': Text entry
+    - 'text': Multiline text entry
+    - 'float': Numeric entry (floating-point)
+    - 'int': Integer entry
+    - 'boolean': Checkbox
   ```
-- show_storage_dialog(self)
-- setup_ui(self)
+- _create_ui(self)
   ```
-  Setup the dialog UI components
+  Create dialog user interface with dynamic fields.
   ```
-- get_field_values(self)
+- _on_save(self)
   ```
-  Get all field values from entries
-  ```
-- validate_required_fields(self)
-  ```
-  Validate that all required fields have values
-  ```
-- save(self)
-  ```
-  Validate and save the form data
+  Handle save action, validate and process form data.
   ```
 
 ---
@@ -2056,60 +3679,98 @@ Args:
 - tkinter.ttk
 - typing.Optional
 - typing.Tuple
+- typing.Callable
 
 ### Classes:
 
 #### BaseDialog
 Inherits from: tk.Toplevel
 ```
-Base class for all dialogs in the application
+Base class for all dialog windows in the application.
+
+Provides common dialog functionality:
+- Centered positioning
+- Standardized button layout
+- Modal window support
+- Basic validation mechanism
+
+Attributes:
+    parent (tk.Tk or tk.Toplevel): Parent window
+    title (str): Dialog title
+    size (Optional[Tuple[int, int]]): Optional dialog size
+    modal (bool): Whether the dialog should be modal
 ```
 
 Methods:
 - __init__(self, parent, title, size, modal)
   ```
-  Initialize base dialog
+  Initialize the base dialog.
 
 Args:
     parent: Parent window
     title: Dialog title
-    size: Dialog size as (width, height)
-    modal: Whether dialog should be modal
+    size: Optional dialog size (width, height)
+    modal: Whether the dialog should block parent window interaction
   ```
-- center_on_parent(self)
+- _create_main_frame(self)
   ```
-  Center the dialog on its parent window
+  Create the main content frame for dialog content.
+Subclasses should override and add specific content.
+  ```
+- _create_button_frame(self)
+  ```
+  Create a standard button frame with OK and Cancel buttons.
+  ```
+- add_ok_cancel_buttons(self, ok_text, cancel_text, ok_command)
+  ```
+  Add standard OK and Cancel buttons to the dialog.
+
+Args:
+    ok_text: Text for the OK button
+    cancel_text: Text for the Cancel button
+    ok_command: Optional custom command for OK button
   ```
 - add_button(self, text, command, side, width, default)
   ```
-  Add a button to the standard button frame
+  Add a custom button to the button frame.
 
 Args:
     text: Button text
-    command: Button command
-    side: Pack side (tk.RIGHT or tk.LEFT)
+    command: Button click command
+    side: Side to pack the button (default: right)
     width: Button width
     default: Whether this is the default button
 
 Returns:
     The created button
   ```
-- add_ok_cancel_buttons(self, ok_text, cancel_text, ok_command)
+- center_on_parent(self)
   ```
-  Add standard OK and Cancel buttons
+  Center the dialog on its parent window.
   ```
 - ok(self, event)
   ```
-  OK button handler
+  Standard OK button handler.
+Subclasses should override to add specific validation logic.
+
+Args:
+    event: Optional tkinter event
   ```
 - cancel(self, event)
   ```
-  Cancel button handler
+  Standard Cancel button handler.
+
+Args:
+    event: Optional tkinter event
   ```
 - validate(self)
   ```
-  Validate dialog contents
-Override in subclasses to implement validation
+  Validate dialog contents before closing.
+
+Subclasses should override to implement specific validation.
+
+Returns:
+    True if validation passes, False otherwise
   ```
 
 ---
@@ -2368,6 +4029,208 @@ Args:
 - cleanup(self)
   ```
   Cleanup resources and handle unsaved changes
+  ```
+
+---
+
+## gui\order\order_dialog.py
+
+### Imports:
+- tkinter
+- tkinter.ttk
+- tkinter.messagebox
+- typing.List
+- typing.Dict
+- typing.Any
+- typing.Optional
+- typing.Callable
+- datetime.datetime
+- store_management.gui.dialogs.base_dialog.BaseDialog
+
+### Classes:
+
+#### AddOrderDialog
+Inherits from: BaseDialog
+```
+Flexible dialog for creating and editing orders.
+
+Supports:
+- Dynamic field generation
+- Supplier selection
+- Validation
+- Editing existing orders
+```
+
+Methods:
+- __init__(self, parent, save_callback, fields, suppliers, existing_data, title)
+  ```
+  Initialize the order dialog.
+
+Args:
+    parent: Parent window
+    save_callback: Function to call when saving order
+    fields: Optional list of field configurations
+    suppliers: List of available suppliers
+    existing_data: Existing order data for editing
+    title: Dialog title
+  ```
+- _create_main_frame(self)
+  ```
+  Create dialog main frame with dynamic fields and order items section.
+  ```
+- _create_order_details_fields(self, parent)
+  ```
+  Create dynamic fields for order details.
+
+Args:
+    parent: Parent frame to add fields to
+  ```
+- _create_order_items_section(self, parent)
+  ```
+  Create section for managing order items.
+
+Args:
+    parent: Parent frame to add items section to
+  ```
+- _show_add_item_dialog(self)
+  ```
+  Show dialog to add a new order item.
+  ```
+- _remove_selected_item(self)
+  ```
+  Remove selected order item.
+  ```
+- ok(self, event)
+  ```
+  Save order data when OK is pressed.
+
+Args:
+    event: Optional tkinter event
+  ```
+- validate(self)
+  ```
+  Validate order data before saving.
+
+Returns:
+    True if validation passes, False otherwise
+  ```
+
+---
+
+## gui\order\order_view.py
+
+### Imports:
+- tkinter
+- tkinter.ttk
+- tkinter.messagebox
+- typing.List
+- typing.Dict
+- typing.Any
+- typing.Optional
+- store_management.application.Application
+- store_management.gui.base_view.BaseView
+- store_management.services.interfaces.order_service.IOrderService
+- store_management.services.interfaces.supplier_service.ISupplierService
+
+### Classes:
+
+#### OrderView
+Inherits from: BaseView
+```
+Comprehensive view for managing orders with:
+- Treeview for listing orders
+- Detailed order information display
+- Actions for creating, editing, and managing orders
+```
+
+Methods:
+- __init__(self, parent, app)
+  ```
+  Initialize the Order View.
+
+Args:
+    parent: Parent widget
+    app: Application instance
+  ```
+- setup_ui(self)
+  ```
+  Set up the UI components.
+  ```
+- create_toolbar(self)
+  ```
+  Create toolbar with order management actions.
+  ```
+- create_order_list(self)
+  ```
+  Create treeview to display list of orders.
+  ```
+- create_order_details(self)
+  ```
+  Create detailed view for selected order.
+  ```
+- load_data(self)
+  ```
+  Load orders from the order service.
+  ```
+- show_add_order_dialog(self)
+  ```
+  Show dialog to add a new order.
+  ```
+- _save_new_order(self, order_data)
+  ```
+  Save a new order.
+
+Args:
+    order_data: Dictionary containing order information
+  ```
+- _on_order_select(self, event)
+  ```
+  Handle order selection in treeview.
+
+Args:
+    event: Tkinter event (optional)
+  ```
+- _load_order_details(self, order_id)
+  ```
+  Load details for a specific order.
+
+Args:
+    order_id: ID of the order to load details for
+  ```
+- _edit_order(self)
+  ```
+  Edit the selected order.
+  ```
+- _save_edited_order(self, order_data)
+  ```
+  Save edited order details.
+
+Args:
+    order_data: Updated order information
+  ```
+- delete_order(self)
+  ```
+  Delete the selected order.
+  ```
+- _show_search_dialog(self)
+  ```
+  Show search dialog for orders.
+  ```
+- save(self)
+  ```
+  Save current view data.
+  ```
+- undo(self)
+  ```
+  Undo the last action.
+  ```
+- redo(self)
+  ```
+  Redo the last undone action.
+  ```
+- cleanup(self)
+  ```
+  Perform cleanup when view is closed.
   ```
 
 ---
@@ -2698,11 +4561,227 @@ Methods:
 
 ---
 
+## gui\recipe\recipe_view.py
+
+### Imports:
+- tkinter
+- tkinter.ttk
+- tkinter.messagebox
+- typing.List
+- typing.Dict
+- typing.Any
+- typing.Optional
+- datetime.datetime
+- store_management.application.Application
+- store_management.gui.base_view.BaseView
+- store_management.services.interfaces.recipe_service.IRecipeService
+- store_management.services.interfaces.inventory_service.IInventoryService
+
+### Classes:
+
+#### RecipeView
+Inherits from: BaseView
+```
+View for managing recipes with comprehensive functionality.
+```
+
+Methods:
+- __init__(self, parent, app)
+  ```
+  Initialize the recipe view.
+
+Args:
+    parent: Parent widget
+    app: Application instance for dependency management
+  ```
+- setup_ui(self)
+  ```
+  Set up the UI components for the recipe view.
+  ```
+- create_toolbar(self)
+  ```
+  Create the toolbar with action buttons.
+  ```
+- create_recipes_treeview(self)
+  ```
+  Create the treeview for displaying recipes.
+  ```
+- create_details_view(self)
+  ```
+  Create the recipe details view.
+  ```
+- create_info_view(self)
+  ```
+  Create the recipe info view.
+  ```
+- create_items_view(self)
+  ```
+  Create the recipe items view.
+  ```
+- on_recipe_select(self, event)
+  ```
+  Handle recipe selection in treeview.
+  ```
+- load_recipe_details(self, recipe_id)
+  ```
+  Load details for a specific recipe.
+
+Args:
+    recipe_id: ID of the recipe to load
+  ```
+- show_add_recipe_dialog(self)
+  ```
+  Show dialog for adding a new recipe.
+  ```
+- edit_recipe(self)
+  ```
+  Edit the selected recipe.
+  ```
+- delete_recipe(self)
+  ```
+  Delete the selected recipe.
+  ```
+- load_data(self)
+  ```
+  Load recipe data from service.
+  ```
+- cleanup(self)
+  ```
+  Perform cleanup when view is closed.
+  ```
+
+---
+
+## gui\recipe\__init__.py
+
+---
+
 ## gui\reports\report_manager.py
 
 ---
 
 ## gui\reports\__init__.py
+
+---
+
+## gui\shopping_list\shopping_list_view.py
+
+### Imports:
+- tkinter
+- tkinter.ttk
+- tkinter.messagebox
+- typing.List
+- typing.Dict
+- typing.Any
+- typing.Optional
+- datetime.datetime
+- store_management.application.Application
+- store_management.gui.base_view.BaseView
+- store_management.services.interfaces.shopping_list_service.IShoppingListService
+
+### Classes:
+
+#### ShoppingListView
+Inherits from: BaseView
+```
+View for managing shopping lists
+```
+
+Methods:
+- __init__(self, parent, app)
+  ```
+  Initialize the shopping list view.
+
+Args:
+    parent: Parent widget
+    app: Application instance
+  ```
+- setup_ui(self)
+  ```
+  Set up the UI components.
+  ```
+- create_toolbar(self)
+  ```
+  Create the toolbar with action buttons.
+  ```
+- create_lists_treeview(self)
+  ```
+  Create the treeview for displaying shopping lists.
+  ```
+- create_details_view(self)
+  ```
+  Create the shopping list details view.
+  ```
+- create_info_view(self)
+  ```
+  Create the shopping list info view.
+  ```
+- create_items_view(self)
+  ```
+  Create the shopping list items view.
+  ```
+- load_data(self)
+  ```
+  Load shopping list data from service.
+  ```
+- on_list_select(self, event)
+  ```
+  Handle shopping list selection.
+
+Args:
+    event: Tkinter event (optional)
+  ```
+- load_list_details(self, list_id)
+  ```
+  Load details for a specific shopping list.
+
+Args:
+    list_id: ID of the shopping list to load
+  ```
+- show_add_list_dialog(self)
+  ```
+  Show dialog for creating a new shopping list.
+  ```
+- show_add_item_dialog(self)
+  ```
+  Show dialog for adding an item to the shopping list.
+  ```
+- show_mark_purchased_dialog(self)
+  ```
+  Show dialog for marking an item as purchased.
+  ```
+- remove_item(self)
+  ```
+  Remove selected item from the shopping list.
+  ```
+- delete_list(self)
+  ```
+  Delete the selected shopping list.
+  ```
+- show_search_dialog(self)
+  ```
+  Show search dialog for shopping lists.
+  ```
+- save(self)
+  ```
+  Save current view data.
+  ```
+- undo(self)
+  ```
+  Undo the last action.
+  ```
+- redo(self)
+  ```
+  Redo the last undone action.
+  ```
+- cleanup(self)
+  ```
+  Perform cleanup when view is closed.
+  ```
+
+---
+
+## gui\shopping_list\__init__.py
 
 ---
 
@@ -2821,45 +4900,66 @@ Args:
 - tkinter
 - tkinter.ttk
 - tkinter.messagebox
-- application.Application
+- typing.Optional
+- typing.List
+- typing.Dict
+- typing.Any
+- store_management.application.Application
+- store_management.gui.base_view.BaseView
+- store_management.services.interfaces.storage_service.IStorageService
 
 ### Classes:
 
 #### StorageView
-Inherits from: ttk.Frame
+Inherits from: BaseView
 ```
-Storage view for managing storage locations
+Storage view for managing storage locations.
 ```
 
 Methods:
 - __init__(self, parent, app)
+  ```
+  Initialize the storage view.
+
+Args:
+    parent: Parent widget
+    app: Application instance
+  ```
 - setup_ui(self)
   ```
-  Set up the UI components
+  Set up the UI components.
+  ```
+- create_toolbar(self)
+  ```
+  Create the toolbar with action buttons.
+  ```
+- create_treeview(self)
+  ```
+  Create the treeview for displaying storage locations.
   ```
 - load_data(self)
   ```
-  Load storage data from service
+  Load storage data from service.
   ```
 - show_add_dialog(self)
   ```
-  Show dialog for adding a new storage location
+  Show dialog for adding a new storage location.
   ```
 - on_double_click(self, event)
   ```
-  Handle double-click event
+  Handle double-click event for editing.
   ```
 - start_cell_edit(self, item, column)
   ```
-  Start editing a cell
+  Start editing a cell.
   ```
 - delete_selected(self, event)
   ```
-  Delete selected storage locations
+  Delete selected storage locations.
   ```
 - show_search_dialog(self)
   ```
-  Show search dialog
+  Show search dialog.
   ```
 
 ---
@@ -2979,10 +5079,36 @@ Returns:
 ## database\models\base.py
 
 ### Imports:
-- sqlalchemy.ext.declarative.declarative_base
+- sqlalchemy.orm.DeclarativeBase
+- sqlalchemy.Column
+- sqlalchemy.Integer
+- sqlalchemy.DateTime
+- datetime.datetime
 
-### Global Variables:
-- Base
+### Classes:
+
+#### Base
+Inherits from: DeclarativeBase
+```
+Base declarative model for all database models.
+Provides common fields and behaviors.
+```
+
+Methods:
+- __repr__(self)
+  ```
+  Default string representation of the model.
+
+Returns:
+    String representation with class name and ID
+  ```
+- to_dict(self)
+  ```
+  Convert model instance to dictionary.
+
+Returns:
+    Dictionary representation of the model
+  ```
 
 ---
 
@@ -3104,15 +5230,12 @@ Methods:
 
 ---
 
-## database\models\prdouct.py
+## database\models\product.py
 
 ### Imports:
-- datetime.datetime
 - sqlalchemy.Column
-- sqlalchemy.Integer
 - sqlalchemy.String
 - sqlalchemy.Float
-- sqlalchemy.DateTime
 - sqlalchemy.ForeignKey
 - sqlalchemy.orm.relationship
 - base.Base
@@ -3122,11 +5245,17 @@ Methods:
 #### Product
 Inherits from: Base
 ```
-Product model
+Product model representing items that can be stored in storage locations.
 ```
 
 Methods:
 - __repr__(self)
+  ```
+  String representation of the Product.
+
+Returns:
+    String with product name and ID
+  ```
 
 ---
 
@@ -3204,25 +5333,36 @@ Methods:
 ## database\models\storage.py
 
 ### Imports:
-- datetime.datetime
 - sqlalchemy.Column
-- sqlalchemy.Integer
 - sqlalchemy.String
 - sqlalchemy.Float
-- sqlalchemy.DateTime
+- sqlalchemy.Integer
 - sqlalchemy.orm.relationship
-- base.Base
+- store_management.database.sqlalchemy.base.Base
 
 ### Classes:
 
 #### Storage
 Inherits from: Base
 ```
-Storage location model
+Storage model representing locations where products can be stored.
+
+Attributes:
+    id (int): Unique identifier for the storage location.
+    location (str): Specific location identifier.
+    description (str, optional): Description of the storage location.
+    capacity (float, optional): Total capacity of the storage location.
+    current_usage (float, optional): Current usage of the storage location.
 ```
 
 Methods:
 - __repr__(self)
+  ```
+  String representation of the Storage instance.
+
+Returns:
+    str: Representation of the storage location with ID and location.
+  ```
 
 ---
 
@@ -3254,7 +5394,6 @@ Methods:
 ## database\models\transaction.py
 
 ### Imports:
-- datetime.datetime
 - sqlalchemy.Column
 - sqlalchemy.Integer
 - sqlalchemy.String
@@ -3262,16 +5401,26 @@ Methods:
 - sqlalchemy.DateTime
 - sqlalchemy.ForeignKey
 - sqlalchemy.Enum
+- sqlalchemy.Boolean
 - sqlalchemy.orm.relationship
-- base.Base
-- enums.TransactionType
+- datetime.datetime
+- store_management.database.sqlalchemy.base.Base
+- store_management.database.sqlalchemy.models.enums.TransactionType
 
 ### Classes:
 
 #### InventoryTransaction
 Inherits from: Base
 ```
-Transaction for part inventory changes
+Transaction model for tracking part inventory changes.
+
+Attributes:
+    id (int): Unique identifier for the transaction
+    part_id (int): Foreign key to the part involved
+    quantity_change (float): Change in quantity (positive or negative)
+    transaction_type (TransactionType): Type of transaction
+    notes (str): Additional notes about the transaction
+    created_at (datetime): Timestamp of transaction creation
 ```
 
 Methods:
@@ -3280,7 +5429,16 @@ Methods:
 #### LeatherTransaction
 Inherits from: Base
 ```
-Transaction for leather inventory changes
+Transaction model for tracking leather inventory changes.
+
+Attributes:
+    id (int): Unique identifier for the transaction
+    leather_id (int): Foreign key to the leather involved
+    area_change (float): Change in area (positive or negative)
+    transaction_type (TransactionType): Type of transaction
+    notes (str): Additional notes about the transaction
+    wastage (float): Area lost during transaction
+    created_at (datetime): Timestamp of transaction creation
 ```
 
 Methods:
@@ -3297,19 +5455,22 @@ Methods:
 - enums.TransactionType
 - enums.OrderStatus
 - enums.PaymentStatus
+- part.Part
 - storage.Storage
 - product.Product
-- supplier.Supplier
-- part.Part
-- leather.Leather
-- recipe.Recipe
-- recipe.RecipeItem
 - order.Order
 - order.OrderItem
+- supplier.Supplier
+- recipe.Recipe
+- recipe.RecipeItem
 - shopping_list.ShoppingList
 - shopping_list.ShoppingListItem
+- leather.Leather
 - transaction.InventoryTransaction
 - transaction.LeatherTransaction
+
+### Global Variables:
+- __all__
 
 ---
 
@@ -3783,7 +5944,7 @@ Initialize the database with all tables.
 ## database\sqlalchemy\base.py
 
 ### Imports:
-- sqlalchemy.ext.declarative.declarative_base
+- sqlalchemy.orm.declarative_base
 
 ### Global Variables:
 - Base
@@ -3793,137 +5954,37 @@ Initialize the database with all tables.
 ## database\sqlalchemy\base_manager.py
 
 ### Imports:
-- typing.TypeVar
-- typing.Generic
-- typing.Type
-- typing.List
-- typing.Dict
-- typing.Any
-- typing.Optional
-- typing.Callable
-- typing.Union
-- typing.Type
+- sqlalchemy.create_engine
+- sqlalchemy.orm.sessionmaker
 - sqlalchemy.orm.Session
-- sqlalchemy.select
-- sqlalchemy.inspect
-- sqlalchemy.exc.SQLAlchemyError
-- mixins.base_mixins.SearchMixin
-- mixins.base_mixins.FilterMixin
-- mixins.base_mixins.PaginationMixin
-- mixins.base_mixins.TransactionMixin
-- utils.error_handling.DatabaseError
+- store_management.database.sqlalchemy.base.Base
 
 ### Classes:
 
 #### BaseManager
-Inherits from: SearchMixin, FilterMixin, PaginationMixin, TransactionMixin
 ```
-Comprehensive base manager for database operations.
-
-Provides a generic, type-safe implementation of common database 
-operations with support for mixins and extensive error handling.
+Base class for database operations providing common functionality.
 ```
 
 Methods:
-- __init__(self, model_class, session_factory, mixins)
+- __init__(self, connection_string)
   ```
-  Initialize the base manager with a model class and session factory.
+  Initialize the manager with a database connection.
 
 Args:
-    model_class: The SQLAlchemy model class this manager operates on
-    session_factory: A callable that returns a database session
-    mixins: Optional list of additional mixin classes to apply
+    connection_string: Database connection string
   ```
-- _apply_mixins(self, mixins)
+- create_tables(self)
   ```
-  Dynamically apply additional mixins to the manager.
-
-Args:
-    mixins: List of mixin classes to apply
+  Create all tables defined in model classes
   ```
-- create(self, data)
+- get_session(self)
   ```
-  Create a new record in the database.
-
-Args:
-    data: Dictionary of attributes for the new record
+  Get a new database session.
 
 Returns:
-    The created record
-
-Raises:
-    DatabaseError: If creation fails
+    Session object to interact with the database
   ```
-- get(self, id)
-  ```
-  Retrieve a record by its primary key.
-
-Args:
-    id: Primary key value
-
-Returns:
-    The record if found, None otherwise
-
-Raises:
-    DatabaseError: If retrieval fails
-  ```
-- get_all(self, order_by, limit)
-  ```
-  Retrieve all records, with optional ordering and limit.
-
-Args:
-    order_by: Optional column to order by
-    limit: Optional maximum number of records to return
-
-Returns:
-    List of records
-
-Raises:
-    DatabaseError: If retrieval fails
-  ```
-- update(self, id, data)
-  ```
-  Update an existing record.
-
-Args:
-    id: Primary key of the record to update
-    data: Dictionary of attributes to update
-
-Returns:
-    The updated record, or None if not found
-
-Raises:
-    DatabaseError: If update fails
-  ```
-- delete(self, id)
-  ```
-  Delete a record by its primary key.
-
-Args:
-    id: Primary key of the record to delete
-
-Returns:
-    True if deletion was successful, False if record not found
-
-Raises:
-    DatabaseError: If deletion fails
-  ```
-- bulk_create(self, items)
-  ```
-  Bulk create multiple records in a single transaction.
-
-Args:
-    items: List of dictionaries with record data
-
-Returns:
-    List of created records
-
-Raises:
-    DatabaseError: If bulk creation fails
-  ```
-
-### Global Variables:
-- T
 
 ---
 
@@ -4043,24 +6104,20 @@ Returns:
 ## database\sqlalchemy\manager.py
 
 ### Imports:
-- models.Base
+- sqlalchemy.orm.Session
+- sqlalchemy.create_engine
+- sqlalchemy.inspect
+- sqlalchemy.exc.SQLAlchemyError
 - contextlib.contextmanager
-- typing.Optional
 - typing.List
+- typing.Optional
 - typing.Dict
 - typing.Any
 - typing.Type
 - typing.Union
-- sqlalchemy.orm.Session
-- sqlalchemy.orm.sessionmaker
-- sqlalchemy.exc.SQLAlchemyError
-- sqlalchemy.create_engine
-- sqlalchemy.inspect
-- sqlalchemy.or_
-- sqlalchemy.select
-- sqlalchemy.delete
 - datetime.datetime
-- .models
+- store_management.database.sqlalchemy.models.base.Base
+- store_management.database.sqlalchemy.models
 
 ### Classes:
 
@@ -4233,8 +6290,8 @@ Returns:
 - typing.Union
 - typing.List
 - sqlalchemy.orm.Session
-- base_manager.BaseManager
-- session.get_db_session
+- store_management.database.sqlalchemy.base_manager.BaseManager
+- store_management.database.session.get_db_session
 
 ### Functions:
 
@@ -4264,6 +6321,19 @@ Returns:
     A BaseManager instance for the model class
 ```
 
+#### _create_manager(model_class, session_factory, mixins)
+```
+Create a new manager instance.
+
+Args:
+    model_class: The SQLAlchemy model class
+    session_factory: Function to create database sessions
+    mixins: Optional list of mixins to apply
+
+Returns:
+    A BaseManager instance for the model class
+```
+
 #### clear_manager_cache()
 ```
 Clear the manager instance cache.
@@ -4273,6 +6343,8 @@ Useful for testing or resetting the application state.
 
 ### Global Variables:
 - T
+- _manager_cache
+- _specialized_managers
 
 ---
 
@@ -4403,79 +6475,374 @@ Returns:
 ## database\sqlalchemy\session.py
 
 ### Imports:
+- os
 - contextlib.contextmanager
+- typing.Optional
 - sqlalchemy.create_engine
 - sqlalchemy.orm.sessionmaker
 - sqlalchemy.orm.scoped_session
+- sqlalchemy.pool.NullPool
 - sqlalchemy_utils.database_exists
 - sqlalchemy_utils.create_database
-- store_management.database.sqlalchemy.models.base.Base
-- store_management.utils.logger.logger
-- os
-- typing.Optional
+- store_management.database.sqlalchemy.base.Base
+- store_management.utils.error_handling.DatabaseError
 
 ### Functions:
 
-#### init_database()
+#### init_database(db_url)
 ```
-Initialize database if it doesn't exist
+Initialize the database, creating it if it doesn't exist.
+
+Args:
+    db_url: Optional database URL (uses default if not provided)
+
+Raises:
+    DatabaseError: If database initialization fails
 ```
 
 #### get_db_session()
 ```
-Provide a transactional scope around database operations.
+Context manager for database sessions.
 
-Usage:
-    with get_db_session() as session:
-        # Perform database operations
-        session.add(some_object)
+Provides a transactional scope for database operations.
+Automatically handles session creation, commit, and rollback.
 
 Yields:
-    SQLAlchemy Session object
+    SQLAlchemy session object
+
+Raises:
+    DatabaseError: If session management fails
 ```
 
-#### get_session()
+#### close_all_sessions()
 ```
-Create and return a new database session for compatibility with existing code.
+Close all active database sessions.
 
-Note: This function is provided for backward compatibility.
-New code should use get_db_session() context manager instead.
-
-Returns:
-    SQLAlchemy Session object
+Useful for cleanup and testing.
 ```
 
 ### Global Variables:
+- DEFAULT_DATABASE_URL
 - DATABASE_URL
 - engine
 - session_factory
-- SessionLocal
 
 ---
 
 ## database\sqlalchemy\__init__.py
 
-### Imports:
-- base.Base
-- models.Storage
-- models.Product
-- models.Recipe
-- models.RecipeItem
-- models.Supplier
-- models.Part
-- models.Leather
-- models.ShoppingList
-- models.ShoppingListItem
-- models.Order
-- models.OrderItem
-- models.InventoryStatus
-- models.ProductionStatus
-- models.TransactionType
-- models.OrderStatus
-- models.PaymentStatus
-
 ### Global Variables:
 - __all__
+
+---
+
+## database\sqlalchemy\core\base_manager.py
+
+### Imports:
+- typing.Type
+- typing.List
+- typing.Dict
+- typing.Any
+- typing.Optional
+- typing.TypeVar
+- typing.Generic
+- typing.Union
+- typing.Callable
+- logging
+- contextlib.contextmanager
+- sqlalchemy.orm.Session
+- sqlalchemy.select
+- sqlalchemy.inspect
+- sqlalchemy.and_
+- sqlalchemy.or_
+- sqlalchemy.func
+- sqlalchemy.exc.SQLAlchemyError
+- store_management.utils.error_handling.DatabaseError
+
+### Classes:
+
+#### BaseManager
+```
+Comprehensive base manager for database operations.
+
+Provides a generic, type-safe implementation of common database operations
+with extensive error handling and transaction management.
+```
+
+Methods:
+- __init__(self, model_class, session_factory)
+  ```
+  Initialize the base manager with a model class and session factory.
+
+Args:
+    model_class: The SQLAlchemy model class this manager operates on
+    session_factory: A callable that returns a database session
+  ```
+- session_scope(self)
+  ```
+  Provide a transactional scope around a series of operations.
+
+Yields:
+    Session: Active database session
+
+Raises:
+    DatabaseError: If session management fails
+  ```
+- create(self, data)
+  ```
+  Create a new record in the database.
+
+Args:
+    data: Dictionary of attributes for the new record
+
+Returns:
+    The created record
+
+Raises:
+    DatabaseError: If creation fails
+  ```
+- get(self, id)
+  ```
+  Retrieve a record by its primary key.
+
+Args:
+    id: Primary key value
+
+Returns:
+    The record if found, None otherwise
+
+Raises:
+    DatabaseError: If retrieval fails
+  ```
+- get_all(self, order_by, limit)
+  ```
+  Retrieve all records, with optional ordering and limit.
+
+Args:
+    order_by: Optional column to order by
+    limit: Optional maximum number of records to return
+
+Returns:
+    List of records
+
+Raises:
+    DatabaseError: If retrieval fails
+  ```
+- update(self, id, data)
+  ```
+  Update an existing record.
+
+Args:
+    id: Primary key of the record to update
+    data: Dictionary of attributes to update
+
+Returns:
+    The updated record, or None if not found
+
+Raises:
+    DatabaseError: If update fails
+  ```
+- delete(self, id)
+  ```
+  Delete a record by its primary key.
+
+Args:
+    id: Primary key of the record to delete
+
+Returns:
+    True if deletion was successful, False if record not found
+
+Raises:
+    DatabaseError: If deletion fails
+  ```
+- exists(self)
+  ```
+  Check if a record exists with the given criteria.
+
+Args:
+    **kwargs: Filter criteria
+
+Returns:
+    True if a matching record exists, False otherwise
+
+Raises:
+    DatabaseError: If check fails
+  ```
+- count(self)
+  ```
+  Count records matching the given criteria.
+
+Args:
+    **kwargs: Filter criteria
+
+Returns:
+    Count of matching records
+
+Raises:
+    DatabaseError: If count fails
+  ```
+- filter_by(self)
+  ```
+  Retrieve records matching the given criteria.
+
+Args:
+    **kwargs: Filter criteria
+
+Returns:
+    List of matching records
+
+Raises:
+    DatabaseError: If filtering fails
+  ```
+- search(self, term, fields)
+  ```
+  Search for records where any of the specified fields contain the search term.
+
+Args:
+    term: Search term
+    fields: List of fields to search in (if None, searches all string fields)
+
+Returns:
+    List of matching records
+
+Raises:
+    DatabaseError: If search fails
+  ```
+- bulk_create(self, items)
+  ```
+  Create multiple records in a single transaction.
+
+Args:
+    items: List of dictionaries with record data
+
+Returns:
+    List of created records
+
+Raises:
+    DatabaseError: If bulk creation fails
+  ```
+- bulk_update(self, items)
+  ```
+  Update multiple records in a single transaction.
+
+Args:
+    items: List of dictionaries with record data including ID
+
+Returns:
+    List of updated records
+
+Raises:
+    DatabaseError: If bulk update fails
+  ```
+
+### Global Variables:
+- T
+
+---
+
+## database\sqlalchemy\core\manager_factory.py
+
+### Imports:
+- typing.Type
+- typing.Dict
+- typing.Any
+- typing.TypeVar
+- typing.Optional
+- typing.Callable
+- typing.Union
+- typing.List
+- sqlalchemy.orm.Session
+- store_management.database.sqlalchemy.core.base_manager.BaseManager
+
+### Functions:
+
+#### register_specialized_manager(model_class, manager_class)
+```
+Register a specialized manager for a specific model class.
+
+Args:
+    model_class: The SQLAlchemy model class
+    manager_class: The specialized manager class to use for this model
+```
+
+#### get_manager(model_class, session_factory, force_new)
+```
+Get or create a manager for the specified model class.
+
+This factory ensures only one manager is created per model class,
+with support for specialized managers.
+
+Args:
+    model_class: The SQLAlchemy model class
+    session_factory: Optional custom session factory (defaults to global session factory)
+    force_new: If True, create a new manager instance
+
+Returns:
+    A BaseManager instance for the model class
+```
+
+#### _create_manager(model_class, session_factory)
+```
+Create a new manager instance for the specified model class.
+
+Args:
+    model_class: The SQLAlchemy model class
+    session_factory: Optional custom session factory
+
+Returns:
+    A BaseManager instance for the model class
+```
+
+#### clear_manager_cache()
+```
+Clear the manager instance cache.
+
+Useful for testing or resetting the application state.
+```
+
+### Global Variables:
+- T
+- _manager_cache
+- _specialized_managers
+
+---
+
+## database\sqlalchemy\core\register_managers.py
+
+### Imports:
+- store_management.database.sqlalchemy.models.Storage
+- store_management.database.sqlalchemy.models.Product
+- store_management.database.sqlalchemy.models.Supplier
+- store_management.database.sqlalchemy.models.Part
+- store_management.database.sqlalchemy.models.Leather
+- store_management.database.sqlalchemy.models.Recipe
+- store_management.database.sqlalchemy.models.RecipeItem
+- store_management.database.sqlalchemy.models.Order
+- store_management.database.sqlalchemy.models.OrderItem
+- store_management.database.sqlalchemy.models.ShoppingList
+- store_management.database.sqlalchemy.models.ShoppingListItem
+- store_management.database.sqlalchemy.core.manager_factory.register_specialized_manager
+- store_management.database.sqlalchemy.core.specialized.storage_manager.StorageManager
+- store_management.database.sqlalchemy.core.specialized.product_manager.ProductManager
+- store_management.database.sqlalchemy.core.specialized.supplier_manager.SupplierManager
+- store_management.database.sqlalchemy.core.specialized.part_manager.PartManager
+- store_management.database.sqlalchemy.core.specialized.leather_manager.LeatherManager
+- store_management.database.sqlalchemy.core.specialized.recipe_manager.RecipeManager
+- store_management.database.sqlalchemy.core.specialized.order_manager.OrderManager
+- store_management.database.sqlalchemy.core.specialized.shopping_list_manager.ShoppingListManager
+
+### Functions:
+
+#### register_all_specialized_managers()
+```
+Register all specialized managers for models.
+
+This should be called during application initialization.
+```
+
+---
+
+## database\sqlalchemy\core\__init__.py
 
 ---
 
@@ -6285,7 +8652,7 @@ Returns:
 - sqlalchemy.and_
 - sqlalchemy.or_
 - sqlalchemy.func
-- store_management.database.sqlalchemy.models.base.Base
+- store_management.database.sqlalchemy.base.Base
 - store_management.database.sqlalchemy.session.get_db_session
 
 ### Classes:
@@ -6395,7 +8762,7 @@ Returns:
 - sqlalchemy.select
 - sqlalchemy.or_
 - sqlalchemy.func
-- store_management.database.sqlalchemy.models.base.Base
+- store_management.database.sqlalchemy.base.Base
 - store_management.database.sqlalchemy.session.get_db_session
 
 ### Classes:
@@ -6732,6 +9099,525 @@ Returns:
 
 ---
 
+## database\sqlalchemy\models\base.py
+
+### Imports:
+- sqlalchemy.orm.DeclarativeBase
+- sqlalchemy.Column
+- sqlalchemy.Integer
+- sqlalchemy.DateTime
+- datetime.datetime
+
+### Classes:
+
+#### Base
+Inherits from: DeclarativeBase
+```
+Base declarative model for all database models.
+Provides common fields and behaviors.
+```
+
+Methods:
+- __repr__(self)
+  ```
+  Default string representation of the model.
+
+Returns:
+    String representation with class name and ID
+  ```
+- to_dict(self)
+  ```
+  Convert model instance to dictionary.
+
+Returns:
+    Dictionary representation of the model
+  ```
+
+---
+
+## database\sqlalchemy\models\enums.py
+
+### Imports:
+- enum.Enum
+- enum.auto
+
+### Classes:
+
+#### InventoryStatus
+Inherits from: Enum
+```
+Inventory status for parts and materials.
+```
+
+#### ProductionStatus
+Inherits from: Enum
+```
+Status of production processes.
+```
+
+#### TransactionType
+Inherits from: Enum
+```
+Types of inventory transactions.
+```
+
+#### OrderStatus
+Inherits from: Enum
+```
+Order processing status.
+```
+
+#### PaymentStatus
+Inherits from: Enum
+```
+Payment processing status.
+```
+
+---
+
+## database\sqlalchemy\models\leather.py
+
+### Imports:
+- sqlalchemy.Column
+- sqlalchemy.Integer
+- sqlalchemy.String
+- sqlalchemy.Float
+- sqlalchemy.DateTime
+- sqlalchemy.ForeignKey
+- sqlalchemy.Enum
+- sqlalchemy.orm.relationship
+- datetime.datetime
+- store_management.database.sqlalchemy.base.Base
+- store_management.database.sqlalchemy.models.enums.InventoryStatus
+
+### Classes:
+
+#### Leather
+Inherits from: Base
+```
+Leather model representing leather inventory items.
+
+Attributes:
+    id (int): Unique identifier for the leather
+    name (str): Name or identifier of the leather
+    type (str): Type or category of leather
+    color (str): Color of the leather
+    total_area (float): Total area of the leather
+    available_area (float): Currently available area
+    unit_price (float): Price per square unit
+    supplier_id (int): Foreign key to the supplier
+    status (InventoryStatus): Current inventory status
+    notes (str): Additional notes about the leather
+    created_at (datetime): Timestamp of record creation
+    updated_at (datetime): Timestamp of last update
+```
+
+Methods:
+- __repr__(self)
+
+---
+
+## database\sqlalchemy\models\order.py
+
+### Imports:
+- sqlalchemy.Column
+- sqlalchemy.Integer
+- sqlalchemy.String
+- sqlalchemy.Float
+- sqlalchemy.DateTime
+- sqlalchemy.ForeignKey
+- sqlalchemy.Enum
+- sqlalchemy.Boolean
+- sqlalchemy.orm.relationship
+- datetime.datetime
+- store_management.database.sqlalchemy.base.Base
+- store_management.database.sqlalchemy.models.enums.OrderStatus
+- store_management.database.sqlalchemy.models.enums.PaymentStatus
+
+### Classes:
+
+#### Order
+Inherits from: Base
+```
+Purchase order model representing orders in the system.
+
+Attributes:
+    id (int): Unique identifier for the order
+    order_number (str): Unique order number
+    supplier_id (int): Foreign key to the supplier
+    order_date (datetime): Date of order creation
+    expected_delivery_date (datetime): Expected delivery date
+    total_amount (float): Total order amount
+    status (OrderStatus): Current order status
+    payment_status (PaymentStatus): Current payment status
+    is_paid (bool): Whether the order is fully paid
+    notes (str): Additional notes about the order
+    created_at (datetime): Timestamp of record creation
+    updated_at (datetime): Timestamp of last update
+```
+
+Methods:
+- __repr__(self)
+
+#### OrderItem
+Inherits from: Base
+```
+Individual items within an order.
+
+Attributes:
+    id (int): Unique identifier for the order item
+    order_id (int): Foreign key to the parent order
+    part_id (int): Foreign key to the part
+    quantity (float): Quantity of the part ordered
+    unit_price (float): Price per unit
+    total_price (float): Total price for this item
+    notes (str): Additional notes about the item
+```
+
+Methods:
+- __repr__(self)
+
+---
+
+## database\sqlalchemy\models\part.py
+
+### Imports:
+- sqlalchemy.Column
+- sqlalchemy.Integer
+- sqlalchemy.String
+- sqlalchemy.Float
+- sqlalchemy.DateTime
+- sqlalchemy.ForeignKey
+- sqlalchemy.Enum
+- sqlalchemy.orm.relationship
+- datetime.datetime
+- store_management.database.sqlalchemy.base.Base
+- store_management.database.sqlalchemy.models.enums.InventoryStatus
+
+### Classes:
+
+#### Part
+Inherits from: Base
+```
+Part model representing inventory items.
+
+Attributes:
+    id (int): Unique identifier for the part
+    name (str): Name of the part
+    description (str): Detailed description of the part
+    stock_level (float): Current stock level of the part
+    min_stock_level (float): Minimum stock level threshold
+    unit_price (float): Price per unit
+    supplier_id (int): Foreign key to the supplier
+    status (InventoryStatus): Current inventory status
+    created_at (datetime): Timestamp of record creation
+    updated_at (datetime): Timestamp of last update
+```
+
+Methods:
+- __repr__(self)
+
+---
+
+## database\sqlalchemy\models\product.py
+
+### Imports:
+- sqlalchemy.Column
+- sqlalchemy.Integer
+- sqlalchemy.String
+- sqlalchemy.Float
+- sqlalchemy.ForeignKey
+- sqlalchemy.orm.relationship
+- store_management.database.sqlalchemy.base.Base
+
+### Classes:
+
+#### Product
+Inherits from: Base
+```
+Product model representing items that can be stored and manufactured.
+
+Attributes:
+    id (int): Unique identifier for the product
+    name (str): Name of the product
+    description (str): Detailed description of the product
+    category (str): Product category
+    unit_price (float): Price per unit
+    storage_id (int): Foreign key to the storage location
+```
+
+Methods:
+- __repr__(self)
+
+---
+
+## database\sqlalchemy\models\recipe.py
+
+### Imports:
+- sqlalchemy.Column
+- sqlalchemy.Integer
+- sqlalchemy.String
+- sqlalchemy.Float
+- sqlalchemy.DateTime
+- sqlalchemy.ForeignKey
+- sqlalchemy.orm.relationship
+- datetime.datetime
+- store_management.database.sqlalchemy.base.Base
+- sqlalchemy.Column
+- sqlalchemy.Integer
+- sqlalchemy.String
+- sqlalchemy.Float
+- sqlalchemy.DateTime
+- sqlalchemy.ForeignKey
+- sqlalchemy.Boolean
+
+### Classes:
+
+#### Recipe
+Inherits from: Base
+```
+Recipe model representing product manufacturing recipes.
+
+Attributes:
+    id (int): Unique identifier for the recipe
+    name (str): Name of the recipe
+    description (str): Detailed description of the recipe
+    product_id (int): Foreign key to the product this recipe creates
+    estimated_production_time (float): Estimated time to produce
+    notes (str): Additional notes about the recipe
+    created_at (datetime): Timestamp of recipe creation
+    updated_at (datetime): Timestamp of last update
+```
+
+Methods:
+- __repr__(self)
+
+#### RecipeItem
+Inherits from: Base
+```
+Individual items required for a recipe.
+
+Attributes:
+    id (int): Unique identifier for the recipe item
+    recipe_id (int): Foreign key to the parent recipe
+    part_id (int): Foreign key to the part used in the recipe
+    leather_id (int): Foreign key to the leather used in the recipe
+    quantity (float): Quantity of the item needed
+    is_optional (bool): Whether the item is optional in the recipe
+    notes (str): Additional notes about the recipe item
+```
+
+Methods:
+- __repr__(self)
+
+---
+
+## database\sqlalchemy\models\shopping_list.py
+
+### Imports:
+- sqlalchemy.Column
+- sqlalchemy.Integer
+- sqlalchemy.String
+- sqlalchemy.Float
+- sqlalchemy.DateTime
+- sqlalchemy.ForeignKey
+- sqlalchemy.Boolean
+- sqlalchemy.orm.relationship
+- datetime.datetime
+- store_management.database.sqlalchemy.base.Base
+
+### Classes:
+
+#### ShoppingList
+Inherits from: Base
+```
+Shopping List model for tracking items to be purchased.
+
+Attributes:
+    id (int): Unique identifier for the shopping list
+    name (str): Name or description of the shopping list
+    created_at (datetime): Timestamp of list creation
+    updated_at (datetime): Timestamp of last update
+    is_completed (bool): Whether the shopping list is completed
+    total_estimated_cost (float): Total estimated cost of items
+```
+
+Methods:
+- __repr__(self)
+
+#### ShoppingListItem
+Inherits from: Base
+```
+Individual items within a shopping list.
+
+Attributes:
+    id (int): Unique identifier for the shopping list item
+    shopping_list_id (int): Foreign key to the parent shopping list
+    part_id (int): Foreign key to the part (optional)
+    leather_id (int): Foreign key to the leather (optional)
+    quantity (float): Quantity of the item to be purchased
+    estimated_price (float): Estimated price of the item
+    is_purchased (bool): Whether the item has been purchased
+    supplier_id (int): Foreign key to the supplier
+    purchase_date (datetime): Date of purchase
+    actual_price (float): Actual price paid
+    notes (str): Additional notes about the item
+```
+
+Methods:
+- __repr__(self)
+
+---
+
+## database\sqlalchemy\models\storage.py
+
+### Imports:
+- sqlalchemy.Column
+- sqlalchemy.Integer
+- sqlalchemy.String
+- sqlalchemy.Float
+- sqlalchemy.orm.relationship
+- store_management.database.sqlalchemy.base.Base
+
+### Classes:
+
+#### Storage
+Inherits from: Base
+```
+Storage model representing storage locations.
+
+Attributes:
+    id (int): Unique identifier for the storage location
+    location (str): Specific location or name of the storage
+    description (str): Detailed description of the storage
+    capacity (float): Total capacity of the storage
+    current_usage (float): Current usage of the storage
+```
+
+Methods:
+- __repr__(self)
+
+---
+
+## database\sqlalchemy\models\supplier.py
+
+### Imports:
+- sqlalchemy.Column
+- sqlalchemy.Integer
+- sqlalchemy.String
+- sqlalchemy.Float
+- sqlalchemy.DateTime
+- sqlalchemy.orm.relationship
+- datetime.datetime
+- store_management.database.sqlalchemy.base.Base
+
+### Classes:
+
+#### Supplier
+Inherits from: Base
+```
+Supplier model representing external suppliers.
+
+Attributes:
+    id (int): Unique identifier for the supplier
+    name (str): Name of the supplier
+    contact_name (str): Name of the primary contact
+    email (str): Contact email address
+    phone (str): Contact phone number
+    address (str): Supplier's physical address
+    rating (float): Supplier performance rating
+    notes (str): Additional notes about the supplier
+    created_at (datetime): Timestamp of record creation
+    updated_at (datetime): Timestamp of last update
+```
+
+Methods:
+- __repr__(self)
+
+---
+
+## database\sqlalchemy\models\transaction.py
+
+### Imports:
+- sqlalchemy.Column
+- sqlalchemy.Integer
+- sqlalchemy.String
+- sqlalchemy.Float
+- sqlalchemy.DateTime
+- sqlalchemy.ForeignKey
+- sqlalchemy.Enum
+- sqlalchemy.orm.relationship
+- datetime.datetime
+- store_management.database.sqlalchemy.base.Base
+- store_management.database.sqlalchemy.models.enums.TransactionType
+
+### Classes:
+
+#### InventoryTransaction
+Inherits from: Base
+```
+Transaction model for tracking part inventory changes.
+
+Attributes:
+    id (int): Unique identifier for the transaction
+    part_id (int): Foreign key to the part involved
+    quantity_change (float): Change in quantity (positive or negative)
+    transaction_type (TransactionType): Type of transaction
+    notes (str): Additional notes about the transaction
+    created_at (datetime): Timestamp of transaction creation
+```
+
+Methods:
+- __repr__(self)
+
+#### LeatherTransaction
+Inherits from: Base
+```
+Transaction model for tracking leather inventory changes.
+
+Attributes:
+    id (int): Unique identifier for the transaction
+    leather_id (int): Foreign key to the leather involved
+    area_change (float): Change in area (positive or negative)
+    transaction_type (TransactionType): Type of transaction
+    notes (str): Additional notes about the transaction
+    wastage (float): Area lost during transaction
+    created_at (datetime): Timestamp of transaction creation
+```
+
+Methods:
+- __repr__(self)
+
+---
+
+## database\sqlalchemy\models\__init__.py
+
+### Imports:
+- base.Base
+- enums.InventoryStatus
+- enums.ProductionStatus
+- enums.TransactionType
+- enums.OrderStatus
+- enums.PaymentStatus
+- part.Part
+- storage.Storage
+- product.Product
+- order.Order
+- order.OrderItem
+- supplier.Supplier
+- recipe.Recipe
+- recipe.RecipeItem
+- shopping_list.ShoppingList
+- shopping_list.ShoppingListItem
+- leather.Leather
+- transaction.InventoryTransaction
+- transaction.LeatherTransaction
+
+### Global Variables:
+- __all__
+
+---
+
 ## database\sqlalchemy\migrations\versions\202402201_add_relationships.py
 
 ### Imports:
@@ -6776,5 +9662,703 @@ Returns:
 ---
 
 ## database\sqlalchemy\migrations\versions\__init__.py
+
+---
+
+## database\sqlalchemy\core\specialized\leather_manager.py
+
+### Imports:
+- typing.List
+- typing.Optional
+- typing.Dict
+- typing.Any
+- typing.Tuple
+- datetime.datetime
+- sqlalchemy.select
+- sqlalchemy.and_
+- sqlalchemy.or_
+- sqlalchemy.func
+- sqlalchemy.orm.joinedload
+- store_management.database.sqlalchemy.core.base_manager.BaseManager
+- store_management.database.sqlalchemy.models.Leather
+- store_management.database.sqlalchemy.models.LeatherTransaction
+- store_management.database.sqlalchemy.models.InventoryStatus
+- store_management.database.sqlalchemy.models.TransactionType
+- store_management.utils.error_handling.DatabaseError
+
+### Classes:
+
+#### LeatherManager
+```
+Specialized manager for Leather model operations.
+
+Extends BaseManager with leather-specific operations.
+```
+
+Methods:
+- get_leather_with_transactions(self, leather_id)
+  ```
+  Get leather with its transaction history.
+
+Args:
+    leather_id: Leather ID
+
+Returns:
+    Leather with transactions loaded or None if not found
+
+Raises:
+    DatabaseError: If retrieval fails
+  ```
+- update_leather_area(self, leather_id, area_change, transaction_type, notes, wastage)
+  ```
+  Update leather area with transaction tracking.
+
+Args:
+    leather_id: Leather ID
+    area_change: Change in area (positive or negative)
+    transaction_type: Type of transaction
+    notes: Optional transaction notes
+    wastage: Optional wastage area
+
+Returns:
+    Tuple of (updated Leather, created Transaction)
+
+Raises:
+    DatabaseError: If update fails
+  ```
+- get_low_stock_leather(self, include_out_of_stock)
+  ```
+  Get leather items with low stock levels.
+
+Args:
+    include_out_of_stock: Whether to include out of stock items
+
+Returns:
+    List of Leather instances with low stock
+
+Raises:
+    DatabaseError: If retrieval fails
+  ```
+- get_by_supplier(self, supplier_id)
+  ```
+  Get leather by supplier.
+
+Args:
+    supplier_id: Supplier ID
+
+Returns:
+    List of leather from the specified supplier
+
+Raises:
+    DatabaseError: If retrieval fails
+  ```
+
+---
+
+## database\sqlalchemy\core\specialized\order_manager.py
+
+### Imports:
+- typing.List
+- typing.Optional
+- typing.Dict
+- typing.Any
+- typing.Callable
+- sqlalchemy.orm.Session
+- store_management.database.sqlalchemy.core.base_manager.BaseManager
+- store_management.database.sqlalchemy.models.order.Order
+
+### Classes:
+
+#### OrderManager
+Inherits from: BaseManager
+```
+Specialized manager for Order model operations.
+
+This class extends BaseManager with order-specific operations.
+```
+
+Methods:
+- __init__(self, session_factory)
+  ```
+  Initialize the OrderManager.
+
+Args:
+    session_factory: A callable that returns a SQLAlchemy Session.
+  ```
+- create_order(self, order_data)
+  ```
+  Create a new order.
+
+Args:
+    order_data: Dictionary containing order information.
+
+Returns:
+    The created Order instance.
+  ```
+- get_order_by_id(self, order_id)
+  ```
+  Retrieve an order by its ID.
+
+Args:
+    order_id: The ID of the order to retrieve.
+
+Returns:
+    The Order instance if found, None otherwise.
+  ```
+- get_all_orders(self)
+  ```
+  Retrieve all orders.
+
+Returns:
+    A list of all Order instances.
+  ```
+
+---
+
+## database\sqlalchemy\core\specialized\part_manager.py
+
+### Imports:
+- typing.List
+- typing.Optional
+- typing.Dict
+- typing.Any
+- typing.Tuple
+- datetime.datetime
+- sqlalchemy.select
+- sqlalchemy.and_
+- sqlalchemy.or_
+- sqlalchemy.func
+- sqlalchemy.orm.joinedload
+- store_management.database.sqlalchemy.core.base_manager.BaseManager
+- store_management.database.sqlalchemy.models.Part
+- store_management.database.sqlalchemy.models.InventoryTransaction
+- store_management.database.sqlalchemy.models.InventoryStatus
+- store_management.database.sqlalchemy.models.TransactionType
+- store_management.utils.error_handling.DatabaseError
+
+### Classes:
+
+#### PartManager
+```
+Specialized manager for Part model operations.
+
+Extends BaseManager with part-specific operations.
+```
+
+Methods:
+- get_part_with_transactions(self, part_id)
+  ```
+  Get part with its transaction history.
+
+Args:
+    part_id: Part ID
+
+Returns:
+    Part with transactions loaded or None if not found
+
+Raises:
+    DatabaseError: If retrieval fails
+  ```
+- update_part_stock(self, part_id, quantity_change, transaction_type, notes)
+  ```
+  Update part stock levels with transaction tracking.
+
+Args:
+    part_id: Part ID
+    quantity_change: Change in quantity (positive or negative)
+    transaction_type: Type of transaction
+    notes: Optional transaction notes
+
+Returns:
+    Tuple of (updated Part, created Transaction)
+
+Raises:
+    DatabaseError: If update fails
+  ```
+- get_low_stock_parts(self, include_out_of_stock)
+  ```
+  Get all parts with low stock levels.
+
+Args:
+    include_out_of_stock: Whether to include out of stock items
+
+Returns:
+    List of Part instances with low stock
+
+Raises:
+    DatabaseError: If retrieval fails
+  ```
+- get_by_supplier(self, supplier_id)
+  ```
+  Get parts by supplier.
+
+Args:
+    supplier_id: Supplier ID
+
+Returns:
+    List of parts from the specified supplier
+
+Raises:
+    DatabaseError: If retrieval fails
+  ```
+
+---
+
+## database\sqlalchemy\core\specialized\product_manager.py
+
+### Imports:
+- typing.List
+- typing.Optional
+- typing.Dict
+- typing.Any
+- sqlalchemy.select
+- sqlalchemy.and_
+- sqlalchemy.or_
+- sqlalchemy.func
+- sqlalchemy.orm.joinedload
+- store_management.database.sqlalchemy.core.base_manager.BaseManager
+- store_management.database.sqlalchemy.models.Product
+- store_management.database.sqlalchemy.models.Storage
+- store_management.database.sqlalchemy.models.Recipe
+- store_management.utils.error_handling.DatabaseError
+
+### Classes:
+
+#### ProductManager
+```
+Specialized manager for Product model operations.
+
+Extends BaseManager with product-specific operations.
+```
+
+Methods:
+- get_product_with_recipe(self, product_id)
+  ```
+  Get product with its recipe.
+
+Args:
+    product_id: Product ID
+
+Returns:
+    Product with recipe loaded or None if not found
+
+Raises:
+    DatabaseError: If retrieval fails
+  ```
+- get_by_storage(self, storage_id)
+  ```
+  Get products by storage location.
+
+Args:
+    storage_id: Storage location ID
+
+Returns:
+    List of products in the specified storage
+
+Raises:
+    DatabaseError: If retrieval fails
+  ```
+- assign_to_storage(self, product_id, storage_id)
+  ```
+  Assign a product to a storage location.
+
+Args:
+    product_id: Product ID
+    storage_id: Storage location ID
+
+Returns:
+    Updated Product or None if not found
+
+Raises:
+    DatabaseError: If update fails
+  ```
+- search_by_name(self, name)
+  ```
+  Search products by name.
+
+Args:
+    name: Product name to search for
+
+Returns:
+    List of matching products
+
+Raises:
+    DatabaseError: If search fails
+  ```
+
+---
+
+## database\sqlalchemy\core\specialized\recipe_manager.py
+
+### Imports:
+- typing.List
+- typing.Optional
+- typing.Dict
+- typing.Any
+- typing.Tuple
+- sqlalchemy.select
+- sqlalchemy.and_
+- sqlalchemy.or_
+- sqlalchemy.func
+- sqlalchemy.orm.joinedload
+- store_management.database.sqlalchemy.core.base_manager.BaseManager
+- store_management.database.sqlalchemy.models.Recipe
+- store_management.database.sqlalchemy.models.RecipeItem
+- store_management.database.sqlalchemy.models.Part
+- store_management.database.sqlalchemy.models.Leather
+- store_management.utils.error_handling.DatabaseError
+
+### Classes:
+
+#### RecipeManager
+```
+Specialized manager for Recipe model operations.
+
+Extends BaseManager with recipe-specific operations.
+```
+
+Methods:
+- get_recipe_with_items(self, recipe_id)
+  ```
+  Get recipe with all its items.
+
+Args:
+    recipe_id: Recipe ID
+
+Returns:
+    Recipe with items loaded or None if not found
+
+Raises:
+    DatabaseError: If retrieval fails
+  ```
+- create_recipe(self, recipe_data, items)
+  ```
+  Create a new recipe with items.
+
+Args:
+    recipe_data: Dictionary containing recipe data
+    items: List of dictionaries containing recipe item data
+
+Returns:
+    Created Recipe instance
+
+Raises:
+    DatabaseError: If creation fails
+  ```
+- update_recipe_items(self, recipe_id, items)
+  ```
+  Update recipe items (replace existing items).
+
+Args:
+    recipe_id: Recipe ID
+    items: New list of recipe items
+
+Returns:
+    Updated Recipe instance
+
+Raises:
+    DatabaseError: If update fails
+  ```
+- add_recipe_item(self, recipe_id, item_data)
+  ```
+  Add a single item to a recipe.
+
+Args:
+    recipe_id: Recipe ID
+    item_data: Dictionary containing item data
+
+Returns:
+    Created RecipeItem instance
+
+Raises:
+    DatabaseError: If creation fails
+  ```
+- check_materials_availability(self, recipe_id, quantity)
+  ```
+  Check if all materials for a recipe are available in sufficient quantity.
+
+Args:
+    recipe_id: Recipe ID
+    quantity: Number of items to produce
+
+Returns:
+    Tuple of (all materials available, list of missing items)
+
+Raises:
+    DatabaseError: If check fails
+  ```
+
+---
+
+## database\sqlalchemy\core\specialized\shopping_list_manager.py
+
+### Imports:
+- typing.List
+- typing.Optional
+- typing.Dict
+- typing.Any
+- typing.Tuple
+- datetime.datetime
+- sqlalchemy.select
+- sqlalchemy.and_
+- sqlalchemy.or_
+- sqlalchemy.func
+- sqlalchemy.orm.joinedload
+- store_management.database.sqlalchemy.core.base_manager.BaseManager
+- store_management.database.sqlalchemy.models.ShoppingList
+- store_management.database.sqlalchemy.models.ShoppingListItem
+- store_management.database.sqlalchemy.models.Supplier
+- store_management.utils.error_handling.DatabaseError
+
+### Classes:
+
+#### ShoppingListManager
+```
+Specialized manager for ShoppingList model operations.
+
+Extends BaseManager with shopping list-specific operations.
+```
+
+Methods:
+- get_shopping_list_with_items(self, list_id)
+  ```
+  Get shopping list with all its items.
+
+Args:
+    list_id: Shopping list ID
+
+Returns:
+    ShoppingList with items loaded or None if not found
+
+Raises:
+    DatabaseError: If retrieval fails
+  ```
+- create_shopping_list(self, data, items)
+  ```
+  Create a new shopping list with optional items.
+
+Args:
+    data: Shopping list data
+    items: Optional list of item data
+
+Returns:
+    Created ShoppingList instance
+
+Raises:
+    DatabaseError: If creation fails
+  ```
+- add_shopping_list_item(self, list_id, item_data)
+  ```
+  Add an item to a shopping list.
+
+Args:
+    list_id: Shopping list ID
+    item_data: Item data
+
+Returns:
+    Created ShoppingListItem instance
+
+Raises:
+    DatabaseError: If creation fails
+  ```
+- mark_item_purchased(self, item_id, purchase_data)
+  ```
+  Mark a shopping list item as purchased.
+
+Args:
+    item_id: Shopping list item ID
+    purchase_data: Purchase details
+
+Returns:
+    Updated ShoppingListItem instance
+
+Raises:
+    DatabaseError: If update fails
+  ```
+- get_pending_items(self)
+  ```
+  Get all pending (unpurchased) items across all shopping lists.
+
+Returns:
+    List of unpurchased ShoppingListItem instances
+
+Raises:
+    DatabaseError: If retrieval fails
+  ```
+- get_items_by_supplier(self, supplier_id)
+  ```
+  Get all shopping list items for a specific supplier.
+
+Args:
+    supplier_id: Supplier ID
+
+Returns:
+    List of ShoppingListItem instances for the supplier
+
+Raises:
+    DatabaseError: If retrieval fails
+  ```
+- get_shopping_list_summary(self, list_id)
+  ```
+  Get summary statistics for a shopping list.
+
+Args:
+    list_id: Shopping list ID
+
+Returns:
+    Dictionary containing summary statistics
+
+Raises:
+    DatabaseError: If retrieval fails
+  ```
+
+---
+
+## database\sqlalchemy\core\specialized\storage_manager.py
+
+### Imports:
+- typing.Callable
+- sqlalchemy.orm.Session
+- store_management.database.sqlalchemy.core.base_manager.BaseManager
+- store_management.database.sqlalchemy.models.storage.Storage
+
+### Classes:
+
+#### StorageManager
+Inherits from: BaseManager
+```
+Specialized manager for Storage model operations.
+
+This class extends BaseManager with storage-specific operations.
+```
+
+Methods:
+- __init__(self, session_factory)
+  ```
+  Initialize the StorageManager.
+
+Args:
+    session_factory: A callable that returns a SQLAlchemy Session.
+  ```
+
+---
+
+## database\sqlalchemy\core\specialized\supplier_manager.py
+
+### Imports:
+- typing.List
+- typing.Optional
+- typing.Dict
+- typing.Any
+- typing.Tuple
+- datetime.datetime
+- sqlalchemy.select
+- sqlalchemy.and_
+- sqlalchemy.or_
+- sqlalchemy.func
+- sqlalchemy.orm.joinedload
+- store_management.database.sqlalchemy.core.base_manager.BaseManager
+- store_management.database.sqlalchemy.models.Supplier
+- store_management.database.sqlalchemy.models.Order
+- store_management.database.sqlalchemy.models.Part
+- store_management.database.sqlalchemy.models.Leather
+- store_management.utils.error_handling.DatabaseError
+
+### Classes:
+
+#### SupplierManager
+```
+Specialized manager for Supplier model operations.
+
+Extends BaseManager with supplier-specific operations.
+```
+
+Methods:
+- get_supplier_with_orders(self, supplier_id)
+  ```
+  Get supplier with their order history.
+
+Args:
+    supplier_id: Supplier ID
+
+Returns:
+    Supplier with orders loaded or None if not found
+
+Raises:
+    DatabaseError: If retrieval fails
+  ```
+- get_supplier_products(self, supplier_id)
+  ```
+  Get all products supplied by a supplier.
+
+Args:
+    supplier_id: Supplier ID
+
+Returns:
+    Dictionary containing parts and leather supplied
+
+Raises:
+    DatabaseError: If retrieval fails
+  ```
+- get_supplier_order_history(self, supplier_id, start_date, end_date)
+  ```
+  Get supplier's order history with optional date range.
+
+Args:
+    supplier_id: Supplier ID
+    start_date: Optional start date
+    end_date: Optional end date
+
+Returns:
+    List of Order instances
+
+Raises:
+    DatabaseError: If retrieval fails
+  ```
+- update_supplier_rating(self, supplier_id, rating, notes)
+  ```
+  Update supplier quality rating.
+
+Args:
+    supplier_id: Supplier ID
+    rating: New rating (0-5)
+    notes: Optional notes about the rating
+
+Returns:
+    Updated Supplier instance
+
+Raises:
+    DatabaseError: If update fails
+  ```
+- search_suppliers(self, term)
+  ```
+  Search suppliers across multiple fields.
+
+Args:
+    term: Term to search for
+
+Returns:
+    List of matching Supplier instances
+
+Raises:
+    DatabaseError: If search fails
+  ```
+
+---
+
+## database\sqlalchemy\core\specialized\__init__.py
+
+### Imports:
+- storage_manager.StorageManager
+- supplier_manager.SupplierManager
+- product_manager.ProductManager
+- part_manager.PartManager
+- leather_manager.LeatherManager
+- recipe_manager.RecipeManager
+- order_manager.OrderManager
+- shopping_list_manager.ShoppingListManager
+
+### Global Variables:
+- __all__
 
 ---

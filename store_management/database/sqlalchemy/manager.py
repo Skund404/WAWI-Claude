@@ -1,16 +1,15 @@
 """
 Database manager using SQLAlchemy ORM for the store management system.
 """
-from .models import Base  # Add this import
-from contextlib import contextmanager
-from typing import Optional, List, Dict, Any, Type, Union
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import Session
+from sqlalchemy import create_engine, inspect
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy import create_engine, inspect, or_, select, delete
+from contextlib import contextmanager
+from typing import List, Optional, Dict, Any, Type, Union
 from datetime import datetime
 
-# Comprehensive model imports
-from . import models
+from store_management.database.sqlalchemy.models.base import Base
+import store_management.database.sqlalchemy.models as models
 
 class DatabaseError(Exception):
     """Custom database error for SQLAlchemy operations"""

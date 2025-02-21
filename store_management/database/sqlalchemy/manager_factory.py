@@ -1,30 +1,21 @@
-# File: database/sqlalchemy/manager_factory.py
-# Purpose: Provide a flexible factory for creating database managers
-
-from typing import (
-    Type, Dict, Any, TypeVar, Optional,
-    Callable, Union, List
-)
+# store_management/database/sqlalchemy/manager_factory.py
+"""Factory for creating database managers."""
+from typing import Type, Dict, Any, TypeVar, Optional, Callable, Union, List
 from sqlalchemy.orm import Session
-
-from .base_manager import BaseManager
-from .session import get_db_session
-
-# Cache for storing manager instances to ensure singleton-like behavior
-_manager_cache: Dict[Type, BaseManager] = {}
-
-# Mapping for specialized managers
-_specialized_managers: Dict[Type, Type[BaseManager]] = {}
+from store_management.database.sqlalchemy.base_manager import BaseManager
+from store_management.database.session import get_db_session
 
 T = TypeVar('T')
 
+# Cache of manager instances
+_manager_cache = {}
 
-def register_specialized_manager(
-        model_class: Type[T],
-        manager_class: Type[BaseManager[T]]
-):
-    """
-    Register a specialized manager for a specific model class.
+# Registry of specialized managers
+_specialized_managers = {}
+
+
+def register_specialized_manager(model_class, manager_class):
+    """Register a specialized manager for a specific model class.
 
     Args:
         model_class: The SQLAlchemy model class
@@ -33,14 +24,8 @@ def register_specialized_manager(
     _specialized_managers[model_class] = manager_class
 
 
-def get_manager(
-        model_class: Type[T],
-        session_factory: Optional[Callable[[], Session]] = None,
-        mixins: Optional[List[Type]] = None,
-        force_new: bool = False
-) -> BaseManager[T]:
-    """
-    Get or create a manager for the specified model class.
+def get_manager(model_class, session_factory=None, mixins=None, force_new=False):
+    """Get or create a manager for the specified model class.
 
     This factory ensures only one manager is created per model class,
     with support for specialized managers and optional mixins.
@@ -54,36 +39,56 @@ def get_manager(
     Returns:
         A BaseManager instance for the model class
     """
-    # Use default session factory if not provided
+    # Use default session factory if none provided
     if session_factory is None:
         session_factory = get_db_session
 
-    # Check for existing manager if not forcing new
-    if not force_new and model_class in _manager_cache:
-        return _manager_cache[model_class]
+    # Always create new instance if requested
+    if force_new:
+        return _create_manager(model_class, session_factory, mixins)
 
-    # Check for specialized manager
-    manager_class = _specialized_managers.get(model_class, BaseManager)
+    # Use cached instance if available
+    cache_key = f"{model_class.__module__}.{model_class.__name__}"
+    if cache_key in _manager_cache:
+        return _manager_cache[cache_key]
 
-    # Create manager instance
-    manager = manager_class(
-        model_class=model_class,
-        session_factory=session_factory,
-        mixins=mixins
-    )
-
-    # Cache the manager unless forced new
-    if not force_new:
-        _manager_cache[model_class] = manager
-
+    # Create and cache new instance
+    manager = _create_manager(model_class, session_factory, mixins)
+    _manager_cache[cache_key] = manager
     return manager
 
 
-def clear_manager_cache():
+def _create_manager(model_class, session_factory, mixins=None):
+    """Create a new manager instance.
+
+    Args:
+        model_class: The SQLAlchemy model class
+        session_factory: Function to create database sessions
+        mixins: Optional list of mixins to apply
+
+    Returns:
+        A BaseManager instance for the model class
     """
-    Clear the manager instance cache.
+    # Check if there's a specialized manager for this model
+    if model_class in _specialized_managers:
+        manager_class = _specialized_managers[model_class]
+        return manager_class(session_factory)
+
+    # Create a basic manager with optional mixins
+    if mixins:
+        # Create a dynamic class with mixins
+        class_name = f"{model_class.__name__}Manager"
+        bases = tuple([BaseManager] + mixins)
+        manager_class = type(class_name, bases, {})
+        return manager_class(model_class, session_factory)
+    else:
+        # Create a basic manager
+        return BaseManager(model_class, session_factory)
+
+
+def clear_manager_cache():
+    """Clear the manager instance cache.
 
     Useful for testing or resetting the application state.
     """
-    global _manager_cache
     _manager_cache.clear()

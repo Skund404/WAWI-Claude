@@ -1,33 +1,23 @@
-# setup.py
-
-from setuptools import setup, find_packages
+# File: setup.py
+from setuptools import setup, find_namespace_packages
 
 setup(
-    name="store_management",
-    version="1.0.0",
+    name="store-management",
+    version="0.1.0",
     description="Store Management Application",
     author="Your Name",
     author_email="your.email@example.com",
-    packages=find_packages(),
+    packages=find_namespace_packages(include=['store_management*']),
     install_requires=[
-        "sqlalchemy>=1.4.0",
-        "sqlalchemy-utils>=0.37.0",
-        "alembic>=1.7.0",
+        "sqlalchemy>=2.0.19",
+        "alembic>=1.11.1",
+        "python-dotenv>=1.0.0",
+        "sqlalchemy-utils>=0.41.1",
     ],
     entry_points={
         "console_scripts": [
             "store-management=store_management.main:main",
-            "store-migrations=tools.run_migrations:main",
         ],
     },
-    python_requires=">=3.7",
-    classifiers=[
-        "Development Status :: 4 - Beta",
-        "Intended Audience :: End Users/Desktop",
-        "License :: OSI Approved :: MIT License",
-        "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.7",
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9",
-    ],
+    python_requires=">=3.9",
 )

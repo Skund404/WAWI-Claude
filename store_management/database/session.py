@@ -1,94 +1,95 @@
-# File: database/sqlalchemy/session.py
-# Purpose: Centralized database session management
-
+# File: store_management/database/session.py
 import os
-from contextlib import contextmanager
+import logging
 from typing import Optional
 
+import sqlalchemy
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session
-from sqlalchemy.pool import NullPool
 from sqlalchemy_utils import database_exists, create_database
 
-from .config import get_database_url
+from ..config.settings import get_database_path
 from ..utils.error_handling import DatabaseError
 
+# Configure logging
+logger = logging.getLogger(__name__)
 
-def init_database(db_url: Optional[str] = None):
+# Global session factory and engine
+engine = None
+SessionLocal = None
+
+
+def init_database(db_url: Optional[str] = None) -> None:
     """
     Initialize the database, creating it if it doesn't exist.
 
     Args:
         db_url: Optional database URL (uses default if not provided)
-    """
-    try:
-        # Use provided or default database URL
-        url = db_url or get_database_url()
 
-        # Create database if it doesn't exist
-        if not database_exists(url):
-            create_database(url)
+    Raises:
+        DatabaseError: If database initialization fails
+    """
+    global engine, SessionLocal
+
+    try:
+        # Use default database path if no URL is provided
+        if not db_url:
+            db_path = get_database_path()
+            db_url = f'sqlite:///{db_path}'
+
+        # Ensure database exists
+        if not database_exists(db_url):
+            logger.info(f"Creating database at {db_url}")
+            create_database(db_url)
 
         # Create engine
-        engine = create_engine(url, poolclass=NullPool)
+        engine = create_engine(
+            db_url,
+            echo=False,  # Set to True for SQLAlchemy logging
+            connect_args={'check_same_thread': False}  # Important for SQLite
+        )
 
-        # Import and create all tables
-        from .models import Base
-        Base.metadata.create_all(engine)
+        # Create session factory
+        SessionLocal = scoped_session(sessionmaker(
+            bind=engine,
+            autocommit=False,
+            autoflush=False
+        ))
+
+        logger.info("Database initialized successfully")
+
     except Exception as e:
+        # Log the full error
+        logger.error(f"Database initialization failed: {e}", exc_info=True)
+
+        # Raise a custom database error
         raise DatabaseError("Failed to initialize database", str(e))
 
 
-@contextmanager
 def get_db_session():
     """
-    Context manager for database sessions.
-
-    Provides a transactional scope for database operations.
-    Automatically handles session creation, commit, and rollback.
+    Provide a database session.
 
     Yields:
         SQLAlchemy session object
 
     Raises:
-        DatabaseError: If session management fails
+        DatabaseError: If session creation fails
     """
-    # Use global session factory or create a new one
-    session_factory = get_session_factory()
-    session = session_factory()
+    if SessionLocal is None:
+        raise DatabaseError("Database not initialized", "Call init_database() first")
 
+    session = SessionLocal()
     try:
         yield session
-        session.commit()
-    except Exception as e:
-        session.rollback()
-        raise DatabaseError("Database session error", str(e))
     finally:
         session.close()
 
 
-def get_session_factory():
+def close_db_session():
     """
-    Get a thread-local scoped session factory.
-
-    Returns:
-        Scoped session factory
+    Close all database sessions.
     """
-    # Create engine
-    engine = create_engine(
-        get_database_url(),
-        poolclass=NullPool  # Disable connection pooling for better thread safety
-    )
-
-    # Create session factory
-    session_factory = sessionmaker(bind=engine)
-    return scoped_session(session_factory)
-
-
-def close_all_sessions():
-    """
-    Close all active database sessions.
-    Useful for cleanup and testing.
-    """
-    from sqlalchemy.orm import close_all_sessions
-    close_all_sessions()
+    if SessionLocal:
+        SessionLocal.remove()
+        logger.info("Database sessions closed")

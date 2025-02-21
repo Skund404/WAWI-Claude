@@ -1,5 +1,4 @@
-# File: utils/error_handling.py
-# Purpose: Provide centralized error handling for database operations
+# utils/error_handling.py
 
 from typing import Optional, Dict, Any
 import traceback
@@ -7,51 +6,38 @@ import logging
 
 
 class DatabaseError(Exception):
-    """
-    Custom exception for database-related errors.
+    """Custom exception for database-related errors.
 
     Provides detailed context about database operation failures.
     """
 
-    def __init__(
-            self,
-            message: str,
-            details: Optional[str] = None,
-            error_code: Optional[str] = None
-    ):
-        """
-        Initialize a database error with detailed information.
+    def __init__(self, message: str, details: Optional[str] = None, error_code: Optional[str] = None):
+        """Initialize a database error with detailed information.
 
         Args:
             message: Primary error message
             details: Additional error details or stack trace
             error_code: Optional error code for identification
         """
-        super().__init__(message)
         self.message = message
-        self.details = details or traceback.format_exc()
-        self.error_code = error_code or "UNKNOWN_DB_ERROR"
+        self.details = details
+        self.error_code = error_code
+        super().__init__(message)
 
     def __str__(self) -> str:
-        """
-        Provide a comprehensive string representation of the error.
+        """Provide a comprehensive string representation of the error.
 
         Returns:
             Formatted error message with details
         """
-        error_str = f"[{self.error_code}] {self.message}"
         if self.details:
-            error_str += f"\nDetails: {self.details}"
-        return error_str
+            return f"{self.message} - Details: {self.details}"
+        return self.message
 
 
-def handle_database_error(
-        operation: str,
-        error: Exception,
-        context: Optional[Dict[str, Any]] = None
-) -> DatabaseError:
-    """
-    Standardized handler for database-related errors.
+def handle_database_error(operation: str, error: Exception,
+                          context: Optional[Dict[str, Any]] = None) -> DatabaseError:
+    """Standardized handler for database-related errors.
 
     Args:
         operation: Description of the operation that failed
@@ -61,45 +47,44 @@ def handle_database_error(
     Returns:
         A standardized DatabaseError instance
     """
-    # Log the error
-    logging.error(
-        f"Database operation failed: {operation}\n"
-        f"Error: {str(error)}\n"
-        f"Context: {context or 'None'}"
-    )
+    logger = logging.getLogger(__name__)
 
-    # Create detailed error message
-    details = f"Original Error: {str(error)}\n{traceback.format_exc()}"
+    # Get full stack trace
+    tb = traceback.format_exc()
 
-    # Create and return DatabaseError
-    return DatabaseError(
-        message=f"Failed to perform {operation}",
-        details=details,
-        error_code="DB_OPERATION_FAILED"
-    )
+    # Create error message
+    error_message = f"Database error during {operation}: {str(error)}"
+
+    # Log the error with context and stack trace
+    logger.error(error_message)
+    if context:
+        logger.error(f"Context: {context}")
+    logger.debug(f"Stack trace: {tb}")
+
+    # Create and return standardized error
+    return DatabaseError(error_message, tb)
 
 
-def log_database_action(
-        action: str,
-        details: Optional[Dict[str, Any]] = None,
-        level: str = 'info'
-) -> None:
-    """
-    Log database-related actions with optional details.
+def log_database_action(action: str, details: Optional[Dict[str, Any]] = None,
+                        level: str = 'info'):
+    """Log database-related actions with optional details.
 
     Args:
         action: Description of the database action
         details: Optional dictionary of additional details
         level: Logging level (info, warning, error)
     """
-    log_func = {
-        'info': logging.info,
-        'warning': logging.warning,
-        'error': logging.error
-    }.get(level.lower(), logging.info)
+    logger = logging.getLogger(__name__)
 
-    log_message = f"Database Action: {action}"
+    # Create log message
+    message = f"Database action: {action}"
     if details:
-        log_message += f"\nDetails: {details}"
+        message += f" - Details: {details}"
 
-    log_func(log_message)
+    # Log at appropriate level
+    if level == 'warning':
+        logger.warning(message)
+    elif level == 'error':
+        logger.error(message)
+    else:
+        logger.info(message)

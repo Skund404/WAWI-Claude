@@ -1,50 +1,33 @@
 {
   "project_name": "store_management",
-  "total_files": 133,
+  "total_files": 189,
   "files": {
     "application.py": {
       "path": "application.py",
       "imports": [
-        "store_management.services.storage_service.StorageService",
-        "store_management.services.inventory_service.InventoryService",
-        "store_management.services.order_service.OrderService",
-        "store_management.services.recipe_service.RecipeService",
-        "store_management.database.sqlalchemy.session.init_database",
-        "logging"
+        "typing.Type",
+        "typing.TypeVar",
+        "store_management.di.config.ApplicationConfig",
+        "store_management.di.container.DependencyContainer"
       ],
       "classes": [
         {
           "name": "Application",
-          "docstring": "Main application class responsible for initialization and service creation",
+          "docstring": "Main application class that manages dependency injection and service resolution.\n\nThis class is responsible for initializing the application's dependency container\nand providing access to application services.",
           "methods": [
             {
               "name": "__init__",
-              "docstring": "Initialize application with optional database URL",
-              "args": [
-                "self",
-                "db_url"
-              ]
-            },
-            {
-              "name": "initialize",
-              "docstring": "Initialize the application, database connection and create services",
+              "docstring": "Initialize the Application instance.\n\nSets up the dependency injection container using ApplicationConfig.",
               "args": [
                 "self"
               ]
             },
             {
               "name": "get_service",
-              "docstring": "Get a service by name",
+              "docstring": "Retrieve a service instance from the dependency container.\n\nArgs:\n    service_type: The type of service to retrieve.\n\nReturns:\n    An instance of the requested service.\n\nRaises:\n    ValueError: If the service cannot be resolved.",
               "args": [
                 "self",
-                "service_name"
-              ]
-            },
-            {
-              "name": "cleanup",
-              "docstring": "Clean up resources",
-              "args": [
-                "self"
+                "service_type"
               ]
             }
           ],
@@ -52,7 +35,9 @@
         }
       ],
       "functions": [],
-      "global_variables": []
+      "global_variables": [
+        "T"
+      ]
     },
     "config.py": {
       "path": "config.py",
@@ -85,31 +70,37 @@
         "LOG_DIR"
       ]
     },
+    "import_test.py": {
+      "path": "import_test.py",
+      "imports": [
+        "sys",
+        "os"
+      ],
+      "classes": [],
+      "functions": [],
+      "global_variables": []
+    },
     "main.py": {
       "path": "main.py",
       "imports": [
-        "os",
-        "sys",
-        "logging",
         "tkinter",
-        "pathlib.Path",
+        "sys",
+        "os",
         "store_management.application.Application",
-        "store_management.gui.main_window.MainWindow"
+        "store_management.gui.main_window.MainWindow",
+        "store_management.di.config.ApplicationConfig"
       ],
       "classes": [],
       "functions": [
         {
-          "name": "setup_logging",
-          "docstring": "Configure logging for the application",
-          "args": []
-        },
-        {
           "name": "main",
-          "docstring": "Main entry point for the application",
+          "docstring": "Main entry point of the application.\n\nThis function initializes the main application window and starts the GUI event loop.",
           "args": []
         }
       ],
-      "global_variables": []
+      "global_variables": [
+        "project_root"
+      ]
     },
     "project_analyzer.py": {
       "path": "project_analyzer.py",
@@ -218,22 +209,44 @@
       "path": "setup.py",
       "imports": [
         "setuptools.setup",
-        "setuptools.find_packages"
+        "setuptools.find_namespace_packages"
       ],
       "classes": [],
       "functions": [],
       "global_variables": []
     },
+    "tkinter_test.py": {
+      "path": "tkinter_test.py",
+      "imports": [
+        "sys",
+        "os",
+        "logging"
+      ],
+      "classes": [],
+      "functions": [
+        {
+          "name": "print_import_chain",
+          "docstring": "Try to trace the import chain to identify circular import issues.",
+          "args": []
+        },
+        {
+          "name": "test_tkinter",
+          "docstring": "",
+          "args": []
+        }
+      ],
+      "global_variables": [
+        "project_root",
+        "logger"
+      ]
+    },
     "__init__.py": {
       "path": "__init__.py",
-      "imports": [
-        "application.Application"
-      ],
+      "imports": [],
       "classes": [],
       "functions": [],
       "global_variables": [
-        "__version__",
-        "__author__"
+        "__version__"
       ]
     },
     "alembic\\env.py": {
@@ -514,6 +527,7 @@
       "path": "database\\config.py",
       "imports": [
         "os",
+        "typing",
         "typing.Dict",
         "typing.Any",
         "typing.Optional",
@@ -539,29 +553,35 @@
           "args": []
         }
       ],
-      "global_variables": []
+      "global_variables": [
+        "database_manager"
+      ]
     },
     "database\\initialize.py": {
       "path": "database\\initialize.py",
       "imports": [
         "logging",
-        "sqlalchemy_utils.drop_database",
-        "config.database_manager",
-        "sqlalchemy.models.Base"
+        "sqlalchemy.create_engine",
+        "sqlalchemy.orm.sessionmaker",
+        "sqlalchemy.base.Base",
+        "sqlalchemy.models.storage.Storage",
+        "config.settings.get_database_path"
       ],
       "classes": [],
       "functions": [
         {
           "name": "initialize_database",
-          "docstring": "Comprehensive database initialization process\n\nArgs:\n    drop_existing (bool): Whether to drop existing database before creation",
+          "docstring": "Initialize the database, creating or resetting tables.\n\nArgs:\n    drop_existing (bool): Whether to drop existing tables before creation",
           "args": [
             "drop_existing"
           ]
         },
         {
           "name": "add_initial_data",
-          "docstring": "Optional method to add initial data to the database",
-          "args": []
+          "docstring": "Add initial default data to the database.\n\nArgs:\n    engine: SQLAlchemy engine (optional)",
+          "args": [
+            "engine"
+          ]
         }
       ],
       "global_variables": [
@@ -572,71 +592,251 @@
       "path": "database\\session.py",
       "imports": [
         "os",
-        "contextlib.contextmanager",
+        "logging",
         "typing.Optional",
+        "sqlalchemy",
         "sqlalchemy.create_engine",
         "sqlalchemy.orm.sessionmaker",
         "sqlalchemy.orm.scoped_session",
-        "sqlalchemy.pool.NullPool",
         "sqlalchemy_utils.database_exists",
         "sqlalchemy_utils.create_database",
-        "config.get_database_url",
+        "config.settings.get_database_path",
         "utils.error_handling.DatabaseError"
       ],
       "classes": [],
       "functions": [
         {
           "name": "init_database",
-          "docstring": "Initialize the database, creating it if it doesn't exist.\n\nArgs:\n    db_url: Optional database URL (uses default if not provided)",
+          "docstring": "Initialize the database, creating it if it doesn't exist.\n\nArgs:\n    db_url: Optional database URL (uses default if not provided)\n\nRaises:\n    DatabaseError: If database initialization fails",
           "args": [
             "db_url"
           ]
         },
         {
           "name": "get_db_session",
-          "docstring": "Context manager for database sessions.\n\nProvides a transactional scope for database operations.\nAutomatically handles session creation, commit, and rollback.\n\nYields:\n    SQLAlchemy session object\n\nRaises:\n    DatabaseError: If session management fails",
+          "docstring": "Provide a database session.\n\nYields:\n    SQLAlchemy session object\n\nRaises:\n    DatabaseError: If session creation fails",
           "args": []
         },
         {
-          "name": "get_session_factory",
-          "docstring": "Get a thread-local scoped session factory.\n\nReturns:\n    Scoped session factory",
-          "args": []
-        },
-        {
-          "name": "close_all_sessions",
-          "docstring": "Close all active database sessions.\nUseful for cleanup and testing.",
+          "name": "close_db_session",
+          "docstring": "Close all database sessions.",
           "args": []
         }
       ],
-      "global_variables": []
+      "global_variables": [
+        "logger",
+        "engine",
+        "SessionLocal"
+      ]
     },
     "database\\__init__.py": {
       "path": "database\\__init__.py",
-      "imports": [
-        "store_management.database.base.BaseManager",
-        "store_management.database.sqlalchemy.models.Base",
-        "store_management.database.sqlalchemy.models.Supplier",
-        "store_management.database.sqlalchemy.models.Part",
-        "store_management.database.sqlalchemy.models.Leather",
-        "store_management.database.sqlalchemy.models.Recipe",
-        "store_management.database.sqlalchemy.models.RecipeItem",
-        "store_management.database.sqlalchemy.models.ShoppingList",
-        "store_management.database.sqlalchemy.models.ShoppingListItem",
-        "store_management.database.sqlalchemy.models.Order",
-        "store_management.database.sqlalchemy.models.OrderItem",
-        "base_mixins.BaseMixin",
-        "base_mixins.SearchMixin",
-        "base_mixins.FilterMixin",
-        "base_mixins.PaginationMixin",
-        "base_mixins.TransactionMixin",
-        "store_management.database.sqlalchemy.manager.DatabaseManagerSQLAlchemy"
-      ],
+      "imports": [],
       "classes": [],
       "functions": [],
+      "global_variables": []
+    },
+    "di\\config.py": {
+      "path": "di\\config.py",
+      "imports": [
+        "typing.Dict",
+        "typing.Any",
+        "typing.Type",
+        "typing.TypeVar",
+        "store_management.di.container.DependencyContainer",
+        "store_management.database.sqlalchemy.session.get_db_session",
+        "store_management.database.sqlalchemy.core.base_manager.BaseManager",
+        "store_management.database.sqlalchemy.core.manager_factory.get_manager",
+        "store_management.services.interfaces.storage_service.IStorageService",
+        "store_management.services.implementations.storage_service.StorageService",
+        "store_management.services.interfaces.order_service.IOrderService",
+        "store_management.services.implementations.order_service.OrderService",
+        "store_management.services.interfaces.recipe_service.IRecipeService",
+        "store_management.services.implementations.recipe_service.RecipeService",
+        "store_management.services.interfaces.shopping_list_service.IShoppingListService",
+        "store_management.services.implementations.shopping_list_service.ShoppingListService",
+        "store_management.services.interfaces.supplier_service.ISupplierService",
+        "store_management.services.implementations.supplier_service.SupplierService",
+        "store_management.database.sqlalchemy.core.specialized.storage_manager.StorageManager",
+        "store_management.database.sqlalchemy.core.specialized.order_manager.OrderManager",
+        "store_management.database.sqlalchemy.core.specialized.recipe_manager.RecipeManager",
+        "store_management.database.sqlalchemy.core.specialized.shopping_list_manager.ShoppingListManager",
+        "store_management.database.sqlalchemy.core.specialized.supplier_manager.SupplierManager"
+      ],
+      "classes": [
+        {
+          "name": "ApplicationConfig",
+          "docstring": "Dependency Injection Configuration for the Store Management Application.\n\nResponsible for:\n- Configuring the dependency injection container\n- Registering services and their dependencies\n- Providing a centralized configuration mechanism",
+          "methods": [
+            {
+              "name": "configure_container",
+              "docstring": "Configure the dependency injection container.\n\nThis method sets up the entire dependency graph for the application.\n\nReturns:\n    Configured DependencyContainer instance",
+              "args": [
+                "cls"
+              ]
+            },
+            {
+              "name": "_register_services",
+              "docstring": "Register all application services in the dependency container.\n\nArgs:\n    container: Dependency container to register services in",
+              "args": [
+                "cls",
+                "container"
+              ]
+            },
+            {
+              "name": "get_service",
+              "docstring": "Retrieve a service from the dependency container.\n\nArgs:\n    container: Dependency container\n    service_type: Type of service to retrieve\n\nReturns:\n    Resolved service instance",
+              "args": [
+                "cls",
+                "container",
+                "service_type"
+              ]
+            }
+          ],
+          "base_classes": []
+        }
+      ],
+      "functions": [],
       "global_variables": [
-        "__all__",
-        "__all__"
+        "T"
       ]
+    },
+    "di\\container.py": {
+      "path": "di\\container.py",
+      "imports": [
+        "typing.Any",
+        "typing.Type",
+        "typing.Callable",
+        "typing.Dict",
+        "typing.Optional",
+        "typing.TypeVar"
+      ],
+      "classes": [
+        {
+          "name": "DependencyContainer",
+          "docstring": "Advanced dependency injection container with comprehensive capabilities.\n\nProvides:\n- Singleton and transient dependency registration\n- Lazy initialization\n- Type-safe dependency resolution\n- Circular dependency detection\n- Flexible dependency management",
+          "methods": [
+            {
+              "name": "__init__",
+              "docstring": "Initialize the dependency container with empty registries.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_get_type_key",
+              "docstring": "Generate a unique string key for a given type.\n\nArgs:\n    type_: The type to generate a key for\n\nReturns:\n    A unique string representation of the type",
+              "args": [
+                "self",
+                "type_"
+              ]
+            },
+            {
+              "name": "register",
+              "docstring": "Register a dependency with advanced configuration options.\n\nArgs:\n    interface_type: The interface or base type to register\n    implementation_factory: Factory function to create the implementation\n    singleton: Whether to cache the instance (default: True)\n    dependencies: Optional dictionary of dependencies to inject\n\nRaises:\n    ValueError: If the dependency is already registered",
+              "args": [
+                "self",
+                "interface_type",
+                "implementation_factory",
+                "singleton",
+                "dependencies"
+              ]
+            },
+            {
+              "name": "resolve",
+              "docstring": "Resolve a dependency with advanced resolution strategy.\n\nArgs:\n    interface_type: The type/interface to resolve\n\nReturns:\n    Instance of the requested dependency\n\nRaises:\n    ValueError: If dependency is not registered or circular dependency is detected",
+              "args": [
+                "self",
+                "interface_type"
+              ]
+            },
+            {
+              "name": "get_service",
+              "docstring": "Alias for resolve method to maintain compatibility.\n\nArgs:\n    interface_type: The type/interface to resolve\n\nReturns:\n    Instance of the requested dependency",
+              "args": [
+                "self",
+                "interface_type"
+              ]
+            },
+            {
+              "name": "clear",
+              "docstring": "Clear all registered dependencies, singleton instances, and resolving state.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "get_all_registered_types",
+              "docstring": "Retrieve all registered dependency types.\n\nReturns:\n    List of registered type keys",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "is_registered",
+              "docstring": "Check if a dependency is already registered.\n\nArgs:\n    interface_type: The type to check for registration\n\nReturns:\n    bool: True if the dependency is registered, False otherwise",
+              "args": [
+                "self",
+                "interface_type"
+              ]
+            }
+          ],
+          "base_classes": []
+        }
+      ],
+      "functions": [],
+      "global_variables": [
+        "T"
+      ]
+    },
+    "di\\service.py": {
+      "path": "di\\service.py",
+      "imports": [
+        "abc",
+        "typing.TypeVar",
+        "typing.Type",
+        "typing.Generic",
+        "typing.Any",
+        "store_management.di.container.DependencyContainer"
+      ],
+      "classes": [
+        {
+          "name": "Service",
+          "docstring": "Base class for services that use dependency injection.",
+          "methods": [
+            {
+              "name": "__init__",
+              "docstring": "Initialize the service with a dependency container.\n\nArgs:\n    container: Dependency injection container",
+              "args": [
+                "self",
+                "container"
+              ]
+            },
+            {
+              "name": "get_dependency",
+              "docstring": "Get a dependency from the container.\n\nArgs:\n    dependency_type: Type of dependency to retrieve\n\nReturns:\n    Instance of the requested dependency",
+              "args": [
+                "self",
+                "dependency_type"
+              ]
+            }
+          ],
+          "base_classes": [
+            "abc.ABC"
+          ]
+        }
+      ],
+      "functions": [],
+      "global_variables": [
+        "T"
+      ]
+    },
+    "di\\__init__.py": {
+      "path": "di\\__init__.py",
+      "imports": [],
+      "classes": [],
+      "functions": [],
+      "global_variables": []
     },
     "gui\\base_view.py": {
       "path": "gui\\base_view.py",
@@ -644,16 +844,20 @@
         "tkinter",
         "tkinter.ttk",
         "tkinter.messagebox",
-        "application.Application"
+        "typing.Any",
+        "typing.Optional",
+        "typing.Type",
+        "store_management.application.Application",
+        "store_management.services.interfaces.base_service.IBaseService"
       ],
       "classes": [
         {
           "name": "BaseView",
-          "docstring": "Base class for all view components",
+          "docstring": "Base class for all view components in the application.\n\nProvides common functionality for GUI views:\n- Service resolution\n- Basic error handling\n- Message dialogs\n- Lifecycle management methods\n\nAttributes:\n    _app (Application): Reference to the main application instance\n    _parent (tk.Widget): Parent widget for this view",
           "methods": [
             {
               "name": "__init__",
-              "docstring": "",
+              "docstring": "Initialize the base view.\n\nArgs:\n    parent: Parent widget\n    app: Main application instance",
               "args": [
                 "self",
                 "parent",
@@ -661,36 +865,44 @@
               ]
             },
             {
+              "name": "get_service",
+              "docstring": "Retrieve a service from the application's dependency container.\n\nArgs:\n    service_type: Type of service to retrieve\n\nReturns:\n    Resolved service instance\n\nRaises:\n    ValueError: If service cannot be resolved",
+              "args": [
+                "self",
+                "service_type"
+              ]
+            },
+            {
               "name": "load_data",
-              "docstring": "Load data into the view",
+              "docstring": "Load initial data for the view.\n\nSubclasses should override this method to implement\ndata loading logic specific to the view.",
               "args": [
                 "self"
               ]
             },
             {
               "name": "save",
-              "docstring": "Save current data",
+              "docstring": "Save current view data.\n\nSubclasses should override this method to implement\ndata saving logic specific to the view.",
               "args": [
                 "self"
               ]
             },
             {
               "name": "undo",
-              "docstring": "Undo the last action",
+              "docstring": "Undo the last action in the view.\n\nSubclasses should override this method to implement\nundo functionality specific to the view.",
               "args": [
                 "self"
               ]
             },
             {
               "name": "redo",
-              "docstring": "Redo the last undone action",
+              "docstring": "Redo the last undone action in the view.\n\nSubclasses should override this method to implement\nredo functionality specific to the view.",
               "args": [
                 "self"
               ]
             },
             {
               "name": "show_error",
-              "docstring": "Show error message",
+              "docstring": "Display an error message dialog.\n\nArgs:\n    title: Title of the error dialog\n    message: Error message to display",
               "args": [
                 "self",
                 "title",
@@ -699,7 +911,7 @@
             },
             {
               "name": "show_info",
-              "docstring": "Show information message",
+              "docstring": "Display an information message dialog.\n\nArgs:\n    title: Title of the info dialog\n    message: Information message to display",
               "args": [
                 "self",
                 "title",
@@ -708,7 +920,7 @@
             },
             {
               "name": "show_warning",
-              "docstring": "Show warning message",
+              "docstring": "Display a warning message dialog.\n\nArgs:\n    title: Title of the warning dialog\n    message: Warning message to display",
               "args": [
                 "self",
                 "title",
@@ -717,7 +929,7 @@
             },
             {
               "name": "confirm",
-              "docstring": "Show confirmation dialog",
+              "docstring": "Show a confirmation dialog with Yes/No options.\n\nArgs:\n    title: Title of the confirmation dialog\n    message: Confirmation message to display\n\nReturns:\n    True if user clicks Yes, False otherwise",
               "args": [
                 "self",
                 "title",
@@ -726,7 +938,7 @@
             },
             {
               "name": "set_status",
-              "docstring": "Set status message in main window",
+              "docstring": "Set status message in the main window.\n\nArgs:\n    message: Status message to display",
               "args": [
                 "self",
                 "message"
@@ -746,24 +958,27 @@
       "imports": [
         "tkinter",
         "tkinter.ttk",
-        "tkinter.messagebox",
         "sys",
         "os",
-        "pathlib.Path",
-        "application.Application",
-        "storage.storage_view.StorageView",
-        "product.product_view.ProductView",
-        "order.order_view.OrderView",
-        "shopping_list.shopping_list_view.ShoppingListView"
+        "store_management.application.Application",
+        "store_management.gui.order.order_view.OrderView",
+        "store_management.gui.storage.storage_view.StorageView",
+        "store_management.gui.recipe.recipe_view.RecipeView",
+        "store_management.gui.shopping_list.shopping_list_view.ShoppingListView",
+        "store_management.services.interfaces.storage_service.IStorageService",
+        "store_management.services.interfaces.order_service.IOrderService",
+        "store_management.services.interfaces.inventory_service.IInventoryService",
+        "store_management.services.interfaces.recipe_service.IRecipeService",
+        "store_management.services.interfaces.shopping_list_service.IShoppingListService"
       ],
       "classes": [
         {
           "name": "MainWindow",
-          "docstring": "Main application window",
+          "docstring": "Main application window managing the core GUI structure.\n\nResponsibilities:\n- Create main application window\n- Manage application tabs\n- Handle global application-level interactions\n- Provide status bar and menu functionality",
           "methods": [
             {
               "name": "__init__",
-              "docstring": "",
+              "docstring": "Initialize the main application window.\n\nArgs:\n    root: Tkinter root window\n    app: Application instance for dependency management",
               "args": [
                 "self",
                 "root",
@@ -771,77 +986,98 @@
               ]
             },
             {
-              "name": "setup_ui",
-              "docstring": "Set up the main UI components",
+              "name": "_create_menu",
+              "docstring": "Create the main menu bar with application-wide options.",
               "args": [
                 "self"
               ]
             },
             {
-              "name": "bind_shortcuts",
-              "docstring": "Bind global keyboard shortcuts",
+              "name": "_create_main_notebook",
+              "docstring": "Create a notebook (tabbed) interface for different views.",
               "args": [
                 "self"
               ]
             },
             {
-              "name": "save",
-              "docstring": "Global save function",
+              "name": "_create_status_bar",
+              "docstring": "Create a status bar at the bottom of the application window.",
               "args": [
-                "self",
-                "event"
+                "self"
               ]
             },
             {
-              "name": "load",
-              "docstring": "Global load function",
-              "args": [
-                "self",
-                "event"
-              ]
-            },
-            {
-              "name": "search",
-              "docstring": "Global search function",
-              "args": [
-                "self",
-                "event"
-              ]
-            },
-            {
-              "name": "undo",
-              "docstring": "Global undo function",
-              "args": [
-                "self",
-                "event"
-              ]
-            },
-            {
-              "name": "redo",
-              "docstring": "Global redo function",
-              "args": [
-                "self",
-                "event"
-              ]
-            },
-            {
-              "name": "get_current_view",
-              "docstring": "Get the currently active view",
+              "name": "_bind_global_shortcuts",
+              "docstring": "Bind global keyboard shortcuts for common actions.",
               "args": [
                 "self"
               ]
             },
             {
               "name": "set_status",
-              "docstring": "Set status bar message",
+              "docstring": "Update the status bar message.\n\nArgs:\n    message: Status message to display",
               "args": [
                 "self",
                 "message"
               ]
             },
             {
+              "name": "_on_new",
+              "docstring": "Handle 'New' menu action.",
+              "args": [
+                "self",
+                "event"
+              ]
+            },
+            {
+              "name": "_on_open",
+              "docstring": "Handle 'Open' menu action.",
+              "args": [
+                "self",
+                "event"
+              ]
+            },
+            {
+              "name": "_on_save",
+              "docstring": "Handle 'Save' menu action.\n\nArgs:\n    event: Optional tkinter event (for keyboard shortcut)",
+              "args": [
+                "self",
+                "event"
+              ]
+            },
+            {
+              "name": "_on_undo",
+              "docstring": "Handle 'Undo' menu action.\n\nArgs:\n    event: Optional tkinter event (for keyboard shortcut)",
+              "args": [
+                "self",
+                "event"
+              ]
+            },
+            {
+              "name": "_on_redo",
+              "docstring": "Handle 'Redo' menu action.\n\nArgs:\n    event: Optional tkinter event (for keyboard shortcut)",
+              "args": [
+                "self",
+                "event"
+              ]
+            },
+            {
+              "name": "_get_current_view",
+              "docstring": "Get the currently selected view in the notebook.\n\nReturns:\n    Currently selected view or None",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_on_exit",
+              "docstring": "Handle application exit.\nPerforms cleanup and closes the application.",
+              "args": [
+                "self"
+              ]
+            },
+            {
               "name": "run",
-              "docstring": "Start the application main loop",
+              "docstring": "Start the main application event loop.",
               "args": [
                 "self"
               ]
@@ -876,22 +1112,21 @@
         "typing.Any",
         "typing.Tuple",
         "datetime.datetime",
-        "store_management.database.sqlalchemy.models.part.Part",
-        "store_management.database.sqlalchemy.models.leather.Leather",
-        "store_management.database.sqlalchemy.models.supplier.Supplier",
-        "store_management.database.sqlalchemy.models.enums.InventoryStatus",
-        "store_management.database.sqlalchemy.models.enums.TransactionType",
-        "store_management.database.sqlalchemy.models.transaction.InventoryTransaction",
-        "store_management.database.sqlalchemy.manager_factory.get_manager"
+        "store_management.database.sqlalchemy.models.Part.Part",
+        "store_management.database.sqlalchemy.models.Leather.Leather",
+        "store_management.database.sqlalchemy.models.InventoryStatus.InventoryStatus",
+        "store_management.database.sqlalchemy.models.TransactionType.TransactionType",
+        "store_management.database.sqlalchemy.models.InventoryTransaction.InventoryTransaction",
+        "store_management.database.sqlalchemy.core.manager_factory.get_manager"
       ],
       "classes": [
         {
           "name": "InventoryService",
-          "docstring": "Service for inventory management operations",
+          "docstring": "Service for inventory management operations.",
           "methods": [
             {
               "name": "__init__",
-              "docstring": "Initialize service with appropriate managers",
+              "docstring": "Initialize service with appropriate managers.",
               "args": [
                 "self"
               ]
@@ -905,6 +1140,34 @@
                 "quantity_change",
                 "transaction_type",
                 "notes"
+              ]
+            },
+            {
+              "name": "update_leather_area",
+              "docstring": "Update leather area with transaction tracking.\n\nArgs:\n    leather_id: Leather ID\n    area_change: Change in area (positive or negative)\n    transaction_type: Type of transaction\n    notes: Optional notes\n    wastage: Optional wastage area\n\nReturns:\n    Tuple of (success, message)",
+              "args": [
+                "self",
+                "leather_id",
+                "area_change",
+                "transaction_type",
+                "notes",
+                "wastage"
+              ]
+            },
+            {
+              "name": "get_low_stock_parts",
+              "docstring": "Get parts with low stock levels.\n\nArgs:\n    include_out_of_stock: Whether to include out of stock items\n\nReturns:\n    List of parts with low stock",
+              "args": [
+                "self",
+                "include_out_of_stock"
+              ]
+            },
+            {
+              "name": "get_low_stock_leather",
+              "docstring": "Get leather with low stock levels.\n\nArgs:\n    include_out_of_stock: Whether to include out of stock items\n\nReturns:\n    List of leather with low stock",
+              "args": [
+                "self",
+                "include_out_of_stock"
               ]
             }
           ],
@@ -1104,48 +1367,58 @@
         "typing.Optional",
         "typing.Dict",
         "typing.Any",
-        "store_management.database.sqlalchemy.models.storage.Storage",
-        "store_management.database.sqlalchemy.models.product.Product",
-        "store_management.database.sqlalchemy.manager_factory.get_manager"
+        "store_management.database.sqlalchemy.models.Storage",
+        "store_management.database.sqlalchemy.models.Product",
+        "store_management.services.interfaces.storage_service.IStorageService"
       ],
       "classes": [
         {
           "name": "StorageService",
-          "docstring": "Service for storage and product placement operations",
+          "docstring": "Service for managing storage locations.",
           "methods": [
             {
               "name": "__init__",
-              "docstring": "Initialize with appropriate managers",
+              "docstring": "Initialize StorageService with a database manager.\n\nArgs:\n    db_manager: Database manager for storage operations",
+              "args": [
+                "self",
+                "db_manager"
+              ]
+            },
+            {
+              "name": "get_all_storage_locations",
+              "docstring": "Retrieve all storage locations.\n\nReturns:\n    List of storage location dictionaries",
               "args": [
                 "self"
               ]
             },
             {
-              "name": "assign_product_to_storage",
-              "docstring": "Assign a product to a storage location.\n\nArgs:\n    product_id: Product ID\n    storage_id: Storage location ID\n\nReturns:\n    True if assignment succeeded, False otherwise",
+              "name": "get_storage_by_id",
+              "docstring": "Retrieve a specific storage location by ID.\n\nArgs:\n    storage_id: ID of the storage location\n\nReturns:\n    Storage location details or None if not found",
               "args": [
                 "self",
-                "product_id",
                 "storage_id"
               ]
             },
             {
-              "name": "get_storage_utilization",
-              "docstring": "Get utilization metrics for all storage locations.\n\nReturns:\n    List of dictionaries with utilization metrics",
+              "name": "_to_dict",
+              "docstring": "Convert a Storage model to a dictionary.\n\nArgs:\n    storage: Storage model instance\n\nReturns:\n    Dictionary representation of the storage location",
               "args": [
-                "self"
+                "self",
+                "storage"
               ]
             },
             {
-              "name": "create_storage_location",
-              "docstring": "Create a new storage location.\n\nArgs:\n    data: Storage location data\n\nReturns:\n    Created storage location or None if failed",
+              "name": "_product_to_dict",
+              "docstring": "Convert a Product model to a dictionary.\n\nArgs:\n    product: Product model instance\n\nReturns:\n    Dictionary representation of the product",
               "args": [
                 "self",
-                "data"
+                "product"
               ]
             }
           ],
-          "base_classes": []
+          "base_classes": [
+            "IStorageService"
+          ]
         }
       ],
       "functions": [],
@@ -1153,10 +1426,15 @@
     },
     "services\\__init__.py": {
       "path": "services\\__init__.py",
-      "imports": [],
+      "imports": [
+        "implementations.storage_service.StorageService",
+        "interfaces.storage_service.IStorageService"
+      ],
       "classes": [],
       "functions": [],
-      "global_variables": []
+      "global_variables": [
+        "__all__"
+      ]
     },
     "src\\database_init.py": {
       "path": "src\\database_init.py",
@@ -2621,6 +2899,1167 @@
       "functions": [],
       "global_variables": []
     },
+    "services\\implementations\\inventory_service.py": {
+      "path": "services\\implementations\\inventory_service.py",
+      "imports": [
+        "typing.List",
+        "typing.Optional",
+        "typing.Dict",
+        "typing.Any",
+        "typing.Tuple",
+        "typing.Type",
+        "typing.cast",
+        "datetime.datetime",
+        "store_management.di.service.Service",
+        "store_management.di.container.DependencyContainer",
+        "store_management.services.interfaces.inventory_service.IInventoryService",
+        "store_management.database.sqlalchemy.base_manager.BaseManager",
+        "store_management.database.sqlalchemy.models.part.Part",
+        "store_management.database.sqlalchemy.models.leather.Leather",
+        "store_management.database.sqlalchemy.models.enums.InventoryStatus",
+        "store_management.database.sqlalchemy.models.enums.TransactionType"
+      ],
+      "classes": [
+        {
+          "name": "InventoryService",
+          "docstring": "Service for inventory management operations.",
+          "methods": [
+            {
+              "name": "__init__",
+              "docstring": "Initialize service with appropriate managers.",
+              "args": [
+                "self",
+                "container"
+              ]
+            },
+            {
+              "name": "update_part_stock",
+              "docstring": "Update part stock with transaction tracking.\n\nArgs:\n    part_id: Part ID\n    quantity_change: Change in quantity (positive or negative)\n    transaction_type: Type of transaction\n    notes: Optional notes\n\nReturns:\n    Tuple of (success, message)",
+              "args": [
+                "self",
+                "part_id",
+                "quantity_change",
+                "transaction_type",
+                "notes"
+              ]
+            },
+            {
+              "name": "update_leather_area",
+              "docstring": "Update leather area with transaction tracking.\n\nArgs:\n    leather_id: Leather ID\n    area_change: Change in area (positive or negative)\n    transaction_type: Type of transaction\n    notes: Optional notes\n    wastage: Optional wastage area\n\nReturns:\n    Tuple of (success, message)",
+              "args": [
+                "self",
+                "leather_id",
+                "area_change",
+                "transaction_type",
+                "notes",
+                "wastage"
+              ]
+            },
+            {
+              "name": "get_low_stock_parts",
+              "docstring": "Get parts with low stock levels.\n\nArgs:\n    include_out_of_stock: Whether to include out of stock items\n\nReturns:\n    List of parts with low stock",
+              "args": [
+                "self",
+                "include_out_of_stock"
+              ]
+            },
+            {
+              "name": "get_low_stock_leather",
+              "docstring": "Get leather with low stock levels.\n\nArgs:\n    include_out_of_stock: Whether to include out of stock items\n\nReturns:\n    List of leather with low stock",
+              "args": [
+                "self",
+                "include_out_of_stock"
+              ]
+            },
+            {
+              "name": "_part_to_dict",
+              "docstring": "Convert Part model to dictionary.",
+              "args": [
+                "self",
+                "part"
+              ]
+            },
+            {
+              "name": "_leather_to_dict",
+              "docstring": "Convert Leather model to dictionary.",
+              "args": [
+                "self",
+                "leather"
+              ]
+            }
+          ],
+          "base_classes": [
+            "Service",
+            "IInventoryService"
+          ]
+        }
+      ],
+      "functions": [],
+      "global_variables": []
+    },
+    "services\\implementations\\order_service.py": {
+      "path": "services\\implementations\\order_service.py",
+      "imports": [
+        "typing.List",
+        "typing.Dict",
+        "typing.Any",
+        "typing.Optional",
+        "typing.Tuple",
+        "store_management.di.service.Service",
+        "store_management.di.container.DependencyContainer",
+        "store_management.services.interfaces.order_service.IOrderService",
+        "store_management.database.sqlalchemy.core.specialized.order_manager.OrderManager"
+      ],
+      "classes": [
+        {
+          "name": "OrderService",
+          "docstring": "Service for order management operations",
+          "methods": [
+            {
+              "name": "__init__",
+              "docstring": "Initialize with appropriate managers.\n\nArgs:\n    container: Dependency injection container",
+              "args": [
+                "self",
+                "container"
+              ]
+            },
+            {
+              "name": "get_all_orders",
+              "docstring": "Retrieve all orders.\n\nReturns:\n    List of order dictionaries",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "get_order_by_id",
+              "docstring": "Get order details by ID.\n\nArgs:\n    order_id: Order ID\n\nReturns:\n    Order details or None if not found",
+              "args": [
+                "self",
+                "order_id"
+              ]
+            },
+            {
+              "name": "create_order",
+              "docstring": "Create a new order.\n\nArgs:\n    order_data: Dictionary with order data\n\nReturns:\n    Created order or None",
+              "args": [
+                "self",
+                "order_data"
+              ]
+            },
+            {
+              "name": "update_order",
+              "docstring": "Update an existing order.\n\nArgs:\n    order_data: Dictionary with updated order information\n\nReturns:\n    Updated order or None",
+              "args": [
+                "self",
+                "order_data"
+              ]
+            },
+            {
+              "name": "delete_order",
+              "docstring": "Delete an order.\n\nArgs:\n    order_id: ID of the order to delete\n\nReturns:\n    True if deletion successful, False otherwise",
+              "args": [
+                "self",
+                "order_id"
+              ]
+            },
+            {
+              "name": "_to_dict",
+              "docstring": "Convert order model to dictionary.\n\nArgs:\n    order: Order model instance\n\nReturns:\n    Dictionary representation of the order",
+              "args": [
+                "self",
+                "order"
+              ]
+            }
+          ],
+          "base_classes": [
+            "Service",
+            "IOrderService"
+          ]
+        }
+      ],
+      "functions": [],
+      "global_variables": []
+    },
+    "services\\implementations\\recipe_service.py": {
+      "path": "services\\implementations\\recipe_service.py",
+      "imports": [
+        "typing.List",
+        "typing.Dict",
+        "typing.Any",
+        "typing.Optional",
+        "typing.Tuple",
+        "store_management.di.service.Service",
+        "store_management.di.container.DependencyContainer",
+        "store_management.services.interfaces.recipe_service.IRecipeService",
+        "store_management.database.sqlalchemy.core.specialized.recipe_manager.RecipeManager"
+      ],
+      "classes": [
+        {
+          "name": "RecipeService",
+          "docstring": "Service for recipe management operations",
+          "methods": [
+            {
+              "name": "__init__",
+              "docstring": "Initialize with appropriate managers.\n\nArgs:\n    container: Dependency injection container",
+              "args": [
+                "self",
+                "container"
+              ]
+            },
+            {
+              "name": "get_all_recipes",
+              "docstring": "Retrieve all recipes.\n\nReturns:\n    List of recipe dictionaries",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "get_recipe_by_id",
+              "docstring": "Get recipe details by ID.\n\nArgs:\n    recipe_id: Recipe ID\n\nReturns:\n    Recipe details or None if not found",
+              "args": [
+                "self",
+                "recipe_id"
+              ]
+            },
+            {
+              "name": "create_recipe",
+              "docstring": "Create a new recipe with items.\n\nArgs:\n    recipe_data: Dictionary with recipe data\n    items: Optional list of recipe item data\n\nReturns:\n    Tuple of (created recipe or None, result message)",
+              "args": [
+                "self",
+                "recipe_data",
+                "items"
+              ]
+            },
+            {
+              "name": "update_recipe",
+              "docstring": "Update an existing recipe.\n\nArgs:\n    recipe_id: ID of the recipe to update\n    recipe_data:\n    Updated recipe data\n    items: Optional list of recipe item data\n\nReturns:\n    Updated recipe or None",
+              "args": [
+                "self",
+                "recipe_id",
+                "recipe_data",
+                "items"
+              ]
+            },
+            {
+              "name": "delete_recipe",
+              "docstring": "Delete a recipe.\n\nArgs:\n    recipe_id: ID of the recipe to delete\n\nReturns:\n    True if deletion successful, False otherwise",
+              "args": [
+                "self",
+                "recipe_id"
+              ]
+            },
+            {
+              "name": "check_materials_availability",
+              "docstring": "Check if materials for a recipe are available in sufficient quantity.\n\nArgs:\n    recipe_id: Recipe ID\n    quantity: Number of items to produce\n\nReturns:\n    Tuple of (all materials available, list of missing items)",
+              "args": [
+                "self",
+                "recipe_id",
+                "quantity"
+              ]
+            },
+            {
+              "name": "_to_dict",
+              "docstring": "Convert recipe model to dictionary.\n\nArgs:\n    recipe: Recipe model instance\n\nReturns:\n    Dictionary representation of the recipe",
+              "args": [
+                "self",
+                "recipe"
+              ]
+            }
+          ],
+          "base_classes": [
+            "Service",
+            "IRecipeService"
+          ]
+        }
+      ],
+      "functions": [],
+      "global_variables": []
+    },
+    "services\\implementations\\shopping_list_service.py": {
+      "path": "services\\implementations\\shopping_list_service.py",
+      "imports": [
+        "typing.List",
+        "typing.Dict",
+        "typing.Any",
+        "typing.Optional",
+        "typing.Tuple",
+        "typing.cast",
+        "datetime.datetime",
+        "store_management.di.service.Service",
+        "store_management.di.container.DependencyContainer",
+        "store_management.services.interfaces.shopping_list_service.IShoppingListService",
+        "store_management.database.sqlalchemy.base_manager.BaseManager",
+        "store_management.database.sqlalchemy.models.shopping_list.ShoppingList",
+        "store_management.database.sqlalchemy.models.shopping_list.ShoppingListItem",
+        "store_management.database.sqlalchemy.models.part.Part",
+        "store_management.database.sqlalchemy.models.leather.Leather",
+        "store_management.database.sqlalchemy.models.supplier.Supplier"
+      ],
+      "classes": [
+        {
+          "name": "ShoppingListService",
+          "docstring": "Service for shopping list management operations",
+          "methods": [
+            {
+              "name": "__init__",
+              "docstring": "Initialize with appropriate managers",
+              "args": [
+                "self",
+                "container"
+              ]
+            },
+            {
+              "name": "create_shopping_list",
+              "docstring": "Create a new shopping list with optional items.\n\nArgs:\n    list_data: Shopping list data\n    items: Optional list of item data\n\nReturns:\n    Tuple of (created shopping list or None, result message)",
+              "args": [
+                "self",
+                "list_data",
+                "items"
+              ]
+            },
+            {
+              "name": "add_item_to_list",
+              "docstring": "Add an item to a shopping list.\n\nArgs:\n    list_id: Shopping list ID\n    item_data: Item data\n\nReturns:\n    Tuple of (created item or None, result message)",
+              "args": [
+                "self",
+                "list_id",
+                "item_data"
+              ]
+            },
+            {
+              "name": "mark_item_purchased",
+              "docstring": "Mark a shopping list item as purchased with purchase details.\n\nArgs:\n    item_id: Shopping list item ID\n    purchase_data: Purchase details (date, price)\n\nReturns:\n    Tuple of (success, message)",
+              "args": [
+                "self",
+                "item_id",
+                "purchase_data"
+              ]
+            },
+            {
+              "name": "get_pending_items_by_supplier",
+              "docstring": "Get pending items grouped by supplier.\n\nReturns:\n    Dictionary mapping supplier IDs to lists of pending items",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_get_shopping_list_with_items",
+              "docstring": "Get shopping list with its items.\n\nArgs:\n    list_id: Shopping list ID\n\nReturns:\n    Dictionary with shopping list and items or None if not found",
+              "args": [
+                "self",
+                "list_id"
+              ]
+            },
+            {
+              "name": "_shopping_list_to_dict",
+              "docstring": "Convert ShoppingList model to dictionary.",
+              "args": [
+                "self",
+                "shopping_list"
+              ]
+            },
+            {
+              "name": "_shopping_list_item_to_dict",
+              "docstring": "Convert ShoppingListItem model to dictionary.",
+              "args": [
+                "self",
+                "item"
+              ]
+            }
+          ],
+          "base_classes": [
+            "Service",
+            "IShoppingListService"
+          ]
+        }
+      ],
+      "functions": [],
+      "global_variables": []
+    },
+    "services\\implementations\\storage_service.py": {
+      "path": "services\\implementations\\storage_service.py",
+      "imports": [
+        "typing.List",
+        "typing.Optional",
+        "typing.Dict",
+        "typing.Any",
+        "store_management.di.service.Service",
+        "store_management.di.container.DependencyContainer",
+        "store_management.services.interfaces.storage_service.IStorageService",
+        "store_management.database.sqlalchemy.core.specialized.storage_manager.StorageManager"
+      ],
+      "classes": [
+        {
+          "name": "StorageService",
+          "docstring": "Concrete implementation of the IStorageService interface.\n\nThis class provides methods for managing storage locations and their inventory.",
+          "methods": [
+            {
+              "name": "__init__",
+              "docstring": "Initialize StorageService with a dependency container.\n\nArgs:\n    container: Dependency injection container",
+              "args": [
+                "self",
+                "container"
+              ]
+            },
+            {
+              "name": "get_all_storage_locations",
+              "docstring": "Retrieve all storage locations.\n\nReturns:\n    A list of dictionaries, each representing a storage location.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "get_storage_by_id",
+              "docstring": "Retrieve a specific storage location by its ID.\n\nArgs:\n    storage_id: The unique identifier of the storage location.\n\nReturns:\n    A dictionary representing the storage location if found, None otherwise.",
+              "args": [
+                "self",
+                "storage_id"
+              ]
+            },
+            {
+              "name": "create_storage_location",
+              "docstring": "Create a new storage location.\n\nArgs:\n    storage_data: Dictionary containing storage location information\n\nReturns:\n    Created storage location dictionary or None if creation fails",
+              "args": [
+                "self",
+                "storage_data"
+              ]
+            },
+            {
+              "name": "update_storage_location",
+              "docstring": "Update an existing storage location.\n\nArgs:\n    storage_id: ID of the storage location to update\n    storage_data: Dictionary with updated storage location information\n\nReturns:\n    Updated storage location dictionary or None if update fails",
+              "args": [
+                "self",
+                "storage_id",
+                "storage_data"
+              ]
+            },
+            {
+              "name": "delete_storage_location",
+              "docstring": "Delete a storage location.\n\nArgs:\n    storage_id: ID of the storage location to delete\n\nReturns:\n    True if deletion was successful, False otherwise",
+              "args": [
+                "self",
+                "storage_id"
+              ]
+            },
+            {
+              "name": "search_storage_locations",
+              "docstring": "Search storage locations by location or description.\n\nArgs:\n    search_term: Term to search for\n\nReturns:\n    List of matching storage locations",
+              "args": [
+                "self",
+                "search_term"
+              ]
+            },
+            {
+              "name": "get_storage_status",
+              "docstring": "Get detailed status of a storage location.\n\nArgs:\n    storage_id: ID of the storage location\n\nReturns:\n    Dictionary containing storage status details or None",
+              "args": [
+                "self",
+                "storage_id"
+              ]
+            },
+            {
+              "name": "_to_dict",
+              "docstring": "Convert storage model to dictionary.\n\nArgs:\n    storage: Storage model instance\n\nReturns:\n    Dictionary representation of the storage location",
+              "args": [
+                "self",
+                "storage"
+              ]
+            }
+          ],
+          "base_classes": [
+            "Service",
+            "IStorageService"
+          ]
+        }
+      ],
+      "functions": [],
+      "global_variables": []
+    },
+    "services\\implementations\\supplier_service.py": {
+      "path": "services\\implementations\\supplier_service.py",
+      "imports": [
+        "typing.List",
+        "typing.Optional",
+        "typing.Dict",
+        "typing.Any",
+        "store_management.di.service.Service",
+        "store_management.di.container.DependencyContainer",
+        "store_management.services.interfaces.supplier_service.ISupplierService",
+        "store_management.database.sqlalchemy.core.specialized.supplier_manager.SupplierManager"
+      ],
+      "classes": [
+        {
+          "name": "SupplierService",
+          "docstring": "Concrete implementation of the ISupplierService interface.\n\nProvides methods for managing supplier-related operations using the SupplierManager.",
+          "methods": [
+            {
+              "name": "__init__",
+              "docstring": "Initialize the SupplierService with a dependency container.\n\nArgs:\n    container: Dependency injection container",
+              "args": [
+                "self",
+                "container"
+              ]
+            },
+            {
+              "name": "get_all_suppliers",
+              "docstring": "Retrieve all suppliers.\n\nReturns:\n    List of dictionaries containing supplier information",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "get_supplier_by_id",
+              "docstring": "Retrieve a supplier by their ID.\n\nArgs:\n    supplier_id: The unique identifier of the supplier\n\nReturns:\n    Dictionary containing supplier information or None if not found",
+              "args": [
+                "self",
+                "supplier_id"
+              ]
+            },
+            {
+              "name": "create_supplier",
+              "docstring": "Create a new supplier.\n\nArgs:\n    supplier_data: Dictionary containing the new supplier's information\n\nReturns:\n    Dictionary containing the created supplier's information",
+              "args": [
+                "self",
+                "supplier_data"
+              ]
+            },
+            {
+              "name": "update_supplier",
+              "docstring": "Update an existing supplier's information.\n\nArgs:\n    supplier_id: The unique identifier of the supplier to update\n    supplier_data: Dictionary containing the updated supplier information\n\nReturns:\n    Updated supplier information or None if update fails",
+              "args": [
+                "self",
+                "supplier_id",
+                "supplier_data"
+              ]
+            },
+            {
+              "name": "delete_supplier",
+              "docstring": "Delete a supplier by their ID.\n\nArgs:\n    supplier_id: The unique identifier of the supplier to delete\n\nReturns:\n    True if the supplier was successfully deleted, False otherwise",
+              "args": [
+                "self",
+                "supplier_id"
+              ]
+            },
+            {
+              "name": "_to_dict",
+              "docstring": "Convert a supplier model to a dictionary.\n\nArgs:\n    supplier: Supplier model instance\n\nReturns:\n    Dictionary representation of the supplier",
+              "args": [
+                "self",
+                "supplier"
+              ]
+            }
+          ],
+          "base_classes": [
+            "Service",
+            "ISupplierService"
+          ]
+        }
+      ],
+      "functions": [],
+      "global_variables": []
+    },
+    "services\\implementations\\__init__.py": {
+      "path": "services\\implementations\\__init__.py",
+      "imports": [],
+      "classes": [],
+      "functions": [],
+      "global_variables": []
+    },
+    "services\\interfaces\\base_service.py": {
+      "path": "services\\interfaces\\base_service.py",
+      "imports": [
+        "abc.ABC",
+        "abc.abstractmethod"
+      ],
+      "classes": [
+        {
+          "name": "IBaseService",
+          "docstring": "Base interface for all services.\n\nThis abstract base class serves as a common ancestor for all service interfaces\nin the application. It doesn't define any methods itself but acts as a marker\ninterface to identify service classes.",
+          "methods": [],
+          "base_classes": [
+            "ABC"
+          ]
+        }
+      ],
+      "functions": [],
+      "global_variables": []
+    },
+    "services\\interfaces\\inventory_service.py": {
+      "path": "services\\interfaces\\inventory_service.py",
+      "imports": [
+        "abc.ABC",
+        "abc.abstractmethod",
+        "typing.List",
+        "typing.Optional",
+        "typing.Dict",
+        "typing.Any",
+        "typing.Tuple"
+      ],
+      "classes": [
+        {
+          "name": "IInventoryService",
+          "docstring": "Interface for inventory management operations.",
+          "methods": [
+            {
+              "name": "update_part_stock",
+              "docstring": "Update part stock with transaction tracking.\n\nArgs:\n    part_id: Part ID\n    quantity_change: Change in quantity (positive or negative)\n    transaction_type: Type of transaction\n    notes: Optional notes\n\nReturns:\n    Tuple of (success, message)",
+              "args": [
+                "self",
+                "part_id",
+                "quantity_change",
+                "transaction_type",
+                "notes"
+              ]
+            },
+            {
+              "name": "update_leather_area",
+              "docstring": "Update leather area with transaction tracking.\n\nArgs:\n    leather_id: Leather ID\n    area_change: Change in area (positive or negative)\n    transaction_type: Type of transaction\n    notes: Optional notes\n    wastage: Optional wastage area\n\nReturns:\n    Tuple of (success, message)",
+              "args": [
+                "self",
+                "leather_id",
+                "area_change",
+                "transaction_type",
+                "notes",
+                "wastage"
+              ]
+            },
+            {
+              "name": "get_low_stock_parts",
+              "docstring": "Get parts with low stock levels.\n\nArgs:\n    include_out_of_stock: Whether to include out of stock items\n\nReturns:\n    List of parts with low stock",
+              "args": [
+                "self",
+                "include_out_of_stock"
+              ]
+            },
+            {
+              "name": "get_low_stock_leather",
+              "docstring": "Get leather with low stock levels.\n\nArgs:\n    include_out_of_stock: Whether to include out of stock items\n\nReturns:\n    List of leather with low stock",
+              "args": [
+                "self",
+                "include_out_of_stock"
+              ]
+            }
+          ],
+          "base_classes": [
+            "ABC"
+          ]
+        }
+      ],
+      "functions": [],
+      "global_variables": []
+    },
+    "services\\interfaces\\order_service.py": {
+      "path": "services\\interfaces\\order_service.py",
+      "imports": [
+        "abc.ABC",
+        "abc.abstractmethod",
+        "typing.List",
+        "typing.Dict",
+        "typing.Any",
+        "typing.Optional",
+        "typing.Tuple",
+        "store_management.services.interfaces.base_service.IBaseService"
+      ],
+      "classes": [
+        {
+          "name": "IOrderService",
+          "docstring": "Interface for order management operations.\n\nDefines the contract for services handling order-related functionality.",
+          "methods": [
+            {
+              "name": "get_all_orders",
+              "docstring": "Retrieve all orders.\n\nReturns:\n    List of order dictionaries",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "get_order_by_id",
+              "docstring": "Get order details by ID.\n\nArgs:\n    order_id: Order ID\n\nReturns:\n    Order details or None if not found",
+              "args": [
+                "self",
+                "order_id"
+              ]
+            },
+            {
+              "name": "create_order",
+              "docstring": "Create a new order.\n\nArgs:\n    order_data: Dictionary with order data\n\nReturns:\n    Created order or None",
+              "args": [
+                "self",
+                "order_data"
+              ]
+            },
+            {
+              "name": "update_order",
+              "docstring": "Update an existing order.\n\nArgs:\n    order_data: Dictionary with updated order information\n\nReturns:\n    Updated order or None",
+              "args": [
+                "self",
+                "order_data"
+              ]
+            },
+            {
+              "name": "delete_order",
+              "docstring": "Delete an order.\n\nArgs:\n    order_id: ID of the order to delete\n\nReturns:\n    True if deletion successful, False otherwise",
+              "args": [
+                "self",
+                "order_id"
+              ]
+            }
+          ],
+          "base_classes": [
+            "IBaseService"
+          ]
+        }
+      ],
+      "functions": [],
+      "global_variables": []
+    },
+    "services\\interfaces\\recipe_service.py": {
+      "path": "services\\interfaces\\recipe_service.py",
+      "imports": [
+        "abc.ABC",
+        "abc.abstractmethod",
+        "typing.List",
+        "typing.Dict",
+        "typing.Any",
+        "typing.Optional",
+        "typing.Tuple",
+        "store_management.services.interfaces.base_service.IBaseService"
+      ],
+      "classes": [
+        {
+          "name": "IRecipeService",
+          "docstring": "Interface for recipe management operations.\n\nDefines the contract for services handling recipe-related functionality.",
+          "methods": [
+            {
+              "name": "get_all_recipes",
+              "docstring": "Retrieve all recipes.\n\nReturns:\n    List of recipe dictionaries",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "get_recipe_by_id",
+              "docstring": "Get recipe details by ID.\n\nArgs:\n    recipe_id: Recipe ID\n\nReturns:\n    Recipe details or None if not found",
+              "args": [
+                "self",
+                "recipe_id"
+              ]
+            },
+            {
+              "name": "create_recipe",
+              "docstring": "Create a new recipe with items.\n\nArgs:\n    recipe_data: Dictionary with recipe data\n    items: Optional list of recipe item data\n\nReturns:\n    Created recipe or None",
+              "args": [
+                "self",
+                "recipe_data",
+                "items"
+              ]
+            },
+            {
+              "name": "update_recipe",
+              "docstring": "Update an existing recipe.\n\nArgs:\n    recipe_id: ID of the recipe to update\n    recipe_data: Updated recipe data\n    items: Optional list of updated recipe items\n\nReturns:\n    Updated recipe or None",
+              "args": [
+                "self",
+                "recipe_id",
+                "recipe_data",
+                "items"
+              ]
+            },
+            {
+              "name": "delete_recipe",
+              "docstring": "Delete a recipe.\n\nArgs:\n    recipe_id: ID of the recipe to delete\n\nReturns:\n    True if deletion successful, False otherwise",
+              "args": [
+                "self",
+                "recipe_id"
+              ]
+            },
+            {
+              "name": "check_materials_availability",
+              "docstring": "Check if materials for a recipe are available in sufficient quantity.\n\nArgs:\n    recipe_id: Recipe ID\n    quantity: Number of items to produce\n\nReturns:\n    Tuple of (all materials available, list of missing items)",
+              "args": [
+                "self",
+                "recipe_id",
+                "quantity"
+              ]
+            }
+          ],
+          "base_classes": [
+            "IBaseService"
+          ]
+        }
+      ],
+      "functions": [],
+      "global_variables": []
+    },
+    "services\\interfaces\\shopping_list_service.py": {
+      "path": "services\\interfaces\\shopping_list_service.py",
+      "imports": [
+        "abc.ABC",
+        "abc.abstractmethod",
+        "typing.List",
+        "typing.Dict",
+        "typing.Any",
+        "typing.Optional",
+        "typing.Tuple",
+        "store_management.services.interfaces.base_service.IBaseService"
+      ],
+      "classes": [
+        {
+          "name": "IShoppingListService",
+          "docstring": "Interface for shopping list management operations.\n\nDefines the contract for services handling shopping list-related functionality.",
+          "methods": [
+            {
+              "name": "get_all_shopping_lists",
+              "docstring": "Retrieve all shopping lists.\n\nReturns:\n    List of shopping list dictionaries",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "get_shopping_list_by_id",
+              "docstring": "Get shopping list details by ID.\n\nArgs:\n    list_id: Shopping list ID\n\nReturns:\n    Shopping list details or None if not found",
+              "args": [
+                "self",
+                "list_id"
+              ]
+            },
+            {
+              "name": "create_shopping_list",
+              "docstring": "Create a new shopping list with optional items.\n\nArgs:\n    list_data: Shopping list data\n    items: Optional list of item data\n\nReturns:\n    Created shopping list or None",
+              "args": [
+                "self",
+                "list_data",
+                "items"
+              ]
+            },
+            {
+              "name": "update_shopping_list",
+              "docstring": "Update an existing shopping list.\n\nArgs:\n    list_id: ID of the shopping list to update\n    list_data: Updated shopping list data\n    items: Optional list of updated items\n\nReturns:\n    Updated shopping list or None",
+              "args": [
+                "self",
+                "list_id",
+                "list_data",
+                "items"
+              ]
+            },
+            {
+              "name": "delete_shopping_list",
+              "docstring": "Delete a shopping list.\n\nArgs:\n    list_id: ID of the shopping list to delete\n\nReturns:\n    True if deletion successful, False otherwise",
+              "args": [
+                "self",
+                "list_id"
+              ]
+            },
+            {
+              "name": "add_item_to_list",
+              "docstring": "Add an item to a shopping list.\n\nArgs:\n    list_id: Shopping list ID\n    item_data: Item data to add\n\nReturns:\n    Added item or None",
+              "args": [
+                "self",
+                "list_id",
+                "item_data"
+              ]
+            },
+            {
+              "name": "remove_item_from_list",
+              "docstring": "Remove an item from a shopping list.\n\nArgs:\n    list_id: Shopping list ID\n    item_id: Item ID to remove\n\nReturns:\n    True if removal successful, False otherwise",
+              "args": [
+                "self",
+                "list_id",
+                "item_id"
+              ]
+            },
+            {
+              "name": "mark_item_purchased",
+              "docstring": "Mark a shopping list item as purchased.\n\nArgs:\n    item_id: Shopping list item ID\n    purchase_data: Purchase details\n\nReturns:\n    Updated item or None",
+              "args": [
+                "self",
+                "item_id",
+                "purchase_data"
+              ]
+            },
+            {
+              "name": "search_shopping_lists",
+              "docstring": "Search shopping lists by name or description.\n\nArgs:\n    search_term: Term to search for\n\nReturns:\n    List of matching shopping lists",
+              "args": [
+                "self",
+                "search_term"
+              ]
+            }
+          ],
+          "base_classes": [
+            "IBaseService"
+          ]
+        }
+      ],
+      "functions": [],
+      "global_variables": []
+    },
+    "services\\interfaces\\storage_service.py": {
+      "path": "services\\interfaces\\storage_service.py",
+      "imports": [
+        "abc.ABC",
+        "abc.abstractmethod",
+        "typing.List",
+        "typing.Optional",
+        "typing.Dict",
+        "typing.Any",
+        "store_management.services.interfaces.base_service.IBaseService"
+      ],
+      "classes": [
+        {
+          "name": "IStorageService",
+          "docstring": "Interface for storage-related operations.\n\nDefines the contract for services managing storage locations\nThis interface establishes a standard set of methods for interacting\nwith storage locations in the application.",
+          "methods": [
+            {
+              "name": "get_all_storage_locations",
+              "docstring": "Retrieve all storage locations.\n\nReturns:\n    A list of dictionaries, each representing a storage location.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "get_storage_by_id",
+              "docstring": "Retrieve a specific storage location by its ID.\n\nArgs:\n    storage_id: The unique identifier of the storage location.\n\nReturns:\n    A dictionary representing the storage location if found, None otherwise.",
+              "args": [
+                "self",
+                "storage_id"
+              ]
+            },
+            {
+              "name": "create_storage_location",
+              "docstring": "Create a new storage location.\n\nArgs:\n    storage_data: Dictionary containing storage location information\n\nReturns:\n    Created storage location dictionary or None if creation fails",
+              "args": [
+                "self",
+                "storage_data"
+              ]
+            },
+            {
+              "name": "update_storage_location",
+              "docstring": "Update an existing storage location.\n\nArgs:\n    storage_id: ID of the storage location to update\n    storage_data: Dictionary with updated storage location information\n\nReturns:\n    Updated storage location dictionary or None if update fails",
+              "args": [
+                "self",
+                "storage_id",
+                "storage_data"
+              ]
+            },
+            {
+              "name": "delete_storage_location",
+              "docstring": "Delete a storage location.\n\nArgs:\n    storage_id: ID of the storage location to delete\n\nReturns:\n    True if deletion was successful, False otherwise",
+              "args": [
+                "self",
+                "storage_id"
+              ]
+            },
+            {
+              "name": "search_storage_locations",
+              "docstring": "Search storage locations by location or description.\n\nArgs:\n    search_term: Term to search for\n\nReturns:\n    List of matching storage locations",
+              "args": [
+                "self",
+                "search_term"
+              ]
+            },
+            {
+              "name": "get_storage_status",
+              "docstring": "Get detailed status of a storage location.\n\nArgs:\n    storage_id: ID of the storage location\n\nReturns:\n    Dictionary containing storage status details or None",
+              "args": [
+                "self",
+                "storage_id"
+              ]
+            }
+          ],
+          "base_classes": [
+            "IBaseService"
+          ]
+        }
+      ],
+      "functions": [],
+      "global_variables": []
+    },
+    "services\\interfaces\\supplier_service.py": {
+      "path": "services\\interfaces\\supplier_service.py",
+      "imports": [
+        "abc.ABC",
+        "abc.abstractmethod",
+        "typing.List",
+        "typing.Optional",
+        "typing.Dict",
+        "typing.Any",
+        "store_management.services.interfaces.base_service.IBaseService"
+      ],
+      "classes": [
+        {
+          "name": "ISupplierService",
+          "docstring": "Abstract base class defining the interface for supplier-related operations.\n\nThis interface provides a contract for supplier management services,\nensuring consistent method signatures across different implementations.",
+          "methods": [
+            {
+              "name": "get_all_suppliers",
+              "docstring": "Retrieve all suppliers.\n\nReturns:\n    List[Dict[str, Any]]: A list of dictionaries containing supplier information.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "get_supplier_by_id",
+              "docstring": "Retrieve a supplier by their ID.\n\nArgs:\n    supplier_id (int): The unique identifier of the supplier.\n\nReturns:\n    Optional[Dict[str, Any]]: A dictionary containing supplier information if found, None otherwise.",
+              "args": [
+                "self",
+                "supplier_id"
+              ]
+            },
+            {
+              "name": "create_supplier",
+              "docstring": "Create a new supplier.\n\nArgs:\n    supplier_data (Dict[str, Any]): A dictionary containing the new supplier's information.\n\nReturns:\n    Optional[Dict[str, Any]]: A dictionary containing the created supplier's information.",
+              "args": [
+                "self",
+                "supplier_data"
+              ]
+            },
+            {
+              "name": "update_supplier",
+              "docstring": "Update an existing supplier's information.\n\nArgs:\n    supplier_id (int): The unique identifier of the supplier to update.\n    supplier_data (Dict[str, Any]): A dictionary containing the updated supplier information.\n\nReturns:\n    Optional[Dict[str, Any]]: A dictionary containing the updated supplier information if successful, None otherwise.",
+              "args": [
+                "self",
+                "supplier_id",
+                "supplier_data"
+              ]
+            },
+            {
+              "name": "delete_supplier",
+              "docstring": "Delete a supplier by their ID.\n\nArgs:\n    supplier_id (int): The unique identifier of the supplier to delete.\n\nReturns:\n    bool: True if the supplier was successfully deleted, False otherwise.",
+              "args": [
+                "self",
+                "supplier_id"
+              ]
+            }
+          ],
+          "base_classes": [
+            "IBaseService"
+          ]
+        }
+      ],
+      "functions": [],
+      "global_variables": []
+    },
+    "services\\interfaces\\__init__.py": {
+      "path": "services\\interfaces\\__init__.py",
+      "imports": [],
+      "classes": [],
+      "functions": [],
+      "global_variables": []
+    },
+    "services\\services\\storage_service.py": {
+      "path": "services\\services\\storage_service.py",
+      "imports": [
+        "abc.ABC",
+        "abc.abstractmethod",
+        "typing.List",
+        "typing.Optional",
+        "typing.Dict",
+        "typing.Any"
+      ],
+      "classes": [
+        {
+          "name": "IStorageService",
+          "docstring": "Interface for storage service operations.",
+          "methods": [
+            {
+              "name": "get_all_storage_locations",
+              "docstring": "Get all storage locations.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "get_storage_by_id",
+              "docstring": "Get a storage location by ID.",
+              "args": [
+                "self",
+                "storage_id"
+              ]
+            }
+          ],
+          "base_classes": [
+            "ABC"
+          ]
+        }
+      ],
+      "functions": [],
+      "global_variables": []
+    },
+    "services\\services\\__init__.py": {
+      "path": "services\\services\\__init__.py",
+      "imports": [],
+      "classes": [],
+      "functions": [],
+      "global_variables": []
+    },
+    "services\\services\\implementations\\stoarage_service.py": {
+      "path": "services\\services\\implementations\\stoarage_service.py",
+      "imports": [
+        "typing.List",
+        "typing.Optional",
+        "typing.Dict",
+        "typing.Any",
+        "typing.Type",
+        "typing.cast",
+        "store_management.di.service.Service",
+        "store_management.di.container.DependencyContainer",
+        "store_management.services.interfaces.storage_service.IStorageService",
+        "store_management.database.sqlalchemy.base_manager.BaseManager",
+        "store_management.database.sqlalchemy.models.storage.Storage"
+      ],
+      "classes": [
+        {
+          "name": "StorageService",
+          "docstring": "Service for managing storage locations and their inventory.",
+          "methods": [
+            {
+              "name": "__init__",
+              "docstring": "",
+              "args": [
+                "self",
+                "container"
+              ]
+            },
+            {
+              "name": "get_all_storage_locations",
+              "docstring": "Get all storage locations.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "get_storage_by_id",
+              "docstring": "Get a storage location by ID.",
+              "args": [
+                "self",
+                "storage_id"
+              ]
+            },
+            {
+              "name": "_to_dict",
+              "docstring": "Convert Storage model to dictionary.",
+              "args": [
+                "self",
+                "storage"
+              ]
+            }
+          ],
+          "base_classes": [
+            "Service",
+            "IStorageService"
+          ]
+        }
+      ],
+      "functions": [],
+      "global_variables": []
+    },
+    "services\\services\\implementations\\__init__.py": {
+      "path": "services\\services\\implementations\\__init__.py",
+      "imports": [],
+      "classes": [],
+      "functions": [],
+      "global_variables": []
+    },
     "gui\\dialogs\\add_dialog.py": {
       "path": "gui\\dialogs\\add_dialog.py",
       "imports": [
@@ -2630,54 +4069,44 @@
         "typing.Dict",
         "typing.Callable",
         "typing.Optional",
-        "uuid"
+        "typing.List",
+        "typing.Union",
+        "typing.Tuple",
+        "uuid",
+        "typing.Dict",
+        "typing.Callable",
+        "typing.Optional",
+        "typing.List",
+        "typing.Union",
+        "typing.Tuple",
+        "typing.Any"
       ],
       "classes": [
         {
           "name": "AddDialog",
-          "docstring": "",
+          "docstring": "A flexible dialog for adding new entries with dynamic field generation.\n\nSupports different field types and provides validation mechanisms.\n\nAttributes:\n    _parent: Parent window\n    _save_callback: Function to call when save is triggered\n    _fields: List of field configurations\n    _entries: Dictionary to store entry widgets",
           "methods": [
             {
               "name": "__init__",
-              "docstring": "Initialize add dialog\n\nArgs:\n    parent: Parent window\n    save_callback: Function to call with form data on save\n    fields: List of tuples (field_name, display_name, required, field_type)\n           field_type can be 'string', 'float', or 'text'",
+              "docstring": "Initialize the add dialog.\n\nArgs:\n    parent: Parent window\n    save_callback: Function called with form data on save\n    fields: List of field tuples (field_name, display_name, required, field_type)\n    title: Dialog title\n\nField Types:\n    - 'string': Text entry\n    - 'text': Multiline text entry\n    - 'float': Numeric entry (floating-point)\n    - 'int': Integer entry\n    - 'boolean': Checkbox",
               "args": [
                 "self",
                 "parent",
                 "save_callback",
-                "fields"
+                "fields",
+                "title"
               ]
             },
             {
-              "name": "show_storage_dialog",
-              "docstring": "",
+              "name": "_create_ui",
+              "docstring": "Create dialog user interface with dynamic fields.",
               "args": [
                 "self"
               ]
             },
             {
-              "name": "setup_ui",
-              "docstring": "Setup the dialog UI components",
-              "args": [
-                "self"
-              ]
-            },
-            {
-              "name": "get_field_values",
-              "docstring": "Get all field values from entries",
-              "args": [
-                "self"
-              ]
-            },
-            {
-              "name": "validate_required_fields",
-              "docstring": "Validate that all required fields have values",
-              "args": [
-                "self"
-              ]
-            },
-            {
-              "name": "save",
-              "docstring": "Validate and save the form data",
+              "name": "_on_save",
+              "docstring": "Handle save action, validate and process form data.",
               "args": [
                 "self"
               ]
@@ -2697,16 +4126,17 @@
         "tkinter",
         "tkinter.ttk",
         "typing.Optional",
-        "typing.Tuple"
+        "typing.Tuple",
+        "typing.Callable"
       ],
       "classes": [
         {
           "name": "BaseDialog",
-          "docstring": "Base class for all dialogs in the application",
+          "docstring": "Base class for all dialog windows in the application.\n\nProvides common dialog functionality:\n- Centered positioning\n- Standardized button layout\n- Modal window support\n- Basic validation mechanism\n\nAttributes:\n    parent (tk.Tk or tk.Toplevel): Parent window\n    title (str): Dialog title\n    size (Optional[Tuple[int, int]]): Optional dialog size\n    modal (bool): Whether the dialog should be modal",
           "methods": [
             {
               "name": "__init__",
-              "docstring": "Initialize base dialog\n\nArgs:\n    parent: Parent window\n    title: Dialog title\n    size: Dialog size as (width, height)\n    modal: Whether dialog should be modal",
+              "docstring": "Initialize the base dialog.\n\nArgs:\n    parent: Parent window\n    title: Dialog title\n    size: Optional dialog size (width, height)\n    modal: Whether the dialog should block parent window interaction",
               "args": [
                 "self",
                 "parent",
@@ -2716,15 +4146,32 @@
               ]
             },
             {
-              "name": "center_on_parent",
-              "docstring": "Center the dialog on its parent window",
+              "name": "_create_main_frame",
+              "docstring": "Create the main content frame for dialog content.\nSubclasses should override and add specific content.",
               "args": [
                 "self"
               ]
             },
             {
+              "name": "_create_button_frame",
+              "docstring": "Create a standard button frame with OK and Cancel buttons.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "add_ok_cancel_buttons",
+              "docstring": "Add standard OK and Cancel buttons to the dialog.\n\nArgs:\n    ok_text: Text for the OK button\n    cancel_text: Text for the Cancel button\n    ok_command: Optional custom command for OK button",
+              "args": [
+                "self",
+                "ok_text",
+                "cancel_text",
+                "ok_command"
+              ]
+            },
+            {
               "name": "add_button",
-              "docstring": "Add a button to the standard button frame\n\nArgs:\n    text: Button text\n    command: Button command\n    side: Pack side (tk.RIGHT or tk.LEFT)\n    width: Button width\n    default: Whether this is the default button\n\nReturns:\n    The created button",
+              "docstring": "Add a custom button to the button frame.\n\nArgs:\n    text: Button text\n    command: Button click command\n    side: Side to pack the button (default: right)\n    width: Button width\n    default: Whether this is the default button\n\nReturns:\n    The created button",
               "args": [
                 "self",
                 "text",
@@ -2735,18 +4182,15 @@
               ]
             },
             {
-              "name": "add_ok_cancel_buttons",
-              "docstring": "Add standard OK and Cancel buttons",
+              "name": "center_on_parent",
+              "docstring": "Center the dialog on its parent window.",
               "args": [
-                "self",
-                "ok_text",
-                "cancel_text",
-                "ok_command"
+                "self"
               ]
             },
             {
               "name": "ok",
-              "docstring": "OK button handler",
+              "docstring": "Standard OK button handler.\nSubclasses should override to add specific validation logic.\n\nArgs:\n    event: Optional tkinter event",
               "args": [
                 "self",
                 "event"
@@ -2754,7 +4198,7 @@
             },
             {
               "name": "cancel",
-              "docstring": "Cancel button handler",
+              "docstring": "Standard Cancel button handler.\n\nArgs:\n    event: Optional tkinter event",
               "args": [
                 "self",
                 "event"
@@ -2762,7 +4206,7 @@
             },
             {
               "name": "validate",
-              "docstring": "Validate dialog contents\nOverride in subclasses to implement validation",
+              "docstring": "Validate dialog contents before closing.\n\nSubclasses should override to implement specific validation.\n\nReturns:\n    True if validation passes, False otherwise",
               "args": [
                 "self"
               ]
@@ -3127,6 +4571,260 @@
             {
               "name": "cleanup",
               "docstring": "Cleanup resources and handle unsaved changes",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": [
+            "BaseView"
+          ]
+        }
+      ],
+      "functions": [],
+      "global_variables": []
+    },
+    "gui\\order\\order_dialog.py": {
+      "path": "gui\\order\\order_dialog.py",
+      "imports": [
+        "tkinter",
+        "tkinter.ttk",
+        "tkinter.messagebox",
+        "typing.List",
+        "typing.Dict",
+        "typing.Any",
+        "typing.Optional",
+        "typing.Callable",
+        "datetime.datetime",
+        "store_management.gui.dialogs.base_dialog.BaseDialog"
+      ],
+      "classes": [
+        {
+          "name": "AddOrderDialog",
+          "docstring": "Flexible dialog for creating and editing orders.\n\nSupports:\n- Dynamic field generation\n- Supplier selection\n- Validation\n- Editing existing orders",
+          "methods": [
+            {
+              "name": "__init__",
+              "docstring": "Initialize the order dialog.\n\nArgs:\n    parent: Parent window\n    save_callback: Function to call when saving order\n    fields: Optional list of field configurations\n    suppliers: List of available suppliers\n    existing_data: Existing order data for editing\n    title: Dialog title",
+              "args": [
+                "self",
+                "parent",
+                "save_callback",
+                "fields",
+                "suppliers",
+                "existing_data",
+                "title"
+              ]
+            },
+            {
+              "name": "_create_main_frame",
+              "docstring": "Create dialog main frame with dynamic fields and order items section.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_create_order_details_fields",
+              "docstring": "Create dynamic fields for order details.\n\nArgs:\n    parent: Parent frame to add fields to",
+              "args": [
+                "self",
+                "parent"
+              ]
+            },
+            {
+              "name": "_create_order_items_section",
+              "docstring": "Create section for managing order items.\n\nArgs:\n    parent: Parent frame to add items section to",
+              "args": [
+                "self",
+                "parent"
+              ]
+            },
+            {
+              "name": "_show_add_item_dialog",
+              "docstring": "Show dialog to add a new order item.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_remove_selected_item",
+              "docstring": "Remove selected order item.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "ok",
+              "docstring": "Save order data when OK is pressed.\n\nArgs:\n    event: Optional tkinter event",
+              "args": [
+                "self",
+                "event"
+              ]
+            },
+            {
+              "name": "validate",
+              "docstring": "Validate order data before saving.\n\nReturns:\n    True if validation passes, False otherwise",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": [
+            "BaseDialog"
+          ]
+        }
+      ],
+      "functions": [],
+      "global_variables": []
+    },
+    "gui\\order\\order_view.py": {
+      "path": "gui\\order\\order_view.py",
+      "imports": [
+        "tkinter",
+        "tkinter.ttk",
+        "tkinter.messagebox",
+        "typing.List",
+        "typing.Dict",
+        "typing.Any",
+        "typing.Optional",
+        "store_management.application.Application",
+        "store_management.gui.base_view.BaseView",
+        "store_management.services.interfaces.order_service.IOrderService",
+        "store_management.services.interfaces.supplier_service.ISupplierService"
+      ],
+      "classes": [
+        {
+          "name": "OrderView",
+          "docstring": "Comprehensive view for managing orders with:\n- Treeview for listing orders\n- Detailed order information display\n- Actions for creating, editing, and managing orders",
+          "methods": [
+            {
+              "name": "__init__",
+              "docstring": "Initialize the Order View.\n\nArgs:\n    parent: Parent widget\n    app: Application instance",
+              "args": [
+                "self",
+                "parent",
+                "app"
+              ]
+            },
+            {
+              "name": "setup_ui",
+              "docstring": "Set up the UI components.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "create_toolbar",
+              "docstring": "Create toolbar with order management actions.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "create_order_list",
+              "docstring": "Create treeview to display list of orders.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "create_order_details",
+              "docstring": "Create detailed view for selected order.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "load_data",
+              "docstring": "Load orders from the order service.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "show_add_order_dialog",
+              "docstring": "Show dialog to add a new order.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_save_new_order",
+              "docstring": "Save a new order.\n\nArgs:\n    order_data: Dictionary containing order information",
+              "args": [
+                "self",
+                "order_data"
+              ]
+            },
+            {
+              "name": "_on_order_select",
+              "docstring": "Handle order selection in treeview.\n\nArgs:\n    event: Tkinter event (optional)",
+              "args": [
+                "self",
+                "event"
+              ]
+            },
+            {
+              "name": "_load_order_details",
+              "docstring": "Load details for a specific order.\n\nArgs:\n    order_id: ID of the order to load details for",
+              "args": [
+                "self",
+                "order_id"
+              ]
+            },
+            {
+              "name": "_edit_order",
+              "docstring": "Edit the selected order.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_save_edited_order",
+              "docstring": "Save edited order details.\n\nArgs:\n    order_data: Updated order information",
+              "args": [
+                "self",
+                "order_data"
+              ]
+            },
+            {
+              "name": "delete_order",
+              "docstring": "Delete the selected order.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_show_search_dialog",
+              "docstring": "Show search dialog for orders.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "save",
+              "docstring": "Save current view data.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "undo",
+              "docstring": "Undo the last action.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "redo",
+              "docstring": "Redo the last undone action.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "cleanup",
+              "docstring": "Perform cleanup when view is closed.",
               "args": [
                 "self"
               ]
@@ -3698,6 +5396,145 @@
       "functions": [],
       "global_variables": []
     },
+    "gui\\recipe\\recipe_view.py": {
+      "path": "gui\\recipe\\recipe_view.py",
+      "imports": [
+        "tkinter",
+        "tkinter.ttk",
+        "tkinter.messagebox",
+        "typing.List",
+        "typing.Dict",
+        "typing.Any",
+        "typing.Optional",
+        "datetime.datetime",
+        "store_management.application.Application",
+        "store_management.gui.base_view.BaseView",
+        "store_management.services.interfaces.recipe_service.IRecipeService",
+        "store_management.services.interfaces.inventory_service.IInventoryService"
+      ],
+      "classes": [
+        {
+          "name": "RecipeView",
+          "docstring": "View for managing recipes with comprehensive functionality.",
+          "methods": [
+            {
+              "name": "__init__",
+              "docstring": "Initialize the recipe view.\n\nArgs:\n    parent: Parent widget\n    app: Application instance for dependency management",
+              "args": [
+                "self",
+                "parent",
+                "app"
+              ]
+            },
+            {
+              "name": "setup_ui",
+              "docstring": "Set up the UI components for the recipe view.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "create_toolbar",
+              "docstring": "Create the toolbar with action buttons.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "create_recipes_treeview",
+              "docstring": "Create the treeview for displaying recipes.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "create_details_view",
+              "docstring": "Create the recipe details view.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "create_info_view",
+              "docstring": "Create the recipe info view.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "create_items_view",
+              "docstring": "Create the recipe items view.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "on_recipe_select",
+              "docstring": "Handle recipe selection in treeview.",
+              "args": [
+                "self",
+                "event"
+              ]
+            },
+            {
+              "name": "load_recipe_details",
+              "docstring": "Load details for a specific recipe.\n\nArgs:\n    recipe_id: ID of the recipe to load",
+              "args": [
+                "self",
+                "recipe_id"
+              ]
+            },
+            {
+              "name": "show_add_recipe_dialog",
+              "docstring": "Show dialog for adding a new recipe.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "edit_recipe",
+              "docstring": "Edit the selected recipe.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "delete_recipe",
+              "docstring": "Delete the selected recipe.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "load_data",
+              "docstring": "Load recipe data from service.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "cleanup",
+              "docstring": "Perform cleanup when view is closed.",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": [
+            "BaseView"
+          ]
+        }
+      ],
+      "functions": [],
+      "global_variables": []
+    },
+    "gui\\recipe\\__init__.py": {
+      "path": "gui\\recipe\\__init__.py",
+      "imports": [],
+      "classes": [],
+      "functions": [],
+      "global_variables": []
+    },
     "gui\\reports\\report_manager.py": {
       "path": "gui\\reports\\report_manager.py",
       "imports": [],
@@ -3707,6 +5544,186 @@
     },
     "gui\\reports\\__init__.py": {
       "path": "gui\\reports\\__init__.py",
+      "imports": [],
+      "classes": [],
+      "functions": [],
+      "global_variables": []
+    },
+    "gui\\shopping_list\\shopping_list_view.py": {
+      "path": "gui\\shopping_list\\shopping_list_view.py",
+      "imports": [
+        "tkinter",
+        "tkinter.ttk",
+        "tkinter.messagebox",
+        "typing.List",
+        "typing.Dict",
+        "typing.Any",
+        "typing.Optional",
+        "datetime.datetime",
+        "store_management.application.Application",
+        "store_management.gui.base_view.BaseView",
+        "store_management.services.interfaces.shopping_list_service.IShoppingListService"
+      ],
+      "classes": [
+        {
+          "name": "ShoppingListView",
+          "docstring": "View for managing shopping lists",
+          "methods": [
+            {
+              "name": "__init__",
+              "docstring": "Initialize the shopping list view.\n\nArgs:\n    parent: Parent widget\n    app: Application instance",
+              "args": [
+                "self",
+                "parent",
+                "app"
+              ]
+            },
+            {
+              "name": "setup_ui",
+              "docstring": "Set up the UI components.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "create_toolbar",
+              "docstring": "Create the toolbar with action buttons.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "create_lists_treeview",
+              "docstring": "Create the treeview for displaying shopping lists.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "create_details_view",
+              "docstring": "Create the shopping list details view.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "create_info_view",
+              "docstring": "Create the shopping list info view.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "create_items_view",
+              "docstring": "Create the shopping list items view.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "load_data",
+              "docstring": "Load shopping list data from service.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "on_list_select",
+              "docstring": "Handle shopping list selection.\n\nArgs:\n    event: Tkinter event (optional)",
+              "args": [
+                "self",
+                "event"
+              ]
+            },
+            {
+              "name": "load_list_details",
+              "docstring": "Load details for a specific shopping list.\n\nArgs:\n    list_id: ID of the shopping list to load",
+              "args": [
+                "self",
+                "list_id"
+              ]
+            },
+            {
+              "name": "show_add_list_dialog",
+              "docstring": "Show dialog for creating a new shopping list.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "show_add_item_dialog",
+              "docstring": "Show dialog for adding an item to the shopping list.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "show_mark_purchased_dialog",
+              "docstring": "Show dialog for marking an item as purchased.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "remove_item",
+              "docstring": "Remove selected item from the shopping list.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "delete_list",
+              "docstring": "Delete the selected shopping list.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "show_search_dialog",
+              "docstring": "Show search dialog for shopping lists.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "save",
+              "docstring": "Save current view data.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "undo",
+              "docstring": "Undo the last action.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "redo",
+              "docstring": "Redo the last undone action.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "cleanup",
+              "docstring": "Perform cleanup when view is closed.",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": [
+            "BaseView"
+          ]
+        }
+      ],
+      "functions": [],
+      "global_variables": []
+    },
+    "gui\\shopping_list\\__init__.py": {
+      "path": "gui\\shopping_list\\__init__.py",
       "imports": [],
       "classes": [],
       "functions": [],
@@ -3854,16 +5871,22 @@
         "tkinter",
         "tkinter.ttk",
         "tkinter.messagebox",
-        "application.Application"
+        "typing.Optional",
+        "typing.List",
+        "typing.Dict",
+        "typing.Any",
+        "store_management.application.Application",
+        "store_management.gui.base_view.BaseView",
+        "store_management.services.interfaces.storage_service.IStorageService"
       ],
       "classes": [
         {
           "name": "StorageView",
-          "docstring": "Storage view for managing storage locations",
+          "docstring": "Storage view for managing storage locations.",
           "methods": [
             {
               "name": "__init__",
-              "docstring": "",
+              "docstring": "Initialize the storage view.\n\nArgs:\n    parent: Parent widget\n    app: Application instance",
               "args": [
                 "self",
                 "parent",
@@ -3872,28 +5895,42 @@
             },
             {
               "name": "setup_ui",
-              "docstring": "Set up the UI components",
+              "docstring": "Set up the UI components.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "create_toolbar",
+              "docstring": "Create the toolbar with action buttons.",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "create_treeview",
+              "docstring": "Create the treeview for displaying storage locations.",
               "args": [
                 "self"
               ]
             },
             {
               "name": "load_data",
-              "docstring": "Load storage data from service",
+              "docstring": "Load storage data from service.",
               "args": [
                 "self"
               ]
             },
             {
               "name": "show_add_dialog",
-              "docstring": "Show dialog for adding a new storage location",
+              "docstring": "Show dialog for adding a new storage location.",
               "args": [
                 "self"
               ]
             },
             {
               "name": "on_double_click",
-              "docstring": "Handle double-click event",
+              "docstring": "Handle double-click event for editing.",
               "args": [
                 "self",
                 "event"
@@ -3901,7 +5938,7 @@
             },
             {
               "name": "start_cell_edit",
-              "docstring": "Start editing a cell",
+              "docstring": "Start editing a cell.",
               "args": [
                 "self",
                 "item",
@@ -3910,7 +5947,7 @@
             },
             {
               "name": "delete_selected",
-              "docstring": "Delete selected storage locations",
+              "docstring": "Delete selected storage locations.",
               "args": [
                 "self",
                 "event"
@@ -3918,14 +5955,14 @@
             },
             {
               "name": "show_search_dialog",
-              "docstring": "Show search dialog",
+              "docstring": "Show search dialog.",
               "args": [
                 "self"
               ]
             }
           ],
           "base_classes": [
-            "ttk.Frame"
+            "BaseView"
           ]
         }
       ],
@@ -4036,13 +6073,39 @@
     "database\\models\\base.py": {
       "path": "database\\models\\base.py",
       "imports": [
-        "sqlalchemy.ext.declarative.declarative_base"
+        "sqlalchemy.orm.DeclarativeBase",
+        "sqlalchemy.Column",
+        "sqlalchemy.Integer",
+        "sqlalchemy.DateTime",
+        "datetime.datetime"
       ],
-      "classes": [],
+      "classes": [
+        {
+          "name": "Base",
+          "docstring": "Base declarative model for all database models.\nProvides common fields and behaviors.",
+          "methods": [
+            {
+              "name": "__repr__",
+              "docstring": "Default string representation of the model.\n\nReturns:\n    String representation with class name and ID",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "to_dict",
+              "docstring": "Convert model instance to dictionary.\n\nReturns:\n    Dictionary representation of the model",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": [
+            "DeclarativeBase"
+          ]
+        }
+      ],
       "functions": [],
-      "global_variables": [
-        "Base"
-      ]
+      "global_variables": []
     },
     "database\\models\\enums.py": {
       "path": "database\\models\\enums.py",
@@ -4219,15 +6282,12 @@
       "functions": [],
       "global_variables": []
     },
-    "database\\models\\prdouct.py": {
-      "path": "database\\models\\prdouct.py",
+    "database\\models\\product.py": {
+      "path": "database\\models\\product.py",
       "imports": [
-        "datetime.datetime",
         "sqlalchemy.Column",
-        "sqlalchemy.Integer",
         "sqlalchemy.String",
         "sqlalchemy.Float",
-        "sqlalchemy.DateTime",
         "sqlalchemy.ForeignKey",
         "sqlalchemy.orm.relationship",
         "base.Base"
@@ -4235,11 +6295,11 @@
       "classes": [
         {
           "name": "Product",
-          "docstring": "Product model",
+          "docstring": "Product model representing items that can be stored in storage locations.",
           "methods": [
             {
               "name": "__repr__",
-              "docstring": "",
+              "docstring": "String representation of the Product.\n\nReturns:\n    String with product name and ID",
               "args": [
                 "self"
               ]
@@ -4357,23 +6417,21 @@
     "database\\models\\storage.py": {
       "path": "database\\models\\storage.py",
       "imports": [
-        "datetime.datetime",
         "sqlalchemy.Column",
-        "sqlalchemy.Integer",
         "sqlalchemy.String",
         "sqlalchemy.Float",
-        "sqlalchemy.DateTime",
+        "sqlalchemy.Integer",
         "sqlalchemy.orm.relationship",
-        "base.Base"
+        "store_management.database.sqlalchemy.base.Base"
       ],
       "classes": [
         {
           "name": "Storage",
-          "docstring": "Storage location model",
+          "docstring": "Storage model representing locations where products can be stored.\n\nAttributes:\n    id (int): Unique identifier for the storage location.\n    location (str): Specific location identifier.\n    description (str, optional): Description of the storage location.\n    capacity (float, optional): Total capacity of the storage location.\n    current_usage (float, optional): Current usage of the storage location.",
           "methods": [
             {
               "name": "__repr__",
-              "docstring": "",
+              "docstring": "String representation of the Storage instance.\n\nReturns:\n    str: Representation of the storage location with ID and location.",
               "args": [
                 "self"
               ]
@@ -4423,7 +6481,6 @@
     "database\\models\\transaction.py": {
       "path": "database\\models\\transaction.py",
       "imports": [
-        "datetime.datetime",
         "sqlalchemy.Column",
         "sqlalchemy.Integer",
         "sqlalchemy.String",
@@ -4431,14 +6488,16 @@
         "sqlalchemy.DateTime",
         "sqlalchemy.ForeignKey",
         "sqlalchemy.Enum",
+        "sqlalchemy.Boolean",
         "sqlalchemy.orm.relationship",
-        "base.Base",
-        "enums.TransactionType"
+        "datetime.datetime",
+        "store_management.database.sqlalchemy.base.Base",
+        "store_management.database.sqlalchemy.models.enums.TransactionType"
       ],
       "classes": [
         {
           "name": "InventoryTransaction",
-          "docstring": "Transaction for part inventory changes",
+          "docstring": "Transaction model for tracking part inventory changes.\n\nAttributes:\n    id (int): Unique identifier for the transaction\n    part_id (int): Foreign key to the part involved\n    quantity_change (float): Change in quantity (positive or negative)\n    transaction_type (TransactionType): Type of transaction\n    notes (str): Additional notes about the transaction\n    created_at (datetime): Timestamp of transaction creation",
           "methods": [
             {
               "name": "__repr__",
@@ -4454,7 +6513,7 @@
         },
         {
           "name": "LeatherTransaction",
-          "docstring": "Transaction for leather inventory changes",
+          "docstring": "Transaction model for tracking leather inventory changes.\n\nAttributes:\n    id (int): Unique identifier for the transaction\n    leather_id (int): Foreign key to the leather involved\n    area_change (float): Change in area (positive or negative)\n    transaction_type (TransactionType): Type of transaction\n    notes (str): Additional notes about the transaction\n    wastage (float): Area lost during transaction\n    created_at (datetime): Timestamp of transaction creation",
           "methods": [
             {
               "name": "__repr__",
@@ -4481,23 +6540,25 @@
         "enums.TransactionType",
         "enums.OrderStatus",
         "enums.PaymentStatus",
+        "part.Part",
         "storage.Storage",
         "product.Product",
-        "supplier.Supplier",
-        "part.Part",
-        "leather.Leather",
-        "recipe.Recipe",
-        "recipe.RecipeItem",
         "order.Order",
         "order.OrderItem",
+        "supplier.Supplier",
+        "recipe.Recipe",
+        "recipe.RecipeItem",
         "shopping_list.ShoppingList",
         "shopping_list.ShoppingListItem",
+        "leather.Leather",
         "transaction.InventoryTransaction",
         "transaction.LeatherTransaction"
       ],
       "classes": [],
       "functions": [],
-      "global_variables": []
+      "global_variables": [
+        "__all__"
+      ]
     },
     "database\\repositories\\leather_repository.py": {
       "path": "database\\repositories\\leather_repository.py",
@@ -4981,7 +7042,7 @@
     "database\\sqlalchemy\\base.py": {
       "path": "database\\sqlalchemy\\base.py",
       "imports": [
-        "sqlalchemy.ext.declarative.declarative_base"
+        "sqlalchemy.orm.declarative_base"
       ],
       "classes": [],
       "functions": [],
@@ -4992,112 +7053,44 @@
     "database\\sqlalchemy\\base_manager.py": {
       "path": "database\\sqlalchemy\\base_manager.py",
       "imports": [
-        "typing.TypeVar",
-        "typing.Generic",
-        "typing.Type",
-        "typing.List",
-        "typing.Dict",
-        "typing.Any",
-        "typing.Optional",
-        "typing.Callable",
-        "typing.Union",
-        "typing.Type",
+        "sqlalchemy.create_engine",
+        "sqlalchemy.orm.sessionmaker",
         "sqlalchemy.orm.Session",
-        "sqlalchemy.select",
-        "sqlalchemy.inspect",
-        "sqlalchemy.exc.SQLAlchemyError",
-        "mixins.base_mixins.SearchMixin",
-        "mixins.base_mixins.FilterMixin",
-        "mixins.base_mixins.PaginationMixin",
-        "mixins.base_mixins.TransactionMixin",
-        "utils.error_handling.DatabaseError"
+        "store_management.database.sqlalchemy.base.Base"
       ],
       "classes": [
         {
           "name": "BaseManager",
-          "docstring": "Comprehensive base manager for database operations.\n\nProvides a generic, type-safe implementation of common database \noperations with support for mixins and extensive error handling.",
+          "docstring": "Base class for database operations providing common functionality.",
           "methods": [
             {
               "name": "__init__",
-              "docstring": "Initialize the base manager with a model class and session factory.\n\nArgs:\n    model_class: The SQLAlchemy model class this manager operates on\n    session_factory: A callable that returns a database session\n    mixins: Optional list of additional mixin classes to apply",
+              "docstring": "Initialize the manager with a database connection.\n\nArgs:\n    connection_string: Database connection string",
               "args": [
                 "self",
-                "model_class",
-                "session_factory",
-                "mixins"
+                "connection_string"
               ]
             },
             {
-              "name": "_apply_mixins",
-              "docstring": "Dynamically apply additional mixins to the manager.\n\nArgs:\n    mixins: List of mixin classes to apply",
+              "name": "create_tables",
+              "docstring": "Create all tables defined in model classes",
               "args": [
-                "self",
-                "mixins"
+                "self"
               ]
             },
             {
-              "name": "create",
-              "docstring": "Create a new record in the database.\n\nArgs:\n    data: Dictionary of attributes for the new record\n\nReturns:\n    The created record\n\nRaises:\n    DatabaseError: If creation fails",
+              "name": "get_session",
+              "docstring": "Get a new database session.\n\nReturns:\n    Session object to interact with the database",
               "args": [
-                "self",
-                "data"
-              ]
-            },
-            {
-              "name": "get",
-              "docstring": "Retrieve a record by its primary key.\n\nArgs:\n    id: Primary key value\n\nReturns:\n    The record if found, None otherwise\n\nRaises:\n    DatabaseError: If retrieval fails",
-              "args": [
-                "self",
-                "id"
-              ]
-            },
-            {
-              "name": "get_all",
-              "docstring": "Retrieve all records, with optional ordering and limit.\n\nArgs:\n    order_by: Optional column to order by\n    limit: Optional maximum number of records to return\n\nReturns:\n    List of records\n\nRaises:\n    DatabaseError: If retrieval fails",
-              "args": [
-                "self",
-                "order_by",
-                "limit"
-              ]
-            },
-            {
-              "name": "update",
-              "docstring": "Update an existing record.\n\nArgs:\n    id: Primary key of the record to update\n    data: Dictionary of attributes to update\n\nReturns:\n    The updated record, or None if not found\n\nRaises:\n    DatabaseError: If update fails",
-              "args": [
-                "self",
-                "id",
-                "data"
-              ]
-            },
-            {
-              "name": "delete",
-              "docstring": "Delete a record by its primary key.\n\nArgs:\n    id: Primary key of the record to delete\n\nReturns:\n    True if deletion was successful, False if record not found\n\nRaises:\n    DatabaseError: If deletion fails",
-              "args": [
-                "self",
-                "id"
-              ]
-            },
-            {
-              "name": "bulk_create",
-              "docstring": "Bulk create multiple records in a single transaction.\n\nArgs:\n    items: List of dictionaries with record data\n\nReturns:\n    List of created records\n\nRaises:\n    DatabaseError: If bulk creation fails",
-              "args": [
-                "self",
-                "items"
+                "self"
               ]
             }
           ],
-          "base_classes": [
-            "SearchMixin",
-            "FilterMixin",
-            "PaginationMixin",
-            "TransactionMixin"
-          ]
+          "base_classes": []
         }
       ],
       "functions": [],
-      "global_variables": [
-        "T"
-      ]
+      "global_variables": []
     },
     "database\\sqlalchemy\\config.py": {
       "path": "database\\sqlalchemy\\config.py",
@@ -5220,24 +7213,20 @@
     "database\\sqlalchemy\\manager.py": {
       "path": "database\\sqlalchemy\\manager.py",
       "imports": [
-        "models.Base",
+        "sqlalchemy.orm.Session",
+        "sqlalchemy.create_engine",
+        "sqlalchemy.inspect",
+        "sqlalchemy.exc.SQLAlchemyError",
         "contextlib.contextmanager",
-        "typing.Optional",
         "typing.List",
+        "typing.Optional",
         "typing.Dict",
         "typing.Any",
         "typing.Type",
         "typing.Union",
-        "sqlalchemy.orm.Session",
-        "sqlalchemy.orm.sessionmaker",
-        "sqlalchemy.exc.SQLAlchemyError",
-        "sqlalchemy.create_engine",
-        "sqlalchemy.inspect",
-        "sqlalchemy.or_",
-        "sqlalchemy.select",
-        "sqlalchemy.delete",
         "datetime.datetime",
-        ".models"
+        "store_management.database.sqlalchemy.models.base.Base",
+        "store_management.database.sqlalchemy.models"
       ],
       "classes": [
         {
@@ -5395,8 +7384,8 @@
         "typing.Union",
         "typing.List",
         "sqlalchemy.orm.Session",
-        "base_manager.BaseManager",
-        "session.get_db_session"
+        "store_management.database.sqlalchemy.base_manager.BaseManager",
+        "store_management.database.session.get_db_session"
       ],
       "classes": [],
       "functions": [
@@ -5419,13 +7408,24 @@
           ]
         },
         {
+          "name": "_create_manager",
+          "docstring": "Create a new manager instance.\n\nArgs:\n    model_class: The SQLAlchemy model class\n    session_factory: Function to create database sessions\n    mixins: Optional list of mixins to apply\n\nReturns:\n    A BaseManager instance for the model class",
+          "args": [
+            "model_class",
+            "session_factory",
+            "mixins"
+          ]
+        },
+        {
           "name": "clear_manager_cache",
           "docstring": "Clear the manager instance cache.\n\nUseful for testing or resetting the application state.",
           "args": []
         }
       ],
       "global_variables": [
-        "T"
+        "T",
+        "_manager_cache",
+        "_specialized_managers"
       ]
     },
     "database\\sqlalchemy\\migration.py": {
@@ -5563,68 +7563,288 @@
     "database\\sqlalchemy\\session.py": {
       "path": "database\\sqlalchemy\\session.py",
       "imports": [
+        "os",
         "contextlib.contextmanager",
+        "typing.Optional",
         "sqlalchemy.create_engine",
         "sqlalchemy.orm.sessionmaker",
         "sqlalchemy.orm.scoped_session",
+        "sqlalchemy.pool.NullPool",
         "sqlalchemy_utils.database_exists",
         "sqlalchemy_utils.create_database",
-        "store_management.database.sqlalchemy.models.base.Base",
-        "store_management.utils.logger.logger",
-        "os",
-        "typing.Optional"
+        "store_management.database.sqlalchemy.base.Base",
+        "store_management.utils.error_handling.DatabaseError"
       ],
       "classes": [],
       "functions": [
         {
           "name": "init_database",
-          "docstring": "Initialize database if it doesn't exist",
-          "args": []
+          "docstring": "Initialize the database, creating it if it doesn't exist.\n\nArgs:\n    db_url: Optional database URL (uses default if not provided)\n\nRaises:\n    DatabaseError: If database initialization fails",
+          "args": [
+            "db_url"
+          ]
         },
         {
           "name": "get_db_session",
-          "docstring": "Provide a transactional scope around database operations.\n\nUsage:\n    with get_db_session() as session:\n        # Perform database operations\n        session.add(some_object)\n\nYields:\n    SQLAlchemy Session object",
+          "docstring": "Context manager for database sessions.\n\nProvides a transactional scope for database operations.\nAutomatically handles session creation, commit, and rollback.\n\nYields:\n    SQLAlchemy session object\n\nRaises:\n    DatabaseError: If session management fails",
           "args": []
         },
         {
-          "name": "get_session",
-          "docstring": "Create and return a new database session for compatibility with existing code.\n\nNote: This function is provided for backward compatibility.\nNew code should use get_db_session() context manager instead.\n\nReturns:\n    SQLAlchemy Session object",
+          "name": "close_all_sessions",
+          "docstring": "Close all active database sessions.\n\nUseful for cleanup and testing.",
           "args": []
         }
       ],
       "global_variables": [
+        "DEFAULT_DATABASE_URL",
         "DATABASE_URL",
         "engine",
-        "session_factory",
-        "SessionLocal"
+        "session_factory"
       ]
     },
     "database\\sqlalchemy\\__init__.py": {
       "path": "database\\sqlalchemy\\__init__.py",
-      "imports": [
-        "base.Base",
-        "models.Storage",
-        "models.Product",
-        "models.Recipe",
-        "models.RecipeItem",
-        "models.Supplier",
-        "models.Part",
-        "models.Leather",
-        "models.ShoppingList",
-        "models.ShoppingListItem",
-        "models.Order",
-        "models.OrderItem",
-        "models.InventoryStatus",
-        "models.ProductionStatus",
-        "models.TransactionType",
-        "models.OrderStatus",
-        "models.PaymentStatus"
-      ],
+      "imports": [],
       "classes": [],
       "functions": [],
       "global_variables": [
         "__all__"
       ]
+    },
+    "database\\sqlalchemy\\core\\base_manager.py": {
+      "path": "database\\sqlalchemy\\core\\base_manager.py",
+      "imports": [
+        "typing.Type",
+        "typing.List",
+        "typing.Dict",
+        "typing.Any",
+        "typing.Optional",
+        "typing.TypeVar",
+        "typing.Generic",
+        "typing.Union",
+        "typing.Callable",
+        "logging",
+        "contextlib.contextmanager",
+        "sqlalchemy.orm.Session",
+        "sqlalchemy.select",
+        "sqlalchemy.inspect",
+        "sqlalchemy.and_",
+        "sqlalchemy.or_",
+        "sqlalchemy.func",
+        "sqlalchemy.exc.SQLAlchemyError",
+        "store_management.utils.error_handling.DatabaseError"
+      ],
+      "classes": [
+        {
+          "name": "BaseManager",
+          "docstring": "Comprehensive base manager for database operations.\n\nProvides a generic, type-safe implementation of common database operations\nwith extensive error handling and transaction management.",
+          "methods": [
+            {
+              "name": "__init__",
+              "docstring": "Initialize the base manager with a model class and session factory.\n\nArgs:\n    model_class: The SQLAlchemy model class this manager operates on\n    session_factory: A callable that returns a database session",
+              "args": [
+                "self",
+                "model_class",
+                "session_factory"
+              ]
+            },
+            {
+              "name": "session_scope",
+              "docstring": "Provide a transactional scope around a series of operations.\n\nYields:\n    Session: Active database session\n\nRaises:\n    DatabaseError: If session management fails",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "create",
+              "docstring": "Create a new record in the database.\n\nArgs:\n    data: Dictionary of attributes for the new record\n\nReturns:\n    The created record\n\nRaises:\n    DatabaseError: If creation fails",
+              "args": [
+                "self",
+                "data"
+              ]
+            },
+            {
+              "name": "get",
+              "docstring": "Retrieve a record by its primary key.\n\nArgs:\n    id: Primary key value\n\nReturns:\n    The record if found, None otherwise\n\nRaises:\n    DatabaseError: If retrieval fails",
+              "args": [
+                "self",
+                "id"
+              ]
+            },
+            {
+              "name": "get_all",
+              "docstring": "Retrieve all records, with optional ordering and limit.\n\nArgs:\n    order_by: Optional column to order by\n    limit: Optional maximum number of records to return\n\nReturns:\n    List of records\n\nRaises:\n    DatabaseError: If retrieval fails",
+              "args": [
+                "self",
+                "order_by",
+                "limit"
+              ]
+            },
+            {
+              "name": "update",
+              "docstring": "Update an existing record.\n\nArgs:\n    id: Primary key of the record to update\n    data: Dictionary of attributes to update\n\nReturns:\n    The updated record, or None if not found\n\nRaises:\n    DatabaseError: If update fails",
+              "args": [
+                "self",
+                "id",
+                "data"
+              ]
+            },
+            {
+              "name": "delete",
+              "docstring": "Delete a record by its primary key.\n\nArgs:\n    id: Primary key of the record to delete\n\nReturns:\n    True if deletion was successful, False if record not found\n\nRaises:\n    DatabaseError: If deletion fails",
+              "args": [
+                "self",
+                "id"
+              ]
+            },
+            {
+              "name": "exists",
+              "docstring": "Check if a record exists with the given criteria.\n\nArgs:\n    **kwargs: Filter criteria\n\nReturns:\n    True if a matching record exists, False otherwise\n\nRaises:\n    DatabaseError: If check fails",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "count",
+              "docstring": "Count records matching the given criteria.\n\nArgs:\n    **kwargs: Filter criteria\n\nReturns:\n    Count of matching records\n\nRaises:\n    DatabaseError: If count fails",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "filter_by",
+              "docstring": "Retrieve records matching the given criteria.\n\nArgs:\n    **kwargs: Filter criteria\n\nReturns:\n    List of matching records\n\nRaises:\n    DatabaseError: If filtering fails",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "search",
+              "docstring": "Search for records where any of the specified fields contain the search term.\n\nArgs:\n    term: Search term\n    fields: List of fields to search in (if None, searches all string fields)\n\nReturns:\n    List of matching records\n\nRaises:\n    DatabaseError: If search fails",
+              "args": [
+                "self",
+                "term",
+                "fields"
+              ]
+            },
+            {
+              "name": "bulk_create",
+              "docstring": "Create multiple records in a single transaction.\n\nArgs:\n    items: List of dictionaries with record data\n\nReturns:\n    List of created records\n\nRaises:\n    DatabaseError: If bulk creation fails",
+              "args": [
+                "self",
+                "items"
+              ]
+            },
+            {
+              "name": "bulk_update",
+              "docstring": "Update multiple records in a single transaction.\n\nArgs:\n    items: List of dictionaries with record data including ID\n\nReturns:\n    List of updated records\n\nRaises:\n    DatabaseError: If bulk update fails",
+              "args": [
+                "self",
+                "items"
+              ]
+            }
+          ],
+          "base_classes": []
+        }
+      ],
+      "functions": [],
+      "global_variables": [
+        "T"
+      ]
+    },
+    "database\\sqlalchemy\\core\\manager_factory.py": {
+      "path": "database\\sqlalchemy\\core\\manager_factory.py",
+      "imports": [
+        "typing.Type",
+        "typing.Dict",
+        "typing.Any",
+        "typing.TypeVar",
+        "typing.Optional",
+        "typing.Callable",
+        "typing.Union",
+        "typing.List",
+        "sqlalchemy.orm.Session",
+        "store_management.database.sqlalchemy.core.base_manager.BaseManager"
+      ],
+      "classes": [],
+      "functions": [
+        {
+          "name": "register_specialized_manager",
+          "docstring": "Register a specialized manager for a specific model class.\n\nArgs:\n    model_class: The SQLAlchemy model class\n    manager_class: The specialized manager class to use for this model",
+          "args": [
+            "model_class",
+            "manager_class"
+          ]
+        },
+        {
+          "name": "get_manager",
+          "docstring": "Get or create a manager for the specified model class.\n\nThis factory ensures only one manager is created per model class,\nwith support for specialized managers.\n\nArgs:\n    model_class: The SQLAlchemy model class\n    session_factory: Optional custom session factory (defaults to global session factory)\n    force_new: If True, create a new manager instance\n\nReturns:\n    A BaseManager instance for the model class",
+          "args": [
+            "model_class",
+            "session_factory",
+            "force_new"
+          ]
+        },
+        {
+          "name": "_create_manager",
+          "docstring": "Create a new manager instance for the specified model class.\n\nArgs:\n    model_class: The SQLAlchemy model class\n    session_factory: Optional custom session factory\n\nReturns:\n    A BaseManager instance for the model class",
+          "args": [
+            "model_class",
+            "session_factory"
+          ]
+        },
+        {
+          "name": "clear_manager_cache",
+          "docstring": "Clear the manager instance cache.\n\nUseful for testing or resetting the application state.",
+          "args": []
+        }
+      ],
+      "global_variables": [
+        "T",
+        "_manager_cache",
+        "_specialized_managers"
+      ]
+    },
+    "database\\sqlalchemy\\core\\register_managers.py": {
+      "path": "database\\sqlalchemy\\core\\register_managers.py",
+      "imports": [
+        "store_management.database.sqlalchemy.models.Storage",
+        "store_management.database.sqlalchemy.models.Product",
+        "store_management.database.sqlalchemy.models.Supplier",
+        "store_management.database.sqlalchemy.models.Part",
+        "store_management.database.sqlalchemy.models.Leather",
+        "store_management.database.sqlalchemy.models.Recipe",
+        "store_management.database.sqlalchemy.models.RecipeItem",
+        "store_management.database.sqlalchemy.models.Order",
+        "store_management.database.sqlalchemy.models.OrderItem",
+        "store_management.database.sqlalchemy.models.ShoppingList",
+        "store_management.database.sqlalchemy.models.ShoppingListItem",
+        "store_management.database.sqlalchemy.core.manager_factory.register_specialized_manager",
+        "store_management.database.sqlalchemy.core.specialized.storage_manager.StorageManager",
+        "store_management.database.sqlalchemy.core.specialized.product_manager.ProductManager",
+        "store_management.database.sqlalchemy.core.specialized.supplier_manager.SupplierManager",
+        "store_management.database.sqlalchemy.core.specialized.part_manager.PartManager",
+        "store_management.database.sqlalchemy.core.specialized.leather_manager.LeatherManager",
+        "store_management.database.sqlalchemy.core.specialized.recipe_manager.RecipeManager",
+        "store_management.database.sqlalchemy.core.specialized.order_manager.OrderManager",
+        "store_management.database.sqlalchemy.core.specialized.shopping_list_manager.ShoppingListManager"
+      ],
+      "classes": [],
+      "functions": [
+        {
+          "name": "register_all_specialized_managers",
+          "docstring": "Register all specialized managers for models.\n\nThis should be called during application initialization.",
+          "args": []
+        }
+      ],
+      "global_variables": []
+    },
+    "database\\sqlalchemy\\core\\__init__.py": {
+      "path": "database\\sqlalchemy\\core\\__init__.py",
+      "imports": [],
+      "classes": [],
+      "functions": [],
+      "global_variables": []
     },
     "database\\sqlalchemy\\managers\\incoming_goods_manager.py": {
       "path": "database\\sqlalchemy\\managers\\incoming_goods_manager.py",
@@ -7380,7 +9600,7 @@
         "sqlalchemy.and_",
         "sqlalchemy.or_",
         "sqlalchemy.func",
-        "store_management.database.sqlalchemy.models.base.Base",
+        "store_management.database.sqlalchemy.base.Base",
         "store_management.database.sqlalchemy.session.get_db_session"
       ],
       "classes": [
@@ -7466,7 +9686,7 @@
         "sqlalchemy.select",
         "sqlalchemy.or_",
         "sqlalchemy.func",
-        "store_management.database.sqlalchemy.models.base.Base",
+        "store_management.database.sqlalchemy.base.Base",
         "store_management.database.sqlalchemy.session.get_db_session"
       ],
       "classes": [
@@ -7895,6 +10115,505 @@
         "__all__"
       ]
     },
+    "database\\sqlalchemy\\models\\base.py": {
+      "path": "database\\sqlalchemy\\models\\base.py",
+      "imports": [
+        "sqlalchemy.orm.DeclarativeBase",
+        "sqlalchemy.Column",
+        "sqlalchemy.Integer",
+        "sqlalchemy.DateTime",
+        "datetime.datetime"
+      ],
+      "classes": [
+        {
+          "name": "Base",
+          "docstring": "Base declarative model for all database models.\nProvides common fields and behaviors.",
+          "methods": [
+            {
+              "name": "__repr__",
+              "docstring": "Default string representation of the model.\n\nReturns:\n    String representation with class name and ID",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "to_dict",
+              "docstring": "Convert model instance to dictionary.\n\nReturns:\n    Dictionary representation of the model",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": [
+            "DeclarativeBase"
+          ]
+        }
+      ],
+      "functions": [],
+      "global_variables": []
+    },
+    "database\\sqlalchemy\\models\\enums.py": {
+      "path": "database\\sqlalchemy\\models\\enums.py",
+      "imports": [
+        "enum.Enum",
+        "enum.auto"
+      ],
+      "classes": [
+        {
+          "name": "InventoryStatus",
+          "docstring": "Inventory status for parts and materials.",
+          "methods": [],
+          "base_classes": [
+            "Enum"
+          ]
+        },
+        {
+          "name": "ProductionStatus",
+          "docstring": "Status of production processes.",
+          "methods": [],
+          "base_classes": [
+            "Enum"
+          ]
+        },
+        {
+          "name": "TransactionType",
+          "docstring": "Types of inventory transactions.",
+          "methods": [],
+          "base_classes": [
+            "Enum"
+          ]
+        },
+        {
+          "name": "OrderStatus",
+          "docstring": "Order processing status.",
+          "methods": [],
+          "base_classes": [
+            "Enum"
+          ]
+        },
+        {
+          "name": "PaymentStatus",
+          "docstring": "Payment processing status.",
+          "methods": [],
+          "base_classes": [
+            "Enum"
+          ]
+        }
+      ],
+      "functions": [],
+      "global_variables": []
+    },
+    "database\\sqlalchemy\\models\\leather.py": {
+      "path": "database\\sqlalchemy\\models\\leather.py",
+      "imports": [
+        "sqlalchemy.Column",
+        "sqlalchemy.Integer",
+        "sqlalchemy.String",
+        "sqlalchemy.Float",
+        "sqlalchemy.DateTime",
+        "sqlalchemy.ForeignKey",
+        "sqlalchemy.Enum",
+        "sqlalchemy.orm.relationship",
+        "datetime.datetime",
+        "store_management.database.sqlalchemy.base.Base",
+        "store_management.database.sqlalchemy.models.enums.InventoryStatus"
+      ],
+      "classes": [
+        {
+          "name": "Leather",
+          "docstring": "Leather model representing leather inventory items.\n\nAttributes:\n    id (int): Unique identifier for the leather\n    name (str): Name or identifier of the leather\n    type (str): Type or category of leather\n    color (str): Color of the leather\n    total_area (float): Total area of the leather\n    available_area (float): Currently available area\n    unit_price (float): Price per square unit\n    supplier_id (int): Foreign key to the supplier\n    status (InventoryStatus): Current inventory status\n    notes (str): Additional notes about the leather\n    created_at (datetime): Timestamp of record creation\n    updated_at (datetime): Timestamp of last update",
+          "methods": [
+            {
+              "name": "__repr__",
+              "docstring": "",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": [
+            "Base"
+          ]
+        }
+      ],
+      "functions": [],
+      "global_variables": []
+    },
+    "database\\sqlalchemy\\models\\order.py": {
+      "path": "database\\sqlalchemy\\models\\order.py",
+      "imports": [
+        "sqlalchemy.Column",
+        "sqlalchemy.Integer",
+        "sqlalchemy.String",
+        "sqlalchemy.Float",
+        "sqlalchemy.DateTime",
+        "sqlalchemy.ForeignKey",
+        "sqlalchemy.Enum",
+        "sqlalchemy.Boolean",
+        "sqlalchemy.orm.relationship",
+        "datetime.datetime",
+        "store_management.database.sqlalchemy.base.Base",
+        "store_management.database.sqlalchemy.models.enums.OrderStatus",
+        "store_management.database.sqlalchemy.models.enums.PaymentStatus"
+      ],
+      "classes": [
+        {
+          "name": "Order",
+          "docstring": "Purchase order model representing orders in the system.\n\nAttributes:\n    id (int): Unique identifier for the order\n    order_number (str): Unique order number\n    supplier_id (int): Foreign key to the supplier\n    order_date (datetime): Date of order creation\n    expected_delivery_date (datetime): Expected delivery date\n    total_amount (float): Total order amount\n    status (OrderStatus): Current order status\n    payment_status (PaymentStatus): Current payment status\n    is_paid (bool): Whether the order is fully paid\n    notes (str): Additional notes about the order\n    created_at (datetime): Timestamp of record creation\n    updated_at (datetime): Timestamp of last update",
+          "methods": [
+            {
+              "name": "__repr__",
+              "docstring": "",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": [
+            "Base"
+          ]
+        },
+        {
+          "name": "OrderItem",
+          "docstring": "Individual items within an order.\n\nAttributes:\n    id (int): Unique identifier for the order item\n    order_id (int): Foreign key to the parent order\n    part_id (int): Foreign key to the part\n    quantity (float): Quantity of the part ordered\n    unit_price (float): Price per unit\n    total_price (float): Total price for this item\n    notes (str): Additional notes about the item",
+          "methods": [
+            {
+              "name": "__repr__",
+              "docstring": "",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": [
+            "Base"
+          ]
+        }
+      ],
+      "functions": [],
+      "global_variables": []
+    },
+    "database\\sqlalchemy\\models\\part.py": {
+      "path": "database\\sqlalchemy\\models\\part.py",
+      "imports": [
+        "sqlalchemy.Column",
+        "sqlalchemy.Integer",
+        "sqlalchemy.String",
+        "sqlalchemy.Float",
+        "sqlalchemy.DateTime",
+        "sqlalchemy.ForeignKey",
+        "sqlalchemy.Enum",
+        "sqlalchemy.orm.relationship",
+        "datetime.datetime",
+        "store_management.database.sqlalchemy.base.Base",
+        "store_management.database.sqlalchemy.models.enums.InventoryStatus"
+      ],
+      "classes": [
+        {
+          "name": "Part",
+          "docstring": "Part model representing inventory items.\n\nAttributes:\n    id (int): Unique identifier for the part\n    name (str): Name of the part\n    description (str): Detailed description of the part\n    stock_level (float): Current stock level of the part\n    min_stock_level (float): Minimum stock level threshold\n    unit_price (float): Price per unit\n    supplier_id (int): Foreign key to the supplier\n    status (InventoryStatus): Current inventory status\n    created_at (datetime): Timestamp of record creation\n    updated_at (datetime): Timestamp of last update",
+          "methods": [
+            {
+              "name": "__repr__",
+              "docstring": "",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": [
+            "Base"
+          ]
+        }
+      ],
+      "functions": [],
+      "global_variables": []
+    },
+    "database\\sqlalchemy\\models\\product.py": {
+      "path": "database\\sqlalchemy\\models\\product.py",
+      "imports": [
+        "sqlalchemy.Column",
+        "sqlalchemy.Integer",
+        "sqlalchemy.String",
+        "sqlalchemy.Float",
+        "sqlalchemy.ForeignKey",
+        "sqlalchemy.orm.relationship",
+        "store_management.database.sqlalchemy.base.Base"
+      ],
+      "classes": [
+        {
+          "name": "Product",
+          "docstring": "Product model representing items that can be stored and manufactured.\n\nAttributes:\n    id (int): Unique identifier for the product\n    name (str): Name of the product\n    description (str): Detailed description of the product\n    category (str): Product category\n    unit_price (float): Price per unit\n    storage_id (int): Foreign key to the storage location",
+          "methods": [
+            {
+              "name": "__repr__",
+              "docstring": "",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": [
+            "Base"
+          ]
+        }
+      ],
+      "functions": [],
+      "global_variables": []
+    },
+    "database\\sqlalchemy\\models\\recipe.py": {
+      "path": "database\\sqlalchemy\\models\\recipe.py",
+      "imports": [
+        "sqlalchemy.Column",
+        "sqlalchemy.Integer",
+        "sqlalchemy.String",
+        "sqlalchemy.Float",
+        "sqlalchemy.DateTime",
+        "sqlalchemy.ForeignKey",
+        "sqlalchemy.orm.relationship",
+        "datetime.datetime",
+        "store_management.database.sqlalchemy.base.Base",
+        "sqlalchemy.Column",
+        "sqlalchemy.Integer",
+        "sqlalchemy.String",
+        "sqlalchemy.Float",
+        "sqlalchemy.DateTime",
+        "sqlalchemy.ForeignKey",
+        "sqlalchemy.Boolean"
+      ],
+      "classes": [
+        {
+          "name": "Recipe",
+          "docstring": "Recipe model representing product manufacturing recipes.\n\nAttributes:\n    id (int): Unique identifier for the recipe\n    name (str): Name of the recipe\n    description (str): Detailed description of the recipe\n    product_id (int): Foreign key to the product this recipe creates\n    estimated_production_time (float): Estimated time to produce\n    notes (str): Additional notes about the recipe\n    created_at (datetime): Timestamp of recipe creation\n    updated_at (datetime): Timestamp of last update",
+          "methods": [
+            {
+              "name": "__repr__",
+              "docstring": "",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": [
+            "Base"
+          ]
+        },
+        {
+          "name": "RecipeItem",
+          "docstring": "Individual items required for a recipe.\n\nAttributes:\n    id (int): Unique identifier for the recipe item\n    recipe_id (int): Foreign key to the parent recipe\n    part_id (int): Foreign key to the part used in the recipe\n    leather_id (int): Foreign key to the leather used in the recipe\n    quantity (float): Quantity of the item needed\n    is_optional (bool): Whether the item is optional in the recipe\n    notes (str): Additional notes about the recipe item",
+          "methods": [
+            {
+              "name": "__repr__",
+              "docstring": "",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": [
+            "Base"
+          ]
+        }
+      ],
+      "functions": [],
+      "global_variables": []
+    },
+    "database\\sqlalchemy\\models\\shopping_list.py": {
+      "path": "database\\sqlalchemy\\models\\shopping_list.py",
+      "imports": [
+        "sqlalchemy.Column",
+        "sqlalchemy.Integer",
+        "sqlalchemy.String",
+        "sqlalchemy.Float",
+        "sqlalchemy.DateTime",
+        "sqlalchemy.ForeignKey",
+        "sqlalchemy.Boolean",
+        "sqlalchemy.orm.relationship",
+        "datetime.datetime",
+        "store_management.database.sqlalchemy.base.Base"
+      ],
+      "classes": [
+        {
+          "name": "ShoppingList",
+          "docstring": "Shopping List model for tracking items to be purchased.\n\nAttributes:\n    id (int): Unique identifier for the shopping list\n    name (str): Name or description of the shopping list\n    created_at (datetime): Timestamp of list creation\n    updated_at (datetime): Timestamp of last update\n    is_completed (bool): Whether the shopping list is completed\n    total_estimated_cost (float): Total estimated cost of items",
+          "methods": [
+            {
+              "name": "__repr__",
+              "docstring": "",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": [
+            "Base"
+          ]
+        },
+        {
+          "name": "ShoppingListItem",
+          "docstring": "Individual items within a shopping list.\n\nAttributes:\n    id (int): Unique identifier for the shopping list item\n    shopping_list_id (int): Foreign key to the parent shopping list\n    part_id (int): Foreign key to the part (optional)\n    leather_id (int): Foreign key to the leather (optional)\n    quantity (float): Quantity of the item to be purchased\n    estimated_price (float): Estimated price of the item\n    is_purchased (bool): Whether the item has been purchased\n    supplier_id (int): Foreign key to the supplier\n    purchase_date (datetime): Date of purchase\n    actual_price (float): Actual price paid\n    notes (str): Additional notes about the item",
+          "methods": [
+            {
+              "name": "__repr__",
+              "docstring": "",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": [
+            "Base"
+          ]
+        }
+      ],
+      "functions": [],
+      "global_variables": []
+    },
+    "database\\sqlalchemy\\models\\storage.py": {
+      "path": "database\\sqlalchemy\\models\\storage.py",
+      "imports": [
+        "sqlalchemy.Column",
+        "sqlalchemy.Integer",
+        "sqlalchemy.String",
+        "sqlalchemy.Float",
+        "sqlalchemy.orm.relationship",
+        "store_management.database.sqlalchemy.base.Base"
+      ],
+      "classes": [
+        {
+          "name": "Storage",
+          "docstring": "Storage model representing storage locations.\n\nAttributes:\n    id (int): Unique identifier for the storage location\n    location (str): Specific location or name of the storage\n    description (str): Detailed description of the storage\n    capacity (float): Total capacity of the storage\n    current_usage (float): Current usage of the storage",
+          "methods": [
+            {
+              "name": "__repr__",
+              "docstring": "",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": [
+            "Base"
+          ]
+        }
+      ],
+      "functions": [],
+      "global_variables": []
+    },
+    "database\\sqlalchemy\\models\\supplier.py": {
+      "path": "database\\sqlalchemy\\models\\supplier.py",
+      "imports": [
+        "sqlalchemy.Column",
+        "sqlalchemy.Integer",
+        "sqlalchemy.String",
+        "sqlalchemy.Float",
+        "sqlalchemy.DateTime",
+        "sqlalchemy.orm.relationship",
+        "datetime.datetime",
+        "store_management.database.sqlalchemy.base.Base"
+      ],
+      "classes": [
+        {
+          "name": "Supplier",
+          "docstring": "Supplier model representing external suppliers.\n\nAttributes:\n    id (int): Unique identifier for the supplier\n    name (str): Name of the supplier\n    contact_name (str): Name of the primary contact\n    email (str): Contact email address\n    phone (str): Contact phone number\n    address (str): Supplier's physical address\n    rating (float): Supplier performance rating\n    notes (str): Additional notes about the supplier\n    created_at (datetime): Timestamp of record creation\n    updated_at (datetime): Timestamp of last update",
+          "methods": [
+            {
+              "name": "__repr__",
+              "docstring": "",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": [
+            "Base"
+          ]
+        }
+      ],
+      "functions": [],
+      "global_variables": []
+    },
+    "database\\sqlalchemy\\models\\transaction.py": {
+      "path": "database\\sqlalchemy\\models\\transaction.py",
+      "imports": [
+        "sqlalchemy.Column",
+        "sqlalchemy.Integer",
+        "sqlalchemy.String",
+        "sqlalchemy.Float",
+        "sqlalchemy.DateTime",
+        "sqlalchemy.ForeignKey",
+        "sqlalchemy.Enum",
+        "sqlalchemy.orm.relationship",
+        "datetime.datetime",
+        "store_management.database.sqlalchemy.base.Base",
+        "store_management.database.sqlalchemy.models.enums.TransactionType"
+      ],
+      "classes": [
+        {
+          "name": "InventoryTransaction",
+          "docstring": "Transaction model for tracking part inventory changes.\n\nAttributes:\n    id (int): Unique identifier for the transaction\n    part_id (int): Foreign key to the part involved\n    quantity_change (float): Change in quantity (positive or negative)\n    transaction_type (TransactionType): Type of transaction\n    notes (str): Additional notes about the transaction\n    created_at (datetime): Timestamp of transaction creation",
+          "methods": [
+            {
+              "name": "__repr__",
+              "docstring": "",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": [
+            "Base"
+          ]
+        },
+        {
+          "name": "LeatherTransaction",
+          "docstring": "Transaction model for tracking leather inventory changes.\n\nAttributes:\n    id (int): Unique identifier for the transaction\n    leather_id (int): Foreign key to the leather involved\n    area_change (float): Change in area (positive or negative)\n    transaction_type (TransactionType): Type of transaction\n    notes (str): Additional notes about the transaction\n    wastage (float): Area lost during transaction\n    created_at (datetime): Timestamp of transaction creation",
+          "methods": [
+            {
+              "name": "__repr__",
+              "docstring": "",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": [
+            "Base"
+          ]
+        }
+      ],
+      "functions": [],
+      "global_variables": []
+    },
+    "database\\sqlalchemy\\models\\__init__.py": {
+      "path": "database\\sqlalchemy\\models\\__init__.py",
+      "imports": [
+        "base.Base",
+        "enums.InventoryStatus",
+        "enums.ProductionStatus",
+        "enums.TransactionType",
+        "enums.OrderStatus",
+        "enums.PaymentStatus",
+        "part.Part",
+        "storage.Storage",
+        "product.Product",
+        "order.Order",
+        "order.OrderItem",
+        "supplier.Supplier",
+        "recipe.Recipe",
+        "recipe.RecipeItem",
+        "shopping_list.ShoppingList",
+        "shopping_list.ShoppingListItem",
+        "leather.Leather",
+        "transaction.InventoryTransaction",
+        "transaction.LeatherTransaction"
+      ],
+      "classes": [],
+      "functions": [],
+      "global_variables": [
+        "__all__"
+      ]
+    },
     "database\\sqlalchemy\\migrations\\versions\\202402201_add_relationships.py": {
       "path": "database\\sqlalchemy\\migrations\\versions\\202402201_add_relationships.py",
       "imports": [
@@ -7957,6 +10676,554 @@
       "classes": [],
       "functions": [],
       "global_variables": []
+    },
+    "database\\sqlalchemy\\core\\specialized\\leather_manager.py": {
+      "path": "database\\sqlalchemy\\core\\specialized\\leather_manager.py",
+      "imports": [
+        "typing.List",
+        "typing.Optional",
+        "typing.Dict",
+        "typing.Any",
+        "typing.Tuple",
+        "datetime.datetime",
+        "sqlalchemy.select",
+        "sqlalchemy.and_",
+        "sqlalchemy.or_",
+        "sqlalchemy.func",
+        "sqlalchemy.orm.joinedload",
+        "store_management.database.sqlalchemy.core.base_manager.BaseManager",
+        "store_management.database.sqlalchemy.models.Leather",
+        "store_management.database.sqlalchemy.models.LeatherTransaction",
+        "store_management.database.sqlalchemy.models.InventoryStatus",
+        "store_management.database.sqlalchemy.models.TransactionType",
+        "store_management.utils.error_handling.DatabaseError"
+      ],
+      "classes": [
+        {
+          "name": "LeatherManager",
+          "docstring": "Specialized manager for Leather model operations.\n\nExtends BaseManager with leather-specific operations.",
+          "methods": [
+            {
+              "name": "get_leather_with_transactions",
+              "docstring": "Get leather with its transaction history.\n\nArgs:\n    leather_id: Leather ID\n\nReturns:\n    Leather with transactions loaded or None if not found\n\nRaises:\n    DatabaseError: If retrieval fails",
+              "args": [
+                "self",
+                "leather_id"
+              ]
+            },
+            {
+              "name": "update_leather_area",
+              "docstring": "Update leather area with transaction tracking.\n\nArgs:\n    leather_id: Leather ID\n    area_change: Change in area (positive or negative)\n    transaction_type: Type of transaction\n    notes: Optional transaction notes\n    wastage: Optional wastage area\n\nReturns:\n    Tuple of (updated Leather, created Transaction)\n\nRaises:\n    DatabaseError: If update fails",
+              "args": [
+                "self",
+                "leather_id",
+                "area_change",
+                "transaction_type",
+                "notes",
+                "wastage"
+              ]
+            },
+            {
+              "name": "get_low_stock_leather",
+              "docstring": "Get leather items with low stock levels.\n\nArgs:\n    include_out_of_stock: Whether to include out of stock items\n\nReturns:\n    List of Leather instances with low stock\n\nRaises:\n    DatabaseError: If retrieval fails",
+              "args": [
+                "self",
+                "include_out_of_stock"
+              ]
+            },
+            {
+              "name": "get_by_supplier",
+              "docstring": "Get leather by supplier.\n\nArgs:\n    supplier_id: Supplier ID\n\nReturns:\n    List of leather from the specified supplier\n\nRaises:\n    DatabaseError: If retrieval fails",
+              "args": [
+                "self",
+                "supplier_id"
+              ]
+            }
+          ],
+          "base_classes": []
+        }
+      ],
+      "functions": [],
+      "global_variables": []
+    },
+    "database\\sqlalchemy\\core\\specialized\\order_manager.py": {
+      "path": "database\\sqlalchemy\\core\\specialized\\order_manager.py",
+      "imports": [
+        "typing.List",
+        "typing.Optional",
+        "typing.Dict",
+        "typing.Any",
+        "typing.Callable",
+        "sqlalchemy.orm.Session",
+        "store_management.database.sqlalchemy.core.base_manager.BaseManager",
+        "store_management.database.sqlalchemy.models.order.Order"
+      ],
+      "classes": [
+        {
+          "name": "OrderManager",
+          "docstring": "Specialized manager for Order model operations.\n\nThis class extends BaseManager with order-specific operations.",
+          "methods": [
+            {
+              "name": "__init__",
+              "docstring": "Initialize the OrderManager.\n\nArgs:\n    session_factory: A callable that returns a SQLAlchemy Session.",
+              "args": [
+                "self",
+                "session_factory"
+              ]
+            },
+            {
+              "name": "create_order",
+              "docstring": "Create a new order.\n\nArgs:\n    order_data: Dictionary containing order information.\n\nReturns:\n    The created Order instance.",
+              "args": [
+                "self",
+                "order_data"
+              ]
+            },
+            {
+              "name": "get_order_by_id",
+              "docstring": "Retrieve an order by its ID.\n\nArgs:\n    order_id: The ID of the order to retrieve.\n\nReturns:\n    The Order instance if found, None otherwise.",
+              "args": [
+                "self",
+                "order_id"
+              ]
+            },
+            {
+              "name": "get_all_orders",
+              "docstring": "Retrieve all orders.\n\nReturns:\n    A list of all Order instances.",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": [
+            "BaseManager"
+          ]
+        }
+      ],
+      "functions": [],
+      "global_variables": []
+    },
+    "database\\sqlalchemy\\core\\specialized\\part_manager.py": {
+      "path": "database\\sqlalchemy\\core\\specialized\\part_manager.py",
+      "imports": [
+        "typing.List",
+        "typing.Optional",
+        "typing.Dict",
+        "typing.Any",
+        "typing.Tuple",
+        "datetime.datetime",
+        "sqlalchemy.select",
+        "sqlalchemy.and_",
+        "sqlalchemy.or_",
+        "sqlalchemy.func",
+        "sqlalchemy.orm.joinedload",
+        "store_management.database.sqlalchemy.core.base_manager.BaseManager",
+        "store_management.database.sqlalchemy.models.Part",
+        "store_management.database.sqlalchemy.models.InventoryTransaction",
+        "store_management.database.sqlalchemy.models.InventoryStatus",
+        "store_management.database.sqlalchemy.models.TransactionType",
+        "store_management.utils.error_handling.DatabaseError"
+      ],
+      "classes": [
+        {
+          "name": "PartManager",
+          "docstring": "Specialized manager for Part model operations.\n\nExtends BaseManager with part-specific operations.",
+          "methods": [
+            {
+              "name": "get_part_with_transactions",
+              "docstring": "Get part with its transaction history.\n\nArgs:\n    part_id: Part ID\n\nReturns:\n    Part with transactions loaded or None if not found\n\nRaises:\n    DatabaseError: If retrieval fails",
+              "args": [
+                "self",
+                "part_id"
+              ]
+            },
+            {
+              "name": "update_part_stock",
+              "docstring": "Update part stock levels with transaction tracking.\n\nArgs:\n    part_id: Part ID\n    quantity_change: Change in quantity (positive or negative)\n    transaction_type: Type of transaction\n    notes: Optional transaction notes\n\nReturns:\n    Tuple of (updated Part, created Transaction)\n\nRaises:\n    DatabaseError: If update fails",
+              "args": [
+                "self",
+                "part_id",
+                "quantity_change",
+                "transaction_type",
+                "notes"
+              ]
+            },
+            {
+              "name": "get_low_stock_parts",
+              "docstring": "Get all parts with low stock levels.\n\nArgs:\n    include_out_of_stock: Whether to include out of stock items\n\nReturns:\n    List of Part instances with low stock\n\nRaises:\n    DatabaseError: If retrieval fails",
+              "args": [
+                "self",
+                "include_out_of_stock"
+              ]
+            },
+            {
+              "name": "get_by_supplier",
+              "docstring": "Get parts by supplier.\n\nArgs:\n    supplier_id: Supplier ID\n\nReturns:\n    List of parts from the specified supplier\n\nRaises:\n    DatabaseError: If retrieval fails",
+              "args": [
+                "self",
+                "supplier_id"
+              ]
+            }
+          ],
+          "base_classes": []
+        }
+      ],
+      "functions": [],
+      "global_variables": []
+    },
+    "database\\sqlalchemy\\core\\specialized\\product_manager.py": {
+      "path": "database\\sqlalchemy\\core\\specialized\\product_manager.py",
+      "imports": [
+        "typing.List",
+        "typing.Optional",
+        "typing.Dict",
+        "typing.Any",
+        "sqlalchemy.select",
+        "sqlalchemy.and_",
+        "sqlalchemy.or_",
+        "sqlalchemy.func",
+        "sqlalchemy.orm.joinedload",
+        "store_management.database.sqlalchemy.core.base_manager.BaseManager",
+        "store_management.database.sqlalchemy.models.Product",
+        "store_management.database.sqlalchemy.models.Storage",
+        "store_management.database.sqlalchemy.models.Recipe",
+        "store_management.utils.error_handling.DatabaseError"
+      ],
+      "classes": [
+        {
+          "name": "ProductManager",
+          "docstring": "Specialized manager for Product model operations.\n\nExtends BaseManager with product-specific operations.",
+          "methods": [
+            {
+              "name": "get_product_with_recipe",
+              "docstring": "Get product with its recipe.\n\nArgs:\n    product_id: Product ID\n\nReturns:\n    Product with recipe loaded or None if not found\n\nRaises:\n    DatabaseError: If retrieval fails",
+              "args": [
+                "self",
+                "product_id"
+              ]
+            },
+            {
+              "name": "get_by_storage",
+              "docstring": "Get products by storage location.\n\nArgs:\n    storage_id: Storage location ID\n\nReturns:\n    List of products in the specified storage\n\nRaises:\n    DatabaseError: If retrieval fails",
+              "args": [
+                "self",
+                "storage_id"
+              ]
+            },
+            {
+              "name": "assign_to_storage",
+              "docstring": "Assign a product to a storage location.\n\nArgs:\n    product_id: Product ID\n    storage_id: Storage location ID\n\nReturns:\n    Updated Product or None if not found\n\nRaises:\n    DatabaseError: If update fails",
+              "args": [
+                "self",
+                "product_id",
+                "storage_id"
+              ]
+            },
+            {
+              "name": "search_by_name",
+              "docstring": "Search products by name.\n\nArgs:\n    name: Product name to search for\n\nReturns:\n    List of matching products\n\nRaises:\n    DatabaseError: If search fails",
+              "args": [
+                "self",
+                "name"
+              ]
+            }
+          ],
+          "base_classes": []
+        }
+      ],
+      "functions": [],
+      "global_variables": []
+    },
+    "database\\sqlalchemy\\core\\specialized\\recipe_manager.py": {
+      "path": "database\\sqlalchemy\\core\\specialized\\recipe_manager.py",
+      "imports": [
+        "typing.List",
+        "typing.Optional",
+        "typing.Dict",
+        "typing.Any",
+        "typing.Tuple",
+        "sqlalchemy.select",
+        "sqlalchemy.and_",
+        "sqlalchemy.or_",
+        "sqlalchemy.func",
+        "sqlalchemy.orm.joinedload",
+        "store_management.database.sqlalchemy.core.base_manager.BaseManager",
+        "store_management.database.sqlalchemy.models.Recipe",
+        "store_management.database.sqlalchemy.models.RecipeItem",
+        "store_management.database.sqlalchemy.models.Part",
+        "store_management.database.sqlalchemy.models.Leather",
+        "store_management.utils.error_handling.DatabaseError"
+      ],
+      "classes": [
+        {
+          "name": "RecipeManager",
+          "docstring": "Specialized manager for Recipe model operations.\n\nExtends BaseManager with recipe-specific operations.",
+          "methods": [
+            {
+              "name": "get_recipe_with_items",
+              "docstring": "Get recipe with all its items.\n\nArgs:\n    recipe_id: Recipe ID\n\nReturns:\n    Recipe with items loaded or None if not found\n\nRaises:\n    DatabaseError: If retrieval fails",
+              "args": [
+                "self",
+                "recipe_id"
+              ]
+            },
+            {
+              "name": "create_recipe",
+              "docstring": "Create a new recipe with items.\n\nArgs:\n    recipe_data: Dictionary containing recipe data\n    items: List of dictionaries containing recipe item data\n\nReturns:\n    Created Recipe instance\n\nRaises:\n    DatabaseError: If creation fails",
+              "args": [
+                "self",
+                "recipe_data",
+                "items"
+              ]
+            },
+            {
+              "name": "update_recipe_items",
+              "docstring": "Update recipe items (replace existing items).\n\nArgs:\n    recipe_id: Recipe ID\n    items: New list of recipe items\n\nReturns:\n    Updated Recipe instance\n\nRaises:\n    DatabaseError: If update fails",
+              "args": [
+                "self",
+                "recipe_id",
+                "items"
+              ]
+            },
+            {
+              "name": "add_recipe_item",
+              "docstring": "Add a single item to a recipe.\n\nArgs:\n    recipe_id: Recipe ID\n    item_data: Dictionary containing item data\n\nReturns:\n    Created RecipeItem instance\n\nRaises:\n    DatabaseError: If creation fails",
+              "args": [
+                "self",
+                "recipe_id",
+                "item_data"
+              ]
+            },
+            {
+              "name": "check_materials_availability",
+              "docstring": "Check if all materials for a recipe are available in sufficient quantity.\n\nArgs:\n    recipe_id: Recipe ID\n    quantity: Number of items to produce\n\nReturns:\n    Tuple of (all materials available, list of missing items)\n\nRaises:\n    DatabaseError: If check fails",
+              "args": [
+                "self",
+                "recipe_id",
+                "quantity"
+              ]
+            }
+          ],
+          "base_classes": []
+        }
+      ],
+      "functions": [],
+      "global_variables": []
+    },
+    "database\\sqlalchemy\\core\\specialized\\shopping_list_manager.py": {
+      "path": "database\\sqlalchemy\\core\\specialized\\shopping_list_manager.py",
+      "imports": [
+        "typing.List",
+        "typing.Optional",
+        "typing.Dict",
+        "typing.Any",
+        "typing.Tuple",
+        "datetime.datetime",
+        "sqlalchemy.select",
+        "sqlalchemy.and_",
+        "sqlalchemy.or_",
+        "sqlalchemy.func",
+        "sqlalchemy.orm.joinedload",
+        "store_management.database.sqlalchemy.core.base_manager.BaseManager",
+        "store_management.database.sqlalchemy.models.ShoppingList",
+        "store_management.database.sqlalchemy.models.ShoppingListItem",
+        "store_management.database.sqlalchemy.models.Supplier",
+        "store_management.utils.error_handling.DatabaseError"
+      ],
+      "classes": [
+        {
+          "name": "ShoppingListManager",
+          "docstring": "Specialized manager for ShoppingList model operations.\n\nExtends BaseManager with shopping list-specific operations.",
+          "methods": [
+            {
+              "name": "get_shopping_list_with_items",
+              "docstring": "Get shopping list with all its items.\n\nArgs:\n    list_id: Shopping list ID\n\nReturns:\n    ShoppingList with items loaded or None if not found\n\nRaises:\n    DatabaseError: If retrieval fails",
+              "args": [
+                "self",
+                "list_id"
+              ]
+            },
+            {
+              "name": "create_shopping_list",
+              "docstring": "Create a new shopping list with optional items.\n\nArgs:\n    data: Shopping list data\n    items: Optional list of item data\n\nReturns:\n    Created ShoppingList instance\n\nRaises:\n    DatabaseError: If creation fails",
+              "args": [
+                "self",
+                "data",
+                "items"
+              ]
+            },
+            {
+              "name": "add_shopping_list_item",
+              "docstring": "Add an item to a shopping list.\n\nArgs:\n    list_id: Shopping list ID\n    item_data: Item data\n\nReturns:\n    Created ShoppingListItem instance\n\nRaises:\n    DatabaseError: If creation fails",
+              "args": [
+                "self",
+                "list_id",
+                "item_data"
+              ]
+            },
+            {
+              "name": "mark_item_purchased",
+              "docstring": "Mark a shopping list item as purchased.\n\nArgs:\n    item_id: Shopping list item ID\n    purchase_data: Purchase details\n\nReturns:\n    Updated ShoppingListItem instance\n\nRaises:\n    DatabaseError: If update fails",
+              "args": [
+                "self",
+                "item_id",
+                "purchase_data"
+              ]
+            },
+            {
+              "name": "get_pending_items",
+              "docstring": "Get all pending (unpurchased) items across all shopping lists.\n\nReturns:\n    List of unpurchased ShoppingListItem instances\n\nRaises:\n    DatabaseError: If retrieval fails",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "get_items_by_supplier",
+              "docstring": "Get all shopping list items for a specific supplier.\n\nArgs:\n    supplier_id: Supplier ID\n\nReturns:\n    List of ShoppingListItem instances for the supplier\n\nRaises:\n    DatabaseError: If retrieval fails",
+              "args": [
+                "self",
+                "supplier_id"
+              ]
+            },
+            {
+              "name": "get_shopping_list_summary",
+              "docstring": "Get summary statistics for a shopping list.\n\nArgs:\n    list_id: Shopping list ID\n\nReturns:\n    Dictionary containing summary statistics\n\nRaises:\n    DatabaseError: If retrieval fails",
+              "args": [
+                "self",
+                "list_id"
+              ]
+            }
+          ],
+          "base_classes": []
+        }
+      ],
+      "functions": [],
+      "global_variables": []
+    },
+    "database\\sqlalchemy\\core\\specialized\\storage_manager.py": {
+      "path": "database\\sqlalchemy\\core\\specialized\\storage_manager.py",
+      "imports": [
+        "typing.Callable",
+        "sqlalchemy.orm.Session",
+        "store_management.database.sqlalchemy.core.base_manager.BaseManager",
+        "store_management.database.sqlalchemy.models.storage.Storage"
+      ],
+      "classes": [
+        {
+          "name": "StorageManager",
+          "docstring": "Specialized manager for Storage model operations.\n\nThis class extends BaseManager with storage-specific operations.",
+          "methods": [
+            {
+              "name": "__init__",
+              "docstring": "Initialize the StorageManager.\n\nArgs:\n    session_factory: A callable that returns a SQLAlchemy Session.",
+              "args": [
+                "self",
+                "session_factory"
+              ]
+            }
+          ],
+          "base_classes": [
+            "BaseManager"
+          ]
+        }
+      ],
+      "functions": [],
+      "global_variables": []
+    },
+    "database\\sqlalchemy\\core\\specialized\\supplier_manager.py": {
+      "path": "database\\sqlalchemy\\core\\specialized\\supplier_manager.py",
+      "imports": [
+        "typing.List",
+        "typing.Optional",
+        "typing.Dict",
+        "typing.Any",
+        "typing.Tuple",
+        "datetime.datetime",
+        "sqlalchemy.select",
+        "sqlalchemy.and_",
+        "sqlalchemy.or_",
+        "sqlalchemy.func",
+        "sqlalchemy.orm.joinedload",
+        "store_management.database.sqlalchemy.core.base_manager.BaseManager",
+        "store_management.database.sqlalchemy.models.Supplier",
+        "store_management.database.sqlalchemy.models.Order",
+        "store_management.database.sqlalchemy.models.Part",
+        "store_management.database.sqlalchemy.models.Leather",
+        "store_management.utils.error_handling.DatabaseError"
+      ],
+      "classes": [
+        {
+          "name": "SupplierManager",
+          "docstring": "Specialized manager for Supplier model operations.\n\nExtends BaseManager with supplier-specific operations.",
+          "methods": [
+            {
+              "name": "get_supplier_with_orders",
+              "docstring": "Get supplier with their order history.\n\nArgs:\n    supplier_id: Supplier ID\n\nReturns:\n    Supplier with orders loaded or None if not found\n\nRaises:\n    DatabaseError: If retrieval fails",
+              "args": [
+                "self",
+                "supplier_id"
+              ]
+            },
+            {
+              "name": "get_supplier_products",
+              "docstring": "Get all products supplied by a supplier.\n\nArgs:\n    supplier_id: Supplier ID\n\nReturns:\n    Dictionary containing parts and leather supplied\n\nRaises:\n    DatabaseError: If retrieval fails",
+              "args": [
+                "self",
+                "supplier_id"
+              ]
+            },
+            {
+              "name": "get_supplier_order_history",
+              "docstring": "Get supplier's order history with optional date range.\n\nArgs:\n    supplier_id: Supplier ID\n    start_date: Optional start date\n    end_date: Optional end date\n\nReturns:\n    List of Order instances\n\nRaises:\n    DatabaseError: If retrieval fails",
+              "args": [
+                "self",
+                "supplier_id",
+                "start_date",
+                "end_date"
+              ]
+            },
+            {
+              "name": "update_supplier_rating",
+              "docstring": "Update supplier quality rating.\n\nArgs:\n    supplier_id: Supplier ID\n    rating: New rating (0-5)\n    notes: Optional notes about the rating\n\nReturns:\n    Updated Supplier instance\n\nRaises:\n    DatabaseError: If update fails",
+              "args": [
+                "self",
+                "supplier_id",
+                "rating",
+                "notes"
+              ]
+            },
+            {
+              "name": "search_suppliers",
+              "docstring": "Search suppliers across multiple fields.\n\nArgs:\n    term: Term to search for\n\nReturns:\n    List of matching Supplier instances\n\nRaises:\n    DatabaseError: If search fails",
+              "args": [
+                "self",
+                "term"
+              ]
+            }
+          ],
+          "base_classes": []
+        }
+      ],
+      "functions": [],
+      "global_variables": []
+    },
+    "database\\sqlalchemy\\core\\specialized\\__init__.py": {
+      "path": "database\\sqlalchemy\\core\\specialized\\__init__.py",
+      "imports": [
+        "storage_manager.StorageManager",
+        "supplier_manager.SupplierManager",
+        "product_manager.ProductManager",
+        "part_manager.PartManager",
+        "leather_manager.LeatherManager",
+        "recipe_manager.RecipeManager",
+        "order_manager.OrderManager",
+        "shopping_list_manager.ShoppingListManager"
+      ],
+      "classes": [],
+      "functions": [],
+      "global_variables": [
+        "__all__"
+      ]
     }
   }
 }

@@ -1,41 +1,38 @@
-from store_management.services.storage_service import StorageService
-from store_management.services.inventory_service import InventoryService
-from store_management.services.order_service import OrderService
-from store_management.services.recipe_service import RecipeService
-from store_management.database.sqlalchemy.session import init_database
-import logging
+# Path: store_management\store_management\application.py
+from typing import Type, TypeVar
 
+from store_management.di.config import ApplicationConfig
+from store_management.di.container import DependencyContainer
+
+T = TypeVar('T')
 
 class Application:
-    """Main application class responsible for initialization and service creation"""
+    """
+    Main application class that manages dependency injection and service resolution.
 
-    def __init__(self, db_url=None):
-        """Initialize application with optional database URL"""
-        self.db_url = db_url
-        self.logger = logging.getLogger(__name__)
-        self.services = {}
+    This class is responsible for initializing the application's dependency container
+    and providing access to application services.
+    """
 
-    def initialize(self):
-        """Initialize the application, database connection and create services"""
-        self.logger.info("Initializing application")
+    def __init__(self):
+        """
+        Initialize the Application instance.
 
-        # Initialize database
-        init_database()
+        Sets up the dependency injection container using ApplicationConfig.
+        """
+        self._container = ApplicationConfig.configure_container()
 
-        # Create services
-        self.services["storage"] = StorageService()
-        self.services["inventory"] = InventoryService()
-        self.services["order"] = OrderService()
-        self.services["recipe"] = RecipeService()
+    def get_service(self, service_type: Type[T]) -> T:
+        """
+        Retrieve a service instance from the dependency container.
 
-        self.logger.info("Application initialized successfully")
+        Args:
+            service_type: The type of service to retrieve.
 
-    def get_service(self, service_name):
-        """Get a service by name"""
-        return self.services.get(service_name)
+        Returns:
+            An instance of the requested service.
 
-    def cleanup(self):
-        """Clean up resources"""
-        self.logger.info("Cleaning up application resources")
-        # Nothing to clean up with the new approach as session management
-        # is handled at the function level
+        Raises:
+            ValueError: If the service cannot be resolved.
+        """
+        return self._container.get_service(service_type)

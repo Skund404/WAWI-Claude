@@ -1,63 +1,97 @@
+# database/sqlalchemy/session.py
+
+import os
 from contextlib import contextmanager
+from typing import Optional
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session
+from sqlalchemy.pool import NullPool
 from sqlalchemy_utils import database_exists, create_database
-from store_management.database.sqlalchemy.models.base import Base
-from store_management.utils.logger import logger
-import os
-from typing import Optional
+from store_management.database.sqlalchemy.base import Base
+from store_management.utils.error_handling import DatabaseError
 
-# Database URL configuration - keep existing code
-DATABASE_URL = os.environ.get(
-    "DATABASE_URL",
-    f"sqlite:///{os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'store.db')}"
-)
+# Default database URL
+DEFAULT_DATABASE_URL = "sqlite:///store_management.db"
 
-# Engine and session factory setup
-engine = create_engine(DATABASE_URL, echo=False)
-session_factory = sessionmaker(bind=engine)
-SessionLocal = scoped_session(session_factory)
+# Global variables for engine and session factory
+DATABASE_URL = None
+engine = None
+session_factory = None
 
 
-def init_database():
-    """Initialize database if it doesn't exist"""
-    if not database_exists(engine.url):
-        create_database(engine.url)
-    Base.metadata.create_all(bind=engine)
+def init_database(db_url: Optional[str] = None):
+    """Initialize the database, creating it if it doesn't exist.
+
+    Args:
+        db_url: Optional database URL (uses default if not provided)
+
+    Raises:
+        DatabaseError: If database initialization fails
+    """
+    global DATABASE_URL, engine, session_factory
+
+    try:
+        # Use provided URL or default
+        DATABASE_URL = db_url or os.environ.get("DATABASE_URL", DEFAULT_DATABASE_URL)
+
+        # Create engine
+        engine = create_engine(
+            DATABASE_URL,
+            echo=False,  # Set to True for SQL logging
+            pool_pre_ping=True,  # Check connection before using it
+            poolclass=NullPool if DATABASE_URL.startswith("sqlite") else None
+        )
+
+        # Create database if it doesn't exist
+        if not database_exists(engine.url):
+            create_database(engine.url)
+
+        # Create tables if they don't exist
+        Base.metadata.create_all(engine)
+
+        # Create session factory
+        session_factory = scoped_session(sessionmaker(
+            autocommit=False,
+            autoflush=False,
+            bind=engine
+        ))
+
+    except Exception as e:
+        raise DatabaseError(f"Failed to initialize database: {str(e)}")
 
 
 @contextmanager
 def get_db_session():
-    """Provide a transactional scope around database operations.
+    """Context manager for database sessions.
 
-    Usage:
-        with get_db_session() as session:
-            # Perform database operations
-            session.add(some_object)
+    Provides a transactional scope for database operations.
+    Automatically handles session creation, commit, and rollback.
 
     Yields:
-        SQLAlchemy Session object
+        SQLAlchemy session object
+
+    Raises:
+        DatabaseError: If session management fails
     """
-    session = SessionLocal()
+    # Ensure database is initialized
+    if session_factory is None:
+        init_database()
+
+    session = session_factory()
     try:
         yield session
         session.commit()
     except Exception as e:
         session.rollback()
-        logger.error(f"Database error: {str(e)}")
-        raise
+        raise DatabaseError(f"Database session error: {str(e)}")
     finally:
         session.close()
 
 
-def get_session():
-    """Create and return a new database session for compatibility with existing code.
+def close_all_sessions():
+    """Close all active database sessions.
 
-    Note: This function is provided for backward compatibility.
-    New code should use get_db_session() context manager instead.
-
-    Returns:
-        SQLAlchemy Session object
+    Useful for cleanup and testing.
     """
-    logger.warning("Using deprecated get_session() - consider migrating to get_db_session()")
-    return SessionLocal()
+    if session_factory is not None:
+        session_factory.remove()

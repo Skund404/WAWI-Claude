@@ -1,6 +1,16 @@
 Metadata-Version: 2.2
-Name: store_management
-Version: 0.1
-Requires-Dist: sqlalchemy
-Requires-Dist: alembic
+Name: store-management
+Version: 0.1.0
+Summary: Store Management Application
+Author: Your Name
+Author-email: your.email@example.com
+Requires-Python: >=3.9
+Requires-Dist: sqlalchemy>=2.0.19
+Requires-Dist: alembic>=1.11.1
+Requires-Dist: python-dotenv>=1.0.0
+Requires-Dist: sqlalchemy-utils>=0.41.1
+Dynamic: author
+Dynamic: author-email
 Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary

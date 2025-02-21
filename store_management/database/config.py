@@ -1,7 +1,6 @@
-# File: database/sqlalchemy/config.py
-# Purpose: Centralized database configuration management
-
+# File: store_management/database/config.py
 import os
+import typing
 from typing import Dict, Any, Optional
 from pathlib import Path
 
@@ -21,20 +20,21 @@ def get_database_url(config: Optional[Dict[str, Any]] = None) -> str:
     Returns:
         Database connection URL
     """
-    # Check explicitly passed config first
+    # Default to SQLite database in the project root
+    project_root = _find_project_root()
+    default_db_path = project_root / 'store_management.db'
+
+    # Priority 1: Passed configuration
     if config and 'database_url' in config:
         return config['database_url']
 
-    # Check environment variables
-    env_url = os.environ.get('DATABASE_URL')
-    if env_url:
-        return env_url
+    # Priority 2: Environment variable
+    env_db_url = os.environ.get('DATABASE_URL')
+    if env_db_url:
+        return env_db_url
 
-    # Default to SQLite in project root
-    project_root = _find_project_root()
-    default_path = project_root / 'store_management.db'
-
-    return f'sqlite:///{default_path}'
+    # Priority 3: Default SQLite database
+    return f'sqlite:///{default_db_path}'
 
 
 def _find_project_root() -> Path:
@@ -44,17 +44,11 @@ def _find_project_root() -> Path:
     Returns:
         Path to the project root
     """
-    current_dir = Path(__file__).resolve()
-
-    # Search up to 5 levels to find project root
-    for _ in range(5):
-        if (current_dir / 'pyproject.toml').exists() or \
-                (current_dir / 'setup.py').exists():
-            return current_dir
-        current_dir = current_dir.parent
-
-    # Fallback to current directory
-    return Path.cwd()
+    current_path = Path(__file__).resolve()
+    # Go up multiple levels to find project root
+    for _ in range(3):  # Adjust this if needed
+        current_path = current_path.parent
+    return current_path
 
 
 def get_database_config() -> Dict[str, Any]:
@@ -67,9 +61,16 @@ def get_database_config() -> Dict[str, Any]:
         Dictionary with database configuration
     """
     return {
-        'url': get_database_url(),
-        'echo': os.environ.get('DATABASE_ECHO', 'false').lower() == 'true',
-        'pool_size': int(os.environ.get('DATABASE_POOL_SIZE', 5)),
-        'max_overflow': int(os.environ.get('DATABASE_MAX_OVERFLOW', 10)),
-        'pool_timeout': int(os.environ.get('DATABASE_POOL_TIMEOUT', 30)),
+        'database_url': get_database_url(),
+        'project_root': str(_find_project_root()),
+        # Add more configuration parameters as needed
     }
+
+
+# Create a default database manager configuration
+database_manager = {
+    'url': get_database_url(),
+    'echo': False,  # Set to True for SQLAlchemy logging
+    'pool_size': 5,
+    'max_overflow': 10
+}

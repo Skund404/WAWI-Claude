@@ -1,6 +1,6 @@
 from typing import List, Optional, Type, Any, Dict
 from sqlalchemy import select, and_, or_, func
-from store_management.database.sqlalchemy.models.base import Base
+from store_management.database.sqlalchemy.base import Base
 from store_management.database.sqlalchemy.session import get_db_session
 
 
