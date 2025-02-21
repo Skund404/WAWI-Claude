@@ -1,0 +1,38 @@
+<problems>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>82</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="PyShadowingBuiltinsInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing built-in names</problem_class>
+  <description>Shadows built-in name 'id'</description>
+  <highlighted_element>id</highlighted_element>
+  <language>Python</language>
+  <offset>18</offset>
+  <length>2</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>111</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="PyShadowingBuiltinsInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing built-in names</problem_class>
+  <description>Shadows built-in name 'id'</description>
+  <highlighted_element>id</highlighted_element>
+  <language>Python</language>
+  <offset>21</offset>
+  <length>2</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>130</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="PyShadowingBuiltinsInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing built-in names</problem_class>
+  <description>Shadows built-in name 'id'</description>
+  <highlighted_element>id</highlighted_element>
+  <language>Python</language>
+  <offset>21</offset>
+  <length>2</length>
+</problem>
+</problems>

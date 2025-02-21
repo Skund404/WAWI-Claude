@@ -5,6 +5,7 @@ import uuid
 
 
 class AddDialog(tk.Toplevel):
+
     def __init__(self, parent, save_callback: Callable[[Dict], bool], fields: list):
         """
         Initialize add dialog
@@ -26,6 +27,10 @@ class AddDialog(tk.Toplevel):
         self.entries = {}
 
         self.setup_ui()
+
+    # gui/dialogs/add_dialog.py
+    def show_storage_dialog(self):
+        dialog = AddDialog(self, "Add Storage Location", self.add_storage_callback)
 
     def setup_ui(self):
         """Setup the dialog UI components"""

@@ -1,0 +1,554 @@
+<problems>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/managers/report_manager.py</file>
+  <line>189</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/managers/report_manager.py" />
+  <problem_class id="PyAttributeOutsideInitInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">An instance attribute is defined outside `__init__`</problem_class>
+  <description>Instance attribute report_type defined outside __init__</description>
+  <highlighted_element>self.report_type</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>16</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/managers/report_manager.py</file>
+  <line>198</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/managers/report_manager.py" />
+  <problem_class id="PyAttributeOutsideInitInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">An instance attribute is defined outside `__init__`</problem_class>
+  <description>Instance attribute filters_frame defined outside __init__</description>
+  <highlighted_element>self.filters_frame</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>18</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/managers/report_manager.py</file>
+  <line>205</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/managers/report_manager.py" />
+  <problem_class id="PyAttributeOutsideInitInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">An instance attribute is defined outside `__init__`</problem_class>
+  <description>Instance attribute export_format defined outside __init__</description>
+  <highlighted_element>self.export_format</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>18</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/managers/report_manager.py</file>
+  <line>236</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/managers/report_manager.py" />
+  <problem_class id="PyAttributeOutsideInitInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">An instance attribute is defined outside `__init__`</problem_class>
+  <description>Instance attribute filter_widgets defined outside __init__</description>
+  <highlighted_element>self.filter_widgets</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>19</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/dialogs/filter_dialog.py</file>
+  <line>41</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/dialogs/filter_dialog.py" />
+  <problem_class id="PyAttributeOutsideInitInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">An instance attribute is defined outside `__init__`</problem_class>
+  <description>Instance attribute filters_frame defined outside __init__</description>
+  <highlighted_element>self.filters_frame</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>18</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py</file>
+  <line>39</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py" />
+  <problem_class id="PyAttributeOutsideInitInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">An instance attribute is defined outside `__init__`</problem_class>
+  <description>Instance attribute report_type defined outside __init__</description>
+  <highlighted_element>self.report_type</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>16</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py</file>
+  <line>58</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py" />
+  <problem_class id="PyAttributeOutsideInitInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">An instance attribute is defined outside `__init__`</problem_class>
+  <description>Instance attribute options_frame defined outside __init__</description>
+  <highlighted_element>self.options_frame</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>18</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py</file>
+  <line>62</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py" />
+  <problem_class id="PyAttributeOutsideInitInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">An instance attribute is defined outside `__init__`</problem_class>
+  <description>Instance attribute date_range defined outside __init__</description>
+  <highlighted_element>self.date_range</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>15</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py</file>
+  <line>63</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py" />
+  <problem_class id="PyAttributeOutsideInitInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">An instance attribute is defined outside `__init__`</problem_class>
+  <description>Instance attribute date_range_frame defined outside __init__</description>
+  <highlighted_element>self.date_range_frame</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>21</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py</file>
+  <line>82</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py" />
+  <problem_class id="PyAttributeOutsideInitInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">An instance attribute is defined outside `__init__`</problem_class>
+  <description>Instance attribute detail_level defined outside __init__</description>
+  <highlighted_element>self.detail_level</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>17</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py</file>
+  <line>83</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py" />
+  <problem_class id="PyAttributeOutsideInitInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">An instance attribute is defined outside `__init__`</problem_class>
+  <description>Instance attribute detail_frame defined outside __init__</description>
+  <highlighted_element>self.detail_frame</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>17</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py</file>
+  <line>145</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py" />
+  <problem_class id="PyAttributeOutsideInitInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">An instance attribute is defined outside `__init__`</problem_class>
+  <description>Instance attribute canvas defined outside __init__</description>
+  <highlighted_element>self.canvas</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>11</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py</file>
+  <line>156</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py" />
+  <problem_class id="PyAttributeOutsideInitInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">An instance attribute is defined outside `__init__`</problem_class>
+  <description>Instance attribute report_frame defined outside __init__</description>
+  <highlighted_element>self.report_frame</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>17</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py</file>
+  <line>157</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py" />
+  <problem_class id="PyAttributeOutsideInitInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">An instance attribute is defined outside `__init__`</problem_class>
+  <description>Instance attribute canvas_frame defined outside __init__</description>
+  <highlighted_element>self.canvas_frame</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>17</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py</file>
+  <line>659</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py" />
+  <problem_class id="PyAttributeOutsideInitInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">An instance attribute is defined outside `__init__`</problem_class>
+  <description>Instance attribute page_size defined outside __init__</description>
+  <highlighted_element>self.page_size</highlighted_element>
+  <language>Python</language>
+  <offset>12</offset>
+  <length>14</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py</file>
+  <line>668</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py" />
+  <problem_class id="PyAttributeOutsideInitInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">An instance attribute is defined outside `__init__`</problem_class>
+  <description>Instance attribute orientation defined outside __init__</description>
+  <highlighted_element>self.orientation</highlighted_element>
+  <language>Python</language>
+  <offset>12</offset>
+  <length>16</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py</file>
+  <line>678</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py" />
+  <problem_class id="PyAttributeOutsideInitInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">An instance attribute is defined outside `__init__`</problem_class>
+  <description>Instance attribute include_charts defined outside __init__</description>
+  <highlighted_element>self.include_charts</highlighted_element>
+  <language>Python</language>
+  <offset>12</offset>
+  <length>19</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py</file>
+  <line>685</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py" />
+  <problem_class id="PyAttributeOutsideInitInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">An instance attribute is defined outside `__init__`</problem_class>
+  <description>Instance attribute include_details defined outside __init__</description>
+  <highlighted_element>self.include_details</highlighted_element>
+  <language>Python</language>
+  <offset>12</offset>
+  <length>20</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py</file>
+  <line>700</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py" />
+  <problem_class id="PyAttributeOutsideInitInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">An instance attribute is defined outside `__init__`</problem_class>
+  <description>Instance attribute preview_canvas defined outside __init__</description>
+  <highlighted_element>self.preview_canvas</highlighted_element>
+  <language>Python</language>
+  <offset>12</offset>
+  <length>19</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/dialogs/search_dialog.py</file>
+  <line>35</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/dialogs/search_dialog.py" />
+  <problem_class id="PyAttributeOutsideInitInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">An instance attribute is defined outside `__init__`</problem_class>
+  <description>Instance attribute column_var defined outside __init__</description>
+  <highlighted_element>self.column_var</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>15</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/dialogs/search_dialog.py</file>
+  <line>43</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/dialogs/search_dialog.py" />
+  <problem_class id="PyAttributeOutsideInitInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">An instance attribute is defined outside `__init__`</problem_class>
+  <description>Instance attribute search_entry defined outside __init__</description>
+  <highlighted_element>self.search_entry</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>17</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/dialogs/search_dialog.py</file>
+  <line>47</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/dialogs/search_dialog.py" />
+  <problem_class id="PyAttributeOutsideInitInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">An instance attribute is defined outside `__init__`</problem_class>
+  <description>Instance attribute match_case_var defined outside __init__</description>
+  <highlighted_element>self.match_case_var</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>19</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/incoming_goods_view.py</file>
+  <line>131</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/incoming_goods_view.py" />
+  <problem_class id="PyAttributeOutsideInitInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">An instance attribute is defined outside `__init__`</problem_class>
+  <description>Instance attribute paned_window defined outside __init__</description>
+  <highlighted_element>self.paned_window</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>17</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/incoming_goods_view.py</file>
+  <line>150</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/incoming_goods_view.py" />
+  <problem_class id="PyAttributeOutsideInitInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">An instance attribute is defined outside `__init__`</problem_class>
+  <description>Instance attribute orders_columns defined outside __init__</description>
+  <highlighted_element>self.orders_columns</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>19</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/incoming_goods_view.py</file>
+  <line>163</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/incoming_goods_view.py" />
+  <problem_class id="PyAttributeOutsideInitInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">An instance attribute is defined outside `__init__`</problem_class>
+  <description>Instance attribute orders_tree defined outside __init__</description>
+  <highlighted_element>self.orders_tree</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>16</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/incoming_goods_view.py</file>
+  <line>186</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/incoming_goods_view.py" />
+  <problem_class id="PyAttributeOutsideInitInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">An instance attribute is defined outside `__init__`</problem_class>
+  <description>Instance attribute details_columns defined outside __init__</description>
+  <highlighted_element>self.details_columns</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>20</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/incoming_goods_view.py</file>
+  <line>199</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/incoming_goods_view.py" />
+  <problem_class id="PyAttributeOutsideInitInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">An instance attribute is defined outside `__init__`</problem_class>
+  <description>Instance attribute details_tree defined outside __init__</description>
+  <highlighted_element>self.details_tree</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>17</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/incoming_goods_view.py</file>
+  <line>918</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/incoming_goods_view.py" />
+  <problem_class id="PyAttributeOutsideInitInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">An instance attribute is defined outside `__init__`</problem_class>
+  <description>Instance attribute item_id_mapping defined outside __init__</description>
+  <highlighted_element>self.item_id_mapping</highlighted_element>
+  <language>Python</language>
+  <offset>12</offset>
+  <length>20</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py</file>
+  <line>50</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py" />
+  <problem_class id="PyAttributeOutsideInitInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">An instance attribute is defined outside `__init__`</problem_class>
+  <description>Instance attribute list_tree_frame defined outside __init__</description>
+  <highlighted_element>self.list_tree_frame</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>20</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py</file>
+  <line>54</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py" />
+  <problem_class id="PyAttributeOutsideInitInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">An instance attribute is defined outside `__init__`</problem_class>
+  <description>Instance attribute list_columns defined outside __init__</description>
+  <highlighted_element>self.list_columns</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>17</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py</file>
+  <line>61</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py" />
+  <problem_class id="PyAttributeOutsideInitInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">An instance attribute is defined outside `__init__`</problem_class>
+  <description>Instance attribute list_tree defined outside __init__</description>
+  <highlighted_element>self.list_tree</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>14</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/supplier_view.py</file>
+  <line>335</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/supplier_view.py" />
+  <problem_class id="PyAttributeOutsideInitInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">An instance attribute is defined outside `__init__`</problem_class>
+  <description>Instance attribute columns defined outside __init__</description>
+  <highlighted_element>self.columns</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>12</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/supplier_view.py</file>
+  <line>342</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/supplier_view.py" />
+  <problem_class id="PyAttributeOutsideInitInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">An instance attribute is defined outside `__init__`</problem_class>
+  <description>Instance attribute tree defined outside __init__</description>
+  <highlighted_element>self.tree</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/supplier_view.py</file>
+  <line>786</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/supplier_view.py" />
+  <problem_class id="PyAttributeOutsideInitInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">An instance attribute is defined outside `__init__`</problem_class>
+  <description>Instance attribute _sort_reverse defined outside __init__</description>
+  <highlighted_element>self._sort_reverse</highlighted_element>
+  <language>Python</language>
+  <offset>12</offset>
+  <length>18</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/product/recipe_view.py</file>
+  <line>105</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/product/recipe_view.py" />
+  <problem_class id="PyAttributeOutsideInitInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">An instance attribute is defined outside `__init__`</problem_class>
+  <description>Instance attribute index_columns defined outside __init__</description>
+  <highlighted_element>self.index_columns</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>18</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/product/recipe_view.py</file>
+  <line>109</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/product/recipe_view.py" />
+  <problem_class id="PyAttributeOutsideInitInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">An instance attribute is defined outside `__init__`</problem_class>
+  <description>Instance attribute index_tree defined outside __init__</description>
+  <highlighted_element>self.index_tree</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>15</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/product/recipe_view.py</file>
+  <line>119</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/product/recipe_view.py" />
+  <problem_class id="PyAttributeOutsideInitInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">An instance attribute is defined outside `__init__`</problem_class>
+  <description>Instance attribute details_columns defined outside __init__</description>
+  <highlighted_element>self.details_columns</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>20</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/product/recipe_view.py</file>
+  <line>124</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/product/recipe_view.py" />
+  <problem_class id="PyAttributeOutsideInitInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">An instance attribute is defined outside `__init__`</problem_class>
+  <description>Instance attribute details_tree defined outside __init__</description>
+  <highlighted_element>self.details_tree</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>17</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/product/recipe_view.py</file>
+  <line>187</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/product/recipe_view.py" />
+  <problem_class id="PyAttributeOutsideInitInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">An instance attribute is defined outside `__init__`</problem_class>
+  <description>Instance attribute status_label defined outside __init__</description>
+  <highlighted_element>self.status_label</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>17</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/product/recipe_view.py</file>
+  <line>191</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/product/recipe_view.py" />
+  <problem_class id="PyAttributeOutsideInitInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">An instance attribute is defined outside `__init__`</problem_class>
+  <description>Instance attribute recipe_count defined outside __init__</description>
+  <highlighted_element>self.recipe_count</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>17</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/product/storage_view.py</file>
+  <line>54</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/product/storage_view.py" />
+  <problem_class id="PyAttributeOutsideInitInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">An instance attribute is defined outside `__init__`</problem_class>
+  <description>Instance attribute tree_frame defined outside __init__</description>
+  <highlighted_element>self.tree_frame</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>15</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/product/storage_view.py</file>
+  <line>58</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/product/storage_view.py" />
+  <problem_class id="PyAttributeOutsideInitInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">An instance attribute is defined outside `__init__`</problem_class>
+  <description>Instance attribute columns defined outside __init__</description>
+  <highlighted_element>self.columns</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>12</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/product/storage_view.py</file>
+  <line>68</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/product/storage_view.py" />
+  <problem_class id="PyAttributeOutsideInitInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">An instance attribute is defined outside `__init__`</problem_class>
+  <description>Instance attribute tree defined outside __init__</description>
+  <highlighted_element>self.tree</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/storage/sorting_system_view.py</file>
+  <line>61</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/storage/sorting_system_view.py" />
+  <problem_class id="PyAttributeOutsideInitInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">An instance attribute is defined outside `__init__`</problem_class>
+  <description>Instance attribute tree_frame defined outside __init__</description>
+  <highlighted_element>self.tree_frame</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>15</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/storage/sorting_system_view.py</file>
+  <line>65</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/storage/sorting_system_view.py" />
+  <problem_class id="PyAttributeOutsideInitInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">An instance attribute is defined outside `__init__`</problem_class>
+  <description>Instance attribute columns defined outside __init__</description>
+  <highlighted_element>self.columns</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>12</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/storage/sorting_system_view.py</file>
+  <line>74</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/storage/sorting_system_view.py" />
+  <problem_class id="PyAttributeOutsideInitInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">An instance attribute is defined outside `__init__`</problem_class>
+  <description>Instance attribute tree defined outside __init__</description>
+  <highlighted_element>self.tree</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>9</length>
+</problem>
+</problems>

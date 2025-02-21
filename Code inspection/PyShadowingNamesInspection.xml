@@ -1,0 +1,758 @@
+<problems>
+<problem>
+  <file>file://$PROJECT_DIR$/project_analyzer.py</file>
+  <line>30</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/project_analyzer.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'project_path' from outer scope</description>
+  <highlighted_element>project_path</highlighted_element>
+  <language>Python</language>
+  <offset>23</offset>
+  <length>12</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/project_analyzer.py</file>
+  <line>172</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/project_analyzer.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'project_path' from outer scope</description>
+  <highlighted_element>project_path</highlighted_element>
+  <language>Python</language>
+  <offset>20</offset>
+  <length>12</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/migration.py</file>
+  <line>43</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/migration.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'db_url' from outer scope</description>
+  <highlighted_element>db_url</highlighted_element>
+  <language>Python</language>
+  <offset>23</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/migration.py</file>
+  <line>43</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/migration.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'backup_dir' from outer scope</description>
+  <highlighted_element>backup_dir</highlighted_element>
+  <language>Python</language>
+  <offset>36</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/migration.py</file>
+  <line>171</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/migration.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'db_url' from outer scope</description>
+  <highlighted_element>db_url</highlighted_element>
+  <language>Python</language>
+  <offset>4</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/migration.py</file>
+  <line>172</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/migration.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'backup_dir' from outer scope</description>
+  <highlighted_element>backup_dir</highlighted_element>
+  <language>Python</language>
+  <offset>4</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/migrations/migration_manager.py</file>
+  <line>169</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/migrations/migration_manager.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'context' from outer scope</description>
+  <highlighted_element>context</highlighted_element>
+  <language>Python</language>
+  <offset>12</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py</file>
+  <line>451</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'self' from outer scope</description>
+  <highlighted_element>self</highlighted_element>
+  <language>Python</language>
+  <offset>23</offset>
+  <length>4</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py</file>
+  <line>490</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'self' from outer scope</description>
+  <highlighted_element>self</highlighted_element>
+  <language>Python</language>
+  <offset>34</offset>
+  <length>4</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py</file>
+  <line>495</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'row' from outer scope</description>
+  <highlighted_element>row</highlighted_element>
+  <language>Python</language>
+  <offset>16</offset>
+  <length>3</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py</file>
+  <line>504</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'row' from outer scope</description>
+  <highlighted_element>row</highlighted_element>
+  <language>Python</language>
+  <offset>20</offset>
+  <length>3</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py</file>
+  <line>511</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'row' from outer scope</description>
+  <highlighted_element>row</highlighted_element>
+  <language>Python</language>
+  <offset>16</offset>
+  <length>3</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py</file>
+  <line>520</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'row' from outer scope</description>
+  <highlighted_element>row</highlighted_element>
+  <language>Python</language>
+  <offset>20</offset>
+  <length>3</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py</file>
+  <line>523</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'self' from outer scope</description>
+  <highlighted_element>self</highlighted_element>
+  <language>Python</language>
+  <offset>31</offset>
+  <length>4</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py</file>
+  <line>528</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'row' from outer scope</description>
+  <highlighted_element>row</highlighted_element>
+  <language>Python</language>
+  <offset>16</offset>
+  <length>3</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py</file>
+  <line>536</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'row' from outer scope</description>
+  <highlighted_element>row</highlighted_element>
+  <language>Python</language>
+  <offset>16</offset>
+  <length>3</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py</file>
+  <line>545</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'row' from outer scope</description>
+  <highlighted_element>row</highlighted_element>
+  <language>Python</language>
+  <offset>20</offset>
+  <length>3</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py</file>
+  <line>548</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'self' from outer scope</description>
+  <highlighted_element>self</highlighted_element>
+  <language>Python</language>
+  <offset>34</offset>
+  <length>4</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py</file>
+  <line>562</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'row' from outer scope</description>
+  <highlighted_element>row</highlighted_element>
+  <language>Python</language>
+  <offset>16</offset>
+  <length>3</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py</file>
+  <line>570</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'row' from outer scope</description>
+  <highlighted_element>row</highlighted_element>
+  <language>Python</language>
+  <offset>16</offset>
+  <length>3</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py</file>
+  <line>573</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'self' from outer scope</description>
+  <highlighted_element>self</highlighted_element>
+  <language>Python</language>
+  <offset>25</offset>
+  <length>4</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py</file>
+  <line>598</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'self' from outer scope</description>
+  <highlighted_element>self</highlighted_element>
+  <language>Python</language>
+  <offset>23</offset>
+  <length>4</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py</file>
+  <line>623</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'self' from outer scope</description>
+  <highlighted_element>self</highlighted_element>
+  <language>Python</language>
+  <offset>25</offset>
+  <length>4</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/main_window.py</file>
+  <line>85</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/main_window.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'field' from outer scope</description>
+  <highlighted_element>field</highlighted_element>
+  <language>Python</language>
+  <offset>24</offset>
+  <length>5</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/main_window.py</file>
+  <line>85</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/main_window.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'label' from outer scope</description>
+  <highlighted_element>label</highlighted_element>
+  <language>Python</language>
+  <offset>31</offset>
+  <length>5</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/main_window.py</file>
+  <line>209</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/main_window.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'field' from outer scope</description>
+  <highlighted_element>field</highlighted_element>
+  <language>Python</language>
+  <offset>24</offset>
+  <length>5</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/main_window.py</file>
+  <line>209</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/main_window.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'label' from outer scope</description>
+  <highlighted_element>label</highlighted_element>
+  <language>Python</language>
+  <offset>31</offset>
+  <length>5</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py</file>
+  <line>177</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'session' from outer scope</description>
+  <highlighted_element>session</highlighted_element>
+  <language>Python</language>
+  <offset>48</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py</file>
+  <line>354</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'session' from outer scope</description>
+  <highlighted_element>session</highlighted_element>
+  <language>Python</language>
+  <offset>48</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py</file>
+  <line>402</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'self' from outer scope</description>
+  <highlighted_element>self</highlighted_element>
+  <language>Python</language>
+  <offset>24</offset>
+  <length>4</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py</file>
+  <line>413</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'session' from outer scope</description>
+  <highlighted_element>session</highlighted_element>
+  <language>Python</language>
+  <offset>48</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py</file>
+  <line>456</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'self' from outer scope</description>
+  <highlighted_element>self</highlighted_element>
+  <language>Python</language>
+  <offset>34</offset>
+  <length>4</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py</file>
+  <line>470</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'session' from outer scope</description>
+  <highlighted_element>session</highlighted_element>
+  <language>Python</language>
+  <offset>48</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py</file>
+  <line>507</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'self' from outer scope</description>
+  <highlighted_element>self</highlighted_element>
+  <language>Python</language>
+  <offset>31</offset>
+  <length>4</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py</file>
+  <line>510</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'session' from outer scope</description>
+  <highlighted_element>session</highlighted_element>
+  <language>Python</language>
+  <offset>48</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py</file>
+  <line>528</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'self' from outer scope</description>
+  <highlighted_element>self</highlighted_element>
+  <language>Python</language>
+  <offset>32</offset>
+  <length>4</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py</file>
+  <line>531</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'session' from outer scope</description>
+  <highlighted_element>session</highlighted_element>
+  <language>Python</language>
+  <offset>48</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py</file>
+  <line>549</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'self' from outer scope</description>
+  <highlighted_element>self</highlighted_element>
+  <language>Python</language>
+  <offset>17</offset>
+  <length>4</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py</file>
+  <line>558</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'session' from outer scope</description>
+  <highlighted_element>session</highlighted_element>
+  <language>Python</language>
+  <offset>48</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py</file>
+  <line>641</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'self' from outer scope</description>
+  <highlighted_element>self</highlighted_element>
+  <language>Python</language>
+  <offset>17</offset>
+  <length>4</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py</file>
+  <line>650</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'session' from outer scope</description>
+  <highlighted_element>session</highlighted_element>
+  <language>Python</language>
+  <offset>48</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/supplier_view.py</file>
+  <line>51</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/supplier_view.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'field' from outer scope</description>
+  <highlighted_element>field</highlighted_element>
+  <language>Python</language>
+  <offset>24</offset>
+  <length>5</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/supplier_view.py</file>
+  <line>81</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/supplier_view.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'e' from outer scope</description>
+  <highlighted_element>e</highlighted_element>
+  <language>Python</language>
+  <offset>36</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/supplier_view.py</file>
+  <line>82</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/supplier_view.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'error_msg' from outer scope</description>
+  <highlighted_element>error_msg</highlighted_element>
+  <language>Python</language>
+  <offset>20</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/supplier_view.py</file>
+  <line>143</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/supplier_view.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'field' from outer scope</description>
+  <highlighted_element>field</highlighted_element>
+  <language>Python</language>
+  <offset>24</offset>
+  <length>5</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/supplier_view.py</file>
+  <line>148</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/supplier_view.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'query' from outer scope</description>
+  <highlighted_element>query</highlighted_element>
+  <language>Python</language>
+  <offset>20</offset>
+  <length>5</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/supplier_view.py</file>
+  <line>153</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/supplier_view.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'field' from outer scope</description>
+  <highlighted_element>field</highlighted_element>
+  <language>Python</language>
+  <offset>28</offset>
+  <length>5</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/supplier_view.py</file>
+  <line>165</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/supplier_view.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'row' from outer scope</description>
+  <highlighted_element>row</highlighted_element>
+  <language>Python</language>
+  <offset>24</offset>
+  <length>3</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/supplier_view.py</file>
+  <line>173</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/supplier_view.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'e' from outer scope</description>
+  <highlighted_element>e</highlighted_element>
+  <language>Python</language>
+  <offset>36</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/supplier_view.py</file>
+  <line>174</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/supplier_view.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'error_msg' from outer scope</description>
+  <highlighted_element>error_msg</highlighted_element>
+  <language>Python</language>
+  <offset>20</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/supplier_view.py</file>
+  <line>187</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/supplier_view.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'e' from outer scope</description>
+  <highlighted_element>e</highlighted_element>
+  <language>Python</language>
+  <offset>36</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/supplier_view.py</file>
+  <line>188</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/supplier_view.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'error_msg' from outer scope</description>
+  <highlighted_element>error_msg</highlighted_element>
+  <language>Python</language>
+  <offset>20</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/supplier_view.py</file>
+  <line>447</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/supplier_view.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'e' from outer scope</description>
+  <highlighted_element>e</highlighted_element>
+  <language>Python</language>
+  <offset>23</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/supplier_view.py</file>
+  <line>510</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/supplier_view.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'e' from outer scope</description>
+  <highlighted_element>e</highlighted_element>
+  <language>Python</language>
+  <offset>36</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/supplier_view.py</file>
+  <line>511</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/supplier_view.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'error_msg' from outer scope</description>
+  <highlighted_element>error_msg</highlighted_element>
+  <language>Python</language>
+  <offset>20</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/supplier_view.py</file>
+  <line>644</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/supplier_view.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'e' from outer scope</description>
+  <highlighted_element>e</highlighted_element>
+  <language>Python</language>
+  <offset>36</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/supplier_view.py</file>
+  <line>645</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/supplier_view.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'error_msg' from outer scope</description>
+  <highlighted_element>error_msg</highlighted_element>
+  <language>Python</language>
+  <offset>20</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/product/recipe_view.py</file>
+  <line>346</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/product/recipe_view.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'field' from outer scope</description>
+  <highlighted_element>field</highlighted_element>
+  <language>Python</language>
+  <offset>24</offset>
+  <length>5</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/product/recipe_view.py</file>
+  <line>462</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/product/recipe_view.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'session' from outer scope</description>
+  <highlighted_element>session</highlighted_element>
+  <language>Python</language>
+  <offset>48</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/product/storage_view.py</file>
+  <line>212</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/product/storage_view.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'session' from outer scope</description>
+  <highlighted_element>session</highlighted_element>
+  <language>Python</language>
+  <offset>48</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/product/storage_view.py</file>
+  <line>448</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/product/storage_view.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'session' from outer scope</description>
+  <highlighted_element>session</highlighted_element>
+  <language>Python</language>
+  <offset>48</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/project_analyzer.py</file>
+  <line>30</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/project_analyzer.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'project_path' from outer scope</description>
+  <highlighted_element>project_path</highlighted_element>
+  <language>Python</language>
+  <offset>23</offset>
+  <length>12</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/project_analyzer.py</file>
+  <line>172</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/project_analyzer.py" />
+  <problem_class id="PyShadowingNamesInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Shadowing names from outer scopes</problem_class>
+  <description>Shadows name 'project_path' from outer scope</description>
+  <highlighted_element>project_path</highlighted_element>
+  <language>Python</language>
+  <offset>20</offset>
+  <length>12</length>
+</problem>
+</problems>

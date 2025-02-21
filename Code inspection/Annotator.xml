@@ -1,0 +1,184 @@
+<problems>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>186</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>End of statement expected #loc</description>
+  <highlighted_element>)</highlighted_element>
+  <language>Python</language>
+  <offset>95</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>186</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>Statement expected, found Py:RPAR #loc</description>
+  <highlighted_element />
+  <language>Python</language>
+  <offset>96</offset>
+  <length>0</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>263</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>End of statement expected #loc</description>
+  <highlighted_element>)</highlighted_element>
+  <language>Python</language>
+  <offset>95</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>263</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>Statement expected, found Py:RPAR #loc</description>
+  <highlighted_element />
+  <language>Python</language>
+  <offset>96</offset>
+  <length>0</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>276</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>End of statement expected #loc</description>
+  <highlighted_element>)</highlighted_element>
+  <language>Python</language>
+  <offset>95</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>276</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>Statement expected, found Py:RPAR #loc</description>
+  <highlighted_element />
+  <language>Python</language>
+  <offset>96</offset>
+  <length>0</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>302</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>End of statement expected #loc</description>
+  <highlighted_element>)</highlighted_element>
+  <language>Python</language>
+  <offset>95</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>302</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>Statement expected, found Py:RPAR #loc</description>
+  <highlighted_element />
+  <language>Python</language>
+  <offset>96</offset>
+  <length>0</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>321</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>End of statement expected #loc</description>
+  <highlighted_element>)</highlighted_element>
+  <language>Python</language>
+  <offset>95</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>321</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>Statement expected, found Py:RPAR #loc</description>
+  <highlighted_element />
+  <language>Python</language>
+  <offset>96</offset>
+  <length>0</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>345</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>End of statement expected #loc</description>
+  <highlighted_element>)</highlighted_element>
+  <language>Python</language>
+  <offset>95</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>345</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>Statement expected, found Py:RPAR #loc</description>
+  <highlighted_element />
+  <language>Python</language>
+  <offset>96</offset>
+  <length>0</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/incoming_goods_view.py</file>
+  <line>472</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/incoming_goods_view.py" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>Indent expected #loc</description>
+  <highlighted_element />
+  <language>Python</language>
+  <offset>30</offset>
+  <length>0</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/storage/sorting_system_view.py</file>
+  <line>424</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/storage/sorting_system_view.py" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>Indent expected #loc</description>
+  <highlighted_element />
+  <language>Python</language>
+  <offset>16</offset>
+  <length>0</length>
+</problem>
+</problems>

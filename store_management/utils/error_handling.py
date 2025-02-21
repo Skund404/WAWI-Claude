@@ -1,84 +1,105 @@
-# File: store_management/utils/error_handling.py
+# File: utils/error_handling.py
+# Purpose: Provide centralized error handling for database operations
 
-from typing import Optional, Any, Dict
-import functools
-from store_management.utils.logging_config import error_tracker
+from typing import Optional, Dict, Any
+import traceback
+import logging
 
 
-class ApplicationError(Exception):
+class DatabaseError(Exception):
     """
-    Base class for application-specific errors
+    Custom exception for database-related errors.
 
-    Provides consistent error handling and logging
+    Provides detailed context about database operation failures.
     """
 
     def __init__(
             self,
             message: str,
-            error_code: Optional[str] = None,
-            context: Optional[Dict[str, Any]] = None
+            details: Optional[str] = None,
+            error_code: Optional[str] = None
     ):
         """
-        Initialize ApplicationError
+        Initialize a database error with detailed information.
 
         Args:
-            message (str): Error message
-            error_code (Optional[str]): Unique error identifier
-            context (Optional[Dict]): Additional error context
+            message: Primary error message
+            details: Additional error details or stack trace
+            error_code: Optional error code for identification
         """
         super().__init__(message)
-        self.error_code = error_code or self.__class__.__name__
-        self.context = context or {}
+        self.message = message
+        self.details = details or traceback.format_exc()
+        self.error_code = error_code or "UNKNOWN_DB_ERROR"
 
-        # Log the error automatically
-        error_tracker.log_error(
-            self,
-            context=self.context,
-            additional_info=f"Error Code: {self.error_code}"
-        )
+    def __str__(self) -> str:
+        """
+        Provide a comprehensive string representation of the error.
 
-
-class DatabaseError(ApplicationError):
-    """Specific error for database-related exceptions"""
-    pass
-
-
-class ValidationError(ApplicationError):
-    """Error for data validation failures"""
-    pass
+        Returns:
+            Formatted error message with details
+        """
+        error_str = f"[{self.error_code}] {self.message}"
+        if self.details:
+            error_str += f"\nDetails: {self.details}"
+        return error_str
 
 
-def handle_errors(
-        error_mapping: Optional[Dict[type, type]] = None,
-        default_error: type = ApplicationError
-):
+def handle_database_error(
+        operation: str,
+        error: Exception,
+        context: Optional[Dict[str, Any]] = None
+) -> DatabaseError:
     """
-    Decorator for global error handling and transformation
+    Standardized handler for database-related errors.
 
     Args:
-        error_mapping (Optional[Dict]): Mapping of exception types to custom errors
-        default_error (type): Default error type if no mapping exists
+        operation: Description of the operation that failed
+        error: The original exception
+        context: Optional context dictionary with additional information
+
+    Returns:
+        A standardized DatabaseError instance
     """
+    # Log the error
+    logging.error(
+        f"Database operation failed: {operation}\n"
+        f"Error: {str(error)}\n"
+        f"Context: {context or 'None'}"
+    )
 
-    def decorator(func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            try:
-                return func(*args, **kwargs)
-            except Exception as e:
-                # Check if error should be mapped
-                error_type = type(e)
-                mapped_error = (error_mapping or {}).get(error_type, default_error)
+    # Create detailed error message
+    details = f"Original Error: {str(error)}\n{traceback.format_exc()}"
 
-                # Raise mapped or default error
-                raise mapped_error(
-                    str(e),
-                    context={
-                        'original_error': error_type.__name__,
-                        'function': func.__name__
-                    }
-                ) from e
+    # Create and return DatabaseError
+    return DatabaseError(
+        message=f"Failed to perform {operation}",
+        details=details,
+        error_code="DB_OPERATION_FAILED"
+    )
 
-        return wrapper
 
-    return decorator
+def log_database_action(
+        action: str,
+        details: Optional[Dict[str, Any]] = None,
+        level: str = 'info'
+) -> None:
+    """
+    Log database-related actions with optional details.
+
+    Args:
+        action: Description of the database action
+        details: Optional dictionary of additional details
+        level: Logging level (info, warning, error)
+    """
+    log_func = {
+        'info': logging.info,
+        'warning': logging.warning,
+        'error': logging.error
+    }.get(level.lower(), logging.info)
+
+    log_message = f"Database Action: {action}"
+    if details:
+        log_message += f"\nDetails: {details}"
+
+    log_func(log_message)

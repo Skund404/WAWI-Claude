@@ -1,0 +1,62 @@
+<problems>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/config.py</file>
+  <line>204</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/config.py" />
+  <problem_class id="PyPep8NamingInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">PEP 8 naming convention violation</problem_class>
+  <description>Variable in function should be lowercase</description>
+  <highlighted_element>Session</highlighted_element>
+  <language>Python</language>
+  <offset>16</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/config.py</file>
+  <line>205</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/config.py" />
+  <problem_class id="PyPep8NamingInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">PEP 8 naming convention violation</problem_class>
+  <description>Variable in function should be lowercase</description>
+  <highlighted_element>BackupSession</highlighted_element>
+  <language>Python</language>
+  <offset>16</offset>
+  <length>13</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/config.py</file>
+  <line>257</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/config.py" />
+  <problem_class id="PyPep8NamingInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">PEP 8 naming convention violation</problem_class>
+  <description>Variable in function should be lowercase</description>
+  <highlighted_element>Session</highlighted_element>
+  <language>Python</language>
+  <offset>12</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/config.py</file>
+  <line>258</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/config.py" />
+  <problem_class id="PyPep8NamingInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">PEP 8 naming convention violation</problem_class>
+  <description>Variable in function should be lowercase</description>
+  <highlighted_element>BackupSession</highlighted_element>
+  <language>Python</language>
+  <offset>12</offset>
+  <length>13</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/session.py</file>
+  <line>188</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/session.py" />
+  <problem_class id="PyPep8NamingInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">PEP 8 naming convention violation</problem_class>
+  <description>Variable in function should be lowercase</description>
+  <highlighted_element>SessionLocal</highlighted_element>
+  <language>Python</language>
+  <offset>4</offset>
+  <length>12</length>
+</problem>
+</problems>

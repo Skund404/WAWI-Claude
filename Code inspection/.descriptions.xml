@@ -1,0 +1,2550 @@
+<inspections profile="Default"><group name="XML" path=""><inspection shortName="XmlDuplicatedId" defaultSeverity="ERROR" displayName="Duplicate 'id' attribute" enabled="true" language="XML" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports a duplicate &lt;code&gt;id&lt;/code&gt; attribute in XML.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="XmlUnboundNsPrefix" defaultSeverity="WARNING" displayName="Unbound namespace prefix" enabled="true" language="XML" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports an unbound namespace prefix in XML.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="XmlUnresolvedReference" defaultSeverity="ERROR" displayName="Unresolved references" enabled="true" language="XML" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports an unresolved references in XML.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="CheckTagEmptyBody" defaultSeverity="WARNING" displayName="Empty element content" enabled="true" language="XML" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports XML elements without contents.
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  &amp;lt;user&gt;
+    &amp;lt;name&gt;&amp;lt;/name&gt;
+  &amp;lt;/user&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;After the quick-fix is applied:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  &amp;lt;user&gt;
+    &amp;lt;name/&gt;
+  &amp;lt;/user&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="XmlInvalidId" defaultSeverity="ERROR" displayName="Unresolved 'id' reference" enabled="true" language="XML" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports an unresolved &lt;code&gt;id&lt;/code&gt; reference in XML.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="CheckXmlFileWithXercesValidator" defaultSeverity="ERROR" displayName="Failed external validation" enabled="true" language="XML" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports a discrepancy in an XML file with the specified DTD or schema detected by the Xerces validator.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="XmlDeprecatedElement" defaultSeverity="WARNING" displayName="Deprecated symbol" enabled="true" language="XML" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports a deprecated XML element or  attribute.
+&lt;p&gt;Symbols can be marked by XML comment or documentation tag with text 'deprecated'.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="XmlDefaultAttributeValue" defaultSeverity="WARNING" displayName="Redundant attribute with default value" enabled="true" language="XML" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports a redundant assignment of the default value to an XML attribute.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="XmlWrongRootElement" defaultSeverity="ERROR" displayName="Wrong root element" enabled="true" language="XML" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports a root tag name different from the name specified in the &lt;code&gt;&amp;lt;doctype&amp;gt;&lt;/code&gt; tag.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="CheckDtdRefs" defaultSeverity="ERROR" displayName="Unresolved DTD reference" enabled="true" language="XML" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports inconsistency in a DTD-specific reference, for example, in a reference to an XML entity or to a DTD element declaration.
+Works in DTD an XML files.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="XmlHighlighting" defaultSeverity="ERROR" displayName="XML highlighting" enabled="true" language="XML" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="true">&lt;html&gt;
+&lt;body&gt;
+Reports XML validation problems in the results of a batch code inspection.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="XmlPathReference" defaultSeverity="ERROR" displayName="Unresolved file reference" enabled="true" language="XML" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports an unresolved file reference in XML.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="XmlUnusedNamespaceDeclaration" defaultSeverity="WARNING" displayName="Unused schema declaration" enabled="true" language="XML" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports an unused namespace declaration or location hint in XML.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection></group><group name="Version control" path=""><inspection shortName="IgnoreFileDuplicateEntry" defaultSeverity="WARNING" displayName="Ignore file duplicates" enabled="true" language="IgnoreLang" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports duplicate entries (patterns) in the ignore file (e.g. .gitignore, .hgignore).
+Duplicate entries in these files are redundant and can be removed.
+
+&lt;p&gt;Example:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+    # Output directories
+    /out/
+    /target/
+    /out/
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection></group><group name="TOML" path=""><inspection shortName="TomlUnresolvedReference" defaultSeverity="WARNING" displayName="Unresolved reference" enabled="true" language="TOML" pluginId="org.toml.lang" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports unresolved references in TOML files.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;
+</inspection></group><group name="Qodana" path=""><inspection shortName="CyclomaticComplexityInspection" defaultSeverity="WARNING" displayName="Code metrics" enabled="false" language="" pluginId="org.intellij.qodana" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Calculates cyclomatic complexity.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection></group><group name="Internationalization" path=""><inspection shortName="LossyEncoding" defaultSeverity="WARNING" displayName="Lossy encoding" enabled="true" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+
+Reports characters that cannot be displayed because of the current document encoding.
+&lt;p&gt;Examples:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;If you type international characters in a document with the &lt;b&gt;US-ASCII&lt;/b&gt; charset, some characters will be lost on save.&lt;/li&gt;
+  &lt;li&gt;If you load a &lt;b&gt;UTF-8&lt;/b&gt;-encoded file using the &lt;b&gt;ISO-8859-1&lt;/b&gt; one-byte charset, some characters will be displayed incorrectly.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;You can fix this by changing the file encoding
+either by specifying the encoding directly in the file, e.g. by editing &lt;code&gt;encoding=&lt;/code&gt; attribute in the XML prolog of XML file,
+  or by changing the corresponding options in &lt;b&gt;Settings | Editor | File Encodings&lt;/b&gt;.&lt;/p&gt;
+
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="NonAsciiCharacters" defaultSeverity="WARNING" displayName="Non-ASCII characters" enabled="true" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports code elements that use non-ASCII symbols in an unusual context.
+
+&lt;p&gt;Example:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;Non-ASCII characters used in identifiers, strings, or comments.&lt;/li&gt;
+  &lt;li&gt;Identifiers written in different languages, such as &lt;code&gt;my&lt;b&gt;С&lt;/b&gt;ollection&lt;/code&gt; with the
+    letter &lt;code&gt;&lt;b&gt;C&lt;/b&gt;&lt;/code&gt; written in Cyrillic.&lt;/li&gt;
+  &lt;li&gt;Comments or strings containing Unicode symbols, such as long dashes and arrows.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection></group><group name="JSON and JSON5" path=""><inspection shortName="JsonSchemaDeprecation" defaultSeverity="WEAK WARNING" displayName="Deprecated JSON property" enabled="true" language="JSON" pluginId="com.intellij.modules.json" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports a deprecated property in a JSON file.&lt;br&gt;
+Note that deprecation mechanism is not defined in the JSON Schema specification yet,
+and this inspection uses a non-standard extension 'deprecationMessage'.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="JsonStandardCompliance" defaultSeverity="ERROR" displayName="Compliance with JSON standard" enabled="true" language="JSON" pluginId="com.intellij.modules.json" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports the following discrepancies of a JSON file with  &lt;a href="https://tools.ietf.org/html/rfc7159"&gt;the language specification&lt;/a&gt;:
+&lt;ul&gt;
+  &lt;li&gt;A line or  block comment (configurable).&lt;/li&gt;
+  &lt;li&gt;Multiple top-level values (expect for JSON Lines files, configurable for others).&lt;/li&gt;
+  &lt;li&gt;A trailing comma in an object or array (configurable).&lt;/li&gt;
+  &lt;li&gt;A single quoted string.&lt;/li&gt;
+  &lt;li&gt;A property key is a not a double quoted strings.&lt;/li&gt;
+  &lt;li&gt;A NaN or Infinity/-Infinity numeric value as a floating point literal (configurable).&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="JsonDuplicatePropertyKeys" defaultSeverity="WARNING" displayName="Duplicate keys in object literals" enabled="true" language="JSON" pluginId="com.intellij.modules.json" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports a duplicate key in an object literal.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="Json5StandardCompliance" defaultSeverity="ERROR" displayName="Compliance with JSON5 standard" enabled="true" language="JSON5" pluginId="com.intellij.modules.json" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports inconsistency with &lt;a href="http://json5.org"&gt;the language specification&lt;/a&gt; in a JSON5 file.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="JsonSchemaCompliance" defaultSeverity="WARNING" displayName="Compliance with JSON schema" enabled="true" language="JSON" pluginId="com.intellij.modules.json" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports inconsistence between a JSON file and the &lt;a href="https://json-schema.org"&gt;JSON schema&lt;/a&gt; that is assigned to it.&lt;br&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="JsonSchemaRefReference" defaultSeverity="WARNING" displayName="Unresolved '$ref' and '$schema' references" enabled="true" language="JSON" pluginId="com.intellij.modules.json" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports an unresolved &lt;code&gt;$ref&lt;/code&gt; or &lt;code&gt;$schema&lt;/code&gt; path in a JSON schema.&lt;br&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection></group><group name="Python" path=""><inspection shortName="PyClassHasNoInitInspection" defaultSeverity="WEAK WARNING" displayName="Class has no `__init__` method" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports cases in Python 2 when a class has no &lt;code&gt;__init__&lt;/code&gt; method, neither its parent
+  classes.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+class Book():
+    pass
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The quick-fix adds the &lt;code&gt;__init__&lt;/code&gt; method:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+class Book():
+    def __init__(self):
+        pass
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyNewStyleGenericSyntaxInspection" defaultSeverity="WARNING" displayName="Invalid usage of new-style type parameters and type aliases" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports invalid usage of &lt;a href="https://www.python.org/dev/peps/pep-0695/"&gt;PEP 695&lt;/a&gt; type parameter syntax
+&lt;p&gt;
+  Finds the following problems in function and class definitions and new-style type alias statements:
+&lt;ul&gt;
+  &lt;li&gt;Extending typing.Generic in new-style generic classes&lt;/li&gt;
+  &lt;li&gt;Extending parameterized typing.Protocol in new-style generic classes&lt;/li&gt;
+  &lt;li&gt;Using generic upper bounds and constraints with type parameters for ParamSpec and TypeVarTuple&lt;/li&gt;
+  &lt;li&gt;Mixing traditional and new-style type variables&lt;/li&gt;
+  &lt;li&gt;Using traditional type variables in new-style type aliases&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;
+  Examples:
+&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  from typing import Generic
+
+  class Example[T](Generic[T]): ... # Classes with type parameter list should not extend 'Generic'
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;pre&gt;&lt;code&gt;
+  class Example[T: (list[S], str)]: ... # Generic types are not allowed inside constraints and bounds of type parameters
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;pre&gt;&lt;code&gt;
+  from typing import TypeVar
+
+  K = TypeVar("K")
+
+  class ClassC[V]:
+      def method2[M](self, a: M, b: K) -&gt; M | K: ... # Mixing traditional and new-style TypeVars is not allowed
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyTestUnpassedFixtureInspection" defaultSeverity="WARNING" displayName="Fixture is not requested by test functions" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports if a fixture is used without being passed to test function parameters or to &lt;code&gt;@pytest.mark.usefixtures&lt;/code&gt; decorator&lt;/p&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;
+</inspection><inspection shortName="PyDecoratorInspection" defaultSeverity="WARNING" displayName="Class-specific decorator is used outside the class" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports usages of &lt;code&gt;@classmethod&lt;/code&gt; or &lt;code&gt;@staticmethod&lt;/code&gt; decorators
+  in methods outside a class.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+class State(object):
+
+    @classmethod
+    def my_state(cls, name):
+        cls.name = name
+
+
+@classmethod
+def change_state(self):
+    pass
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The &lt;code&gt;change_state&lt;/code&gt; method should not use the &lt;code&gt;@classmethod&lt;/code&gt; decorator or it should be
+  moved to the &lt;code&gt;State&lt;/code&gt; class declaration. &lt;/p&gt;
+&lt;p&gt;If you apply the &lt;code&gt;Remove decorator&lt;/code&gt; action, the code changes to:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+class State(object):
+
+    @classmethod
+    def my_state(cls, name):
+        cls.name = name
+
+
+def change_state(self):
+    pass
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;
+</inspection><inspection shortName="PyByteLiteralInspection" defaultSeverity="WARNING" displayName="A byte literal contains a non-ASCII character" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports characters in byte literals that are outside ASCII range.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  s = b'&amp;#8470;5'
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyAbstractClassInspection" defaultSeverity="WEAK WARNING" displayName="Class must implement all abstract methods" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports cases when not all abstract properties or methods are defined in
+  a subclass.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+from abc import abstractmethod, ABC
+
+
+class Figure(ABC):
+
+    @abstractmethod
+    def do_figure(self):
+        pass
+
+
+class Triangle(Figure):
+    def do_triangle(self):
+        pass
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;When the quick-fix is applied, the IDE implements an abstract method for the &lt;code&gt;Triangle&lt;/code&gt; class:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+from abc import abstractmethod, ABC
+
+
+class Figure(ABC):
+
+    @abstractmethod
+    def do_figure(self):
+        pass
+
+
+class Triangle(Figure):
+    def do_figure(self):
+        pass
+
+    def do_triangle(self):
+        pass
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyPropertyDefinitionInspection" defaultSeverity="WARNING" displayName="Incorrect property definition" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports problems with the arguments of &lt;code&gt;property()&lt;/code&gt; and functions
+  annotated with &lt;code&gt;@property&lt;/code&gt;.&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+class C:
+    @property
+    def abc(self):  # Getter should return or yield something
+        pass
+
+    @abc.setter
+    def foo(self, value):  # Names of function and decorator don't match
+        pass
+
+    @abc.setter
+    def abc(self, v1, v2):  # Setter signature should be (self, value)
+        pass
+
+    @abc.deleter
+    def abc(self, v1):  # Delete signature should be (self)
+        pass
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;A quick-fix offers to update parameters.&lt;/p&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyShadowingNamesInspection" defaultSeverity="WEAK WARNING" displayName="Shadowing names from outer scopes" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports shadowing names defined in outer scopes.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+def outer(p):
+    def inner(p):
+        pass
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;As a quick-fix, the IDE offers to remove a parameter or rename it.&lt;/p&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyExceptClausesOrderInspection" defaultSeverity="WARNING" displayName="Wrong order of 'except' clauses" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports cases when &lt;code&gt;except&lt;/code&gt; clauses are not in the proper order,
+  from the more specific to the more generic, or one exception class is caught twice. &lt;/p&gt;
+&lt;p&gt;
+  If you do not fix the order, some exceptions may not be caught by the most specific handler.
+&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+try:
+    call()
+except ValueError:
+    pass
+except UnicodeError:
+    pass
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The IDE recommends moving the clause up. When the quick-fix is applied, the code changes to:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+try:
+    call()
+except UnicodeError:
+    pass
+except ValueError:
+    pass
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PySimplifyBooleanCheckInspection" defaultSeverity="WEAK WARNING" displayName="Redundant boolean variable check" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports equality comparison with a boolean literal.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+def func(s):
+    if s.isdigit() == True:
+        return int(s)
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;With the quick-fix applied, the code fragment will be simplified to:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+def func(s):
+    if s.isdigit():
+        return int(s)
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyUnresolvedReferencesInspection" defaultSeverity="WARNING" displayName="Unresolved references" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports references in your code that cannot be resolved.&lt;/p&gt;
+&lt;p&gt;In a dynamically typed language, this is possible in a limited number of cases. &lt;/p&gt;
+&lt;p&gt;If a reference type is unknown, then its attributes are not highlighted as unresolved even if you know that they should be:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+def print_string(s):
+  print(s.abc())
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;In this code fragment &lt;code&gt;s&lt;/code&gt; is always a string and &lt;code&gt;abc&lt;/code&gt; should be highlighted as unresolved. However, &lt;code&gt;s&lt;/code&gt;
+  type is inferred as &lt;code&gt;Any&lt;/code&gt; and no warning is reported.&lt;/p&gt;
+&lt;p&gt;The IDE provides quick-fix actions to add missing references on-the-fly.&lt;/p&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;
+</inspection><inspection shortName="PyUnreachableCodeInspection" defaultSeverity="WARNING" displayName="Unreachable code" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports code fragments that cannot be normally reached.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+if True:
+    print('Yes')
+else:
+    print('No')
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;As a fix, you might want to check and modify the algorithm to ensure it implements
+  the expected logic.&lt;/p&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;&lt;/html&gt;
+</inspection><inspection shortName="PyIncorrectDocstringInspection" defaultSeverity="WEAK WARNING" displayName="Incorrect docstring" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports mismatched parameters in a docstring. For example, &lt;code&gt;b&lt;/code&gt; is highlighted, because there is no
+  such a parameter in the &lt;code&gt;add&lt;/code&gt; function.&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+    def add(a, c):
+    """
+    @param a:
+    @param b:
+    @return:
+    """
+    pass
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The inspection does not warn you of missing parameters if none of them is mentioned in a docstring:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+def mult(a, c):
+    """
+    @return:
+    """
+    pass
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyMissingOrEmptyDocstringInspection" defaultSeverity="WEAK WARNING" displayName="Missing or empty docstring" enabled="false" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports missing and empty docstrings.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example of a missing docstring&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+def demo(a):
+    c = a ** 2
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;&lt;b&gt;Example of an empty docstring&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+def demo(a):
+    """
+    """
+    c = a ** 2
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;When the quick-fix is applied, the code fragments change to:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+def demo(a):
+    """
+
+    :param a:
+    """
+    c = a ** 2
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;You need to provide some details about the parameter in the generated template.&lt;/p&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyMethodFirstArgAssignmentInspection" defaultSeverity="WARNING" displayName="First argument of the method is reassigned" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports cases when the first parameter,
+  such as &lt;code&gt;self&lt;/code&gt; or &lt;code&gt;cls&lt;/code&gt;, is reassigned in a method.
+  Because in most cases, there are no objectives in such reassignment, the
+  IDE indicates an error.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+class Account:
+    def calc(self, balance):
+        if balance == 0:
+            self = balance
+        return self
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;As a fix, you might want to check and modify the algorithm to ensure that reassignment is needed. If everything is correct,
+  you can invoke intention actions for this code and opt to ignore the warning.&lt;/p&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;&lt;/html&gt;
+</inspection><inspection shortName="PyListCreationInspection" defaultSeverity="WEAK WARNING" displayName="Non-optimal list declaration" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports cases when a list declaration
+  can be rewritten with a list literal.&lt;/p&gt;
+&lt;p&gt;This ensures better performance of your application.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+l = [1]
+l.append(2)
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;When the quick-fix is applied, the code changes to:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+l = [1, 2]
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyInconsistentIndentationInspection" defaultSeverity="WARNING" displayName="Inconsistent indentation" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports inconsistent indentation in Python source files when, for example,
+  you use a mixture of tabs and spaces in your code.&lt;/p&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;
+</inspection><inspection shortName="PyCallingNonCallableInspection" defaultSeverity="WARNING" displayName="Attempt to call a non-callable object" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports a problem when you are trying
+  to call objects that are not callable, like, for example, properties:&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+class Record:
+    @property
+    def as_json(self):
+
+json = Record().as_json()
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyNamedTupleInspection" defaultSeverity="WARNING" displayName="Invalid definition of 'typing.NamedTuple'" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports invalid definition of a
+  &lt;a href="https://docs.python.org/3/library/typing.html#typing.NamedTuple"&gt;typing.NamedTuple&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+import typing
+
+
+class FullName(typing.NamedTuple):
+    first: str
+    last: str = ""
+    middle: str
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;As a fix, place the field with the default value after the fields without default values:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+import typing
+
+
+class FullName(typing.NamedTuple):
+    first: str
+    middle: str
+    last: str = ""
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyMandatoryEncodingInspection" defaultSeverity="WARNING" displayName="No encoding specified for file" enabled="false" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports a missing encoding comment in Python 2.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+class Book(object):
+    def __init__(self):
+        pass
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;When the quick-fix is applied, the missing comment is added:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+# coding=utf-8
+class Book(object):
+    def __init__(self):
+        pass
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyCompatibilityInspection" defaultSeverity="WARNING" displayName="Code is incompatible with specific Python versions" enabled="false" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports incompatibility with the specified versions of Python.
+  Enable this inspection if you need your code to be compatible with a range of Python versions, for example,
+  if you are building a library.&lt;/p&gt;
+&lt;p&gt;To define the range of the inspected Python versions, select the corresponding checkboxes in the &lt;b&gt;Options&lt;/b&gt;
+  section.&lt;/p&gt;
+&lt;p&gt;For more information about the Python versions supported by the IDE, see the
+  &lt;a href="https://www.jetbrains.com/help/pycharm/python.html#support"&gt;web help&lt;/a&gt;.&lt;/p&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyDeprecationInspection" defaultSeverity="WARNING" displayName="Deprecated function, class, or module" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports usages of Python functions, or methods that are marked as
+  deprecated and raise the &lt;code&gt;DeprecationWarning&lt;/code&gt; or &lt;code&gt;PendingDeprecationWarning&lt;/code&gt; warning.&lt;/p&gt;
+&lt;p&gt;Also, this inspection highlights usages of &lt;code&gt;abc.abstractstaticmethod&lt;/code&gt;, &lt;code&gt;abc.abstractproperty&lt;/code&gt;, and &lt;code&gt;abc.abstractclassmethod&lt;/code&gt;
+  decorators.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+class Foo:
+    @property
+    def bar(self):
+        import warnings
+        warnings.warn("this is deprecated", DeprecationWarning, 2)
+        return 5
+
+
+foo = Foo()
+print(foo.bar)
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyExceptionInheritInspection" defaultSeverity="WARNING" displayName="Exceptions do not inherit from standard 'Exception' class" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports cases when a custom exception class is
+  raised but does not inherit from the
+  &lt;a href="https://docs.python.org/3/library/exceptions.html"&gt;builtin Exception class&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+class A:
+    pass
+
+
+def me_exception():
+    raise A()
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The proposed quick-fix changes the code to:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+class A(Exception):
+    pass
+
+
+def me_exception():
+    raise A()
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyClassicStyleClassInspection" defaultSeverity="WARNING" displayName="Classic style class usage" enabled="false" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports &lt;a href="https://docs.python.org/2/reference/datamodel.html#new-style-and-classic-classes"&gt;
+  classic style classes&lt;/a&gt; usage. This inspection applies only to Python 2.
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+class A:
+    pass
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;With quick-fixes provided by the IDE, this code fragment changes to:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+class A(object):
+    def __init__(self):
+        pass
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyPep8NamingInspection" defaultSeverity="WEAK WARNING" displayName="PEP 8 naming convention violation" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports violations of the
+  &lt;a href="https://www.python.org/dev/peps/pep-0008/"&gt;PEP8&lt;/a&gt; naming conventions.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+class mammalia(object):
+    extremities = 4
+
+    def feeds(self):
+        print("milk")
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;In this code fragment, IDE offers to rename &lt;code&gt;mammalia&lt;/code&gt; to &lt;code&gt;Mammalia&lt;/code&gt;.
+  When the quick-fix is applied, the code change to:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+class Mammalia(object):
+    extremities = 4
+
+    def feeds(self):
+        print("milk")
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyPep8Inspection" defaultSeverity="INFORMATION" displayName="PEP 8 coding style violation" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports violations of the &lt;a href="https://www.python.org/dev/peps/pep-0008/"&gt;PEP 8 coding style guide&lt;/a&gt; by running the bundled &lt;a
+  href="https://github.com/PyCQA/pycodestyle"&gt;pycodestyle.py&lt;/a&gt; tool.&lt;/p&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyBroadExceptionInspection" defaultSeverity="WEAK WARNING" displayName="Unclear exception clauses" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports exception clauses that do not provide specific information
+  about the problem. &lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;Clauses that do not specify an exception class&lt;/li&gt;
+  &lt;li&gt;Clauses that are specified as &lt;code&gt;Exception&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyDunderSlotsInspection" defaultSeverity="WARNING" displayName="Invalid usages of classes with  '__slots__' definitions" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports invalid usages of a class with &lt;code&gt;__slots__&lt;/code&gt; definitions.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+class Foo:
+    __slots__ = ['foo', 'bar']
+
+
+foo = Foo()
+foo.baz = 'spam'
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyDictCreationInspection" defaultSeverity="WEAK WARNING" displayName="Dictionary creation can be rewritten by dictionary literal" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports situations when you can rewrite dictionary creation
+  by using a dictionary literal.&lt;/p&gt;
+&lt;p&gt;This approach brings performance improvements.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+dic = {}
+dic['var'] = 1
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;When the quick-fix is applied, the code changes to:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+dic = {'var': 1}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyChainedComparisonsInspection" defaultSeverity="WEAK WARNING" displayName="Too complex chained comparisons" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports chained comparisons that can be simplified.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  def do_comparison(x):
+      xmin = 10
+      xmax = 100
+      if x &gt;= xmin and x &amp;lt;= xmax:
+          pass
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The IDE offers to simplify &lt;code&gt;if x &gt;= xmin and x &amp;lt;= xmax&lt;/code&gt;.
+  When the quick-fix is applied, the code changes to:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  def do_comparison(x):
+      xmin = 10
+      xmax = 100
+      if xmin &amp;lt;= x &amp;lt;= xmax:
+          pass
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyNonAsciiCharInspection" defaultSeverity="WARNING" displayName="File contains non-ASCII character" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports cases in Python 2 when a file contains non-ASCII characters and does not
+  have an encoding declaration at the top.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+class A(object):
+# &amp;#8470;5
+    def __init__(self):
+        pass
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;In this example, the IDE reports a non-ASCII symbol in a comment and a lack of encoding
+  declaration. Apply the proposed quick-fix to add a missing encoding declaration:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+# coding=utf-8
+class A(object)
+# &amp;#8470;5
+    def __init__(self):
+        pass
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyAttributeOutsideInitInspection" defaultSeverity="WEAK WARNING" displayName="An instance attribute is defined outside `__init__`" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports a problem when instance attribute
+definition is outside &lt;code&gt;__init__&lt;/code&gt; method.
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+    class Book:
+    def __init__(self):
+        self.author = 'Mark Twain'
+
+    def release(self):
+        self.year = '1889'
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;
+  When the quick-fix is applied, the code sample changes to:
+&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+    class Book:
+    def __init__(self):
+        self.year = '1889'
+        self.author = 'Mark Twain'
+
+    def release(self):
+        pass
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PySuperArgumentsInspection" defaultSeverity="WARNING" displayName="Wrong arguments to call super" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports cases when any call to &lt;code&gt;super(A, B)&lt;/code&gt; does not meet the
+  following requirements:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;code&gt;B&lt;/code&gt; is an instance of &lt;code&gt;A&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;B&lt;/code&gt; a subclass of &lt;code&gt;A&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+class Figure:
+    def color(self):
+        pass
+
+
+class Rectangle(Figure):
+    def color(self):
+        pass
+
+
+class Square(Figure):
+    def color(self):
+        return super(Rectangle, self).color() # Square is not an instance or subclass of Rectangle
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;As a fix, you can make the &lt;code&gt;Square&lt;/code&gt; an instance of the &lt;code&gt;Rectangle&lt;/code&gt; class.&lt;/p&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyReturnFromInitInspection" defaultSeverity="WARNING" displayName="__init__ method that returns a value" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;
+  Reports occurrences of &lt;code&gt;return&lt;/code&gt; statements with a return value inside
+  &lt;code&gt;__init__&lt;/code&gt; methods of classes.
+&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+class Sum:
+    def __init__(self, a, b):
+        self.a = a
+        self.b = b
+        self.sum = a + b
+        return self.sum
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;A constructor should not return any value. The &lt;code&gt;__init__&lt;/code&gt; method should
+  only initialize the values of instance members for news objects.&lt;/p&gt;
+&lt;p&gt;As a quick-fix, the IDE offers to remove the &lt;code&gt;return&lt;/code&gt; statement.&lt;/p&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;
+</inspection><inspection shortName="PySetFunctionToLiteralInspection" defaultSeverity="WARNING" displayName="Function call can be replaced with set literal" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports calls to the &lt;code&gt;set&lt;/code&gt; function that can be replaced with
+  the &lt;code&gt;set&lt;/code&gt; literal.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+def do_mult(a, b):
+    c = a * b
+    return set([c, a, b])
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;When the quick-fix is applied, the code changes to:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+def do_mult(a, b):
+    c = a * b
+    return {c, a, b}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyDocstringTypesInspection" defaultSeverity="WEAK WARNING" displayName="Type in docstring does not match inferred type" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports types in docstring that do not match dynamically inferred types.&lt;/p&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyRedundantParenthesesInspection" defaultSeverity="WEAK WARNING" displayName="Redundant parentheses" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports about redundant parentheses in expressions.&lt;/p&gt;
+&lt;p&gt;The IDE provides the quick-fix action to remove the redundant parentheses.&lt;/p&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyProtectedMemberInspection" defaultSeverity="WEAK WARNING" displayName="Accessing a protected member of a class or a module" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports cases when a protected member is accessed outside the class,
+  a descendant of the class where it is defined, or a module.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+class Foo:
+    def _protected_method(self):
+        pass
+
+
+class Bar(Foo):
+    def public_method(self):
+        self._protected_method()
+
+
+foo = Foo()
+foo._protected_method() # Access to a protected method
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyPandasSeriesToListInspection" defaultSeverity="WARNING" displayName="Method Series.to_list() is recommended" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports redundant &lt;code&gt;list&lt;/code&gt; in &lt;code&gt;list(Series.values)&lt;/code&gt; statement for pandas and polars libraries.
+  Such &lt;code&gt;Series&lt;/code&gt; values extraction can be replaced with the &lt;code&gt;to_list()&lt;/code&gt; function call.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre style="font-family: monospace"&gt;
+list(df['column'].values)
+&lt;/pre&gt;
+&lt;p&gt;When the quick-fix is applied, the code changes to:&lt;/p&gt;
+&lt;pre style="font-family: monospace"&gt;
+df['column'].to_list()
+&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyDataclassInspection" defaultSeverity="WARNING" displayName="Invalid definition and usage of Data Classes" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports invalid definitions and usages of classes created with
+  &lt;code&gt;dataclasses&lt;/code&gt; or &lt;code&gt;attr&lt;/code&gt; modules.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+import dataclasses
+
+
+@dataclasses.dataclass
+class FullName:
+    first: str
+    middle: str = ""
+    last: str
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="UvPackageVersionsInspection" defaultSeverity="WARNING" displayName="Poetry package versions" enabled="true" language="TOML" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports outdated versions of packages in &lt;code&gt;[dependencies]&lt;/code&gt; and &lt;code&gt;[dev-dependencies]&lt;/code&gt;
+  sections of &lt;code&gt;pyproject.toml&lt;/code&gt;.
+&lt;/p&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyClassVarInspection" defaultSeverity="WARNING" displayName="Invalid usage of ClassVar variables" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports invalid usages of &lt;a href="https://docs.python.org/3/library/typing.html#typing.ClassVar"&gt;ClassVar&lt;/a&gt; annotations.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+from typing import ClassVar
+
+
+class Cat:
+    color: ClassVar[str] = "white"
+    weight: int
+
+    def __init__(self, weight: int):
+        self.weight = weight
+
+
+Cat.color = "black"  # OK
+my_cat = Cat(5)
+my_cat.color = "gray"  # Error, setting class variable on instance
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyNestedDecoratorsInspection" defaultSeverity="WEAK WARNING" displayName="Problematic nesting of decorators" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports problems with nesting decorators. The inspection highlights the cases when &lt;code&gt;classmethod&lt;/code&gt; or &lt;code&gt;staticmethod&lt;/code&gt;
+  is applied before another decorator.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+def innocent(f):
+    return f
+
+
+class A:
+    @innocent  # Decorator will not receive a callable it may expect
+    @classmethod
+    def f2(cls):
+        pass
+
+    @innocent  # Decorator will not receive a callable it may expect
+    @staticmethod
+    def f1():
+        pass
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;As a quick-fix, the IDE offers to remove the decorator.&lt;/p&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyPropertyAccessInspection" defaultSeverity="WARNING" displayName="Inappropriate access to properties" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports cases when properties are accessed inappropriately:
+&lt;ul&gt;
+  &lt;li&gt;Read-only properties are set&lt;/li&gt;
+  &lt;li&gt;Write-only properties are read&lt;/li&gt;
+  &lt;li&gt;Non-deletable properties are deleted&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+class MyClass:
+    @property
+    def read_only(self): return None
+
+    def __write_only_setter(self, value): pass
+
+    write_only = property(None, __write_only_setter)
+
+
+a = MyClass()
+a.read_only = 10 # property cannot be set
+del a.read_only # property cannot be deleted
+print(a.write_only) # property cannot be read
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyTestParametrizedInspection" defaultSeverity="WARNING" displayName="Incorrect arguments in @pytest.mark.parametrize" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports functions that are decorated with &lt;a href="https://docs.pytest.org/en/stable/parametrize.html"&gt;
+  @pytest.mark.parametrize&lt;/a&gt; but do not have arguments to accept
+  parameters of the decorator.&lt;/p&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;
+</inspection><inspection shortName="PyUnusedLocalInspection" defaultSeverity="WEAK WARNING" displayName="Unused local symbols" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;
+  Reports local variables, parameters, and functions that are locally defined, but not used name in a function.
+&lt;/p&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;&lt;/html&gt;
+</inspection><inspection shortName="PyAssignmentToLoopOrWithParameterInspection" defaultSeverity="WEAK WARNING" displayName="Assignments to 'for' loop or 'with' statement parameter" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports the cases when you rewrite a loop variable with an inner loop.
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+    for i in range(5):
+      for i in range(20, 25):
+          print("Inner", i)
+      print("Outer", i)
+  &lt;/code&gt;&lt;/pre&gt;
+
+It also warns you if a variable declared in the &lt;code&gt;with&lt;/code&gt; statement is redeclared inside the statement body:
+&lt;pre&gt;&lt;code&gt;
+    with open("file") as f:
+      f.read()
+      with open("file") as f:
+  &lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;
+</inspection><inspection shortName="PySingleQuotedDocstringInspection" defaultSeverity="WEAK WARNING" displayName="Single quoted docstring" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports docstrings that do not adhere to the triple double-quoted string format.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+def calc(self, balance=0):
+    'param: balance'
+    self.balance = balance
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;When the quick-fix is applied, the code changes to:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+def calc(self, balance=0):
+    """param: balance"""
+    self.balance = balance
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyOverloadsInspection" defaultSeverity="WARNING" displayName="Overloads in regular Python files" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports cases when overloads in regular Python files are placed after the implementation or when their signatures are
+  not compatible with the implementation.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+from typing import overload
+
+
+@overload
+def foo(p1, p2): # Overload signature is not compatible with the implementation
+    pass
+
+
+@overload
+def foo(p1): # Overload signature is not compatible with the implementation
+    pass
+
+
+def foo(p1, p2, p3):
+    print(p1, p2, p3)
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyArgumentListInspection" defaultSeverity="WARNING" displayName="Incorrect call arguments" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports discrepancies between declared parameters and actual arguments, as well as
+  incorrect arguments, for example, duplicate named arguments, and incorrect argument order.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+class Foo:
+    def __call__(self, p1: int, *, p2: str = "%"):
+        return p2 * p1
+
+
+bar = Foo()
+bar.__call__() # unfilled parameter
+bar(5, "#") # unexpected argument
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The correct code fragment looks at follows:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+class Foo:
+    def __call__(self, p1: int, *, p2: str = "%"):
+        return p2 * p1
+
+
+bar = Foo()
+bar.__call__(5)
+bar(5, p2="#")
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;
+</inspection><inspection shortName="PyPackageRequirementsInspection" defaultSeverity="WARNING" displayName="Unsatisfied package requirements" enabled="true" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;
+  Reports packages mentioned in requirements files (for example, &lt;code&gt;requirements.txt&lt;/code&gt; or &lt;code&gt;Pipfile&lt;/code&gt;) but not installed,
+  or imported but not mentioned in requirements files.&lt;/p&gt;
+&lt;p&gt;
+  The IDE shows a quick-fix banner so that you can install the missing packages in one click.
+&lt;/p&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyAsyncCallInspection" defaultSeverity="WARNING" displayName="Missing `await` syntax in coroutine calls" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports coroutines that were called
+  without using the &lt;code&gt;await&lt;/code&gt; syntax.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+async def bar():
+    pass
+
+
+async def foo():
+    bar()
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;After the quick-fix is applied, the code changes to:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+async def bar():
+    pass
+
+
+async def foo():
+    await bar()
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyTupleAssignmentBalanceInspection" defaultSeverity="WARNING" displayName="Tuple assignment balance is incorrect" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports cases when the number of expressions on the right-hand side
+  and targets on the left-hand side are not the same.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+t = ('red', 'blue', 'green', 'white')
+(c1, c2, c3) = t
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;As a quick-fix, you can modify the highlighted code fragment to restore the tuple
+  balance.&lt;/p&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyUnnecessaryBackslashInspection" defaultSeverity="WARNING" displayName="Unnecessary backslash" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports backslashes in places where line continuation is implicit inside &lt;code&gt;()&lt;/code&gt;,
+  &lt;code&gt;[]&lt;/code&gt;, and &lt;code&gt;{}&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+a = ('first', \
+     'second', 'third')
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;When the quick-fix is applied, the redundant backslash is deleted.&lt;/p&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyDictDuplicateKeysInspection" defaultSeverity="WARNING" displayName="Dictionary contains duplicate keys" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports using the same value as the dictionary key twice.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+dic = {"a": [1, 2], "a": [3, 4]}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="CommandLineInspection" defaultSeverity="WARNING" displayName="Incorrect CLI syntax" enabled="true" language="CommandLine" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports the problems if the arguments of the command you type in the console are not in the proper order. The inspection also verifies
+  that option names and arguments are correct.&lt;/p&gt;
+&lt;p&gt;Do not disable the inspection if you are going to use command-line interfaces like &lt;a
+  href="https://www.jetbrains.com/help/pycharm/running-manage-py.html"&gt;manage.py in Django&lt;/a&gt;.&lt;/p&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyTrailingSemicolonInspection" defaultSeverity="WARNING" displayName="Prohibited trailing semicolon in a statement" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports trailing semicolons in statements.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+def my_func(a):
+    c = a ** 2;
+    return c
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;IDE provides a quick-fix that removes a trailing semicolon. When you
+  apply it, the code changes to:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+def my_func(a):
+    c = a ** 2
+    return c
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;
+</inspection><inspection shortName="PyFromFutureImportInspection" defaultSeverity="WARNING" displayName="Improper position of from __future__ import" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports &lt;code&gt;from __future__ import&lt;/code&gt;
+  statements that are used not at
+  the beginning of a file.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+a = 1
+from __future__ import print_function
+print()
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;When the quick-fix is applied, the code changes to:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+from __future__ import print_function
+
+a = 1
+print()
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyRedeclarationInspection" defaultSeverity="WARNING" displayName="Redeclared names without usages" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports unconditional redeclarations of names without being used in between.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+def x(): pass
+
+
+x = 2
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;It applies to function and class declarations, and top-level assignments. &lt;/p&gt;
+&lt;p&gt;When the warning is shown, you can try a recommended action, for example, you might be prompted to
+  rename the variable.&lt;/p&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;
+</inspection><inspection shortName="PyStringFormatInspection" defaultSeverity="WARNING" displayName="Errors in string formatting operations" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports errors in string formatting operations.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example 1:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+"Hello {1}".format("people")
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;&lt;b&gt;Example 2:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+def bar():
+    return 1
+
+
+"%s %s" % bar()
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;As a fix, you need to rewrite string formatting fragments to
+  adhere to the &lt;a href="https://docs.python.org/3/library/string.html#format-string-syntax"&gt;formatting syntax&lt;/a&gt;.&lt;/p&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyTypedDictInspection" defaultSeverity="WARNING" displayName="Invalid TypedDict definition and usages" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports invalid definition and usage of
+  &lt;a href="https://www.python.org/dev/peps/pep-0589/"&gt;TypedDict&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+from typing import TypedDict
+
+
+class Movie(TypedDict):
+    name: str
+    year: int
+    rate: int = 10  # Right-hand side values are not supported
+
+    def method(self): # Invalid statement in TypedDict
+        pass
+
+
+m = Movie(name="name", year=1000, rate=9)
+print(m["director"])  # There is no the 'director' key in 'Movie'
+del m["name"]  # The 'name' key cannot be deleted
+m["year"] = "1001"  # Expected 'int', got 'str'
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyTypeHintsInspection" defaultSeverity="WARNING" displayName="Invalid type hints definitions and usages" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports invalid usages of type hints.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+from typing import TypeVar
+
+T0 = TypeVar('T1') # Argument of 'TypeVar' must be 'T0'
+
+
+def b(p: int) -&gt; int:  # Type specified both in a comment and annotation
+    # type: (int) -&gt; int
+    pass
+
+
+def c(p1, p2): # Type signature has too many arguments
+    # type: (int) -&gt; int
+    pass
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Available quick-fixes offer various actions. You can rename, remove, or move problematic elements. You can also manually modify type declarations to ensure no warning is shown.&lt;/p&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyStubPackagesAdvertiser" defaultSeverity="WARNING" displayName="Stub packages advertiser" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports availability of stub packages.&lt;/p&gt;
+&lt;p&gt;
+  &lt;a href="https://www.python.org/dev/peps/pep-0561/"&gt;Stub package&lt;/a&gt; is a package that contains type information for the corresponding
+  runtime package.
+&lt;/p&gt;
+&lt;p&gt;Using stub packages ensures better coding assistance for the corresponding python package.&lt;/p&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyInitNewSignatureInspection" defaultSeverity="WARNING" displayName="Incompatible signatures of __new__ and __init__" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports incompatible signatures of the &lt;code&gt;__new__&lt;/code&gt; and &lt;code&gt;__init__&lt;/code&gt; methods.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+class MyClass(object):
+    def __new__(cls, arg1):
+        return super().__new__(cls)
+
+    def __init__(self):
+        pass
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;If the &lt;code&gt;__new__&lt;/code&gt; and &lt;code&gt;__init__&lt;/code&gt; have different arguments, then the &lt;code&gt;MyClass&lt;/code&gt;
+  cannot be instantiated.&lt;/p&gt;
+&lt;p&gt;As a fix, the IDE offers to apply the Change Signature refactoring.&lt;/p&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;
+</inspection><inspection shortName="PyComparisonWithNoneInspection" defaultSeverity="WEAK WARNING" displayName="Using equality operators to compare with None" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports comparisons with &lt;code&gt;None&lt;/code&gt;. That type of comparisons
+  should always be done with &lt;code&gt;is&lt;/code&gt; or &lt;code&gt;is not&lt;/code&gt;, never
+  the equality operators.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+a = 2
+
+
+if a == None:
+    print("Success")
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Once the quick-fix is applied, the code changes to:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+a = 2
+
+
+if a is None:
+    print("Success")
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyRelativeImportInspection" defaultSeverity="WEAK WARNING" displayName="Suspicious relative imports" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports usages of relative imports inside plain directories, for example, directories neither containing &lt;code&gt;__init__.py&lt;/code&gt; nor
+  explicitly marked as namespace packages.
+&lt;/p&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PoetryPackageVersionsInspection" defaultSeverity="WARNING" displayName="Poetry package versions" enabled="true" language="TOML" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports outdated versions of packages in &lt;code&gt;[tool.poetry.dependencies]&lt;/code&gt; and &lt;code&gt;[tool.poetry.dev-dependencies]&lt;/code&gt;
+  sections of &lt;code&gt;pyproject.toml&lt;/code&gt;.
+&lt;/p&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyStatementEffectInspection" defaultSeverity="WARNING" displayName="Statement has no effect" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports statements that have no effect.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+class Car:
+    def __init__(self, speed=0):
+        self.speed = speed
+        self.time # has no effect
+
+2 + 3 # has no effect
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;In this example, you can either add a field &lt;code&gt;time&lt;/code&gt; to the &lt;code&gt;Car&lt;/code&gt; class or
+  introduce variables for the problematic statements.&lt;/p&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyTupleItemAssignmentInspection" defaultSeverity="WARNING" displayName="Tuple item assignment is prohibited" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports assignments to a tuple item.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+t = ('red', 'blue', 'green', 'white')
+t[3] = 'black'
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;A quick-fix offers to replace the tuple with a list.&lt;/p&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyOverridesInspection" defaultSeverity="WARNING" displayName="Invalid usages of @override decorator" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports when a method decorated with @override doesn't have a matching method in its ancestor classes&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+from typing import override
+
+class Parent:
+    def foo(self) -&gt; int:
+        return 1
+
+    def bar(self, x: str) -&gt; str:
+        return x
+
+class Child(Parent):
+    @override
+    def foo(self) -&gt; int:
+        return 2
+
+    @override # Missing super method for override function
+    def baz(self) -&gt; int:
+        return 1
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyAugmentAssignmentInspection" defaultSeverity="WEAK WARNING" displayName="Assignment can be replaced with augmented assignment" enabled="false" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports assignments that can be replaced with augmented assignments.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+a = 23
+b = 3
+a = a + b
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;After the quick-fix is applied, the code changes to:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+a = 23
+b = 3
+a += b
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyNoneFunctionAssignmentInspection" defaultSeverity="WEAK WARNING" displayName="Assigning function calls that don't return anything" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports cases when an assignment is done on a function that does not return anything.&lt;/p&gt;
+This inspection is similar to &lt;a href="https://docs.pylint.org/en/1.6.0/features.html#id6"&gt;pylint inspection E1111&lt;/a&gt;.
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+def just_print():
+    print("Hello!")
+
+
+action = just_print()
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;As a quick-fix, the IDE offers to remove the assignment.&lt;/p&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyProtocolInspection" defaultSeverity="WARNING" displayName="Invalid protocol definitions and usages" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports invalid definitions and usages of protocols introduced in
+  &lt;a href="https://www.python.org/dev/peps/pep-0544/"&gt;PEP-544&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+from typing import Protocol
+
+
+class MyProtocol(Protocol):
+    def method(self, p: int) -&gt; str:
+        pass
+
+
+class MyClass(MyProtocol):
+    def method(self, p: str) -&gt; int: # Type of 'method' is not compatible with 'MyProtocol'
+        pass
+
+
+class MyAnotherProtocol(MyClass, Protocol): # All bases of a protocol must be protocols
+    pass
+
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyFinalInspection" defaultSeverity="WARNING" displayName="Invalid usages of final classes, methods, and variables" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports invalid usages of final classes,
+  methods and variables.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+from typing import final
+
+
+@final
+class A:
+    def a_method(self):
+        pass
+
+
+class B(A):
+    def a_method(self):
+        pass
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyMethodMayBeStaticInspection" defaultSeverity="WEAK WARNING" displayName="Method is not declared static" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports any methods that do not require a class instance creation and can be
+  made static.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+class MyClass(object):
+    def my_method(self, x):
+        print(x)
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;If a &lt;b&gt;Make function from method&lt;/b&gt; quick-fix is applied, the code changes to:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+def my_method(x):
+    print(x)
+
+
+class MyClass(object):
+    pass
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;If you select the &lt;b&gt;Make method static&lt;/b&gt; quick-fix, the &lt;code&gt;@staticmethod&lt;/code&gt; decorator is added:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+class MyClass(object):
+    @staticmethod
+    def my_method(x):
+        print(x)
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyGlobalUndefinedInspection" defaultSeverity="WEAK WARNING" displayName="Global variable is not defined at the module level" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports problems when a variable defined through the &lt;code&gt;global&lt;/code&gt;
+  statement is not defined in the module scope.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+def foo():
+    global bar
+    print(bar)
+
+foo()
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;As a fix, you can move the global variable declaration:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+global bar
+
+
+def foo():
+    print(bar)
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyTypeCheckerInspection" defaultSeverity="WARNING" displayName="Incorrect type" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports type errors in function call expressions, targets, and return values. In a dynamically typed language, this is possible in a limited number of cases. &lt;/p&gt;
+&lt;p&gt;Types of function parameters can be specified in
+  docstrings or in Python 3 function annotations.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+def foo() -&gt; int:
+    return "abc" # Expected int, got str
+
+
+a: str
+a = foo() # Expected str, got int
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;With the quick-fix, you can modify the problematic types:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+def foo() -&gt; str:
+    return "abc"
+
+
+a: str
+a = foo()
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;
+</inspection><inspection shortName="PyUnboundLocalVariableInspection" defaultSeverity="WARNING" displayName="Unbound local variables" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports local variables referenced before assignment.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+x = 0
+if x &gt; 10:
+    b = 3
+print(b)
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The IDE reports a problem for &lt;code&gt;print(b)&lt;/code&gt;. A possible fix is:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+x = 0
+if x &gt; 10:
+    b = 3
+    print(b)
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyShadowingBuiltinsInspection" defaultSeverity="WEAK WARNING" displayName="Shadowing built-in names" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports shadowing built-in names, such as &lt;code&gt;len&lt;/code&gt; or &lt;code&gt;list&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+def len(a, b, c):
+    d = a + b + c
+    return d
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;In this code fragment, the &lt;code&gt;len&lt;/code&gt; built-in name is used. The IDE offers to
+  apply the Rename refactoring as a fix.&lt;/p&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyArgumentEqualDefaultInspection" defaultSeverity="WEAK WARNING" displayName="The function argument is equal to the default parameter value" enabled="false" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports a problem when an argument
+  passed to the function is equal to the default parameter value.&lt;/p&gt;
+&lt;p&gt;This inspection is disabled by default to avoid performance degradation.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+def my_function(a: int = 2):
+    print(a)
+
+
+my_function(2)
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyMethodParametersInspection" defaultSeverity="WEAK WARNING" displayName="Improper first parameter" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports methods that lack the first parameter that is usually
+  named &lt;code&gt;self&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+class Movie:
+
+   def show():
+       pass
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;When the quick-fix is applied, the code changes to:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+class Movie:
+
+   def show(self):
+       pass
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The inspection also reports naming issues in class methods.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+class Movie:
+    @classmethod
+    def show(abc):
+        pass
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Since the first parameter of a class method should be &lt;code&gt;cls&lt;/code&gt;, the IDE provides a quick-fix
+  to rename it.&lt;/p&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;
+</inspection><inspection shortName="PyInterpreterInspection" defaultSeverity="WARNING" displayName="An invalid interpreter" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports problems if there is no Python interpreter configured for the project or if the interpreter is invalid. Without a properly
+  configured interpreter, you cannot execute your Python scripts and benefit from some Python code insight features.&lt;/p&gt;
+&lt;p&gt;The IDE provides quick access to the interpreter settings.&lt;/p&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;
+</inspection><inspection shortName="PyMethodOverridingInspection" defaultSeverity="WARNING" displayName="Method signature does not match signature of overridden method" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports inconsistencies in overriding method signatures.&lt;/p&gt;
+
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+class Book:
+    def add_title(self):
+        pass
+
+
+class Novel(Book):
+    def add_title(self, text):
+        pass
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Parameters of the &lt;code&gt;add_title&lt;/code&gt; method in the &lt;code&gt;Novel&lt;/code&gt; class do not match the method
+  signature specified in the &lt;code&gt;Book&lt;/code&gt; class. As a fix, the IDE offers to apply the Change Signature
+  refactoring.&lt;/p&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyStubPackagesCompatibilityInspection" defaultSeverity="WARNING" displayName="Incompatible stub packages" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports stub packages that do not support the version of the corresponding runtime package.&lt;/p&gt;
+&lt;p&gt;A &lt;a href="https://www.python.org/dev/peps/pep-0561/"&gt;stub package&lt;/a&gt; contains type information for some runtime package.&lt;/p&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyDefaultArgumentInspection" defaultSeverity="WARNING" displayName="The default argument is mutable" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports a problem when a mutable value as a list or dictionary is detected in a default value for
+  an argument. &lt;br/&gt;
+  Default argument values are evaluated only once at function definition time,
+  which means that modifying the
+  default value of the argument will affect all subsequent calls of that function.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+def func(s, cache={}):
+    cache[s] = None
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;When the quick-fix is applied, the code changes to:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+def func(s, cache=None):
+    if cache is None:
+        cache = {}
+    cache[s] = None
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyMissingTypeHintsInspection" defaultSeverity="WEAK WARNING" displayName="Missing type hinting for function definition" enabled="false" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports missing type hints for function declaration in
+  one of the two formats: parameter annotations or a type comment.&lt;/p&gt;
+&lt;p&gt;Select the &lt;b&gt;Only when types are known&lt;/b&gt; checkbox if you want the inspection check
+  the types collected from runtime or inferred.&lt;/p&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyMissingConstructorInspection" defaultSeverity="WARNING" displayName="Missed call to '__init__' of the super class" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports cases when a call to the &lt;code&gt;super&lt;/code&gt; constructor in a class is missed.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+class Fruit:
+    def __init__(self):
+        pass
+
+
+class Pear(Fruit):
+    def __init__(self):
+        pass
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The &lt;code&gt;Pear&lt;/code&gt; class should have a &lt;code&gt;super&lt;/code&gt; call in the &lt;code&gt;__init__&lt;/code&gt;
+  method.&lt;/p&gt;
+&lt;p&gt;When the quick-fix is applied, the code changes to:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+class Fruit:
+    def __init__(self):
+        pass
+
+
+class Pear(Fruit):
+    def __init__(self):
+        super().__init__()
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="PyOldStyleClassesInspection" defaultSeverity="WARNING" displayName="Old-style class contains new-style class features" enabled="true" language="Python" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports occurrences of
+  &lt;a href="https://www.python.org/doc/newstyle/"&gt;new-style class features&lt;/a&gt;
+  in old-style classes. The inspection highlights
+  &lt;code&gt;__slots__&lt;/code&gt;, &lt;code&gt;__getattribute__&lt;/code&gt;, and &lt;code&gt;super()&lt;/code&gt;
+  inside old-style classes.&lt;/p&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection></group><group name="HTML" path=""><inspection shortName="HtmlUnknownTarget" defaultSeverity="WARNING" displayName="Unresolved file in a link" enabled="true" language="XML" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports an unresolved file in a link.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="CheckValidXmlInScriptTagBody" defaultSeverity="ERROR" displayName="Malformed content of 'script' tag" enabled="true" language="XML" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports contents of &lt;code&gt;script&lt;/code&gt; tags that are invalid XML.&lt;br&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  &amp;lt;script type="text/javascript"&gt;
+    console.log('&amp;lt;');
+  &amp;lt;/script&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;After the quick-fix is applied:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  &amp;lt;script type="text/javascript"&gt;
+    console.log('&amp;amp;lt;');
+  &amp;lt;/script&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="HtmlUnknownAnchorTarget" defaultSeverity="WARNING" displayName="Unresolved fragment in a link" enabled="true" language="XML" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports an unresolved last part of an URL after the &lt;code&gt;#&lt;/code&gt; sign.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="HtmlMissingClosingTag" defaultSeverity="INFORMATION" displayName="Missing closing tag" enabled="true" language="HTML" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports an HTML element without a closing tag.
+Some coding styles require that HTML elements have closing tags even where this is optional.
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  &amp;lt;html&gt;
+    &amp;lt;body&gt;
+      &amp;lt;p&gt;Behold!
+    &amp;lt;/body&gt;
+  &amp;lt;/html&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;After the quick-fix is applied:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  &amp;lt;html&gt;
+    &amp;lt;body&gt;
+      &amp;lt;p&gt;Behold!&amp;lt;/p&gt;
+    &amp;lt;/body&gt;
+  &amp;lt;/html&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="HtmlUnknownTag" defaultSeverity="WARNING" displayName="Unknown tag" enabled="true" language="HTML" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports an unknown HTML tag. Suggests configuring tags that should not be reported.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="CheckEmptyScriptTag" defaultSeverity="WARNING" displayName="Empty tag" enabled="true" language="XML" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports empty tags that do not work in some browsers.
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  &amp;lt;html&gt;
+    &amp;lt;script/&gt;
+  &amp;lt;/html&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;After the quick-fix is applied:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  &amp;lt;html&gt;
+    &amp;lt;script&gt;&amp;lt;/script&gt;
+  &amp;lt;/html&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="RequiredAttributes" defaultSeverity="WARNING" displayName="Missing required attribute" enabled="true" language="XML" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports a missing mandatory attribute in an XML/HTML tag. Suggests configuring attributes that should not be reported.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="HtmlUnknownAttribute" defaultSeverity="WARNING" displayName="Unknown attribute" enabled="true" language="HTML" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports an unknown HTML attribute. Suggests configuring attributes that should not be reported.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="HtmlWrongAttributeValue" defaultSeverity="WARNING" displayName="Wrong attribute value" enabled="true" language="HtmlCompatible" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports an incorrect HTML attribute value.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="HtmlExtraClosingTag" defaultSeverity="WARNING" displayName="Redundant closing tag" enabled="true" language="HTML" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports redundant closing tags on empty elements, for example, &lt;code&gt;img&lt;/code&gt; or &lt;code&gt;br&lt;/code&gt;.
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  &amp;lt;html&gt;
+    &amp;lt;body&gt;
+      &amp;lt;br&gt;&amp;lt;/br&gt;
+    &amp;lt;/body&gt;
+  &amp;lt;/html&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;After the quick-fix is applied:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  &amp;lt;html&gt;
+    &amp;lt;body&gt;
+      &amp;lt;br&gt;
+    &amp;lt;/body&gt;
+  &amp;lt;/html&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="HtmlUnknownBooleanAttribute" defaultSeverity="WARNING" displayName="Incorrect boolean attribute" enabled="true" language="HTML" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports an HTML non-boolean attribute without a value. Suggests configuring attributes that should not be reported.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection></group><group name="Markdown" path=""><inspection shortName="MarkdownIncorrectTableFormatting" defaultSeverity="WEAK WARNING" displayName="Incorrect table formatting" enabled="true" language="Markdown" pluginId="org.intellij.plugins.markdown" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Checks if table is correctly formatted.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;
+</inspection><inspection shortName="MarkdownLinkDestinationWithSpaces" defaultSeverity="WARNING" displayName="Links should not contain spaces" enabled="true" language="Markdown" pluginId="org.intellij.plugins.markdown" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+To ensure consistency between different tools, file links should not contain spaces.
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  [Some file link](some file.md)
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;A quick-fix replaces spaces with their url-encoded equivalent:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  [Some file link](some%20file.md)
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;
+</inspection><inspection shortName="MarkdownIncorrectlyNumberedListItem" defaultSeverity="WARNING" displayName="Incorrectly numbered list item" enabled="true" language="Markdown" pluginId="org.intellij.plugins.markdown" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Ordered list items are expected to have straight numeration starting from 1.&lt;/p&gt;
+&lt;p&gt;The motivation behind this is that most of Markdown processors are ignoring the numbering of ordered lists. A processor will generate an &lt;code&gt;&amp;lt;ol&amp;gt;&lt;/code&gt; element for such list, that will number items continuously from 1.&lt;/p&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;
+</inspection><inspection shortName="MarkdownUnresolvedLinkLabel" defaultSeverity="WARNING" displayName="Unresolved link label" enabled="true" language="Markdown" pluginId="org.intellij.plugins.markdown" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports unresolved link labels in Markdown files.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;
+</inspection><inspection shortName="MarkdownNoTableBorders" defaultSeverity="WARNING" displayName="Table doesn't have side borders" enabled="true" language="Markdown" pluginId="org.intellij.plugins.markdown" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Checks if table has correct side borders.
+For compatibility reasons all table rows should have borders (pipe symbols) at the start and at the end.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;
+</inspection><inspection shortName="MarkdownUnresolvedFileReference" defaultSeverity="WARNING" displayName="Unresolved file references" enabled="true" language="Markdown" pluginId="org.intellij.plugins.markdown" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports unresolved file references in Markdown files.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="MarkdownOutdatedTableOfContents" defaultSeverity="WARNING" displayName="Outdated table of contents section" enabled="true" language="Markdown" pluginId="org.intellij.plugins.markdown" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Checks if a particular table of contents section corresponds to the actual structure of the document.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;
+</inspection><inspection shortName="MarkdownUnresolvedHeaderReference" defaultSeverity="WARNING" displayName="Unresolved header reference" enabled="true" language="Markdown" pluginId="org.intellij.plugins.markdown" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports unresolved header references in Markdown files.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection></group><group name="Security" path="Python"><inspection shortName="PyVulnerableApiCodeInspection" defaultSeverity="WARNING" displayName="Vulnerable API usage" enabled="true" language="Python" pluginId="org.jetbrains.security.package-checker" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports usages of Vulnerable APIs of imported dependencies.&lt;/p&gt;
+&lt;p&gt;Fixing the reported problems helps prevent your software from being compromised by an attacker.&lt;/p&gt;
+&lt;p&gt;To solve a problem, you can update to a version where the vulnerability is fixed (if available) or switch to a dependency that doesn't have the vulnerability.&lt;/p&gt;
+&lt;!-- tooltip end --&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</inspection></group><group name="Security" path=""><inspection shortName="VulnerableLibrariesLocal" defaultSeverity="WARNING" displayName="Vulnerable declared dependency" enabled="true" language="" pluginId="org.jetbrains.security.package-checker" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports vulnerabilities in Gradle, Maven, NPM and PyPI dependencies declared in your project.
+  A full list of Gradle and Maven dependencies is shown in the Project tool window under External Libraries.&lt;/p&gt;
+&lt;p&gt;Fixing the reported problems helps prevent your software from being compromised by an attacker.&lt;/p&gt;
+&lt;p&gt;To solve a problem, you can update to a version where the vulnerability is fixed (if available) or switch to a dependency that doesn't have the vulnerability.&lt;/p&gt;
+&lt;p&gt;The quick-fixes available may suggest updating to a safe version or visiting the website to learn more about a particular vulnerability.&lt;/p&gt;
+&lt;!-- tooltip end --&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</inspection><inspection shortName="MaliciousLibrariesLocal" defaultSeverity="WARNING" displayName="Malicious dependency" enabled="true" language="" pluginId="org.jetbrains.security.package-checker" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports malicious NPM and PyPI dependencies declared in your project.&lt;/p&gt;
+&lt;p&gt;Fixing the reported problems helps prevent your software from being compromised by an attacker.&lt;/p&gt;
+&lt;p&gt;Remove a malicious package to solve a problem.&lt;/p&gt;
+&lt;!-- tooltip end --&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</inspection></group><group name="Properties files" path=""><inspection shortName="DuplicatePropertyInspection" defaultSeverity="WARNING" displayName="Duplicate property" enabled="false" language="Properties" pluginId="com.intellij.properties" pluginVersion="243.24978.54" isGlobalTool="true">&lt;html&gt;
+&lt;body&gt;
+Reports duplicate property keys with different values, duplicate keys, or duplicate property values.
+&lt;!-- tooltip end --&gt;
+&lt;p&gt;Example:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+property1=&lt;b&gt;&lt;font color="#000080"&gt;value&lt;/font&gt;&lt;/b&gt;;
+property2=&lt;b&gt;&lt;font color="#000080"&gt;value&lt;/font&gt;&lt;/b&gt;;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The &lt;b&gt;Options&lt;/b&gt; list allows selecting the area in which the inspection should search for duplicates.&lt;/p&gt;
+
+&lt;/body&gt;
+&lt;/html&gt;
+</inspection><inspection shortName="UnusedProperty" defaultSeverity="WARNING" displayName="Unused property" enabled="true" language="Properties" pluginId="com.intellij.properties" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports properties that are not referenced outside of the .properties file they are contained in.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;
+</inspection><inspection shortName="AlphaUnsortedPropertiesFile" defaultSeverity="WEAK WARNING" displayName="Properties file or resource bundle is alphabetically unsorted" enabled="false" language="Properties" pluginId="com.intellij.properties" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports alphabetically unsorted resource bundles or .properties files.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="TrailingSpacesInProperty" defaultSeverity="WARNING" displayName="Trailing spaces in property" enabled="true" language="Properties" pluginId="com.intellij.properties" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports properties whose keys or values end with a whitespace.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;
+</inspection><inspection shortName="WrongPropertyKeyValueDelimiter" defaultSeverity="WEAK WARNING" displayName="Property key/value delimiter doesn't match code style settings" enabled="true" language="Properties" pluginId="com.intellij.properties" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports properties in which key or value delimiters do not match code style settings.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="UseEllipsisInPropertyInspection" defaultSeverity="WARNING" displayName="Three dot characters instead of the ellipsis" enabled="false" language="Properties" pluginId="com.intellij.properties" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports three "dot" characters which are used instead of the ellipsis character for UTF-8 properties files.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;
+</inspection></group><group name="Shell script" path=""><inspection shortName="ShellCheck" defaultSeverity="ERROR" displayName="ShellCheck" enabled="true" language="Shell Script" pluginId="com.jetbrains.sh" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports shell script bugs detected by the integrated &lt;a href="https://github.com/koalaman/shellcheck"&gt;ShellCheck&lt;/a&gt; static analysis tool.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection></group><group name="Requirements" path=""><inspection shortName="UnsatisfiedRequirementInspection" defaultSeverity="WARNING" displayName="Requirement is not satisfied" enabled="true" language="Requirements" pluginId="PythonCore" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;
+  Reports packages mentioned in requirements files (for example, &lt;code&gt;requirements.txt&lt;/code&gt;, or &lt;code&gt;dependencies&lt;/code&gt; section in &lt;code&gt;pyproject.toml&lt;/code&gt; files) but not installed,
+  or imported but not mentioned in requirements files.&lt;/p&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection></group><group name="RegExp" path=""><inspection shortName="RegExpEscapedMetaCharacter" defaultSeverity="INFORMATION" displayName="Escaped meta character" enabled="true" language="RegExp" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports escaped meta characters.
+Some RegExp coding styles specify that meta characters should be placed inside a character class,
+to make the regular expression easier to understand.
+This inspection does not warn about the meta character &lt;code&gt;[&lt;/code&gt;, &lt;code&gt;]&lt;/code&gt; and &lt;code&gt;^&lt;/code&gt;,
+because those would need additional escaping inside a character class.
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  \d+\.\d+
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;After the quick-fix is applied:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  \d+[.]\d+
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;
+&lt;p&gt;&lt;small&gt;New in 2017.1&lt;/small&gt;
+&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="RegExpRepeatedSpace" defaultSeverity="WARNING" displayName="Consecutive spaces" enabled="true" language="RegExp" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports multiple consecutive spaces in a RegExp.
+Because spaces are not visible by default, it can be hard to see how many spaces are required.
+The RegExp can be made more clear by replacing the consecutive spaces with a single space and a counted quantifier.
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  (     )
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;After the quick-fix is applied:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  ( {5})
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;
+&lt;p&gt;
+&lt;small&gt;New in 2017.1&lt;/small&gt;
+&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="RegExpEmptyAlternationBranch" defaultSeverity="WARNING" displayName="Empty branch in alternation" enabled="true" language="RegExp" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports empty branches in a RegExp alternation.
+An empty branch will only match the empty string, and in most cases that is not what is desired.
+This inspection will not report a single empty branch at the start or the end of an alternation.
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  (alpha||bravo)
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;After the quick-fix is applied:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  (alpha|bravo)
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;
+&lt;p&gt;&lt;small&gt;New in 2017.2&lt;/small&gt;
+&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="RegExpRedundantClassElement" defaultSeverity="WEAK WARNING" displayName="Redundant '\d', '[:digit:]', or '\D' class elements" enabled="true" language="RegExp" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports redundant &lt;code&gt;\d&lt;/code&gt; or &lt;code&gt;[:digit:]&lt;/code&gt; that are used in one class with &lt;code&gt;\w&lt;/code&gt; or &lt;code&gt;[:word:]&lt;/code&gt;
+(&lt;code&gt;\D&lt;/code&gt; with &lt;code&gt;\W&lt;/code&gt;) and can be removed.
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  [\w\d]
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;After the quick-fix is applied:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  [\w]
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;
+&lt;p&gt;&lt;small&gt;New in 2022.2&lt;/small&gt;
+&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="RegExpSuspiciousBackref" defaultSeverity="WARNING" displayName="Suspicious back reference" enabled="true" language="RegExp" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports back references that will not be resolvable at runtime.
+This means that the back reference can never match anything.
+A back reference will not be resolvable when the group is defined after the back reference,
+or if the group is defined in a different branch of an alternation.
+&lt;p&gt;&lt;b&gt;Example of a group defined after its back reference:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  \1(abc)
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;&lt;b&gt;Example of a group and a back reference in different branches:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  a(b)c|(xy)\1z
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;!-- tooltip end --&gt;
+&lt;p&gt;&lt;small&gt;New in 2022.1&lt;/small&gt;
+&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="RegExpUnnecessaryNonCapturingGroup" defaultSeverity="WARNING" displayName="Unnecessary non-capturing group" enabled="true" language="RegExp" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports unnecessary non-capturing groups, which have no influence on the match result.
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  Everybody be cool, (?:this) is a robbery!
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;After the quick-fix is applied:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  Everybody be cool, this is a robbery!
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;
+&lt;p&gt;&lt;small&gt;New in 2021.1&lt;/small&gt;
+&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="RegExpSimplifiable" defaultSeverity="WEAK WARNING" displayName="Regular expression can be simplified" enabled="true" language="RegExp" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports regular expressions that can be simplified.
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  [a] xx* [ah-hz]
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;After the quick-fix is applied:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  a x+ [ahz]
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;
+&lt;p&gt;&lt;small&gt;New in 2022.1&lt;/small&gt;
+&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="RegExpSingleCharAlternation" defaultSeverity="WARNING" displayName="Single character alternation" enabled="true" language="RegExp" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports single char alternation in a RegExp.
+It is simpler to use a character class instead.
+This may also provide better matching performance.
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  a|b|c|d
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;After the quick-fix is applied:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  [abcd]
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;
+&lt;p&gt;
+&lt;small&gt;New in 2017.1&lt;/small&gt;
+&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="RegExpDuplicateCharacterInClass" defaultSeverity="WARNING" displayName="Duplicate character in character class" enabled="true" language="RegExp" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports duplicate characters inside a RegExp character class.
+Duplicate characters are unnecessary and can be removed without changing the semantics of the regex.
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  [aabc]
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;After the quick-fix is applied:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  [abc]
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;
+&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="RegExpRedundantEscape" defaultSeverity="WARNING" displayName="Redundant character escape" enabled="true" language="RegExp" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports redundant character escape sequences that can be replaced with unescaped characters preserving the meaning.
+Many escape sequences that are necessary outside of a character class are redundant inside square brackets &lt;code&gt;[]&lt;/code&gt; of a character class.
+&lt;p&gt;
+  Although unescaped opening curly braces &lt;code&gt;{&lt;/code&gt; outside of character classes are allowed in some dialects (JavaScript, Python, and so on),
+  it can cause confusion and make the pattern less portable, because there are dialects that require escaping curly braces as characters.
+  For this reason the inspection does not report escaped opening curly braces.
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  \-\;[\.]
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;After the quick-fix is applied:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  -;[.]
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;
+&lt;p&gt;
+The &lt;b&gt;Ignore escaped closing brackets '}' and ']'&lt;/b&gt; option specifies whether to report &lt;code&gt;\}&lt;/code&gt; and &lt;code&gt;\]&lt;/code&gt; outside of a character class
+when they are allowed to be unescaped by the RegExp dialect.
+&lt;p&gt;&lt;small&gt;New in 2017.3&lt;/small&gt;
+&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="RegExpUnexpectedAnchor" defaultSeverity="WARNING" displayName="Begin or end anchor in unexpected position" enabled="true" language="RegExp" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports &lt;code&gt;^&lt;/code&gt; or &lt;code&gt;\A&lt;/code&gt; anchors not at the beginning of the pattern and
+&lt;code&gt;$&lt;/code&gt;, &lt;code&gt;\Z&lt;/code&gt; or &lt;code&gt;\z&lt;/code&gt; anchors not at the end of the pattern.
+In the wrong position these RegExp anchors prevent the pattern from matching anything.
+In case of the &lt;code&gt;^&lt;/code&gt; and &lt;code&gt;$&lt;/code&gt; anchors, most likely the literal character was meant and the escape forgotten.
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  (Price $10)
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;
+&lt;p&gt;
+&lt;small&gt;New in 2018.1&lt;/small&gt;
+&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="RegExpDuplicateAlternationBranch" defaultSeverity="WARNING" displayName="Duplicate branch in alternation" enabled="true" language="RegExp" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports duplicate branches in a RegExp alternation.
+Duplicate branches slow down matching and obscure the intent of the expression.
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  (alpha|bravo|charlie|alpha)
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;After the quick-fix is applied:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  (alpha|bravo|charlie)
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;
+&lt;p&gt;&lt;small&gt;New in 2017.1&lt;/small&gt;
+&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="RegExpRedundantNestedCharacterClass" defaultSeverity="WARNING" displayName="Redundant nested character class" enabled="true" language="RegExp" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports unnecessary nested character classes.
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  [a-c[x-z]]
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;After the quick-fix is applied:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  [a-cx-z]
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;
+&lt;p&gt;&lt;small&gt;New in 2020.2&lt;/small&gt;
+&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="RegExpAnonymousGroup" defaultSeverity="WARNING" displayName="Anonymous capturing group or numeric back reference" enabled="false" language="RegExp" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports anonymous capturing groups and numeric back references in a RegExp.
+These are only reported when the RegExp dialect supports named group and named group references.
+Named groups and named back references improve code readability and are recommended to use instead.
+When a capture is not needed, matching can be more performant and use less memory by using a non-capturing group,
+i.e. &lt;code&gt;(?:xxx)&lt;/code&gt; instead of &lt;code&gt;(xxx)&lt;/code&gt;.
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  (\d\d\d\d)\1
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;A better regex pattern could look like this:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  (?&amp;lt;quad&gt;\d\d\d\d)\k&amp;lt;quad&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;
+&lt;p&gt;&lt;small&gt;New in 2017.2&lt;/small&gt;
+&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="RegExpOctalEscape" defaultSeverity="INFORMATION" displayName="Octal escape" enabled="true" language="RegExp" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports octal escapes, which are easily confused with back references.
+Use hexadecimal escapes to avoid confusion.
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  \07
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;After the quick-fix is applied:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  \x07
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;
+&lt;p&gt;&lt;small&gt;New in 2017.1&lt;/small&gt;
+&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="CustomRegExpInspection" defaultSeverity="WARNING" displayName="Custom RegExp inspection" enabled="true" language="" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Custom Regex Inspection
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection></group><group name="EditorConfig" path=""><inspection shortName="EditorConfigValueCorrectness" defaultSeverity="ERROR" displayName="Invalid property value" enabled="true" language="EditorConfig" pluginId="org.editorconfig.editorconfigjetbrains" pluginVersion="243.24978.54" isGlobalTool="false">&lt;!-- Copyright 2000-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file. --&gt;
+&lt;html&gt;
+&lt;body&gt;
+Reports property values that do not meet value restrictions. For example, some properties may be only “true” or “false”,
+others contain only integer numbers etc. If a value has a limited set of variants, use code completion to see all of them.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;
+</inspection><inspection shortName="EditorConfigEncoding" defaultSeverity="WARNING" displayName="File encoding doesn't match EditorConfig charset" enabled="true" pluginId="org.editorconfig.editorconfigjetbrains" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Checks that current file encoding matches the encoding defined in "charset" property of .editorconfig file.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="EditorConfigListAcceptability" defaultSeverity="ERROR" displayName="Unexpected value list" enabled="true" language="EditorConfig" pluginId="org.editorconfig.editorconfigjetbrains" pluginVersion="243.24978.54" isGlobalTool="false">&lt;!-- Copyright 2000-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file. --&gt;
+&lt;html&gt;
+&lt;body&gt;
+Reports lists of values that are used in properties in which lists are not supported. In this case, only a single value can be specified.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;
+</inspection><inspection shortName="EditorConfigVerifyByCore" defaultSeverity="ERROR" displayName="Invalid .editorconfig file" enabled="true" language="EditorConfig" pluginId="org.editorconfig.editorconfigjetbrains" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Verifies the whole file using the backing EditorConfig core library and reports any failures.
+Any such failure would prevent EditorConfig properties from being correctly applied.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="EditorConfigPatternEnumerationRedundancy" defaultSeverity="ERROR" displayName="Unnecessary braces" enabled="true" language="EditorConfig" pluginId="org.editorconfig.editorconfigjetbrains" pluginVersion="243.24978.54" isGlobalTool="false">&lt;!-- Copyright 2000-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file. --&gt;
+&lt;html&gt;
+&lt;body&gt;
+Reports pattern lists that are either empty &lt;code&gt;{}&lt;/code&gt; or contain just one pattern, for example &lt;code&gt;{foo}&lt;/code&gt; in contrast to
+a list containing multiple patterns, for example &lt;code&gt;{foo,bar}&lt;/code&gt;. In this case braces are handled as a part of the name. For example,
+the pattern &lt;code&gt;*.{a}&lt;/code&gt; will match the file &lt;code&gt;my.{a}&lt;/code&gt; but not &lt;code&gt;my.a&lt;/code&gt;.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;
+</inspection><inspection shortName="EditorConfigNumerousWildcards" defaultSeverity="WEAK WARNING" displayName="Too many wildcards" enabled="true" language="EditorConfig" pluginId="org.editorconfig.editorconfigjetbrains" pluginVersion="243.24978.54" isGlobalTool="false">&lt;!-- Copyright 2000-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file. --&gt;
+&lt;html&gt;
+&lt;body&gt;
+Reports sections that contain too many wildcards. Using a lot of wildcards may lead to performance issues.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="EditorConfigOptionRedundancy" defaultSeverity="WARNING" displayName="Redundant property" enabled="true" language="EditorConfig" pluginId="org.editorconfig.editorconfigjetbrains" pluginVersion="243.24978.54" isGlobalTool="false">&lt;!-- Copyright 2000-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file. --&gt;
+&lt;html&gt;
+&lt;body&gt;
+Reports properties that are redundant when another applicable section already contains the same property and value.
+&lt;p&gt;
+For example:
+&lt;pre&gt;&lt;code&gt;
+[*]
+indent_size=4
+[*.java]
+indent_size=4
+&lt;/code&gt;&lt;/pre&gt;
+are both applicable to &lt;code&gt;*.java&lt;/code&gt; files and define the same &lt;code&gt;indent_size&lt;/code&gt; value.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;
+</inspection><inspection shortName="EditorConfigMissingRequiredDeclaration" defaultSeverity="ERROR" displayName="Required declarations are missing" enabled="true" language="EditorConfig" pluginId="org.editorconfig.editorconfigjetbrains" pluginVersion="243.24978.54" isGlobalTool="false">&lt;!-- Copyright 2000-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file. --&gt;
+&lt;html&gt;
+&lt;body&gt;
+Reports properties that miss the required declarations. Refer to the documentation for more information.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;
+</inspection><inspection shortName="EditorConfigPartialOverride" defaultSeverity="WEAK WARNING" displayName="Overlapping sections" enabled="true" language="EditorConfig" pluginId="org.editorconfig.editorconfigjetbrains" pluginVersion="243.24978.54" isGlobalTool="false">&lt;!-- Copyright 2000-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file. --&gt;
+&lt;html&gt;
+&lt;body&gt;
+Reports subsets of files specified in the current section that overlap with other subsets in other sections. For example:
+&lt;code&gt;[{foo,bar}]&lt;/code&gt; and &lt;code&gt;[{foo,bas}]&lt;/code&gt; both contain “foo”.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;
+</inspection><inspection shortName="EditorConfigSpaceInHeader" defaultSeverity="WEAK WARNING" displayName="Space in file pattern" enabled="true" language="EditorConfig" pluginId="org.editorconfig.editorconfigjetbrains" pluginVersion="243.24978.54" isGlobalTool="false">&lt;!-- Copyright 2000-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file. --&gt;
+&lt;html&gt;
+&lt;body&gt;
+Reports space characters in wildcard patterns that affect pattern matching.
+If these characters are not intentional, they should be removed.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;
+</inspection><inspection shortName="EditorConfigDeprecatedDescriptor" defaultSeverity="WARNING" displayName="Deprecated property" enabled="true" language="EditorConfig" pluginId="org.editorconfig.editorconfigjetbrains" pluginVersion="243.24978.54" isGlobalTool="false">&lt;!-- Copyright 2000-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file. --&gt;
+&lt;html&gt;
+&lt;body&gt;
+Reports EditorConfig properties that are no longer supported.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;
+</inspection><inspection shortName="EditorConfigShadowedOption" defaultSeverity="WARNING" displayName="Overridden property" enabled="true" language="EditorConfig" pluginId="org.editorconfig.editorconfigjetbrains" pluginVersion="243.24978.54" isGlobalTool="false">&lt;!-- Copyright 2000-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file. --&gt;
+&lt;html&gt;
+&lt;body&gt;
+Reports properties that are already defined in other sections.
+&lt;p&gt;For example:
+&lt;pre&gt;&lt;code&gt;
+[*.java]
+indent_size=4
+[{*.java,*.js}]
+indent_size=2
+&lt;/code&gt;&lt;/pre&gt;
+The second section includes all &lt;code&gt;*.java&lt;/code&gt; files too but it  also redefines indent_size.
+As a result the value 2 will be used for files matching &lt;code&gt;*.java&lt;/code&gt;.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;
+</inspection><inspection shortName="EditorConfigEmptyHeader" defaultSeverity="ERROR" displayName="Empty header" enabled="true" language="EditorConfig" pluginId="org.editorconfig.editorconfigjetbrains" pluginVersion="243.24978.54" isGlobalTool="false">&lt;!-- Copyright 2000-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file. --&gt;
+&lt;html&gt;
+&lt;body&gt;
+Reports sections with an empty header. Section header must contain file path globs in the format similar to one supported by &lt;code&gt;gitignore&lt;/code&gt;.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;
+</inspection><inspection shortName="EditorConfigNoMatchingFiles" defaultSeverity="WARNING" displayName="No matching files" enabled="true" language="EditorConfig" pluginId="org.editorconfig.editorconfigjetbrains" pluginVersion="243.24978.54" isGlobalTool="false">&lt;!-- Copyright 2000-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file. --&gt;
+&lt;html&gt;
+&lt;body&gt;
+Reports sections with wildcard patterns that do not match any files under the directory in
+which the &lt;code&gt;.editorconfig&lt;/code&gt; file is located.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;
+</inspection><inspection shortName="EditorConfigUnexpectedComma" defaultSeverity="ERROR" displayName="Unexpected comma" enabled="true" language="EditorConfig" pluginId="org.editorconfig.editorconfigjetbrains" pluginVersion="243.24978.54" isGlobalTool="false">&lt;!-- Copyright 2000-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file. --&gt;
+&lt;html&gt;
+&lt;body&gt;
+Reports commas that cannot be used in the current context. Commas are allowed only as separators for values in lists.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;
+</inspection><inspection shortName="EditorConfigCharClassRedundancy" defaultSeverity="WARNING" displayName="Unnecessary character class" enabled="true" language="EditorConfig" pluginId="org.editorconfig.editorconfigjetbrains" pluginVersion="243.24978.54" isGlobalTool="false">&lt;!-- Copyright 2000-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file. --&gt;
+&lt;html&gt;
+&lt;body&gt;
+Reports character classes that consist of a single character.
+Such classes can be simplified to a character, for example &lt;code&gt;[a]&lt;/code&gt;&amp;rarr;&lt;code&gt;a&lt;/code&gt;.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;
+</inspection><inspection shortName="EditorConfigShadowingOption" defaultSeverity="WARNING" displayName="Overriding property" enabled="true" language="EditorConfig" pluginId="org.editorconfig.editorconfigjetbrains" pluginVersion="243.24978.54" isGlobalTool="false">&lt;!-- Copyright 2000-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file. --&gt;
+&lt;html&gt;
+&lt;body&gt;
+Reports properties that override the same properties defined earlier in the file.
+&lt;p&gt;For example:
+&lt;pre&gt;&lt;code&gt;
+[*.java]
+indent_size=4
+[{*.java,*.js}]
+indent_size=2
+&lt;/code&gt;&lt;/pre&gt;
+The second section includes the same files as &lt;code&gt;[*.java]&lt;/code&gt; but also sets indent_size to value 2.
+Thus the first declaration &lt;code&gt;indent_size=4&lt;/code&gt;will be ignored.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;
+</inspection><inspection shortName="EditorConfigHeaderUniqueness" defaultSeverity="WARNING" displayName="EditorConfig section is not unique" enabled="true" language="EditorConfig" pluginId="org.editorconfig.editorconfigjetbrains" pluginVersion="243.24978.54" isGlobalTool="false">&lt;!-- Copyright 2000-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file. --&gt;
+&lt;html&gt;
+&lt;body&gt;
+Reports sections that define the same file pattern as other sections.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;
+</inspection><inspection shortName="EditorConfigKeyCorrectness" defaultSeverity="WARNING" displayName="Unknown property" enabled="true" language="EditorConfig" pluginId="org.editorconfig.editorconfigjetbrains" pluginVersion="243.24978.54" isGlobalTool="false">&lt;!-- Copyright 2000-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file. --&gt;
+&lt;html&gt;
+&lt;body&gt;
+Reports properties that are not supported by the IDE. Note: some “ij” domain properties may require specific language plugins.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;
+</inspection><inspection shortName="EditorConfigValueUniqueness" defaultSeverity="ERROR" displayName="Non-unique list value" enabled="true" language="EditorConfig" pluginId="org.editorconfig.editorconfigjetbrains" pluginVersion="243.24978.54" isGlobalTool="false">&lt;!-- Copyright 2000-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file. --&gt;
+&lt;html&gt;
+&lt;body&gt;
+Reports duplicates in lists of values.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;
+</inspection><inspection shortName="EditorConfigPairAcceptability" defaultSeverity="ERROR" displayName="Unexpected key-value pair" enabled="true" language="EditorConfig" pluginId="org.editorconfig.editorconfigjetbrains" pluginVersion="243.24978.54" isGlobalTool="false">&lt;!-- Copyright 2000-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file. --&gt;
+&lt;html&gt;
+&lt;body&gt;
+Reports key-value pairs that are not allowed in the current context.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;
+</inspection><inspection shortName="EditorConfigPatternRedundancy" defaultSeverity="WARNING" displayName="Duplicate or redundant pattern" enabled="true" language="EditorConfig" pluginId="org.editorconfig.editorconfigjetbrains" pluginVersion="243.24978.54" isGlobalTool="false">&lt;!-- Copyright 2000-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file. --&gt;
+&lt;html&gt;
+&lt;body&gt;
+Reports file patterns that are redundant as there already are other patterns that define the same scope of files or even a broader one.
+For example, in &lt;code&gt;[{*.java,*}]&lt;/code&gt; the first &lt;code&gt;*.java&lt;/code&gt; pattern defines a narrower scope compared to &lt;code&gt;*&lt;/code&gt;.
+That is why it is redundant and can be removed.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;
+</inspection><inspection shortName="EditorConfigUnusedDeclaration" defaultSeverity="WARNING" displayName="Unused declaration" enabled="true" language="EditorConfig" pluginId="org.editorconfig.editorconfigjetbrains" pluginVersion="243.24978.54" isGlobalTool="false">&lt;!-- Copyright 2000-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file. --&gt;
+&lt;html&gt;
+&lt;body&gt;
+Reports unused declarations. Such declarations can be removed.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;
+</inspection><inspection shortName="EditorConfigEmptySection" defaultSeverity="WARNING" displayName="Empty section" enabled="true" language="EditorConfig" pluginId="org.editorconfig.editorconfigjetbrains" pluginVersion="243.24978.54" isGlobalTool="false">&lt;!-- Copyright 2000-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file. --&gt;
+&lt;html&gt;
+&lt;body&gt;
+Reports sections that do not contain any EditorConfig properties.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;
+</inspection><inspection shortName="EditorConfigWildcardRedundancy" defaultSeverity="WARNING" displayName="Redundant wildcard" enabled="true" language="EditorConfig" pluginId="org.editorconfig.editorconfigjetbrains" pluginVersion="243.24978.54" isGlobalTool="false">&lt;!-- Copyright 2000-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file. --&gt;
+&lt;html&gt;
+&lt;body&gt;
+Reports wildcards that become redundant when the “**” wildcard is used in the same section.
+&lt;p&gt;
+The “**” wildcard defines a broader set of files than any other wildcard.
+That is why, any other wildcard used in the same section has no affect and can be removed.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;
+</inspection><inspection shortName="EditorConfigRootDeclarationUniqueness" defaultSeverity="ERROR" displayName="Extra top-level declaration" enabled="true" language="EditorConfig" pluginId="org.editorconfig.editorconfigjetbrains" pluginVersion="243.24978.54" isGlobalTool="false">&lt;!-- Copyright 2000-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file. --&gt;
+&lt;html&gt;
+&lt;body&gt;
+Reports multiple top-level declarations. There can be only one optional “root=true” top-level declaration in the EditorConfig file.
+Using multiple top-level declarations is not allowed.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="EditorConfigCharClassLetterRedundancy" defaultSeverity="WARNING" displayName="Duplicate character class letter" enabled="true" language="EditorConfig" pluginId="org.editorconfig.editorconfigjetbrains" pluginVersion="243.24978.54" isGlobalTool="false">&lt;!-- Copyright 2000-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file. --&gt;
+&lt;html&gt;
+&lt;body&gt;
+Reports wildcard patterns in the EditorConfig section that contain a duplicate character in the character class, for example &lt;code&gt;[aa]&lt;/code&gt;.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;
+</inspection><inspection shortName="EditorConfigRootDeclarationCorrectness" defaultSeverity="ERROR" displayName="Unexpected top-level declaration" enabled="true" language="EditorConfig" pluginId="org.editorconfig.editorconfigjetbrains" pluginVersion="243.24978.54" isGlobalTool="false">&lt;!-- Copyright 2000-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file. --&gt;
+&lt;html&gt;
+&lt;body&gt;
+Reports unexpected top-level declarations. Top-level declarations other than “root=true” are not allowed in the EditorConfig file.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="EditorConfigReferenceCorrectness" defaultSeverity="ERROR" displayName="Invalid reference" enabled="true" language="EditorConfig" pluginId="org.editorconfig.editorconfigjetbrains" pluginVersion="243.24978.54" isGlobalTool="false">&lt;!-- Copyright 2000-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file. --&gt;
+&lt;html&gt;
+&lt;body&gt;
+Reports identifiers that are either unknown or have a wrong type.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;
+</inspection></group><group name="General" path=""><inspection shortName="RedundantSuppression" defaultSeverity="WARNING" displayName="Redundant suppression" enabled="true" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="true">&lt;html&gt;
+&lt;body&gt;
+Reports usages of the following elements that can be safely removed because the inspection they affect is no longer applicable in this context:
+&lt;ul&gt;
+  &lt;li&gt;&lt;code&gt;@SuppressWarning&lt;/code&gt; annotation, or&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;// noinspection&lt;/code&gt; line comment, or&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;/** noinspection */&lt;/code&gt; JavaDoc comment&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Example:&lt;/p&gt;
+&lt;pre&gt;&lt;code lang="java"&gt;
+public class C {
+ // symbol is already private,
+ // but annotation is still around
+  @SuppressWarnings({"WeakerAccess"})
+  private boolean CONST = true;
+  void f() {
+    CONST = false;
+  }
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;
+</inspection><inspection shortName="ReassignedToPlainText" defaultSeverity="WARNING" displayName="Reassigned to plain text" enabled="true" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports files that were explicitly re-assigned to Plain Text File Type.
+This association is unnecessary because the platform auto-detects text files by content automatically.
+
+&lt;p&gt;You can dismiss this warning by removing the file type association
+in &lt;b&gt;Settings | Editor | File Types | Text&lt;/b&gt;.&lt;/p&gt;
+
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="ProblematicWhitespace" defaultSeverity="WARNING" displayName="Problematic whitespace" enabled="false" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports the following problems:
+&lt;ul&gt;
+  &lt;li&gt;Tabs used for indentation when the code style is configured to use only spaces.&lt;/li&gt;
+  &lt;li&gt;Spaces used for indentation when the code style is configured to use only tabs.&lt;/li&gt;
+  &lt;li&gt;Spaces used for indentation and tabs used for alignment when the code
+    style is configured to use smart tabs.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;!-- tooltip end --&gt;
+&lt;p&gt;
+&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="InjectedReferences" defaultSeverity="ERROR" displayName="Injected references" enabled="true" language="" pluginId="org.intellij.intelliLang" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports unresolved references injected by
+&lt;a href="https://www.jetbrains.com/help/idea/using-language-injections.html"&gt;Language Injections&lt;/a&gt;.
+&lt;p&gt;Example:&lt;/p&gt;
+&lt;pre&gt;&lt;code lang="java"&gt;
+    @Language("file-reference")
+    String fileName = "/home/user/nonexistent.file"; // highlighted if file doesn't exist
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="InconsistentLineSeparators" defaultSeverity="WARNING" displayName="Inconsistent line separators" enabled="false" language="" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports files with line separators different from the ones that are specified in the project's settings.
+&lt;p&gt;For example, the inspection will be triggered if you set the line separator to &lt;code&gt;\n&lt;/code&gt; in
+  &lt;a href="settings://preferences.sourceCode?Line%20separator"&gt;Settings | Editor | Code Style | Line separator&lt;/a&gt;,
+  while the file you are editing uses &lt;code&gt;\r\n&lt;/code&gt; as a line separator.&lt;/p&gt;
+
+&lt;p&gt;The inspection also warns you about mixed line separators within a file.&lt;/p&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="Annotator" defaultSeverity="ERROR" displayName="Annotator" enabled="true" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="true">&lt;html&gt;
+&lt;body&gt;
+Reports issues essential to this file (e.g., syntax errors) in the result of a batch code inspection run.
+These issues are usually always highlighted in the editor and can't be configured, unlike inspections.
+These options control the scope of checks performed by this inspection:
+&lt;ul&gt;
+  &lt;li&gt;Option "&lt;b&gt;Report syntax errors&lt;/b&gt;": report parser-related issues.&lt;/li&gt;
+  &lt;li&gt;Option "&lt;b&gt;Report issues from language-specific annotators&lt;/b&gt;": report issues found by annotators configured for the relevant language.
+    See &lt;a href="https://plugins.jetbrains.com/docs/intellij/annotator.html"&gt;Custom Language Support: Annotators&lt;/a&gt; for details.&lt;/li&gt;
+  &lt;li&gt;Option "&lt;b&gt;Report other highlighting problems&lt;/b&gt;": report issues specific to the language of the current file (e.g., type mismatches or unreported exceptions).
+    See &lt;a href="https://plugins.jetbrains.com/docs/intellij/syntax-highlighting-and-error-highlighting.html#semantic-highlighting"&gt;Custom Language Support: Highlighting&lt;/a&gt; for details.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="IncorrectFormatting" defaultSeverity="WEAK WARNING" displayName="Incorrect formatting" enabled="false" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;
+  Reports formatting issues that appear if your code doesn't
+  follow your project's code style settings.
+&lt;/p&gt;
+&lt;p&gt;
+  This inspection is not compatible with languages that require
+  third-party formatters for code formatting, for example, Go or
+  C with CLangFormat enabled.
+&lt;/p&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;
+</inspection><inspection shortName="LongLine" defaultSeverity="WARNING" displayName="Line is longer than allowed by code style" enabled="false" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports lines that are longer than the &lt;b&gt;Hard wrap at&lt;/b&gt; parameter specified in
+&lt;a href="settings://preferences.sourceCode?Hard%20wrap%20at"&gt;Settings | Editor | Code Style | General&lt;/a&gt;.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="EmptyDirectory" defaultSeverity="WARNING" displayName="Empty directory" enabled="false" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="true">&lt;html&gt;
+&lt;body&gt;
+Reports empty directories.
+&lt;!-- tooltip end --&gt;
+&lt;p&gt;Available only from &lt;b&gt;Code | Inspect Code&lt;/b&gt; or
+  &lt;b&gt;Code | Analyze Code | Run Inspection by Name&lt;/b&gt; and isn't reported in the editor.&lt;/p&gt;
+&lt;p&gt;Use the &lt;b&gt;Only report empty directories located under a source folder&lt;/b&gt; option to have only directories under source
+  roots reported.&lt;p&gt;
+&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="TodoComment" defaultSeverity="WARNING" displayName="TODO comment" enabled="false" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports &lt;b&gt;TODO&lt;/b&gt; comments in your code.
+&lt;p&gt;You can configure the format for &lt;b&gt;TODO&lt;/b&gt; comments in &lt;a href="settings://preferences.toDoOptions"&gt;Settings | Editor | TODO&lt;/a&gt;.
+&lt;!-- tooltip end --&gt;
+&lt;p&gt;Enable the &lt;b&gt;Only warn on TODO comments without any details&lt;/b&gt; option to only warn on empty TODO comments, that
+  don't provide any description on the task that should be done. Disable to report all TODO comments.&lt;/p&gt;
+&lt;/body&gt;
+&lt;/html&gt;</inspection></group><group name="YAML" path=""><inspection shortName="YAMLDuplicatedKeys" defaultSeverity="ERROR" displayName="Duplicated YAML keys" enabled="true" language="yaml" pluginId="org.jetbrains.plugins.yaml" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports duplicated keys in YAML files.
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  same_key: some value
+  same_key: another value
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="YAMLUnresolvedAlias" defaultSeverity="ERROR" displayName="Unresolved alias" enabled="true" language="yaml" pluginId="org.jetbrains.plugins.yaml" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports unresolved aliases in YAML files.
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  some_key: *unknown_alias
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="YAMLSchemaDeprecation" defaultSeverity="WEAK WARNING" displayName="Deprecated YAML key" enabled="true" language="yaml" pluginId="org.jetbrains.plugins.yaml" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports deprecated keys in YAML files.
+&lt;p&gt;Deprecation is checked only if there exists a JSON schema associated with the corresponding YAML file.&lt;/p&gt;
+&lt;p&gt;Note that the deprecation mechanism is not defined in the JSON Schema specification yet,
+and this inspection uses a non-standard &lt;code&gt;deprecationMessage&lt;/code&gt; extension.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Scheme deprecation example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  {
+    "properties": {
+      "SomeDeprecatedProperty": {
+        "deprecationMessage": "Baz",
+        "description": "Foo bar"
+      }
+    }
+  }
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;&lt;b&gt;The following is an example with the corresponding warning:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  SomeDeprecatedProperty: some value
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="YAMLIncompatibleTypes" defaultSeverity="WARNING" displayName="Suspicious type mismatch" enabled="true" language="yaml" pluginId="org.jetbrains.plugins.yaml" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports a mismatch between a scalar value type in YAML file and types of the values in the similar positions.
+
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+myElements:
+  - value1
+  - value2
+  - false # &amp;lt;- reported, because it is a boolean value, while other values are strings
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="YAMLRecursiveAlias" defaultSeverity="ERROR" displayName="Recursive alias" enabled="true" language="yaml" pluginId="org.jetbrains.plugins.yaml" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports recursion in YAML aliases.
+&lt;p&gt;Alias can't be recursive and be used inside the data referenced by a corresponding anchor.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  some_key: &amp;some_anchor
+    sub_key1: value1
+    sub_key2: *some_anchor
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="YAMLUnusedAnchor" defaultSeverity="WARNING" displayName="Unused anchor" enabled="true" language="yaml" pluginId="org.jetbrains.plugins.yaml" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports unused anchors.
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  some_key: &amp;some_anchor
+    key1: value1
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="YAMLSchemaValidation" defaultSeverity="WARNING" displayName="Validation by JSON Schema" enabled="true" language="yaml" pluginId="org.jetbrains.plugins.yaml" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports inconsistencies between a YAML file and a JSON Schema if the schema is specified.
+&lt;p&gt;&lt;b&gt;Scheme example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  {
+    "properties": {
+      "SomeNumberProperty": {
+        "type": "number"
+      }
+    }
+  }
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;&lt;b&gt;The following is an example with the corresponding warning:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+  SomeNumberProperty: hello world
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection></group><group name="RELAX NG" path=""><inspection shortName="UnusedDefine" defaultSeverity="WARNING" displayName="Unused define" enabled="false" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports an unused named pattern (&lt;code&gt;define&lt;/code&gt;) in a RELAX-NG file (XML or Compact Syntax).
+&lt;code&gt;define&lt;/code&gt; elements that are used through an include in another file are ignored.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection><inspection shortName="UnresolvedReference" defaultSeverity="ERROR" displayName="Unresolved reference" enabled="true" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+Reports an unresolved reference to a named pattern (&lt;code&gt;define&lt;/code&gt;) in RELAX-NG files that use XML syntax.
+Suggests creating the referenced &lt;code&gt;define&lt;/code&gt; element.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection></group><group name="ReST" path=""><inspection shortName="RestRoleInspection" defaultSeverity="WARNING" displayName="Role is not defined" enabled="false" language="ReST" pluginId="org.jetbrains.plugins.rest" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;
+&lt;body&gt;
+&lt;p&gt;Reports undefined roles in reStructuredText files.&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+.. role:: custom
+.. role:: newcustom(emphasis)
+
+An example of using :custom:`interpreted text`
+An example of using :newcustom:`interpreted text`
+An example of using :emphasis:`interpreted text`
+
+
+Some text using undefined role :undef:`interpreted text`
+&lt;/code&gt;&lt;/pre&gt;
+&lt;!-- tooltip end --&gt;&lt;/body&gt;
+&lt;/html&gt;</inspection></group><group name="Proofreading" path=""><inspection shortName="SpellCheckingInspection" defaultSeverity="TYPO" displayName="Typo" enabled="true" language="" pluginId="com.intellij" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html&gt;&lt;body&gt;Reports typos and misspellings in your code, comments, and literals and fixes them with one click.&lt;!-- tooltip end --&gt;&lt;/body&gt;&lt;/html&gt;
+</inspection><inspection shortName="GrazieInspection" defaultSeverity="GRAMMAR_ERROR" displayName="Grammar" enabled="true" pluginId="tanvd.grazi" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html lang="en"&gt;&lt;body&gt;
+Reports grammar mistakes in your text. You can configure the inspection in
+&lt;a href="settings://reference.settingsdialog.project.grazie"&gt;Settings | Editor | Natural Languages | Grammar and Style&lt;/a&gt;.
+&lt;!-- tooltip end --&gt;&lt;/body&gt;&lt;/html&gt;
+</inspection><inspection shortName="LanguageDetectionInspection" defaultSeverity="WARNING" displayName="Natural language detection" enabled="true" pluginId="tanvd.grazi" pluginVersion="243.24978.54" isGlobalTool="false">&lt;html lang="en"&gt;&lt;body&gt;Detects natural languages and suggests enabling corresponding grammar and spelling checks.&lt;!-- tooltip end --&gt;&lt;/body&gt;&lt;/html&gt;
+</inspection></group></inspections>

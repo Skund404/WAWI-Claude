@@ -1,0 +1,494 @@
+<problems>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>2</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="PyUnresolvedReferencesInspection" severity="WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unresolved references</problem_class>
+  <description>Unused import statement &lt;code&gt;TypeVar&lt;/code&gt;</description>
+  <highlighted_element>TypeVar</highlighted_element>
+  <language>Python</language>
+  <offset>19</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>2</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="PyUnresolvedReferencesInspection" severity="WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unresolved references</problem_class>
+  <description>Unused import statement &lt;code&gt;Union&lt;/code&gt;</description>
+  <highlighted_element>Union</highlighted_element>
+  <language>Python</language>
+  <offset>70</offset>
+  <length>5</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>6</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="PyUnresolvedReferencesInspection" severity="WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unresolved references</problem_class>
+  <description>Unused import statement &lt;code&gt;update&lt;/code&gt;</description>
+  <highlighted_element>update</highlighted_element>
+  <language>Python</language>
+  <offset>31</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>6</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="PyUnresolvedReferencesInspection" severity="WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unresolved references</problem_class>
+  <description>Unused import statement &lt;code&gt;delete&lt;/code&gt;</description>
+  <highlighted_element>delete</highlighted_element>
+  <language>Python</language>
+  <offset>39</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>14</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="PyUnresolvedReferencesInspection" severity="ERROR" attribute_key="ERRORS_ATTRIBUTES">Unresolved references</problem_class>
+  <description>Unresolved reference 'T'</description>
+  <highlighted_element>T</highlighted_element>
+  <language>Python</language>
+  <offset>26</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>30</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="PyUnresolvedReferencesInspection" severity="ERROR" attribute_key="ERRORS_ATTRIBUTES">Unresolved references</problem_class>
+  <description>Unresolved reference 'database'</description>
+  <highlighted_element>database</highlighted_element>
+  <language>Python</language>
+  <offset>13</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>30</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="PyUnresolvedReferencesInspection" severity="ERROR" attribute_key="ERRORS_ATTRIBUTES">Unresolved references</problem_class>
+  <description>Unresolved reference 'DatabaseManagerSQLAlchemy'</description>
+  <highlighted_element>DatabaseManagerSQLAlchemy</highlighted_element>
+  <language>Python</language>
+  <offset>48</offset>
+  <length>25</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>31</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="PyUnresolvedReferencesInspection" severity="ERROR" attribute_key="ERRORS_ATTRIBUTES">Unresolved references</problem_class>
+  <description>Unresolved reference 'get_database_path'</description>
+  <highlighted_element>get_database_path</highlighted_element>
+  <language>Python</language>
+  <offset>24</offset>
+  <length>17</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>35</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="PyUnresolvedReferencesInspection" severity="ERROR" attribute_key="ERRORS_ATTRIBUTES">Unresolved references</problem_class>
+  <description>Unresolved reference 'T'</description>
+  <highlighted_element>T</highlighted_element>
+  <language>Python</language>
+  <offset>63</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>63</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="PyUnresolvedReferencesInspection" severity="ERROR" attribute_key="ERRORS_ATTRIBUTES">Unresolved references</problem_class>
+  <description>Unresolved reference 'T'</description>
+  <highlighted_element>T</highlighted_element>
+  <language>Python</language>
+  <offset>46</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>82</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="PyUnresolvedReferencesInspection" severity="ERROR" attribute_key="ERRORS_ATTRIBUTES">Unresolved references</problem_class>
+  <description>Unresolved reference 'T'</description>
+  <highlighted_element>T</highlighted_element>
+  <language>Python</language>
+  <offset>39</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>95</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="PyUnresolvedReferencesInspection" severity="ERROR" attribute_key="ERRORS_ATTRIBUTES">Unresolved references</problem_class>
+  <description>Unresolved reference 'T'</description>
+  <highlighted_element>T</highlighted_element>
+  <language>Python</language>
+  <offset>62</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>111</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="PyUnresolvedReferencesInspection" severity="ERROR" attribute_key="ERRORS_ATTRIBUTES">Unresolved references</problem_class>
+  <description>Unresolved reference 'T'</description>
+  <highlighted_element>T</highlighted_element>
+  <language>Python</language>
+  <offset>64</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>147</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="PyUnresolvedReferencesInspection" severity="ERROR" attribute_key="ERRORS_ATTRIBUTES">Unresolved references</problem_class>
+  <description>Unresolved reference 'T'</description>
+  <highlighted_element>T</highlighted_element>
+  <language>Python</language>
+  <offset>63</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>234</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="PyUnresolvedReferencesInspection" severity="ERROR" attribute_key="ERRORS_ATTRIBUTES">Unresolved references</problem_class>
+  <description>Unresolved reference 'Column'</description>
+  <highlighted_element>Column</highlighted_element>
+  <language>Python</language>
+  <offset>9</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>234</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="PyUnresolvedReferencesInspection" severity="ERROR" attribute_key="ERRORS_ATTRIBUTES">Unresolved references</problem_class>
+  <description>Unresolved reference 'Integer'</description>
+  <highlighted_element>Integer</highlighted_element>
+  <language>Python</language>
+  <offset>16</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>235</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="PyUnresolvedReferencesInspection" severity="ERROR" attribute_key="ERRORS_ATTRIBUTES">Unresolved references</problem_class>
+  <description>Unresolved reference 'Column'</description>
+  <highlighted_element>Column</highlighted_element>
+  <language>Python</language>
+  <offset>15</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>235</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="PyUnresolvedReferencesInspection" severity="ERROR" attribute_key="ERRORS_ATTRIBUTES">Unresolved references</problem_class>
+  <description>Unresolved reference 'String'</description>
+  <highlighted_element>String</highlighted_element>
+  <language>Python</language>
+  <offset>22</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>237</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="PyUnresolvedReferencesInspection" severity="ERROR" attribute_key="ERRORS_ATTRIBUTES">Unresolved references</problem_class>
+  <description>Unresolved reference 'Column'</description>
+  <highlighted_element>Column</highlighted_element>
+  <language>Python</language>
+  <offset>18</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>237</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="PyUnresolvedReferencesInspection" severity="ERROR" attribute_key="ERRORS_ATTRIBUTES">Unresolved references</problem_class>
+  <description>Unresolved reference 'Text'</description>
+  <highlighted_element>Text</highlighted_element>
+  <language>Python</language>
+  <offset>25</offset>
+  <length>4</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>238</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="PyUnresolvedReferencesInspection" severity="ERROR" attribute_key="ERRORS_ATTRIBUTES">Unresolved references</problem_class>
+  <description>Unresolved reference 'Column'</description>
+  <highlighted_element>Column</highlighted_element>
+  <language>Python</language>
+  <offset>15</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>238</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="PyUnresolvedReferencesInspection" severity="ERROR" attribute_key="ERRORS_ATTRIBUTES">Unresolved references</problem_class>
+  <description>Unresolved reference 'Float'</description>
+  <highlighted_element>Float</highlighted_element>
+  <language>Python</language>
+  <offset>22</offset>
+  <length>5</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>241</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="PyUnresolvedReferencesInspection" severity="ERROR" attribute_key="ERRORS_ATTRIBUTES">Unresolved references</problem_class>
+  <description>Unresolved reference 'Column'</description>
+  <highlighted_element>Column</highlighted_element>
+  <language>Python</language>
+  <offset>17</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>241</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="PyUnresolvedReferencesInspection" severity="ERROR" attribute_key="ERRORS_ATTRIBUTES">Unresolved references</problem_class>
+  <description>Unresolved reference 'DateTime'</description>
+  <highlighted_element>DateTime</highlighted_element>
+  <language>Python</language>
+  <offset>24</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>241</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="PyUnresolvedReferencesInspection" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Unresolved references</problem_class>
+  <description>Unresolved attribute reference 'datetime' for class 'datetime'</description>
+  <highlighted_element>datetime</highlighted_element>
+  <language>Python</language>
+  <offset>51</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>242</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="PyUnresolvedReferencesInspection" severity="ERROR" attribute_key="ERRORS_ATTRIBUTES">Unresolved references</problem_class>
+  <description>Unresolved reference 'Column'</description>
+  <highlighted_element>Column</highlighted_element>
+  <language>Python</language>
+  <offset>18</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>242</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="PyUnresolvedReferencesInspection" severity="ERROR" attribute_key="ERRORS_ATTRIBUTES">Unresolved references</problem_class>
+  <description>Unresolved reference 'DateTime'</description>
+  <highlighted_element>DateTime</highlighted_element>
+  <language>Python</language>
+  <offset>25</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>242</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="PyUnresolvedReferencesInspection" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Unresolved references</problem_class>
+  <description>Unresolved attribute reference 'datetime' for class 'datetime'</description>
+  <highlighted_element>datetime</highlighted_element>
+  <language>Python</language>
+  <offset>52</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>242</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="PyUnresolvedReferencesInspection" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Unresolved references</problem_class>
+  <description>Unresolved attribute reference 'datetime' for class 'datetime'</description>
+  <highlighted_element>datetime</highlighted_element>
+  <language>Python</language>
+  <offset>87</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>245</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="PyUnresolvedReferencesInspection" severity="ERROR" attribute_key="ERRORS_ATTRIBUTES">Unresolved references</problem_class>
+  <description>Unresolved reference 'relationship'</description>
+  <highlighted_element>relationship</highlighted_element>
+  <language>Python</language>
+  <offset>15</offset>
+  <length>12</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>253</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="PyUnresolvedReferencesInspection" severity="ERROR" attribute_key="ERRORS_ATTRIBUTES">Unresolved references</problem_class>
+  <description>Unresolved reference 'Column'</description>
+  <highlighted_element>Column</highlighted_element>
+  <language>Python</language>
+  <offset>9</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>253</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="PyUnresolvedReferencesInspection" severity="ERROR" attribute_key="ERRORS_ATTRIBUTES">Unresolved references</problem_class>
+  <description>Unresolved reference 'Integer'</description>
+  <highlighted_element>Integer</highlighted_element>
+  <language>Python</language>
+  <offset>16</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>254</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="PyUnresolvedReferencesInspection" severity="ERROR" attribute_key="ERRORS_ATTRIBUTES">Unresolved references</problem_class>
+  <description>Unresolved reference 'Column'</description>
+  <highlighted_element>Column</highlighted_element>
+  <language>Python</language>
+  <offset>11</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>254</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="PyUnresolvedReferencesInspection" severity="ERROR" attribute_key="ERRORS_ATTRIBUTES">Unresolved references</problem_class>
+  <description>Unresolved reference 'String'</description>
+  <highlighted_element>String</highlighted_element>
+  <language>Python</language>
+  <offset>18</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>258</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="PyUnresolvedReferencesInspection" severity="ERROR" attribute_key="ERRORS_ATTRIBUTES">Unresolved references</problem_class>
+  <description>Unresolved reference 'Column'</description>
+  <highlighted_element>Column</highlighted_element>
+  <language>Python</language>
+  <offset>17</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>258</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="PyUnresolvedReferencesInspection" severity="ERROR" attribute_key="ERRORS_ATTRIBUTES">Unresolved references</problem_class>
+  <description>Unresolved reference 'DateTime'</description>
+  <highlighted_element>DateTime</highlighted_element>
+  <language>Python</language>
+  <offset>24</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>258</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="PyUnresolvedReferencesInspection" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Unresolved references</problem_class>
+  <description>Unresolved attribute reference 'datetime' for class 'datetime'</description>
+  <highlighted_element>datetime</highlighted_element>
+  <language>Python</language>
+  <offset>51</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>259</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="PyUnresolvedReferencesInspection" severity="ERROR" attribute_key="ERRORS_ATTRIBUTES">Unresolved references</problem_class>
+  <description>Unresolved reference 'Column'</description>
+  <highlighted_element>Column</highlighted_element>
+  <language>Python</language>
+  <offset>18</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>259</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="PyUnresolvedReferencesInspection" severity="ERROR" attribute_key="ERRORS_ATTRIBUTES">Unresolved references</problem_class>
+  <description>Unresolved reference 'DateTime'</description>
+  <highlighted_element>DateTime</highlighted_element>
+  <language>Python</language>
+  <offset>25</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>259</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="PyUnresolvedReferencesInspection" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Unresolved references</problem_class>
+  <description>Unresolved attribute reference 'datetime' for class 'datetime'</description>
+  <highlighted_element>datetime</highlighted_element>
+  <language>Python</language>
+  <offset>52</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>259</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="PyUnresolvedReferencesInspection" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Unresolved references</problem_class>
+  <description>Unresolved attribute reference 'datetime' for class 'datetime'</description>
+  <highlighted_element>datetime</highlighted_element>
+  <language>Python</language>
+  <offset>87</offset>
+  <length>8</length>
+</problem>
+</problems>

@@ -1,0 +1,38 @@
+<problems>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>47</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="PyTypeCheckerInspection" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Incorrect type</problem_class>
+  <description>Expected type 'Session', got 'None' instead</description>
+  <highlighted_element>Session</highlighted_element>
+  <language>Python</language>
+  <offset>31</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>54</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="PyTypeCheckerInspection" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Incorrect type</problem_class>
+  <description>Expected type 'Session', got 'Generator[Any, Any, None]' instead</description>
+  <highlighted_element>yield session</highlighted_element>
+  <language>Python</language>
+  <offset>12</offset>
+  <length>13</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>200</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="PyTypeCheckerInspection" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Incorrect type</problem_class>
+  <description>Expected type 'ColumnElement[bool] | _HasClauseElement[bool] | SQLCoreOperations[bool] | ExpressionElementRole[bool] | TypedColumnsClauseRole[bool] | () -&gt; ColumnElement[bool] | LambdaElement', got 'bool' instead</description>
+  <highlighted_element>getattr(self.model_class, key) == value</highlighted_element>
+  <language>Python</language>
+  <offset>37</offset>
+  <length>39</length>
+</problem>
+</problems>

@@ -1,0 +1,26 @@
+<problems>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/managers/report_manager.py</file>
+  <line>266</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/managers/report_manager.py" />
+  <problem_class id="PyUnboundLocalVariableInspection" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Unbound local variables</problem_class>
+  <description>Local variable 'widget' might be referenced before assignment</description>
+  <highlighted_element>widget</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/utils/database_utilities.py</file>
+  <line>129</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/utils/database_utilities.py" />
+  <problem_class id="PyUnboundLocalVariableInspection" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Unbound local variables</problem_class>
+  <description>Local variable 'backup_path' might be referenced before assignment</description>
+  <highlighted_element>backup_path</highlighted_element>
+  <language>Python</language>
+  <offset>15</offset>
+  <length>11</length>
+</problem>
+</problems>

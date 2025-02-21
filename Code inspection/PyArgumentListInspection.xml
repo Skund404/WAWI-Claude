@@ -1,0 +1,110 @@
+<problems>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/incoming_goods_view.py</file>
+  <line>282</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/incoming_goods_view.py" />
+  <problem_class id="PyArgumentListInspection" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Incorrect call arguments</problem_class>
+  <description>Parameter 'items' unfilled</description>
+  <highlighted_element>)</highlighted_element>
+  <language>Python</language>
+  <offset>66</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py</file>
+  <line>19</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py" />
+  <problem_class id="PyArgumentListInspection" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Incorrect call arguments</problem_class>
+  <description>Parameter 'database_url' unfilled</description>
+  <highlighted_element>)</highlighted_element>
+  <language>Python</language>
+  <offset>44</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/product/recipe_view.py</file>
+  <line>20</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/product/recipe_view.py" />
+  <problem_class id="PyArgumentListInspection" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Incorrect call arguments</problem_class>
+  <description>Parameter 'database_url' unfilled</description>
+  <highlighted_element>)</highlighted_element>
+  <language>Python</language>
+  <offset>44</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/product/storage_view.py</file>
+  <line>19</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/product/storage_view.py" />
+  <problem_class id="PyArgumentListInspection" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Incorrect call arguments</problem_class>
+  <description>Parameter 'database_url' unfilled</description>
+  <highlighted_element>)</highlighted_element>
+  <language>Python</language>
+  <offset>44</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/storage/sorting_system_view.py</file>
+  <line>185</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/storage/sorting_system_view.py" />
+  <problem_class id="PyArgumentListInspection" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Incorrect call arguments</problem_class>
+  <description>Unexpected argument</description>
+  <highlighted_element>title=&quot;Add Storage Item&quot;</highlighted_element>
+  <language>Python</language>
+  <offset>12</offset>
+  <length>24</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/storage/sorting_system_view.py</file>
+  <line>186</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/storage/sorting_system_view.py" />
+  <problem_class id="PyArgumentListInspection" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Incorrect call arguments</problem_class>
+  <description>Unexpected argument</description>
+  <highlighted_element>columns=[ ('unique_id', 'Unique ID', False), ('name', 'Product Name'...</highlighted_element>
+  <language>Python</language>
+  <offset>12</offset>
+  <length>321</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/storage/sorting_system_view.py</file>
+  <line>194</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/storage/sorting_system_view.py" />
+  <problem_class id="PyArgumentListInspection" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Incorrect call arguments</problem_class>
+  <description>Unexpected argument</description>
+  <highlighted_element>on_submit=self.save_new_item</highlighted_element>
+  <language>Python</language>
+  <offset>12</offset>
+  <length>28</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/storage/sorting_system_view.py</file>
+  <line>195</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/storage/sorting_system_view.py" />
+  <problem_class id="PyArgumentListInspection" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Incorrect call arguments</problem_class>
+  <description>Parameter 'fields' unfilled</description>
+  <highlighted_element>)</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/storage/sorting_system_view.py</file>
+  <line>195</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/storage/sorting_system_view.py" />
+  <problem_class id="PyArgumentListInspection" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Incorrect call arguments</problem_class>
+  <description>Parameter 'save_callback' unfilled</description>
+  <highlighted_element>)</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>1</length>
+</problem>
+</problems>

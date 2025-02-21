@@ -1,0 +1,26 @@
+<problems>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>1</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="PyPackageRequirementsInspection" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Unsatisfied package requirements</problem_class>
+  <description>Package requirements 'sqlalchemy==2.0.19', 'alembic==1.11.1', 'python-dotenv==1.0.0', 'sqlalchemy-utils==0.41.1', 'structlog==23.1.0', 'typing-extensions==4.7.1', 'pytest==7.3.1', 'black==23.3.0', 'mypy==1.4.1', 'flake8==6.0.0', 'python-dotenv[cli]==1.0.0' are not satisfied</description>
+  <highlighted_element>from contextlib import contextmanager from typing import TypeVar, Type, Optional, List, Dict, Any, G...</highlighted_element>
+  <language>Python</language>
+  <offset>0</offset>
+  <length>8479</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>30</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="PyPackageRequirementsInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Unsatisfied package requirements</problem_class>
+  <description>Package containing module 'database' is not listed in the project requirements</description>
+  <highlighted_element>database</highlighted_element>
+  <language>Python</language>
+  <offset>13</offset>
+  <length>8</length>
+</problem>
+</problems>

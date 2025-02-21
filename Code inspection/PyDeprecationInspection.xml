@@ -1,0 +1,650 @@
+<problems>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/manager.py</file>
+  <line>148</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/manager.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>50</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/manager.py</file>
+  <line>257</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/manager.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>58</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/managers/inventory_manager.py</file>
+  <line>131</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/managers/inventory_manager.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>44</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/managers/inventory_manager.py</file>
+  <line>183</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/managers/inventory_manager.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>47</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/managers/inventory_manager.py</file>
+  <line>606</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/managers/inventory_manager.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>39</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/managers/inventory_manager.py</file>
+  <line>647</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/managers/inventory_manager.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>39</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/managers/order_manager.py</file>
+  <line>99</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/managers/order_manager.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>80</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/managers/order_manager.py</file>
+  <line>130</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/managers/order_manager.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>41</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/managers/recipe_manager.py</file>
+  <line>117</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/managers/recipe_manager.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>42</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/managers/recipe_manager.py</file>
+  <line>144</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/managers/recipe_manager.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>42</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/managers/supplier_manager.py</file>
+  <line>62</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/managers/supplier_manager.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>48</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/managers/supplier_manager.py</file>
+  <line>184</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/managers/supplier_manager.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>44</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>24</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>60</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>25</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>61</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>25</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>96</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>41</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>60</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>42</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>61</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>42</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>96</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>89</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>60</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>90</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>61</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>90</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>96</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>114</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>60</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>115</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>61</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>115</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>96</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>143</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>60</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>144</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>61</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>144</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>96</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>159</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>60</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>160</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>61</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>160</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>96</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>185</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>60</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>186</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>89</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>206</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>60</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>207</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>61</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>207</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>96</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>224</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>60</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>225</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>61</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>225</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>96</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>239</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>66</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>243</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>60</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>244</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>61</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>244</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>96</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>258</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>66</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>262</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>60</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>263</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>89</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>275</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>60</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>276</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>89</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>301</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>60</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>302</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>89</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>314</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>60</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>320</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>60</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>321</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>89</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>344</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>60</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py</file>
+  <line>345</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/models.py" />
+  <problem_class id="PyDeprecationInspection" severity="WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated function, class, or module</problem_class>
+  <description>datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).</description>
+  <highlighted_element>utcnow</highlighted_element>
+  <language>Python</language>
+  <offset>89</offset>
+  <length>6</length>
+</problem>
+</problems>

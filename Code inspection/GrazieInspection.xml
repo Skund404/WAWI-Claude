@@ -1,0 +1,158 @@
+<problems>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/config.py</file>
+  <line>225</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/config.py" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Did you mean to back up?</description>
+  <highlighted_element>to backup</highlighted_element>
+  <language>Python</language>
+  <offset>25</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/config.py</file>
+  <line>235</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/config.py" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Did you mean to back up?</description>
+  <highlighted_element>to backup</highlighted_element>
+  <language>Python</language>
+  <offset>18</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/managers/report_manager.py</file>
+  <line>183</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/managers/report_manager.py" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>The verb 'set up' is spelled as two words. The noun 'setup' is spelled as one.</description>
+  <highlighted_element>Setup</highlighted_element>
+  <language>Python</language>
+  <offset>11</offset>
+  <length>5</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/migrations/manager.py</file>
+  <line>72</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/migrations/manager.py" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Did you mean to back up?</description>
+  <highlighted_element>to backup</highlighted_element>
+  <language>Python</language>
+  <offset>17</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/dialogs/add_dialog.py</file>
+  <line>31</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/dialogs/add_dialog.py" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>The verb 'set up' is spelled as two words. The noun 'setup' is spelled as one.</description>
+  <highlighted_element>Setup</highlighted_element>
+  <language>Python</language>
+  <offset>11</offset>
+  <length>5</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/dialogs/filter_dialog.py</file>
+  <line>29</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/dialogs/filter_dialog.py" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>The verb 'set up' is spelled as two words. The noun 'setup' is spelled as one.</description>
+  <highlighted_element>Setup</highlighted_element>
+  <language>Python</language>
+  <offset>11</offset>
+  <length>5</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/dialogs/search_dialog.py</file>
+  <line>28</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/dialogs/search_dialog.py" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>The verb 'set up' is spelled as two words. The noun 'setup' is spelled as one.</description>
+  <highlighted_element>Setup</highlighted_element>
+  <language>Python</language>
+  <offset>11</offset>
+  <length>5</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/project_summary.md</file>
+  <line>1036</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/project_summary.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>The verb 'set up' is spelled as two words. The noun 'setup' is spelled as one.</description>
+  <highlighted_element>Setup</highlighted_element>
+  <language>Markdown</language>
+  <offset>2</offset>
+  <length>5</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/project_summary.md</file>
+  <line>1091</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/project_summary.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>If a new sentence starts here, add a space and start with an uppercase letter.</description>
+  <highlighted_element>LEFT</highlighted_element>
+  <language>Markdown</language>
+  <offset>36</offset>
+  <length>4</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/project_summary.md</file>
+  <line>1144</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/project_summary.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>The verb 'set up' is spelled as two words. The noun 'setup' is spelled as one.</description>
+  <highlighted_element>Setup</highlighted_element>
+  <language>Markdown</language>
+  <offset>2</offset>
+  <length>5</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/project_summary.md</file>
+  <line>1265</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/project_summary.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>The verb 'set up' is spelled as two words. The noun 'setup' is spelled as one.</description>
+  <highlighted_element>Setup</highlighted_element>
+  <language>Markdown</language>
+  <offset>2</offset>
+  <length>5</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/project_summary.md</file>
+  <line>3302</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/project_summary.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>The verb 'set up' is spelled as two words. The noun 'setup' is spelled as one.</description>
+  <highlighted_element>Setup</highlighted_element>
+  <language>Markdown</language>
+  <offset>2</offset>
+  <length>5</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/project_summary.md</file>
+  <line>3791</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/project_summary.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Did you mean to back up?</description>
+  <highlighted_element>to backup</highlighted_element>
+  <language>Markdown</language>
+  <offset>9</offset>
+  <length>9</length>
+</problem>
+</problems>

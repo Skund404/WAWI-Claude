@@ -1,0 +1,86 @@
+<problems>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/migration.py</file>
+  <line>110</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/migration.py" />
+  <problem_class id="PyBroadExceptionInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Unclear exception clauses</problem_class>
+  <description>Too broad exception clause</description>
+  <highlighted_element>Exception</highlighted_element>
+  <language>Python</language>
+  <offset>23</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/incoming_goods_view.py</file>
+  <line>472</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/incoming_goods_view.py" />
+  <problem_class id="PyBroadExceptionInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Unclear exception clauses</problem_class>
+  <description>Too broad exception clause</description>
+  <highlighted_element>Exception</highlighted_element>
+  <language>Python</language>
+  <offset>15</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/utils/backup.py</file>
+  <line>80</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/utils/backup.py" />
+  <problem_class id="PyBroadExceptionInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Unclear exception clauses</problem_class>
+  <description>Too broad exception clause</description>
+  <highlighted_element>Exception</highlighted_element>
+  <language>Python</language>
+  <offset>19</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/utils/backup.py</file>
+  <line>97</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/utils/backup.py" />
+  <problem_class id="PyBroadExceptionInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Unclear exception clauses</problem_class>
+  <description>Too broad exception clause</description>
+  <highlighted_element>Exception</highlighted_element>
+  <language>Python</language>
+  <offset>19</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/utils/order_exporter/order_exporter.py</file>
+  <line>28</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/utils/order_exporter/order_exporter.py" />
+  <problem_class id="PyBroadExceptionInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Unclear exception clauses</problem_class>
+  <description>Too broad exception clause</description>
+  <highlighted_element>Exception</highlighted_element>
+  <language>Python</language>
+  <offset>15</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/utils/order_exporter/order_exporter.py</file>
+  <line>44</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/utils/order_exporter/order_exporter.py" />
+  <problem_class id="PyBroadExceptionInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Unclear exception clauses</problem_class>
+  <description>Too broad exception clause</description>
+  <highlighted_element>Exception</highlighted_element>
+  <language>Python</language>
+  <offset>15</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/utils/order_exporter/order_exporter.py</file>
+  <line>54</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/utils/order_exporter/order_exporter.py" />
+  <problem_class id="PyBroadExceptionInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Unclear exception clauses</problem_class>
+  <description>Too broad exception clause</description>
+  <highlighted_element>Exception</highlighted_element>
+  <language>Python</language>
+  <offset>15</offset>
+  <length>9</length>
+</problem>
+</problems>

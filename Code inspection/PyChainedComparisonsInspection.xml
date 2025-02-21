@@ -1,0 +1,14 @@
+<problems>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/supplier_view.py</file>
+  <line>591</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/supplier_view.py" />
+  <problem_class id="PyChainedComparisonsInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Too complex chained comparisons</problem_class>
+  <description>Simplify chained comparison</description>
+  <highlighted_element>column_id &gt;= 0 and column_id &lt; len(self.columns)</highlighted_element>
+  <language>Python</language>
+  <offset>15</offset>
+  <length>48</length>
+</problem>
+</problems>

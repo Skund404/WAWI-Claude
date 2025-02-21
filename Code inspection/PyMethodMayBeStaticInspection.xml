@@ -1,0 +1,218 @@
+<problems>
+<problem>
+  <file>file://$PROJECT_DIR$/project_analyzer.py</file>
+  <line>85</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/project_analyzer.py" />
+  <problem_class id="PyMethodMayBeStaticInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Method is not declared static</problem_class>
+  <description>Method &lt;code&gt;_extract_function_info&lt;/code&gt; may be 'static'</description>
+  <highlighted_element>_extract_function_info</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>22</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/config.py</file>
+  <line>223</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/config.py" />
+  <problem_class id="PyMethodMayBeStaticInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Method is not declared static</problem_class>
+  <description>Method &lt;code&gt;_copy_data&lt;/code&gt; may be 'static'</description>
+  <highlighted_element>_copy_data</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/manager.py</file>
+  <line>97</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/manager.py" />
+  <problem_class id="PyMethodMayBeStaticInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Method is not declared static</problem_class>
+  <description>Method &lt;code&gt;get_model_columns&lt;/code&gt; may be 'static'</description>
+  <highlighted_element>get_model_columns</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>17</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/managers/production_order_manager.py</file>
+  <line>136</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/managers/production_order_manager.py" />
+  <problem_class id="PyMethodMayBeStaticInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Method is not declared static</problem_class>
+  <description>Method &lt;code&gt;_reserve_materials&lt;/code&gt; may be 'static'</description>
+  <highlighted_element>_reserve_materials</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>18</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/managers/report_manager.py</file>
+  <line>107</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/managers/report_manager.py" />
+  <problem_class id="PyMethodMayBeStaticInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Method is not declared static</problem_class>
+  <description>Method &lt;code&gt;export_to_csv&lt;/code&gt; may be 'static'</description>
+  <highlighted_element>export_to_csv</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>13</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/managers/report_manager.py</file>
+  <line>113</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/managers/report_manager.py" />
+  <problem_class id="PyMethodMayBeStaticInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Method is not declared static</problem_class>
+  <description>Method &lt;code&gt;export_to_excel&lt;/code&gt; may be 'static'</description>
+  <highlighted_element>export_to_excel</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>15</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/managers/report_manager.py</file>
+  <line>141</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/managers/report_manager.py" />
+  <problem_class id="PyMethodMayBeStaticInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Method is not declared static</problem_class>
+  <description>Method &lt;code&gt;export_to_pdf&lt;/code&gt; may be 'static'</description>
+  <highlighted_element>export_to_pdf</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>13</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/dialogs/base_dialog.py</file>
+  <line>133</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/dialogs/base_dialog.py" />
+  <problem_class id="PyMethodMayBeStaticInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Method is not declared static</problem_class>
+  <description>Method &lt;code&gt;validate&lt;/code&gt; may be 'static'</description>
+  <highlighted_element>validate</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/dialogs/filter_dialog.py</file>
+  <line>165</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/dialogs/filter_dialog.py" />
+  <problem_class id="PyMethodMayBeStaticInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Method is not declared static</problem_class>
+  <description>Method &lt;code&gt;validate_numeric_filter&lt;/code&gt; may be 'static'</description>
+  <highlighted_element>validate_numeric_filter</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>23</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/storage/sorting_system_view.py</file>
+  <line>155</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/storage/sorting_system_view.py" />
+  <problem_class id="PyMethodMayBeStaticInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Method is not declared static</problem_class>
+  <description>Method &lt;code&gt;get_warning_tag&lt;/code&gt; may be 'static'</description>
+  <highlighted_element>get_warning_tag</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>15</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/storage/sorting_system_view.py</file>
+  <line>247</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/storage/sorting_system_view.py" />
+  <problem_class id="PyMethodMayBeStaticInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Method is not declared static</problem_class>
+  <description>Method &lt;code&gt;generate_unique_id&lt;/code&gt; may be 'static'</description>
+  <highlighted_element>generate_unique_id</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>18</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/project_analyzer.py</file>
+  <line>85</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/project_analyzer.py" />
+  <problem_class id="PyMethodMayBeStaticInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Method is not declared static</problem_class>
+  <description>Method &lt;code&gt;_extract_function_info&lt;/code&gt; may be 'static'</description>
+  <highlighted_element>_extract_function_info</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>22</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/utils/database_utilities.py</file>
+  <line>256</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/utils/database_utilities.py" />
+  <problem_class id="PyMethodMayBeStaticInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Method is not declared static</problem_class>
+  <description>Method &lt;code&gt;_generate_inventory_report&lt;/code&gt; may be 'static'</description>
+  <highlighted_element>_generate_inventory_report</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>26</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/utils/database_utilities.py</file>
+  <line>315</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/utils/database_utilities.py" />
+  <problem_class id="PyMethodMayBeStaticInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Method is not declared static</problem_class>
+  <description>Method &lt;code&gt;_generate_orders_report&lt;/code&gt; may be 'static'</description>
+  <highlighted_element>_generate_orders_report</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>23</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/utils/database_utilities.py</file>
+  <line>365</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/utils/database_utilities.py" />
+  <problem_class id="PyMethodMayBeStaticInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Method is not declared static</problem_class>
+  <description>Method &lt;code&gt;_generate_suppliers_report&lt;/code&gt; may be 'static'</description>
+  <highlighted_element>_generate_suppliers_report</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>26</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/utils/error_handler.py</file>
+  <line>21</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/utils/error_handler.py" />
+  <problem_class id="PyMethodMayBeStaticInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Method is not declared static</problem_class>
+  <description>Method &lt;code&gt;show_error&lt;/code&gt; may be 'static'</description>
+  <highlighted_element>show_error</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/utils/error_handler.py</file>
+  <line>26</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/utils/error_handler.py" />
+  <problem_class id="PyMethodMayBeStaticInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Method is not declared static</problem_class>
+  <description>Method &lt;code&gt;show_warning&lt;/code&gt; may be 'static'</description>
+  <highlighted_element>show_warning</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>12</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/utils/notifications.py</file>
+  <line>48</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/utils/notifications.py" />
+  <problem_class id="PyMethodMayBeStaticInspection" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Method is not declared static</problem_class>
+  <description>Method &lt;code&gt;setup_styles&lt;/code&gt; may be 'static'</description>
+  <highlighted_element>setup_styles</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>12</length>
+</problem>
+</problems>

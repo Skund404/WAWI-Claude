@@ -1,0 +1,6 @@
+{
+  "timestamp": "20250219_170605",
+  "operation": "delete_items",
+  "original_db": "F:\\WAWI Homebrew\\WAWI Claude\\store_management\\database\\store_management.db",
+  "backup_db": "F:\\WAWI Homebrew\\WAWI Claude\\store_management\\database\\backups\\backup_delete_items_20250219_170605.db"
+}

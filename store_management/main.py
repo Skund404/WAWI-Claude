@@ -1,160 +1,70 @@
-import tkinter as tk
-import tkinter.ttk as ttk
-import tkinter.messagebox as messagebox
-import sys
+# main.py
+
 import os
+import sys
+import logging
+import tkinter as tk
 from pathlib import Path
-from typing import Dict
+from store_management.application import Application
+from store_management.gui.main_window import MainWindow
 
-from store_management.config import APP_NAME, WINDOW_SIZE
-from store_management.database.sqlalchemy.config import get_database_path
-from store_management.gui.storage.shelf_view import ShelfView
-from store_management.gui.product.recipe_view import RecipeView
-from store_management.gui.product.storage_view import StorageView
-from store_management.gui.storage.sorting_system_view import SortingSystemView
-from store_management.gui.order.incoming_goods_view import IncomingGoodsView
-from store_management.gui.order.shopping_list_view import ShoppingListView
-from store_management.gui.order.supplier_view import SupplierView
 
-class MainWindow:
-    def __init__(self):
-        self.root = tk.Tk()
-        self.root.title(APP_NAME)
-        self.root.geometry(WINDOW_SIZE)
+def setup_logging():
+    """Configure logging for the application"""
+    log_dir = Path.home() / ".store_management" / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
 
-        # Create main notebook for tabs
-        self.notebook = ttk.Notebook(self.root)
-        self.notebook.pack(expand=True, fill='both')
+    log_file = log_dir / "store_management.log"
 
-        # Initialize views
-        self.views: Dict[str, ttk.Frame] = {}
-        self.setup_views()
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=[
+            logging.FileHandler(log_file),
+            logging.StreamHandler(sys.stdout)
+        ]
+    )
 
-        # Bind keyboard shortcuts
-        self.bind_shortcuts()
+    return logging.getLogger(__name__)
 
-    def setup_views(self):
-        """Setup all view tabs"""
-        # Product group
-        product_notebook = ttk.Notebook(self.notebook)
-        self.notebook.add(product_notebook, text='Product')
 
-        # Add Storage view under Product
-        storage_frame = ttk.Frame(product_notebook)
-        product_notebook.add(storage_frame, text='Storage')
-        self.views['storage'] = StorageView(storage_frame)
-        self.views['storage'].pack(expand=True, fill='both')
+def main():
+    """Main entry point for the application"""
+    # Set up logging
+    logger = setup_logging()
+    logger.info("Starting Store Management application")
 
-        # Add Recipe view under Product
-        recipe_frame = ttk.Frame(product_notebook)
-        product_notebook.add(recipe_frame, text='Recipe')
-        self.views['recipe'] = RecipeView(recipe_frame)  # Corrected line
-        self.views['recipe'].pack(expand=True, fill='both')
+    # Get database URL from environment or use default
+    db_dir = Path.home() / ".store_management" / "data"
+    db_dir.mkdir(parents=True, exist_ok=True)
+    db_path = db_dir / "store_management.db"
 
-        # Storage group
-        storage_notebook = ttk.Notebook(self.notebook)
-        self.notebook.add(storage_notebook, text='Storage')
+    db_url = os.environ.get("SM_DATABASE_URL", f"sqlite:///{db_path}")
+    logger.info(f"Using database URL: {db_url}")
 
-        # Add Shelf view under Storage
-        shelf_frame = ttk.Frame(storage_notebook)
-        storage_notebook.add(shelf_frame, text='Shelf')
-        self.views['shelf'] = ShelfView(shelf_frame)
-        self.views['shelf'].pack(expand=True, fill='both')
+    try:
+        # Initialize application
+        app = Application(db_url)
+        app.initialize()
 
-        # Add Sorting System view under Storage
-        sorting_frame = ttk.Frame(storage_notebook)
-        storage_notebook.add(sorting_frame, text='Sorting System')
-        self.views['sorting'] = SortingSystemView(sorting_frame)
-        self.views['sorting'].pack(expand=True, fill='both')
+        # Create main window
+        root = tk.Tk()
+        main_window = MainWindow(root, app)
+        app.main_window = main_window  # Store reference to main window
 
-        # Order group
-        order_notebook = ttk.Notebook(self.notebook)
-        self.notebook.add(order_notebook, text='Order')
-
-        # Add Incoming Goods view
-        incoming_frame = ttk.Frame(order_notebook)
-        order_notebook.add(incoming_frame, text='Incoming Goods')
-        self.views['incoming'] = IncomingGoodsView(incoming_frame)
-        self.views['incoming'].pack(expand=True, fill='both')
-
-        # Add Shopping List view
-        shopping_frame = ttk.Frame(order_notebook)
-        order_notebook.add(shopping_frame, text='Shopping List')
-        self.views['shopping'] = ShoppingListView(shopping_frame)
-        self.views['shopping'].pack(expand=True, fill='both')
-
-        # Add Supplier view
-        supplier_frame = ttk.Frame(order_notebook)
-        order_notebook.add(supplier_frame, text='Supplier')
-        self.views['supplier'] = SupplierView(supplier_frame)
-        self.views['supplier'].pack(expand=True, fill='both')
-
-    def bind_shortcuts(self):
-        """Bind global keyboard shortcuts"""
-        self.root.bind('<Control-z>', self.undo)
-        self.root.bind('<Control-y>', self.redo)
-        self.root.bind('<Control-s>', self.save)
-        self.root.bind('<Control-o>', self.load)
-        self.root.bind('<Control-f>', self.search)
-
-    def undo(self, event=None):
-        """Global undo function"""
-        current_view = self.get_current_view()
-        if current_view and hasattr(current_view, 'undo'):
-            current_view.undo()
-
-    def redo(self, event=None):
-        """Global redo function"""
-        current_view = self.get_current_view()
-        if current_view and hasattr(current_view, 'redo'):
-            current_view.redo()
-
-    def save(self, event=None):
-        """Global save function"""
-        current_view = self.get_current_view()
-        if current_view and hasattr(current_view, 'save'):
-            current_view.save()
-
-    def load(self, event=None):
-        """Global load function"""
-        current_view = self.get_current_view()
-        if current_view and hasattr(current_view, 'load'):
-            current_view.load()
-
-    def search(self, event=None):
-        """Global search function"""
-        current_view = self.get_current_view()
-        if current_view and hasattr(current_view, 'show_search_dialog'):
-            current_view.show_search_dialog()
-
-    def get_current_view(self):
-        """Get the currently active view"""
-        current_tab = self.notebook.select()
-        if current_tab:
-            tab_id = self.notebook.index(current_tab)
-
-            # Get the notebook widget for the current tab
-            notebook = self.notebook.nametowidget(current_tab)
-
-            # If it's a nested notebook, get the current subtab
-            if isinstance(notebook, ttk.Notebook):
-                current_subtab = notebook.select()
-                if current_subtab:
-                    subtab_id = notebook.index(current_subtab)
-                    subtab_name = notebook.tab(subtab_id, 'text').lower().replace(' ', '_')
-                    return self.views.get(subtab_name)
-
-            # If it's not a nested notebook, get the view directly
-            tab_name = self.notebook.tab(tab_id, 'text').lower()
-            return self.views.get(tab_name)
-
-        return None
-
-    def run(self):
-        """Start the application"""
-        self.root.mainloop()
+        # Start the application
+        logger.info("Starting GUI main loop")
+        main_window.run()
+    except Exception as e:
+        logger.exception(f"Error starting application: {str(e)}")
+        if "root" in locals():
+            tk.messagebox.showerror("Error", f"Application error: {str(e)}")
+    finally:
+        # Clean up resources
+        if "app" in locals():
+            logger.info("Cleaning up application resources")
+            app.cleanup()
 
 
 if __name__ == "__main__":
-    app = MainWindow()
-    app.run()
+    main()

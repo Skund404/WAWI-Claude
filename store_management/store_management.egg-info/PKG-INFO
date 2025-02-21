@@ -1,0 +1,6 @@
+Metadata-Version: 2.2
+Name: store_management
+Version: 0.1
+Requires-Dist: sqlalchemy
+Requires-Dist: alembic
+Dynamic: requires-dist

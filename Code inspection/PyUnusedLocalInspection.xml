@@ -1,0 +1,662 @@
+<problems>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/config.py</file>
+  <line>198</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/config.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Local variable 'conn' value is not used</description>
+  <highlighted_element>conn</highlighted_element>
+  <language>Python</language>
+  <offset>37</offset>
+  <length>4</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/manager.py</file>
+  <line>43</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/manager.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Local variable 'e' value is not used</description>
+  <highlighted_element>e</highlighted_element>
+  <language>Python</language>
+  <offset>28</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/managers/report_manager.py</file>
+  <line>229</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/managers/report_manager.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Parameter 'event' value is not used</description>
+  <highlighted_element>event=None</highlighted_element>
+  <language>Python</language>
+  <offset>36</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/migration.py</file>
+  <line>146</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/migration.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Local variable 'backup_path' value is not used</description>
+  <highlighted_element>backup_path</highlighted_element>
+  <language>Python</language>
+  <offset>12</offset>
+  <length>11</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/migrations/manager.py</file>
+  <line>103</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/migrations/manager.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Local variable 'connection' value is not used</description>
+  <highlighted_element>connection</highlighted_element>
+  <language>Python</language>
+  <offset>40</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/sqlalchemy/migrations/migration_manager.py</file>
+  <line>165</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/sqlalchemy/migrations/migration_manager.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Local variable 'script' value is not used</description>
+  <highlighted_element>script</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/dialogs/base_dialog.py</file>
+  <line>125</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/dialogs/base_dialog.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Parameter 'event' value is not used</description>
+  <highlighted_element>event=None</highlighted_element>
+  <language>Python</language>
+  <offset>17</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/dialogs/base_dialog.py</file>
+  <line>129</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/dialogs/base_dialog.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Parameter 'event' value is not used</description>
+  <highlighted_element>event=None</highlighted_element>
+  <language>Python</language>
+  <offset>21</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py</file>
+  <line>451</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Local function 'export_csv' is not used</description>
+  <highlighted_element>export_csv</highlighted_element>
+  <language>Python</language>
+  <offset>12</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py</file>
+  <line>490</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Local function '_export_inventory_csv' is not used</description>
+  <highlighted_element>_export_inventory_csv</highlighted_element>
+  <language>Python</language>
+  <offset>12</offset>
+  <length>21</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py</file>
+  <line>523</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Local function '_export_orders_csv' is not used</description>
+  <highlighted_element>_export_orders_csv</highlighted_element>
+  <language>Python</language>
+  <offset>12</offset>
+  <length>18</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py</file>
+  <line>548</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Local function '_export_suppliers_csv' is not used</description>
+  <highlighted_element>_export_suppliers_csv</highlighted_element>
+  <language>Python</language>
+  <offset>12</offset>
+  <length>21</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py</file>
+  <line>573</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Local function 'export_excel' is not used</description>
+  <highlighted_element>export_excel</highlighted_element>
+  <language>Python</language>
+  <offset>12</offset>
+  <length>12</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py</file>
+  <line>598</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Local function 'export_pdf' is not used</description>
+  <highlighted_element>export_pdf</highlighted_element>
+  <language>Python</language>
+  <offset>12</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py</file>
+  <line>623</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/dialogs/report_dialog.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Local function 'print_report' is not used</description>
+  <highlighted_element>print_report</highlighted_element>
+  <language>Python</language>
+  <offset>12</offset>
+  <length>12</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/main_window.py</file>
+  <line>346</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/main_window.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Parameter 'event' value is not used</description>
+  <highlighted_element>event=None</highlighted_element>
+  <language>Python</language>
+  <offset>19</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/main_window.py</file>
+  <line>352</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/main_window.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Parameter 'event' value is not used</description>
+  <highlighted_element>event=None</highlighted_element>
+  <language>Python</language>
+  <offset>19</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/main_window.py</file>
+  <line>358</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/main_window.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Parameter 'event' value is not used</description>
+  <highlighted_element>event=None</highlighted_element>
+  <language>Python</language>
+  <offset>19</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/main_window.py</file>
+  <line>364</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/main_window.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Parameter 'event' value is not used</description>
+  <highlighted_element>event=None</highlighted_element>
+  <language>Python</language>
+  <offset>19</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/main_window.py</file>
+  <line>370</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/main_window.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Parameter 'event' value is not used</description>
+  <highlighted_element>event=None</highlighted_element>
+  <language>Python</language>
+  <offset>21</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/incoming_goods_view.py</file>
+  <line>472</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/incoming_goods_view.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Local variable 'e' value is not used</description>
+  <highlighted_element>e</highlighted_element>
+  <language>Python</language>
+  <offset>28</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/incoming_goods_view.py</file>
+  <line>929</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/incoming_goods_view.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Parameter 'event' value is not used</description>
+  <highlighted_element>event</highlighted_element>
+  <language>Python</language>
+  <offset>30</offset>
+  <length>5</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/incoming_goods_view.py</file>
+  <line>1037</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/incoming_goods_view.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Parameter 'event' value is not used</description>
+  <highlighted_element>event=None</highlighted_element>
+  <language>Python</language>
+  <offset>26</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/incoming_goods_view.py</file>
+  <line>1113</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/incoming_goods_view.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Parameter 'event' value is not used</description>
+  <highlighted_element>event=None</highlighted_element>
+  <language>Python</language>
+  <offset>26</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py</file>
+  <line>221</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Parameter 'event' value is not used</description>
+  <highlighted_element>event</highlighted_element>
+  <language>Python</language>
+  <offset>29</offset>
+  <length>5</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py</file>
+  <line>402</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Local function 'delete_list' is not used</description>
+  <highlighted_element>delete_list</highlighted_element>
+  <language>Python</language>
+  <offset>12</offset>
+  <length>11</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py</file>
+  <line>456</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Local function 'delete_selected_items' is not used</description>
+  <highlighted_element>delete_selected_items</highlighted_element>
+  <language>Python</language>
+  <offset>12</offset>
+  <length>21</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py</file>
+  <line>507</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Local function 'update_list_status' is not used</description>
+  <highlighted_element>update_list_status</highlighted_element>
+  <language>Python</language>
+  <offset>12</offset>
+  <length>18</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py</file>
+  <line>528</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Local function 'update_list_urgency' is not used</description>
+  <highlighted_element>update_list_urgency</highlighted_element>
+  <language>Python</language>
+  <offset>12</offset>
+  <length>19</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py</file>
+  <line>549</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Local function 'undo' is not used</description>
+  <highlighted_element>undo</highlighted_element>
+  <language>Python</language>
+  <offset>12</offset>
+  <length>4</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py</file>
+  <line>549</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Parameter 'event' value is not used</description>
+  <highlighted_element>event=None</highlighted_element>
+  <language>Python</language>
+  <offset>23</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py</file>
+  <line>641</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Local function 'redo' is not used</description>
+  <highlighted_element>redo</highlighted_element>
+  <language>Python</language>
+  <offset>12</offset>
+  <length>4</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py</file>
+  <line>641</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/shopping_list_view.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Parameter 'event' value is not used</description>
+  <highlighted_element>event=None</highlighted_element>
+  <language>Python</language>
+  <offset>23</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/supplier_view.py</file>
+  <line>534</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/supplier_view.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Parameter 'event' value is not used</description>
+  <highlighted_element>event=None</highlighted_element>
+  <language>Python</language>
+  <offset>30</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/supplier_view.py</file>
+  <line>618</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/supplier_view.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Parameter 'event' value is not used</description>
+  <highlighted_element>event=None</highlighted_element>
+  <language>Python</language>
+  <offset>26</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/order/supplier_view.py</file>
+  <line>651</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/order/supplier_view.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Parameter 'event' value is not used</description>
+  <highlighted_element>event=None</highlighted_element>
+  <language>Python</language>
+  <offset>28</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/product/recipe_view.py</file>
+  <line>224</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/product/recipe_view.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Parameter 'event' value is not used</description>
+  <highlighted_element>event</highlighted_element>
+  <language>Python</language>
+  <offset>30</offset>
+  <length>5</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/product/recipe_view.py</file>
+  <line>458</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/product/recipe_view.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Local variable 'e' value is not used</description>
+  <highlighted_element>e</highlighted_element>
+  <language>Python</language>
+  <offset>41</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/product/recipe_view.py</file>
+  <line>590</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/product/recipe_view.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Parameter 'event' value is not used</description>
+  <highlighted_element>event=None</highlighted_element>
+  <language>Python</language>
+  <offset>19</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/product/recipe_view.py</file>
+  <line>655</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/product/recipe_view.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Parameter 'event' value is not used</description>
+  <highlighted_element>event=None</highlighted_element>
+  <language>Python</language>
+  <offset>19</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/product/storage_view.py</file>
+  <line>518</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/product/storage_view.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Parameter 'event' value is not used</description>
+  <highlighted_element>event=None</highlighted_element>
+  <language>Python</language>
+  <offset>30</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/product/storage_view.py</file>
+  <line>609</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/product/storage_view.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Parameter 'event' value is not used</description>
+  <highlighted_element>event=None</highlighted_element>
+  <language>Python</language>
+  <offset>22</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/product/storage_view.py</file>
+  <line>659</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/product/storage_view.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Parameter 'event' value is not used</description>
+  <highlighted_element>event=None</highlighted_element>
+  <language>Python</language>
+  <offset>24</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/product/storage_view.py</file>
+  <line>668</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/product/storage_view.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Parameter 'event' value is not used</description>
+  <highlighted_element>event=None</highlighted_element>
+  <language>Python</language>
+  <offset>19</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/product/storage_view.py</file>
+  <line>732</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/product/storage_view.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Parameter 'event' value is not used</description>
+  <highlighted_element>event=None</highlighted_element>
+  <language>Python</language>
+  <offset>19</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/storage/shelf_view.py</file>
+  <line>104</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/storage/shelf_view.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Parameter 'event' value is not used</description>
+  <highlighted_element>event</highlighted_element>
+  <language>Python</language>
+  <offset>22</offset>
+  <length>5</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/storage/shelf_view.py</file>
+  <line>112</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/storage/shelf_view.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Parameter 'event' value is not used</description>
+  <highlighted_element>event</highlighted_element>
+  <language>Python</language>
+  <offset>24</offset>
+  <length>5</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/storage/sorting_system_view.py</file>
+  <line>183</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/storage/sorting_system_view.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Local variable 'dialog' value is not used</description>
+  <highlighted_element>dialog</highlighted_element>
+  <language>Python</language>
+  <offset>8</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/gui/storage/sorting_system_view.py</file>
+  <line>296</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/gui/storage/sorting_system_view.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Parameter 'event' value is not used</description>
+  <highlighted_element>event=None</highlighted_element>
+  <language>Python</language>
+  <offset>30</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/main.py</file>
+  <line>110</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/main.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Parameter 'event' value is not used</description>
+  <highlighted_element>event=None</highlighted_element>
+  <language>Python</language>
+  <offset>19</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/main.py</file>
+  <line>116</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/main.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Parameter 'event' value is not used</description>
+  <highlighted_element>event=None</highlighted_element>
+  <language>Python</language>
+  <offset>19</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/main.py</file>
+  <line>122</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/main.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Parameter 'event' value is not used</description>
+  <highlighted_element>event=None</highlighted_element>
+  <language>Python</language>
+  <offset>19</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/main.py</file>
+  <line>128</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/main.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Parameter 'event' value is not used</description>
+  <highlighted_element>event=None</highlighted_element>
+  <language>Python</language>
+  <offset>19</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/main.py</file>
+  <line>134</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/main.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Parameter 'event' value is not used</description>
+  <highlighted_element>event=None</highlighted_element>
+  <language>Python</language>
+  <offset>21</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/utils/order_exporter/order_exporter.py</file>
+  <line>22</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/utils/order_exporter/order_exporter.py" />
+  <problem_class id="PyUnusedLocalInspection" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unused local symbols</problem_class>
+  <description>Local variable 'workbook' value is not used</description>
+  <highlighted_element>workbook</highlighted_element>
+  <language>Python</language>
+  <offset>16</offset>
+  <length>8</length>
+</problem>
+</problems>

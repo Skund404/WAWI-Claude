@@ -1,0 +1,26 @@
+<problems>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>232</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="SpellCheckingInspection" severity="TYPO" attribute_key="TYPO">Typo</problem_class>
+  <description>Typo: In word 'tablename'</description>
+  <highlighted_element>tablename</highlighted_element>
+  <language>Python</language>
+  <offset>6</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/store_management/database/base.py</file>
+  <line>252</line>
+  <module>WAWI Claude</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/store_management/database/base.py" />
+  <problem_class id="SpellCheckingInspection" severity="TYPO" attribute_key="TYPO">Typo</problem_class>
+  <description>Typo: In word 'tablename'</description>
+  <highlighted_element>tablename</highlighted_element>
+  <language>Python</language>
+  <offset>6</offset>
+  <length>9</length>
+</problem>
+</problems>
