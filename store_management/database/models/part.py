@@ -1,34 +1,32 @@
-# store_management/database/models/part.py
-
-from datetime import datetime
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Enum
+"""
+File: database/models/part.py
+Part model definition.
+Represents inventory parts in the system.
+"""
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, Text
 from sqlalchemy.orm import relationship
-from .base import Base
-from .enums import InventoryStatus
+
+from database.models.base import Base
 
 
 class Part(Base):
-    """Part model"""
+    """
+    Part model representing inventory parts in the system.
+    """
     __tablename__ = 'parts'
+    __table_args__ = {'extend_existing': True}  # Add this to prevent duplicate table errors
 
     id = Column(Integer, primary_key=True)
-    name = Column(String, nullable=False)
-    sku = Column(String, nullable=False, unique=True)
-    description = Column(String)
-    quantity = Column(Integer, default=0)
-    min_quantity = Column(Integer, default=0)
-    unit_price = Column(Float, default=0.0)
-    supplier_id = Column(Integer, ForeignKey('suppliers.id'))
-    status = Column(Enum(InventoryStatus), default=InventoryStatus.IN_STOCK)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    name = Column(String(100), nullable=False)
+    description = Column(Text, nullable=True)
+    stock_level = Column(Integer, default=0)
+    min_stock_level = Column(Integer, default=0)
+    price = Column(Float, default=0.0)
+    supplier_id = Column(Integer, ForeignKey('suppliers.id'), nullable=True)
 
-    # Relationships
-    supplier = relationship("Supplier", back_populates="parts")
-    recipe_items = relationship("RecipeItem", back_populates="part", lazy="dynamic")
-    transactions = relationship("InventoryTransaction", back_populates="part", lazy="dynamic")
+    # Relationships - uncomment and adjust as needed
+    # supplier = relationship("Supplier", back_populates="parts")
 
     def __repr__(self):
-        return f"<Part(id={self.id}, name='{self.name}')>"
-
-
+        """String representation of the Part model."""
+        return f"<Part(id={self.id}, name='{self.name}', stock_level={self.stock_level})>"

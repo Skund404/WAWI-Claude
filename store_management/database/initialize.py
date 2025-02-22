@@ -1,109 +1,87 @@
-# File: store_management/database/initialize.py
 """
-Database initialization and setup module.
+File: database/initialize.py
+Database initialization functions.
+Creates database tables and adds initial data.
 """
-
 import logging
+from typing import Optional, Union
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError
 
-from .sqlalchemy.base import Base  # SQLAlchemy base declarative model
-from .sqlalchemy.models.storage import Storage  # Import Storage model
-from ..config.settings import get_database_path
+# Import from the consolidated model location
+from database.models.base import Base
+# We don't need to import all models explicitly since they register with Base.metadata
 
-# Configure logging
-logger = logging.getLogger(__name__)
-
-def initialize_database(drop_existing: bool = False):
+def initialize_database(drop_existing: Optional[bool] = False) -> None:
     """
-    Initialize the database, creating or resetting tables.
+    Initialize the database by creating all defined tables.
 
     Args:
-        drop_existing (bool): Whether to drop existing tables before creation
+        drop_existing: If True, drops all existing tables before creating new ones
+
+    Raises:
+        SQLAlchemyError: If database initialization fails
     """
     try:
-        # Ensure database is initialized
-        db_path = get_database_path()
-        db_url = f'sqlite:///{db_path}'
+        from database.sqlalchemy.config import get_database_url
+        db_url = get_database_url()
+        engine = create_engine(db_url)
 
-        # Create engine
-        engine = create_engine(db_url, echo=False)
-
-        # Drop tables if specified
         if drop_existing:
-            logger.warning("Dropping all existing tables")
+            logging.info("Dropping all existing tables...")
             Base.metadata.drop_all(engine)
 
-        # Create all tables
-        logger.info("Creating database tables")
+        logging.info("Creating database tables...")
         Base.metadata.create_all(engine)
 
-        # Optional: Add initial data
+        # Optionally add initial data
         add_initial_data(engine)
 
-        logger.info("Database tables created successfully")
-
-    except Exception as e:
-        logger.error(f"Database table creation failed: {e}", exc_info=True)
+        logging.info("Database initialization complete")
+    except SQLAlchemyError as e:
+        logging.error(f"Database initialization failed: {str(e)}")
         raise
 
-def add_initial_data(engine=None):
+def add_initial_data(engine) -> None:
     """
-    Add initial default data to the database.
+    Add initial data to the database if needed.
 
     Args:
-        engine: SQLAlchemy engine (optional)
+        engine: SQLAlchemy engine instance
     """
+    # Example implementation - adjust according to your needs
     try:
-        # If no engine is provided, create one
-        if engine is None:
-            db_path = get_database_path()
-            db_url = f'sqlite:///{db_path}'
-            engine = create_engine(db_url)
-
-        # Create a session
+        from sqlalchemy.orm import sessionmaker
         Session = sessionmaker(bind=engine)
         session = Session()
 
         try:
-            # Add default storage locations
-            default_storages = [
-                Storage(
-                    location='Main Warehouse',
-                    description='Primary storage location for main inventory',
-                    capacity=1000.0,
-                    current_usage=0.0
-                ),
-                Storage(
-                    location='Backup Storage',
-                    description='Secondary storage for overflow and backup items',
-                    capacity=500.0,
-                    current_usage=0.0
-                ),
-                Storage(
-                    location='Production Storage',
-                    description='Storage area near production line',
-                    capacity=250.0,
-                    current_usage=0.0
-                )
-            ]
+            # Example: Create default storage locations if none exist
+            from database.models.storage import Storage
 
-            # Add default storage locations
-            for storage in default_storages:
-                # Check if storage location already exists
-                existing_storage = session.query(Storage).filter_by(location=storage.location).first()
-                if not existing_storage:
-                    session.add(storage)
+            if session.query(Storage).count() == 0:
+                logging.info("Adding default storage locations...")
 
-            # Commit the changes
-            session.commit()
-            logger.info("Initial storage locations added successfully")
+                default_storage = [
+                    Storage(name="Main Warehouse", location="Building A",
+                            description="Main storage area", capacity=1000.0),
+                    Storage(name="Production Floor", location="Building B",
+                            description="Production area storage", capacity=500.0),
+                    Storage(name="Retail Storage", location="Store Front",
+                            description="Retail area storage", capacity=200.0)
+                ]
 
-        except Exception as data_error:
+                session.add_all(default_storage)
+                session.commit()
+
+            # Add other initial data as needed
+
+        except Exception as e:
             session.rollback()
-            logger.error(f"Failed to add initial data: {data_error}", exc_info=True)
+            logging.error(f"Failed to add initial data: {str(e)}")
+            raise
         finally:
             session.close()
-
     except Exception as e:
-        logger.error(f"Error in add_initial_data: {e}", exc_info=True)
+        logging.error(f"Error in add_initial_data: {str(e)}")

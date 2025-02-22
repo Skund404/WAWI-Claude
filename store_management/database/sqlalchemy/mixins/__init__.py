@@ -6,13 +6,13 @@ from .base_mixins import (
     SearchMixin,
     FilterMixin,
     PaginationMixin,
-    TransactionMixin
+    TransactionMixin,
 )
 
 __all__ = [
-    'BaseMixin',
-    'SearchMixin',
-    'FilterMixin',
-    'PaginationMixin',
-    'TransactionMixin'
+    "BaseMixin",
+    "SearchMixin",
+    "FilterMixin",
+    "PaginationMixin",
+    "TransactionMixin",
 ]

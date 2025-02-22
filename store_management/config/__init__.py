@@ -14,22 +14,22 @@ from .settings import (
     HEADER_FONT,
     BACKUP_DIR,
     LOG_DIR,
-    get_database_path
+    get_database_path,
 )
 
 __all__ = [
-    'APP_NAME',
-    'APP_VERSION',
-    'WINDOW_SIZE',
-    'CONFIG_DIR',
-    'DATABASE_FILENAME',
-    'TABLES',
-    'COLORS',
-    'DEFAULT_PADDING',
-    'MINIMUM_COLUMN_WIDTH',
-    'DEFAULT_FONT',
-    'HEADER_FONT',
-    'BACKUP_DIR',
-    'LOG_DIR',
-    'get_database_path'
+    "APP_NAME",
+    "APP_VERSION",
+    "WINDOW_SIZE",
+    "CONFIG_DIR",
+    "DATABASE_FILENAME",
+    "TABLES",
+    "COLORS",
+    "DEFAULT_PADDING",
+    "MINIMUM_COLUMN_WIDTH",
+    "DEFAULT_FONT",
+    "HEADER_FONT",
+    "BACKUP_DIR",
+    "LOG_DIR",
+    "get_database_path",
 ]

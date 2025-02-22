@@ -1,44 +1,31 @@
-# File: store_management/database/sqlalchemy/models/part.py
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Enum
+# File: database/sqlalchemy/models/part.py
+"""
+File: database/sqlalchemy/models/part.py
+SQLAlchemy model definition for Part.
+"""
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, Text
 from sqlalchemy.orm import relationship
-from datetime import datetime
-from store_management.database.sqlalchemy.base import Base
-from store_management.database.sqlalchemy.models.enums import InventoryStatus
+
+from database.sqlalchemy.models.base import Base
 
 
 class Part(Base):
     """
-    Part model representing inventory items.
-
-    Attributes:
-        id (int): Unique identifier for the part
-        name (str): Name of the part
-        description (str): Detailed description of the part
-        stock_level (float): Current stock level of the part
-        min_stock_level (float): Minimum stock level threshold
-        unit_price (float): Price per unit
-        supplier_id (int): Foreign key to the supplier
-        status (InventoryStatus): Current inventory status
-        created_at (datetime): Timestamp of record creation
-        updated_at (datetime): Timestamp of last update
+    Part model representing inventory parts in the system.
     """
     __tablename__ = 'parts'
+    __table_args__ = {'extend_existing': True}  # Add this line to prevent duplicate table errors
 
     id = Column(Integer, primary_key=True)
-    name = Column(String, nullable=False)
-    description = Column(String)
-    stock_level = Column(Float, default=0)
-    min_stock_level = Column(Float, default=0)
-    unit_price = Column(Float)
-    supplier_id = Column(Integer, ForeignKey('suppliers.id'))
-    status = Column(Enum(InventoryStatus), default=InventoryStatus.IN_STOCK)
-
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    name = Column(String(100), nullable=False)
+    description = Column(Text, nullable=True)
+    stock_level = Column(Integer, default=0)
+    min_stock_level = Column(Integer, default=0)
+    price = Column(Float, default=0.0)
+    supplier_id = Column(Integer, ForeignKey('suppliers.id'), nullable=True)
 
     # Relationships
     supplier = relationship("Supplier", back_populates="parts")
-    transactions = relationship("InventoryTransaction", back_populates="part")
 
     def __repr__(self):
         return f"<Part(id={self.id}, name='{self.name}', stock_level={self.stock_level})>"

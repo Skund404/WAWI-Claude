@@ -60,7 +60,7 @@ class BaseManager(Generic[T]):
         except Exception as e:
             session.rollback()
             self.logger.error(f"Unexpected error: {str(e)}", exc_info=True)
-            raise
+            raise e
         finally:
             session.close()
 

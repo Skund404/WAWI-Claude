@@ -17,12 +17,12 @@ from .order_manager import OrderManager
 from .shopping_list_manager import ShoppingListManager
 
 __all__ = [
-    'StorageManager',
-    'SupplierManager',
-    'ProductManager',
-    'PartManager',
-    'LeatherManager',
-    'RecipeManager',
-    'OrderManager',
-    'ShoppingListManager'
+    "StorageManager",
+    "SupplierManager",
+    "ProductManager",
+    "PartManager",
+    "LeatherManager",
+    "RecipeManager",
+    "OrderManager",
+    "ShoppingListManager",
 ]

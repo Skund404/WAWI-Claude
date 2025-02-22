@@ -1,37 +1,25 @@
-# File: F:\WAWI Homebrew\WAWI Claude\store_management\database\sqlalchemy\models\base.py
-
 """
-This file defines the Base class for SQLAlchemy models.
+File: database/models/base.py
+Base model definition for all SQLAlchemy models.
+Provides common functionality for model classes.
 """
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import inspect
 
-from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy import Column, Integer, DateTime
-from datetime import datetime
+# Create a single base class for all models
+Base = declarative_base()
 
-class Base(DeclarativeBase):
+
+def to_dict(self):
     """
-    Base declarative model for all database models.
-    Provides common fields and behaviors.
+    Convert model instance to dictionary.
+
+    Returns:
+        dict: Dictionary representation of the model
     """
+    return {c.key: getattr(self, c.key)
+            for c in inspect(self).mapper.column_attrs}
 
-    id = Column(Integer, primary_key=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    def __repr__(self):
-        """
-        Default string representation of the model.
-
-        Returns:
-            String representation with class name and ID
-        """
-        return f"<{self.__class__.__name__}(id={self.id})>"
-
-    def to_dict(self):
-        """
-        Convert model instance to dictionary.
-
-        Returns:
-            Dictionary representation of the model
-        """
-        return {column.name: getattr(self, column.name) for column in self.__table__.columns}
+# Add common method to all models
+Base.to_dict = to_dict

@@ -1,42 +1,89 @@
-# Path: store_management/main.py
-import tkinter as tk
+"""
+File: main.py
+Application entry point.
+Initializes the application, sets up logging, and starts the main window.
+"""
 import sys
-import os
+import logging
+import tkinter as tk
+from tkinter import ttk
 
-# Add the project root to the Python path
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-sys.path.insert(0, project_root)
+from config.application_config import ApplicationConfig
+from database.initialize import initialize_database
+from di.config import ApplicationConfig as DIConfig
+from gui.main_window import MainWindow
 
-# Import the necessary modules
-from store_management.application import Application
-from store_management.gui.main_window import MainWindow
-from store_management.di.config import ApplicationConfig
+
+def setup_logging():
+    """
+    Configure logging for the application.
+    Sets up console and file handlers with appropriate formats.
+    """
+    # Create logger
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+
+    # Create console handler
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+
+    # Create formatters
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    console_handler.setFormatter(formatter)
+
+    # Add handlers to logger
+    logger.addHandler(console_handler)
+
+    # Optionally add file handler
+    try:
+        file_handler = logging.FileHandler('application.log')
+        file_handler.setLevel(logging.INFO)
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+    except Exception as e:
+        print(f"Warning: Could not set up file logging: {str(e)}")
+
 
 def main():
     """
-    Main entry point of the application.
-
-    This function initializes the main application window and starts the GUI event loop.
+    Main application entry point.
+    Initializes database, DI container, and GUI components.
     """
+    # Set up logging
+    setup_logging()
+
     try:
-        # Initialize Tkinter root window
+        # Initialize database
+        initialize_database(drop_existing=False)
+
+        # Create and configure DI container
+        container = DIConfig.configure_container()
+
+        # Create root Tkinter window
         root = tk.Tk()
+        root.title("Store Management System")
+        root.geometry("1200x800")
 
-        # Configure dependency injection container
-        app_config = ApplicationConfig()
-        container = app_config.configure_container()
+        # Apply a theme
+        style = ttk.Style()
+        try:
+            style.theme_use('clam')  # You can try other themes like 'alt', 'default', 'classic'
+        except tk.TclError:
+            logging.warning("Theme 'clam' not available, using default theme")
 
-        # Create main application window
+        # Create main window
         main_window = MainWindow(root, container)
 
-        # Start the main event loop
-        main_window.run()
+        # Start the application
+        root.mainloop()
 
     except Exception as e:
-        # Log any unhandled exceptions
-        print(f"An error occurred: {e}")
-        import traceback
-        traceback.print_exc()
+        logging.error(f"An error occurred: {str(e)}", exc_info=True)
+        if 'root' in locals():
+            # Show error message to the user if GUI has been initialized
+            import tkinter.messagebox as messagebox
+            messagebox.showerror("Application Error", f"An error occurred: {str(e)}")
+
 
 if __name__ == "__main__":
     main()

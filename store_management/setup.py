@@ -7,7 +7,7 @@ setup(
     description="Store Management Application",
     author="Your Name",
     author_email="your.email@example.com",
-    packages=find_namespace_packages(include=['store_management*']),
+    packages=find_namespace_packages(include=["store_management*"]),
     install_requires=[
         "sqlalchemy>=2.0.19",
         "alembic>=1.11.1",

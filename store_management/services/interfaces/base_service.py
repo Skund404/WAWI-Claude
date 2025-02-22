@@ -11,4 +11,5 @@ class IBaseService(ABC):
     in the application. It doesn't define any methods itself but acts as a marker
     interface to identify service classes.
     """
+
     pass

@@ -1,276 +1,253 @@
 """
-Storage Manager for handling storage location operations.
-Provides comprehensive management of storage locations and their relationships.
+File: database/sqlalchemy/managers/storage_manager.py
+Storage manager implementation for managing storage locations.
+Extends the BaseManager with storage-specific functionality.
 """
+import logging
+from typing import List, Dict, Any, Optional, Callable, Union
+from sqlalchemy.orm import Session, joinedload
 
-from typing import List, Optional, Dict, Any, Union
-from datetime import datetime
-from sqlalchemy import select, and_, or_, func
-from sqlalchemy.orm import joinedload
-from sqlalchemy.exc import SQLAlchemyError
+from database.sqlalchemy.core.base_manager import BaseManager
+from database.models.storage import Storage
+from database.models.product import Product  # Assuming this exists based on your project structure
 
-from store_management.database.sqlalchemy.base_manager import BaseManager
-from store_management.database.sqlalchemy.models import Storage, Product, Leather, Part
-from store_management.utils.error_handler import DatabaseError
-from store_management.utils.logger import logger
+class StorageManager(BaseManager[Storage]):
+    """
+    Manager class for storage-related database operations.
+    Extends BaseManager with storage-specific queries and operations.
+    """
 
-
-class StorageManager(BaseManager):
-    """Enhanced storage manager implementing specialized storage operations."""
-
-    def __init__(self, session_factory):
-        """Initialize storage manager with session factory.
+    def __init__(self, session_factory: Callable[[], Session]):
+        """
+        Initialize StorageManager with session factory.
 
         Args:
-            session_factory: Function to create database sessions
+            session_factory: Factory function to create database sessions
         """
-        super().__init__(session_factory, Storage)
+        super().__init__(Storage, session_factory)
+        self.logger = logging.getLogger(self.__class__.__name__)
 
     def get_all_storage_locations(self) -> List[Storage]:
-        """Retrieve all storage locations.
+        """
+        Get all storage locations from the database.
 
         Returns:
-            List[Storage]: List of all storage locations
+            List of all storage locations
+
+        Raises:
+            Exception: If database operation fails
         """
         try:
             with self.session_scope() as session:
                 return session.query(Storage).all()
-        except SQLAlchemyError as e:
-            logger.error(f"Error retrieving storage locations: {e}")
-            raise DatabaseError("Failed to retrieve storage locations")
+        except Exception as e:
+            self.logger.error(f"Failed to retrieve all storage locations - Details: {str(e)}")
+            raise
 
-    def add_storage_location(self, data: Dict[str, Any]) -> Optional[Storage]:
-        """Add a new storage location.
+    def add_storage_location(self, data: Dict[str, Any]) -> Storage:
+        """
+        Add a new storage location.
 
         Args:
-            data: Dictionary containing storage location data
-                Required keys:
-                - location: str
-                - capacity: float
-                Optional keys:
-                - description: str
-                - status: str
+            data: Dictionary with storage location data
 
         Returns:
-            Optional[Storage]: Added storage location or None if failed
+            The newly created Storage instance
 
         Raises:
-            DatabaseError: If validation fails or database operation fails
+            Exception: If creation fails
         """
-        try:
-            # Validate location doesn't already exist
-            with self.session_scope() as session:
-                existing = session.query(Storage).filter(
-                    Storage.location == data['location']
-                ).first()
-                if existing:
-                    raise DatabaseError(f"Storage location {data['location']} already exists")
+        return self.create(data)
 
-                # Create new storage location
-                storage = Storage(**data)
-                session.add(storage)
-                session.commit()
-                return storage
-        except SQLAlchemyError as e:
-            logger.error(f"Error adding storage location: {e}")
-            raise DatabaseError("Failed to add storage location")
-
-    def update_storage_location(self, location_id: int, data: Dict[str, Any]) -> Optional[Storage]:
-        """Update a storage location.
+    def update_storage_location(self, location_id: Union[int, str], data: Dict[str, Any]) -> Optional[Storage]:
+        """
+        Update an existing storage location.
 
         Args:
-            location_id: ID of storage location to update
-            data: Dictionary containing update data
+            location_id: ID of the storage location to update
+            data: Dictionary with updated storage data
 
         Returns:
-            Optional[Storage]: Updated storage location or None if not found
+            The updated Storage instance or None if not found
 
         Raises:
-            DatabaseError: If validation fails or database operation fails
+            Exception: If update fails
         """
-        try:
-            with self.session_scope() as session:
-                storage = session.query(Storage).get(location_id)
-                if not storage:
-                    return None
+        return self.update(location_id, data)
 
-                # Update attributes
-                for key, value in data.items():
-                    setattr(storage, key, value)
-
-                session.commit()
-                return storage
-        except SQLAlchemyError as e:
-            logger.error(f"Error updating storage location {location_id}: {e}")
-            raise DatabaseError(f"Failed to update storage location {location_id}")
-
-    def delete_storage_location(self, location_id: int) -> bool:
-        """Delete a storage location.
+    def delete_storage_location(self, location_id: Union[int, str]) -> bool:
+        """
+        Delete a storage location.
 
         Args:
-            location_id: ID of storage location to delete
+            location_id: ID of the storage location to delete
 
         Returns:
-            bool: True if deleted, False if not found
+            True if deleted successfully, False if not found
 
         Raises:
-            DatabaseError: If deletion fails or has dependent records
+            Exception: If deletion fails
         """
-        try:
-            with self.session_scope() as session:
-                storage = session.query(Storage).get(location_id)
-                if not storage:
-                    return False
+        return self.delete(location_id)
 
-                # Check for items in storage
-                if storage.items:
-                    raise DatabaseError(
-                        f"Cannot delete storage location {location_id} - contains items"
-                    )
-
-                session.delete(storage)
-                session.commit()
-                return True
-        except SQLAlchemyError as e:
-            logger.error(f"Error deleting storage location {location_id}: {e}")
-            raise DatabaseError(f"Failed to delete storage location {location_id}")
-
-    def get_storage_with_items(self, storage_id: int) -> Optional[Storage]:
-        """Get storage location with all associated items.
+    def get_storage_with_items(self, storage_id: Union[int, str]) -> Optional[Storage]:
+        """
+        Get a storage location with all its associated items.
 
         Args:
-            storage_id: ID of storage location
+            storage_id: ID of the storage location
 
         Returns:
-            Optional[Storage]: Storage with items loaded or None if not found
+            Storage instance with loaded relationships or None if not found
+
+        Raises:
+            Exception: If database operation fails
         """
         try:
             with self.session_scope() as session:
-                return session.query(Storage) \
-                    .options(joinedload(Storage.items)) \
-                    .filter(Storage.id == storage_id) \
-                    .first()
-        except SQLAlchemyError as e:
-            logger.error(f"Error retrieving storage location {storage_id} with items: {e}")
-            raise DatabaseError(f"Failed to retrieve storage location {storage_id}")
+                # Use joinedload to eager load products associated with this storage
+                return session.query(Storage).options(
+                    joinedload(Storage.products)  # Assumes a 'products' relationship exists
+                ).filter(Storage.id == storage_id).first()
+        except Exception as e:
+            self.logger.error(f"Failed to get storage with id {storage_id} and its items - Details: {str(e)}")
+            raise
 
     def get_available_storage(self) -> List[Storage]:
-        """Get storage locations with available capacity.
+        """
+        Get storage locations that have available capacity.
 
         Returns:
-            List[Storage]: List of storage locations with space available
+            List of storage locations with available capacity
+
+        Raises:
+            Exception: If database operation fails
         """
         try:
             with self.session_scope() as session:
-                return session.query(Storage) \
-                    .filter(Storage.available_capacity > 0) \
-                    .all()
-        except SQLAlchemyError as e:
-            logger.error(f"Error retrieving available storage: {e}")
-            raise DatabaseError("Failed to retrieve available storage")
+                # This is a placeholder implementation - adjust based on your actual model
+                # Assuming Storage has 'capacity' and 'used_capacity' fields
+                return session.query(Storage).filter(
+                    Storage.capacity > Storage.used_capacity
+                ).all()
+        except Exception as e:
+            self.logger.error(f"Failed to get available storage locations - Details: {str(e)}")
+            raise
 
     def search_storage(self, term: str) -> List[Storage]:
-        """Search storage locations by location or description.
+        """
+        Search for storage locations by name or description.
 
         Args:
             term: Search term
 
         Returns:
-            List[Storage]: List of matching storage locations
+            List of matching storage locations
+
+        Raises:
+            Exception: If search fails
         """
         try:
             with self.session_scope() as session:
-                search = f"%{term}%"
-                return session.query(Storage) \
-                    .filter(
-                    or_(
-                        Storage.location.ilike(search),
-                        Storage.description.ilike(search)
-                    )
+                search_pattern = f"%{term}%"
+                return session.query(Storage).filter(
+                    (Storage.name.ilike(search_pattern)) |
+                    (Storage.description.ilike(search_pattern)) |
+                    (Storage.location.ilike(search_pattern))
                 ).all()
-        except SQLAlchemyError as e:
-            logger.error(f"Error searching storage locations: {e}")
-            raise DatabaseError("Failed to search storage locations")
+        except Exception as e:
+            self.logger.error(f"Failed to search storage locations - Details: {str(e)}")
+            raise
 
-    def get_storage_status(self, storage_id: int) -> Dict[str, Any]:
-        """Get detailed status of a storage location.
+    def get_storage_status(self, storage_id: Union[int, str]) -> Dict[str, Any]:
+        """
+        Get detailed status information about a storage location.
 
         Args:
-            storage_id: ID of storage location
+            storage_id: ID of the storage location
 
         Returns:
-            Dict containing:
-            - total_capacity: float
-            - used_capacity: float
-            - available_capacity: float
-            - item_count: int
-            - last_modified: datetime
+            Dictionary with storage status information
+
+        Raises:
+            Exception: If database operation fails
         """
         try:
             with self.session_scope() as session:
-                storage = session.query(Storage) \
-                    .options(joinedload(Storage.items)) \
-                    .filter(Storage.id == storage_id) \
-                    .first()
-
+                storage = session.query(Storage).get(storage_id)
                 if not storage:
-                    raise DatabaseError(f"Storage location {storage_id} not found")
+                    return {}
+
+                # Count products in this storage
+                product_count = session.query(Product).filter(
+                    Product.storage_id == storage_id
+                ).count()
+
+                # Calculate utilization
+                utilization = 0
+                if hasattr(storage, 'capacity') and storage.capacity > 0:
+                    utilization = (getattr(storage, 'used_capacity', 0) / storage.capacity) * 100
 
                 return {
-                    'total_capacity': storage.capacity,
-                    'used_capacity': storage.used_capacity,
-                    'available_capacity': storage.available_capacity,
-                    'item_count': len(storage.items),
-                    'last_modified': storage.updated_at
+                    'id': storage.id,
+                    'name': storage.name,
+                    'location': getattr(storage, 'location', ''),
+                    'product_count': product_count,
+                    'capacity': getattr(storage, 'capacity', 0),
+                    'used': getattr(storage, 'used_capacity', 0),
+                    'utilization': utilization,
+                    'status': 'active'  # Could be determined by other business logic
                 }
-        except SQLAlchemyError as e:
-            logger.error(f"Error getting storage status for {storage_id}: {e}")
-            raise DatabaseError(f"Failed to get storage status for {storage_id}")
+        except Exception as e:
+            self.logger.error(f"Failed to get storage status for id {storage_id} - Details: {str(e)}")
+            raise
 
     def get_storage_utilization(self) -> List[Dict[str, Any]]:
-        """Get utilization metrics for all storage locations.
+        """
+        Get utilization information for all storage locations.
 
         Returns:
-            List of dictionaries containing utilization metrics for each location
+            List of dictionaries with storage utilization data
+
+        Raises:
+            Exception: If database operation fails
         """
         try:
             with self.session_scope() as session:
-                storages = session.query(Storage) \
-                    .options(joinedload(Storage.items)) \
-                    .all()
+                storage_list = session.query(Storage).all()
+                result = []
 
-                return [{
-                    'location': s.location,
-                    'capacity': s.capacity,
-                    'utilization': (s.used_capacity / s.capacity * 100) if s.capacity else 0,
-                    'item_count': len(s.items)
-                } for s in storages]
-        except SQLAlchemyError as e:
-            logger.error(f"Error getting storage utilization: {e}")
-            raise DatabaseError("Failed to get storage utilization")
+                for storage in storage_list:
+                    # Calculate utilization if capacity fields exist
+                    utilization = 0
+                    if hasattr(storage, 'capacity') and storage.capacity > 0:
+                        utilization = (getattr(storage, 'used_capacity', 0) / storage.capacity) * 100
 
-    def bulk_update_storage(self, updates: List[Dict[str, Any]]) -> int:
-        """Update multiple storage locations in bulk.
+                    result.append({
+                        'id': storage.id,
+                        'name': storage.name,
+                        'location': getattr(storage, 'location', ''),
+                        'capacity': getattr(storage, 'capacity', 0),
+                        'used': getattr(storage, 'used_capacity', 0),
+                        'utilization': utilization
+                    })
+
+                return result
+        except Exception as e:
+            self.logger.error(f"Failed to get storage utilization - Details: {str(e)}")
+            raise
+
+    def bulk_update_storage(self, updates: List[Dict[str, Any]]) -> List[Storage]:
+        """
+        Update multiple storage locations at once.
 
         Args:
-            updates: List of dictionaries containing:
-                - id: Storage location ID
-                - updates: Dictionary of fields to update
+            updates: List of dictionaries with storage updates, each containing 'id' field
 
         Returns:
-            int: Number of storage locations updated
+            List of updated Storage instances
+
+        Raises:
+            Exception: If bulk update fails
         """
-        try:
-            updated = 0
-            with self.session_scope() as session:
-                for update in updates:
-                    storage = session.query(Storage).get(update['id'])
-                    if storage:
-                        for key, value in update['updates'].items():
-                            setattr(storage, key, value)
-                        updated += 1
-                session.commit()
-                return updated
-        except SQLAlchemyError as e:
-            logger.error(f"Error in bulk storage update: {e}")
-            raise DatabaseError("Failed to perform bulk storage update")
+        return self.bulk_update(updates)

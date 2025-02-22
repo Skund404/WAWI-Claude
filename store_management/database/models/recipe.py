@@ -1,47 +1,61 @@
-# store_management/database/models/recipe.py
-
-from datetime import datetime
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey
+"""
+File: database/models/recipe.py
+Recipe model definitions.
+Represents product recipes and their components.
+"""
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, Text, Boolean
 from sqlalchemy.orm import relationship
-from .base import Base
+
+from database.models.base import Base
 
 
 class Recipe(Base):
-    """Recipe model for manufacturing products"""
+    """
+    Recipe model representing manufacturing instructions for products.
+    """
     __tablename__ = 'recipes'
+    __table_args__ = {'extend_existing': True}  # Add this to prevent duplicate table errors
 
     id = Column(Integer, primary_key=True)
-    name = Column(String, nullable=False)
-    description = Column(String)
-    product_id = Column(Integer, ForeignKey('products.id'))
-    labor_minutes = Column(Integer, default=0)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    name = Column(String(100), nullable=False)
+    description = Column(Text, nullable=True)
+    product_id = Column(Integer, ForeignKey('products.id'), nullable=True)
+    labor_time = Column(Float, default=0.0)  # Time in minutes
+    labor_cost = Column(Float, default=0.0)
+    is_active = Column(Boolean, default=True)
+    notes = Column(Text, nullable=True)
+    version = Column(String(20), default="1.0")
 
-    # Relationships
-    product = relationship("Product", back_populates="recipes")
-    items = relationship("RecipeItem", back_populates="recipe", cascade="all, delete-orphan")
+    # Relationships - uncomment and adjust based on your actual relationships
+    # product = relationship("Product", back_populates="recipe")
+    # items = relationship("RecipeItem", back_populates="recipe", cascade="all, delete-orphan")
 
     def __repr__(self):
-        return f"<Recipe(id={self.id}, name='{self.name}')>"
+        """String representation of the Recipe model."""
+        return f"<Recipe(id={self.id}, name='{self.name}', product_id={self.product_id})>"
 
 
 class RecipeItem(Base):
-    """Items required for a recipe"""
+    """
+    RecipeItem model representing individual components in a recipe.
+    """
     __tablename__ = 'recipe_items'
+    __table_args__ = {'extend_existing': True}  # Add this to prevent duplicate table errors
 
     id = Column(Integer, primary_key=True)
     recipe_id = Column(Integer, ForeignKey('recipes.id'), nullable=False)
-    part_id = Column(Integer, ForeignKey('parts.id'))
-    leather_id = Column(Integer, ForeignKey('leathers.id'))
+    part_id = Column(Integer, ForeignKey('parts.id'), nullable=True)
+    leather_id = Column(Integer, ForeignKey('leather.id'), nullable=True)
     quantity = Column(Float, default=1.0)
-    area = Column(Float)  # For leather items (square feet)
-    notes = Column(String)
+    area = Column(Float, nullable=True)  # For leather items
+    position = Column(Integer, default=0)  # For ordering items
+    notes = Column(Text, nullable=True)
 
-    # Relationships - only reference one of part or leather
-    recipe = relationship("Recipe", back_populates="items")
-    part = relationship("Part", back_populates="recipe_items")
-    leather = relationship("Leather", back_populates="recipe_items")
+    # Relationships - uncomment and adjust based on your actual relationships
+    # recipe = relationship("Recipe", back_populates="items")
+    # part = relationship("Part")
+    # leather = relationship("Leather")
 
     def __repr__(self):
-        return f"<RecipeItem(id={self.id}, recipe_id={self.recipe_id})>"
+        """String representation of the RecipeItem model."""
+        return f"<RecipeItem(id={self.id}, recipe_id={self.recipe_id}, part_id={self.part_id}, quantity={self.quantity})>"

@@ -10,4 +10,4 @@ allowing other parts of the application to access these components through a sin
 from .implementations.storage_service import StorageService
 from .interfaces.storage_service import IStorageService
 
-__all__ = ['StorageService', 'IStorageService']
+__all__ = ["StorageService", "IStorageService"]
