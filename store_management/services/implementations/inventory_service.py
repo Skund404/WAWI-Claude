@@ -2,13 +2,13 @@
 from typing import List, Optional, Dict, Any, Tuple, Type, cast
 from datetime import datetime
 
-from store_management.di.service import Service
+from di.service import Service
 from store_management.di.container import DependencyContainer
-from store_management.services.interfaces.inventory_service import IInventoryService
-from store_management.database.sqlalchemy.base_manager import BaseManager
-from store_management.database.sqlalchemy.models.part import Part
-from store_management.database.sqlalchemy.models.leather import Leather
-from store_management.database.sqlalchemy.models.enums import InventoryStatus, TransactionType
+from services.interfaces.inventory_service import IInventoryService
+from database.sqlalchemy.base_manager import BaseManager
+from database.models.part import Part
+from database.models.leather import Leather
+from database.models.enums import InventoryStatus, TransactionType
 
 
 class InventoryService(Service, IInventoryService):

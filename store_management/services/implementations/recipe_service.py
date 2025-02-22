@@ -1,10 +1,10 @@
 # Path: store_management/services/implementations/recipe_service.py
 from typing import List, Dict, Any, Optional, Tuple
 
-from store_management.di.service import Service
-from store_management.di.container import DependencyContainer
-from store_management.services.interfaces.recipe_service import IRecipeService
-from store_management.database.sqlalchemy.core.specialized.recipe_manager import RecipeManager
+from di.service import Service
+from di.container import DependencyContainer
+from services.interfaces.recipe_service import IRecipeService
+from database.sqlalchemy.core.specialized.recipe_manager import RecipeManager
 
 class RecipeService(Service, IRecipeService):
     """Service for recipe management operations"""

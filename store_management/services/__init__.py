@@ -7,7 +7,6 @@ It imports and exposes both the interface and implementation of the StorageServi
 allowing other parts of the application to access these components through a single import.
 """
 
-from .implementations.storage_service import StorageService
 from .interfaces.storage_service import IStorageService
 
-__all__ = ["StorageService", "IStorageService"]
+__all__ = ["IStorageService"]

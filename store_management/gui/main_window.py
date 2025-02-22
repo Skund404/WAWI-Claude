@@ -4,16 +4,16 @@ import tkinter.ttk as ttk
 import sys
 import os
 
-from store_management.application import Application
-from store_management.gui.order.order_view import OrderView
-from store_management.gui.storage.storage_view import StorageView
-from store_management.gui.recipe.recipe_view import RecipeView
-from store_management.gui.shopping_list.shopping_list_view import ShoppingListView
-from store_management.services.interfaces.storage_service import IStorageService
-from store_management.services.interfaces.order_service import IOrderService
-from store_management.services.interfaces.inventory_service import IInventoryService
-from store_management.services.interfaces.recipe_service import IRecipeService
-from store_management.services.interfaces.shopping_list_service import IShoppingListService
+from application import Application
+from gui.order.order_view import OrderView
+from gui.storage.storage_view import StorageView
+from gui.recipe.recipe_view import RecipeView
+from gui.shopping_list.shopping_list_view import ShoppingListView
+from services.interfaces.storage_service import IStorageService
+from services.interfaces.order_service import IOrderService
+from services.interfaces.inventory_service import IInventoryService
+from services.interfaces.recipe_service import IRecipeService
+from services.interfaces.shopping_list_service import IShoppingListService
 
 
 class MainWindow:

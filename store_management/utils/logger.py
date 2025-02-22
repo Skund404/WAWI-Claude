@@ -1,107 +1,130 @@
-# store_management/utils/logger.py
+# utils/logger.py
+"""
+Centralized logging configuration for the application.
+"""
 
-import logging
-import logging.handlers
 import os
+import logging
 from pathlib import Path
-from typing import Optional
-from store_management.config import LOG_DIR
+from typing import Optional, Union
+
+from config.settings import get_log_path
 
 
 class AppLogger:
+    """
+    Singleton logger class for the application.
+    Ensures consistent logging configuration across the project.
+    """
     _instance = None
 
     def __new__(cls):
+        """
+        Implement singleton pattern for logger.
+
+        Returns:
+            AppLogger: Single instance of the logger.
+        """
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._initialize_logger()
         return cls._instance
 
     def _initialize_logger(self):
-        """Initialize the application logger with file and console handlers."""
-        # Create logs directory if it doesn't exist
-        LOG_DIR.mkdir(parents=True, exist_ok=True)
+        """
+        Initialize the logging configuration.
+        Creates log directory if it doesn't exist.
+        Sets up file and console logging.
+        """
+        # Ensure log directory exists
+        log_dir = Path(get_log_path())
+        log_dir.mkdir(parents=True, exist_ok=True)
 
-        # Create logger
-        self.logger = logging.getLogger('store_management')
-        self.logger.setLevel(logging.DEBUG)
+        # Configure the root logger
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            handlers=[
+                # File handler
+                logging.FileHandler(
+                    log_dir / 'application.log',
+                    encoding='utf-8'
+                ),
+                # Console handler
+                logging.StreamHandler()
+            ]
+        )
 
-        # Prevent duplicate handlers
-        if not self.logger.handlers:
-            # File handler
-            log_file = LOG_DIR / 'store_management.log'
-            file_handler = logging.handlers.RotatingFileHandler(
-                log_file,
-                maxBytes=5 * 1024 * 1024,  # 5MB
-                backupCount=5
-            )
-            file_handler.setLevel(logging.DEBUG)
-            file_formatter = logging.Formatter(
-                '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-            )
-            file_handler.setFormatter(file_formatter)
-            self.logger.addHandler(file_handler)
+    def get_logger(self, name: Optional[str] = None) -> logging.Logger:
+        """
+        Retrieve a logger for a specific module.
 
-            # Console handler
-            console_handler = logging.StreamHandler()
-            console_handler.setLevel(logging.INFO)
-            console_formatter = logging.Formatter(
-                '%(levelname)s: %(message)s'
-            )
-            console_handler.setFormatter(console_formatter)
-            self.logger.addHandler(console_handler)
+        Args:
+            name (Optional[str], optional): Name of the logger.
+                                            Defaults to root logger if None.
 
-    def get_logger(self):
-        """Get the configured logger instance."""
-        return self.logger
-
-
-# Global logger instance
-logger_instance = AppLogger()
-logger = logger_instance.get_logger()
+        Returns:
+            logging.Logger: Configured logger instance.
+        """
+        return logging.getLogger(name)
 
 
+# Module-level logger functions for convenience
 def get_logger(name: Optional[str] = None) -> logging.Logger:
-    """Get a logger instance, optionally with a specific name.
+    """
+    Get a logger instance.
 
     Args:
-        name: Optional name for the logger. If provided, returns a child logger
-             of the main application logger.
+        name (Optional[str], optional): Name of the logger.
+                                        Defaults to root logger if None.
 
     Returns:
-        logging.Logger: Configured logger instance
+        logging.Logger: Configured logger instance.
     """
-    if name:
-        return logging.getLogger(f'store_management.{name}')
-    return logger
+    return AppLogger().get_logger(name)
 
 
-def log_error(error: Exception, context: Optional[dict] = None):
-    """Log an error with optional context information.
+def log_error(
+        error: Union[Exception, str],
+        context: Optional[str] = None
+) -> None:
+    """
+    Log an error with optional context.
 
     Args:
-        error: The exception to log
-        context: Optional dictionary with additional context
+        error (Union[Exception, str]): Error to log.
+        context (Optional[str], optional): Additional context for the error.
     """
-    error_msg = f"Error: {str(error)}"
+    logger = get_logger()
+    error_message = str(error)
+
     if context:
-        error_msg += f" Context: {context}"
-    logger.error(error_msg, exc_info=True)
+        error_message = f"{context}: {error_message}"
+
+    logger.error(error_message, exc_info=True)
 
 
-def log_info(message: str):
-    """Log an info message.
+def log_info(message: str) -> None:
+    """
+    Log an informational message.
 
     Args:
-        message: The message to log
+        message (str): Message to log.
     """
+    logger = get_logger()
     logger.info(message)
 
 
-def log_debug(message: str):
-    """Log a debug message.
+def log_debug(message: str) -> None:
+    """
+    Log a debug message.
 
     Args:
-        message: The message to log
+        message (str): Message to log.
     """
+    logger = get_logger()
     logger.debug(message)
+
+
+# Create a default logger instance
+logger = get_logger()

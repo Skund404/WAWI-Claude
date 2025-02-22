@@ -4,10 +4,10 @@ import tkinter.ttk as ttk
 import tkinter.messagebox as messagebox
 from typing import List, Dict, Any, Optional
 
-from store_management.application import Application
-from store_management.gui.base_view import BaseView
-from store_management.services.interfaces.order_service import IOrderService
-from store_management.services.interfaces.supplier_service import ISupplierService
+from application import Application
+from gui.base_view import BaseView
+from services.interfaces.order_service import IOrderService
+from services.interfaces.supplier_service import ISupplierService
 
 
 class OrderView(BaseView):

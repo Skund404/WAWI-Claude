@@ -1,76 +1,60 @@
-# File: store_management/database/config.py
+# database/config.py
+"""
+Database configuration helpers
+"""
+
 import os
-import typing
-from typing import Dict, Any, Optional
-from pathlib import Path
+from config.settings import get_database_path
 
 
-def get_database_url(config: Optional[Dict[str, Any]] = None) -> str:
+def get_database_url(config=None):
     """
-    Generate database connection URL with multiple configuration sources.
-
-    Priority:
-    1. Explicitly passed configuration
-    2. Environment variables
-    3. Default configuration
+    Get the database URL string based on configuration.
 
     Args:
-        config: Optional configuration dictionary
+        config (dict, optional): Configuration dictionary. If None, uses default config.
 
     Returns:
-        Database connection URL
+        str: SQLAlchemy database URL
     """
-    # Default to SQLite database in the project root
-    project_root = _find_project_root()
-    default_db_path = project_root / 'store_management.db'
-
-    # Priority 1: Passed configuration
+    # If specific config is provided, use it
     if config and 'database_url' in config:
         return config['database_url']
 
-    # Priority 2: Environment variable
-    env_db_url = os.environ.get('DATABASE_URL')
-    if env_db_url:
-        return env_db_url
-
-    # Priority 3: Default SQLite database
-    return f'sqlite:///{default_db_path}'
+    # Otherwise, build URL from database path
+    db_path = get_database_path()
+    return f"sqlite:///{db_path}"
 
 
-def _find_project_root() -> Path:
+def _find_project_root():
     """
-    Dynamically find the project root directory.
+    Find the project root directory.
 
     Returns:
-        Path to the project root
+        str: Path to the project root directory
     """
-    current_path = Path(__file__).resolve()
-    # Go up multiple levels to find project root
-    for _ in range(3):  # Adjust this if needed
-        current_path = current_path.parent
-    return current_path
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+
+    # Go up until we find the project root (where main.py is)
+    while os.path.basename(current_dir) and not os.path.exists(os.path.join(current_dir, 'main.py')):
+        parent = os.path.dirname(current_dir)
+        if parent == current_dir:  # Reached filesystem root
+            break
+        current_dir = parent
+
+    return current_dir
 
 
-def get_database_config() -> Dict[str, Any]:
+def get_database_config():
     """
-    Retrieve comprehensive database configuration.
-
-    Combines configuration from multiple sources.
+    Get database configuration dictionary.
 
     Returns:
-        Dictionary with database configuration
+        dict: Database configuration
     """
+    # You could read this from a JSON file or environment variables
     return {
-        'database_url': get_database_url(),
-        'project_root': str(_find_project_root()),
-        # Add more configuration parameters as needed
+        'dialect': 'sqlite',
+        'database': get_database_path(),
+        'echo': False
     }
-
-
-# Create a default database manager configuration
-database_manager = {
-    'url': get_database_url(),
-    'echo': False,  # Set to True for SQLAlchemy logging
-    'pool_size': 5,
-    'max_overflow': 10
-}

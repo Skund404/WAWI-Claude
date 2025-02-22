@@ -5,9 +5,9 @@ from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 
-from store_management.database.sqlalchemy.base_manager import BaseManager
-from store_management.database.sqlalchemy.models.storage import Storage
-from store_management.database.sqlalchemy.manager_factory import register_specialized_manager
+from database.sqlalchemy.base_manager import BaseManager
+from database.models.storage import Storage
+from database.sqlalchemy.manager_factory import register_specialized_manager
 
 
 class StorageRepository(BaseManager[Storage]):

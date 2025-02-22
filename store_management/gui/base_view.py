@@ -6,8 +6,8 @@ import tkinter.ttk as ttk
 import tkinter.messagebox as messagebox
 from typing import Any, Optional, Type
 
-from store_management.application import Application
-from store_management.services.interfaces.base_service import IBaseService
+from application import Application
+from services.interfaces.base_service import IBaseService
 
 
 class BaseView(ttk.Frame):

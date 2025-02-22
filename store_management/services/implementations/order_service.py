@@ -1,10 +1,10 @@
 # Path: store_management/services/implementations/order_service.py
 from typing import List, Dict, Any, Optional, Tuple
 
-from store_management.di.service import Service
-from store_management.di.container import DependencyContainer
-from store_management.services.interfaces.order_service import IOrderService
-from store_management.database.sqlalchemy.core.specialized.order_manager import OrderManager
+from di.service import Service
+from di.container import DependencyContainer
+from services.interfaces.order_service import IOrderService
+from database.sqlalchemy.core.specialized.order_manager import OrderManager
 
 class OrderService(Service, IOrderService):
     """Service for order management operations"""

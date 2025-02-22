@@ -2,8 +2,8 @@
 
 from typing import List, Optional, Dict, Any, Callable
 from sqlalchemy.orm import Session
-from store_management.database.sqlalchemy.core.base_manager import BaseManager
-from store_management.database.sqlalchemy.models.order import Order
+from database.sqlalchemy.core.base_manager import BaseManager
+from database.models.order import Order
 
 class OrderManager(BaseManager):
     """

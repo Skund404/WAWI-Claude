@@ -8,8 +8,8 @@ from typing import List, Optional, Dict, Any
 from sqlalchemy import select, and_, or_, func
 from sqlalchemy.orm import joinedload
 
-from store_management.database.sqlalchemy.core.base_manager import BaseManager
-from store_management.database.sqlalchemy.models import Product, Storage, Recipe
+from database.sqlalchemy.core.base_manager import BaseManager
+from database.models import Product, Storage, Recipe
 from store_management.utils.error_handling import DatabaseError
 
 

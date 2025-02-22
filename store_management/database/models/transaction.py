@@ -1,72 +1,91 @@
-"""
-File: database/models/transaction.py
-Transaction model definitions.
-Represents inventory transactions for parts and leather.
-"""
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, Text, DateTime, Enum
+# Path: database/models/transaction.py
+from sqlalchemy import Column, Integer, Float, DateTime, String, Text, ForeignKey
 from sqlalchemy.orm import relationship
-import datetime
-import enum
-
-from database.models.base import Base
-
-
-class TransactionType(enum.Enum):
-    """Enumeration for transaction types."""
-    PURCHASE = "purchase"
-    PRODUCTION = "production"
-    ADJUSTMENT = "adjustment"
-    RETURN = "return"
-    WASTAGE = "wastage"
-    TRANSFER = "transfer"
+from sqlalchemy.sql import func
+from enum import Enum, auto
+from .base import BaseModel
 
 
-class InventoryTransaction(Base):
+class TransactionType(Enum):
     """
-    InventoryTransaction model representing transactions for parts inventory.
+    Enum representing different types of inventory transactions.
+    """
+    PURCHASE = "Purchase"
+    USAGE = "Usage"
+    TRANSFER = "Transfer"
+    ADJUSTMENT = "Adjustment"
+    RETURN = "Return"
+    PRODUCTION = "Production"
+    WASTE = "Waste"
+
+
+class InventoryTransaction(BaseModel):
+    """
+    Represents a transaction involving inventory parts.
+
+    Attributes:
+        id (int): Unique identifier for the transaction
+        part_id (int): Foreign key to the inventory part
+        transaction_type (TransactionType): Type of transaction
+        quantity_change (float): Quantity change in the transaction
+        date (DateTime): Timestamp of the transaction
+        notes (str): Additional notes about the transaction
+
+        part (relationship): Inventory part involved in the transaction
     """
     __tablename__ = 'inventory_transactions'
-    __table_args__ = {'extend_existing': True}  # Add this to prevent duplicate table errors
 
     id = Column(Integer, primary_key=True)
     part_id = Column(Integer, ForeignKey('parts.id'), nullable=False)
-    date = Column(DateTime, default=datetime.datetime.utcnow)
-    quantity_change = Column(Integer, nullable=False)  # Can be positive or negative
-    transaction_type = Column(String(20), default=TransactionType.ADJUSTMENT.value)
-    order_id = Column(Integer, ForeignKey('orders.id'), nullable=True)
+    transaction_type = Column(String(50), nullable=False)
+    quantity_change = Column(Float, nullable=False)
+    date = Column(DateTime(timezone=True), server_default=func.now())
     notes = Column(Text, nullable=True)
-    performed_by = Column(String(100), nullable=True)
 
-    # Relationships - uncomment and adjust based on your actual relationships
-    # part = relationship("Part", back_populates="transactions")
-    # order = relationship("Order")
+    # Relationships
+    part = relationship('Part', back_populates='transactions')
 
     def __repr__(self):
-        """String representation of the InventoryTransaction model."""
-        return f"<InventoryTransaction(id={self.id}, part_id={self.part_id}, change={self.quantity_change})>"
+        return f"<InventoryTransaction(id={self.id}, part_id={self.part_id}, type='{self.transaction_type}', quantity_change={self.quantity_change})>"
 
 
-class LeatherTransaction(Base):
+class LeatherTransaction(BaseModel):
     """
-    LeatherTransaction model representing transactions for leather inventory.
+    Represents a transaction involving leather materials.
+
+    Attributes:
+        id (int): Unique identifier for the transaction
+        leather_id (int): Foreign key to the leather material
+        transaction_type (TransactionType): Type of transaction
+        area_change (float): Area change in the transaction
+        date (DateTime): Timestamp of the transaction
+        notes (str): Additional notes about the transaction
+        wastage (float): Wastage area during the transaction
+
+        leather (relationship): Leather material involved in the transaction
     """
     __tablename__ = 'leather_transactions'
-    __table_args__ = {'extend_existing': True}  # Add this to prevent duplicate table errors
 
     id = Column(Integer, primary_key=True)
     leather_id = Column(Integer, ForeignKey('leather.id'), nullable=False)
-    date = Column(DateTime, default=datetime.datetime.utcnow)
-    area_change = Column(Float, nullable=False)  # Can be positive or negative
-    transaction_type = Column(String(20), default=TransactionType.ADJUSTMENT.value)
-    order_id = Column(Integer, ForeignKey('orders.id'), nullable=True)
-    wastage = Column(Float, default=0.0)
+    transaction_type = Column(String(50), nullable=False)
+    area_change = Column(Float, nullable=False)
+    date = Column(DateTime(timezone=True), server_default=func.now())
     notes = Column(Text, nullable=True)
-    performed_by = Column(String(100), nullable=True)
+    wastage = Column(Float, default=0.0)
 
-    # Relationships - uncomment and adjust based on your actual relationships
-    # leather = relationship("Leather", back_populates="transactions")
-    # order = relationship("Order")
+    # Relationships
+    leather = relationship('Leather', back_populates='transactions')
 
     def __repr__(self):
-        """String representation of the LeatherTransaction model."""
-        return f"<LeatherTransaction(id={self.id}, leather_id={self.leather_id}, change={self.area_change})>"
+        return f"<LeatherTransaction(id={self.id}, leather_id={self.leather_id}, type='{self.transaction_type}', area_change={self.area_change})>"
+
+    @property
+    def net_area_change(self):
+        """
+        Calculate the net area change, accounting for wastage.
+
+        Returns:
+            float: Net area change after subtracting wastage
+        """
+        return self.area_change - self.wastage

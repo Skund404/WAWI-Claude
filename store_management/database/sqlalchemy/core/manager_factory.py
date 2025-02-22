@@ -2,7 +2,7 @@
 
 from typing import Type, Dict, Any, TypeVar, Optional, Callable, Union, List
 from sqlalchemy.orm import Session
-from store_management.database.sqlalchemy.core.base_manager import BaseManager
+from database.sqlalchemy.core.base_manager import BaseManager
 
 T = TypeVar('T')
 

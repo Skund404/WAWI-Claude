@@ -1,17 +1,14 @@
-# Path: store_management/services/interfaces/storage_service.py
+# services/interfaces/storage_service.py
 from abc import ABC, abstractmethod
-from typing import List, Optional, Dict, Any
-
-from store_management.services.interfaces.base_service import IBaseService
+from typing import Dict, List, Optional, Any
 
 
-class IStorageService(IBaseService):
+class IStorageService(ABC):
     """
-    Interface for storage-related operations.
+    Abstract base class defining the contract for storage services.
 
-    Defines the contract for services managing storage locations
-    This interface establishes a standard set of methods for interacting
-    with storage locations in the application.
+    This interface outlines the operations that can be performed
+    on storage locations in the application.
     """
 
     @abstractmethod
@@ -20,7 +17,7 @@ class IStorageService(IBaseService):
         Retrieve all storage locations.
 
         Returns:
-            A list of dictionaries, each representing a storage location.
+            List of storage locations as dictionaries.
         """
         pass
 
@@ -30,75 +27,72 @@ class IStorageService(IBaseService):
         Retrieve a specific storage location by its ID.
 
         Args:
-            storage_id: The unique identifier of the storage location.
+            storage_id (int): Unique identifier for the storage location.
 
         Returns:
-            A dictionary representing the storage location if found, None otherwise.
+            Dictionary representation of the storage location or None if not found.
         """
         pass
 
     @abstractmethod
-    def create_storage_location(self, storage_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def create_storage_location(self, storage_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Create a new storage location.
 
         Args:
-            storage_data: Dictionary containing storage location information
+            storage_data (dict): Data for the new storage location.
 
         Returns:
-            Created storage location dictionary or None if creation fails
+            Dictionary of the newly created storage location.
         """
         pass
 
     @abstractmethod
-    def update_storage_location(self, storage_id: int, storage_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def update_storage_location(self, storage_id: int, storage_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Update an existing storage location.
 
         Args:
-            storage_id: ID of the storage location to update
-            storage_data: Dictionary with updated storage location information
+            storage_id (int): Unique identifier of the storage location to update.
+            storage_data (dict): Updated data for the storage location.
 
         Returns:
-            Updated storage location dictionary or None if update fails
+            Dictionary of the updated storage location.
         """
         pass
 
     @abstractmethod
-    def delete_storage_location(self, storage_id: int) -> bool:
+    def delete_storage_location(self, storage_id: int) -> None:
         """
         Delete a storage location.
 
         Args:
-            storage_id: ID of the storage location to delete
-
-        Returns:
-            True if deletion was successful, False otherwise
+            storage_id (int): Unique identifier of the storage location to delete.
         """
         pass
 
     @abstractmethod
     def search_storage_locations(self, search_term: str) -> List[Dict[str, Any]]:
         """
-        Search storage locations by location or description.
+        Search storage locations based on a search term.
 
         Args:
-            search_term: Term to search for
+            search_term (str): Term to search for in storage locations.
 
         Returns:
-            List of matching storage locations
+            List of matching storage locations as dictionaries.
         """
         pass
 
     @abstractmethod
     def get_storage_status(self, storage_id: int) -> Optional[Dict[str, Any]]:
         """
-        Get detailed status of a storage location.
+        Get the status of a specific storage location.
 
         Args:
-            storage_id: ID of the storage location
+            storage_id (int): Unique identifier of the storage location.
 
         Returns:
-            Dictionary containing storage status details or None
+            Dictionary with storage status information or None if not found.
         """
         pass

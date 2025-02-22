@@ -2,11 +2,11 @@
 
 from typing import List, Optional, Dict, Any, Tuple
 from datetime import datetime
-from store_management.database.sqlalchemy.models.Part import Part
-from store_management.database.sqlalchemy.models.Leather import Leather
-from store_management.database.sqlalchemy.models.InventoryStatus import InventoryStatus
-from store_management.database.sqlalchemy.models.TransactionType import TransactionType
-from store_management.database.sqlalchemy.models.InventoryTransaction import InventoryTransaction
+from database.models.part import Part
+from database.models.leather import Leather
+from database.models.InventoryStatus import InventoryStatus
+from database.models.TransactionType import TransactionType
+from database.models.InventoryTransaction import InventoryTransaction
 from store_management.database.sqlalchemy.core.manager_factory import get_manager
 
 

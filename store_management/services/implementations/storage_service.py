@@ -1,193 +1,232 @@
-# Path: store_management/services/implementations/storage_service.py
-from typing import List, Optional, Dict, Any
-
-from store_management.di.service import Service
-from store_management.di.container import DependencyContainer
-from store_management.services.interfaces.storage_service import IStorageService
-from store_management.database.sqlalchemy.core.specialized.storage_manager import StorageManager
+# services/implementations/storage_service.py
+from typing import Dict, List, Optional, Any
+from services.interfaces.storage_service import IStorageService
+from database.repositories.storage_repository import StorageRepository
+from di.service import Service
+from utils.logger import get_logger
 
 
 class StorageService(Service, IStorageService):
     """
     Concrete implementation of the IStorageService interface.
 
-    This class provides methods for managing storage locations and their inventory.
+    This service provides methods for managing storage locations
+    with dependency injection and error handling.
     """
 
-    def __init__(self, container: DependencyContainer):
+    def __init__(self, container):
         """
-        Initialize StorageService with a dependency container.
+        Initialize the StorageService with a dependency injection container.
 
         Args:
             container: Dependency injection container
         """
-        super().__init__(container)
-        self.storage_manager = self.get_dependency(StorageManager)
+        self.container = container
+        self.logger = get_logger(self.__class__.__name__)
 
     def get_all_storage_locations(self) -> List[Dict[str, Any]]:
         """
         Retrieve all storage locations.
 
         Returns:
-            A list of dictionaries, each representing a storage location.
+            List of storage locations as dictionaries.
+
+        Raises:
+            Exception: If there's an error retrieving storage locations.
         """
         try:
-            storage_locations = self.storage_manager.get_all()
-            return [self._to_dict(location) for location in storage_locations]
+            repository: StorageRepository = self.container.resolve(StorageRepository)
+            storage_locations = repository.get_all()
+            return [self._to_dict(storage) for storage in storage_locations]
         except Exception as e:
-            print(
-                f"Error retrieving storage locations: {e}")
-            return []
+            self.logger.error(f"Error retrieving storage locations: {e}")
+            raise
 
     def get_storage_by_id(self, storage_id: int) -> Optional[Dict[str, Any]]:
         """
         Retrieve a specific storage location by its ID.
 
         Args:
-            storage_id: The unique identifier of the storage location.
+            storage_id (int): Unique identifier for the storage location.
 
         Returns:
-            A dictionary representing the storage location if found, None otherwise.
+            Dictionary representation of the storage location or None if not found.
+
+        Raises:
+            ValueError: If storage_id is invalid.
         """
+        if not isinstance(storage_id, int) or storage_id <= 0:
+            raise ValueError("Invalid storage ID")
+
         try:
-            storage = self.storage_manager.get(storage_id)
+            repository: StorageRepository = self.container.resolve(StorageRepository)
+            storage = repository.get(storage_id)
             return self._to_dict(storage) if storage else None
         except Exception as e:
-            print(f"Error retrieving storage location {storage_id}: {e}")
-            return None
+            self.logger.error(f"Error retrieving storage location {storage_id}: {e}")
+            raise
 
-    def create_storage_location(self, storage_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def create_storage_location(self, storage_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Create a new storage location.
 
         Args:
-            storage_data: Dictionary containing storage location information
+            storage_data (dict): Data for the new storage location.
 
         Returns:
-            Created storage location dictionary or None if creation fails
-        """
-        try:
-            new_storage = self.storage_manager.create(storage_data)
-            return self._to_dict(new_storage)
-        except Exception as e:
-            print(f"Error creating storage location: {e}")
-            return None
+            Dictionary of the newly created storage location.
 
-    def update_storage_location(self, storage_id: int, storage_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        Raises:
+            ValueError: If storage_data is invalid.
+        """
+        if not storage_data:
+            raise ValueError("Storage data cannot be empty")
+
+        try:
+            repository: StorageRepository = self.container.resolve(StorageRepository)
+            new_storage = repository.create(storage_data)
+            created_storage = self._to_dict(new_storage)
+            self.logger.info(f"Created new storage location: {created_storage}")
+            return created_storage
+        except Exception as e:
+            self.logger.error(f"Error creating storage location: {e}")
+            raise
+
+    def update_storage_location(self, storage_id: int, storage_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Update an existing storage location.
 
         Args:
-            storage_id: ID of the storage location to update
-            storage_data: Dictionary with updated storage location information
+            storage_id (int): Unique identifier of the storage location to update.
+            storage_data (dict): Updated data for the storage location.
 
         Returns:
-            Updated storage location dictionary or None if update fails
-        """
-        try:
-            updated_storage = self.storage_manager.update(storage_id, storage_data)
-            return self._to_dict(updated_storage)
-        except Exception as e:
-            print(f"Error updating storage location {storage_id}: {e}")
-            return None
+            Dictionary of the updated storage location.
 
-    def delete_storage_location(self, storage_id: int) -> bool:
+        Raises:
+            ValueError: If storage_id is invalid or storage_data is empty.
+        """
+        if not isinstance(storage_id, int) or storage_id <= 0:
+            raise ValueError("Invalid storage ID")
+        if not storage_data:
+            raise ValueError("Storage update data cannot be empty")
+
+        try:
+            repository: StorageRepository = self.container.resolve(StorageRepository)
+            updated_storage = repository.update(storage_id, storage_data)
+            updated_dict = self._to_dict(updated_storage)
+            self.logger.info(f"Updated storage location {storage_id}: {updated_dict}")
+            return updated_dict
+        except Exception as e:
+            self.logger.error(f"Error updating storage location {storage_id}: {e}")
+            raise
+
+    def delete_storage_location(self, storage_id: int) -> None:
         """
         Delete a storage location.
 
         Args:
-            storage_id: ID of the storage location to delete
+            storage_id (int): Unique identifier of the storage location to delete.
 
-        Returns:
-            True if deletion was successful, False otherwise
+        Raises:
+            ValueError: If storage_id is invalid.
         """
+        if not isinstance(storage_id, int) or storage_id <= 0:
+            raise ValueError("Invalid storage ID")
+
         try:
-            return self.storage_manager.delete(storage_id)
+            repository: StorageRepository = self.container.resolve(StorageRepository)
+            repository.delete(storage_id)
+            self.logger.info(f"Deleted storage location {storage_id}")
         except Exception as e:
-            print(f"Error deleting storage location {storage_id}: {e}")
-            return False
+            self.logger.error(f"Error deleting storage location {storage_id}: {e}")
+            raise
 
     def search_storage_locations(self, search_term: str) -> List[Dict[str, Any]]:
         """
-        Search storage locations by location or description.
+        Search storage locations based on a search term.
 
         Args:
-            search_term: Term to search for
+            search_term (str): Term to search for in storage locations.
 
         Returns:
-            List of matching storage locations
+            List of matching storage locations as dictionaries.
+
+        Raises:
+            ValueError: If search term is empty.
         """
+        if not search_term or not isinstance(search_term, str):
+            raise ValueError("Search term must be a non-empty string")
+
         try:
-            search_results = self.storage_manager.search(search_term)
-            return [self._to_dict(result) for result in search_results]
+            repository: StorageRepository = self.container.resolve(StorageRepository)
+            storage_locations = repository.search_storage(search_term)
+            return [self._to_dict(storage) for storage in storage_locations]
         except Exception as e:
-            print(f"Error searching storage locations: {e}")
-            return []
+            self.logger.error(f"Error searching storage locations: {e}")
+            raise
 
     def get_storage_status(self, storage_id: int) -> Optional[Dict[str, Any]]:
         """
-        Get detailed status of a storage location.
+        Get the status of a specific storage location.
 
         Args:
-            storage_id: ID of the storage location
+            storage_id (int): Unique identifier of the storage location.
 
         Returns:
-            Dictionary containing storage status details or None
+            Dictionary with storage status information or None if not found.
+
+        Raises:
+            ValueError: If storage_id is invalid.
         """
+        if not isinstance(storage_id, int) or storage_id <= 0:
+            raise ValueError("Invalid storage ID")
+
         try:
-            # This might require a specific method in the storage manager
-            status = self.storage_manager.get_storage_status(storage_id)
+            repository: StorageRepository = self.container.resolve(StorageRepository)
+            storage = repository.get(storage_id)
+
+            if not storage:
+                return None
+
             return {
                 'storage_id': storage_id,
-                'total_capacity': status.get('total_capacity', 0),
-                'used_capacity': status.get('used_capacity', 0),
-                'available_capacity': status.get('available_capacity', 0),
-                'item_count': status.get('item_count', 0),
-                'utilization_percentage': status.get('utilization_percentage', 0)
+                'name': storage.name,
+                'location': storage.location,
+                'type': storage.type,
+                'status': storage.status,
+                'occupancy_percentage': storage.occupancy_percentage(),
+                'total_capacity': storage.capacity,
+                'current_usage': storage.current_occupancy
             }
         except Exception as e:
-            print(f"Error retrieving storage status for {storage_id}: {e}")
-            return None
+            self.logger.error(f"Error retrieving storage status for {storage_id}: {e}")
+            raise
 
-    def _to_dict(self, storage):
+    def _to_dict(self, storage: Any) -> Dict[str, Any]:
         """
-        Convert storage model to dictionary.
+        Convert a storage model to a dictionary.
 
         Args:
-            storage: Storage model instance
+            storage: Storage model instance.
 
         Returns:
-            Dictionary representation of the storage location
+            Dictionary representation of the storage.
         """
-        if not storage:
-            return {}
-
-        # Basic storage location information
-        storage_dict = {
-            'id': storage.id,
-            'location': getattr(storage, 'location', ''),
-            'description': getattr(storage, 'description', ''),
-            'capacity': getattr(storage, 'capacity', 0.0),
-            'current_usage': getattr(storage, 'current_usage', 0.0)
-        }
-
-        # Optional: Add products or other details if available
         try:
-            # Attempt to load products in this storage
-            # This might require a method from the storage manager
-            products = self.storage_manager.get_storage_products(storage.id) if storage.id else []
-
-            storage_dict['products'] = [
-                {
-                    'id': product.id,
-                    'name': getattr(product, 'name', ''),
-                    'quantity': getattr(product, 'quantity', 0),
-                    'category': getattr(product, 'category', '')
-                }
-                for product in products
-            ]
+            return {
+                'id': storage.id,
+                'name': storage.name,
+                'description': storage.description or '',
+                'capacity': storage.capacity,
+                'current_occupancy': storage.current_occupancy,
+                'location': storage.location,
+                'type': storage.type,
+                'status': storage.status,
+                'created_at': storage.created_at,
+                'updated_at': storage.updated_at,
+                'occupancy_percentage': storage.occupancy_percentage()
+            }
         except Exception as e:
-            print(f"Error loading storage products: {e}")
-            storage_dict['products'] = []
-
-        return storage_dict
+            self.logger.error(f"Error converting storage to dict: {e}")
+            raise

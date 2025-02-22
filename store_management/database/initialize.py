@@ -1,87 +1,166 @@
-"""
-File: database/initialize.py
-Database initialization functions.
-Creates database tables and adds initial data.
-"""
+# Path: database/initialize.py
 import logging
-from typing import Optional, Union
-from sqlalchemy import create_engine
+from typing import Optional
+from sqlalchemy import Table, Column, Integer, String, DateTime, MetaData
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 
-# Import from the consolidated model location
-from database.models.base import Base
-# We don't need to import all models explicitly since they register with Base.metadata
+from database.sqlalchemy.config import DatabaseConfig
+from database.models.storage import Storage  # Adjust this import as needed
+from utils.logger import log_error
 
-def initialize_database(drop_existing: Optional[bool] = False) -> None:
+
+def check_column_exists(table_name: str, column_name: str) -> bool:
     """
-    Initialize the database by creating all defined tables.
+    Check if a specific column exists in a table.
 
     Args:
-        drop_existing: If True, drops all existing tables before creating new ones
+        table_name (str): Name of the table to check
+        column_name (str): Name of the column to verify
 
-    Raises:
-        SQLAlchemyError: If database initialization fails
+    Returns:
+        bool: True if column exists, False otherwise
     """
     try:
-        from database.sqlalchemy.config import get_database_url
-        db_url = get_database_url()
-        engine = create_engine(db_url)
+        config = DatabaseConfig()
+        engine = config.get_engine()
+        inspector = engine.dialect.inspector(engine)
+        columns = inspector.get_columns(table_name)
+        return any(col['name'] == column_name for col in columns)
+    except Exception as e:
+        log_error(f"Error checking column {column_name} in {table_name}", e)
+        return False
 
-        if drop_existing:
-            logging.info("Dropping all existing tables...")
-            Base.metadata.drop_all(engine)
 
-        logging.info("Creating database tables...")
-        Base.metadata.create_all(engine)
-
-        # Optionally add initial data
-        add_initial_data(engine)
-
-        logging.info("Database initialization complete")
-    except SQLAlchemyError as e:
-        logging.error(f"Database initialization failed: {str(e)}")
-        raise
-
-def add_initial_data(engine) -> None:
+def migrate_storage_table():
     """
-    Add initial data to the database if needed.
+    Perform migrations specific to the storage table.
 
-    Args:
-        engine: SQLAlchemy engine instance
+    Checks and adds any missing columns to the storage table.
+    Handles database session and potential errors.
     """
-    # Example implementation - adjust according to your needs
     try:
-        from sqlalchemy.orm import sessionmaker
-        Session = sessionmaker(bind=engine)
-        session = Session()
+        config = DatabaseConfig()
+        engine = config.get_engine()
+        metadata = MetaData()
+        metadata.reflect(bind=engine)
+
+        # Get or create storage table
+        storage_table = Table('storage', metadata, autoload_with=engine)
+
+        # Start a session
+        session = config.get_session()
 
         try:
-            # Example: Create default storage locations if none exist
-            from database.models.storage import Storage
+            # Add migration logic here
+            # Example: Add a new column if it doesn't exist
+            if not check_column_exists('storage', 'capacity'):
+                with engine.begin() as connection:
+                    connection.execute(f'ALTER TABLE storage ADD COLUMN capacity REAL')
+                logging.info("Added 'capacity' column to storage table")
 
-            if session.query(Storage).count() == 0:
-                logging.info("Adding default storage locations...")
+            # Commit changes
+            session.commit()
+            logging.info("Storage table migration completed successfully")
 
-                default_storage = [
-                    Storage(name="Main Warehouse", location="Building A",
-                            description="Main storage area", capacity=1000.0),
-                    Storage(name="Production Floor", location="Building B",
-                            description="Production area storage", capacity=500.0),
-                    Storage(name="Retail Storage", location="Store Front",
-                            description="Retail area storage", capacity=200.0)
+        except SQLAlchemyError as migrate_err:
+            # Rollback in case of migration error
+            session.rollback()
+            log_error("Storage table migration failed", migrate_err)
+            raise
+
+        finally:
+            # Always close the session
+            session.close()
+
+    except Exception as e:
+        log_error("Comprehensive storage table migration error", e)
+        raise
+
+
+def add_initial_data():
+    """
+    Add initial data to the database if it's empty.
+
+    This function can be used to populate the database with default/seed data.
+    """
+    try:
+        config = DatabaseConfig()
+        session = config.get_session()
+
+        try:
+            # Check if storage locations exist
+            existing_storage = session.query(Storage).count()
+
+            if existing_storage == 0:
+                # Add default storage locations
+                default_locations = [
+                    Storage(name='Main Warehouse', location='A1', max_capacity=1000),
+                    Storage(name='Incoming Goods', location='B2', max_capacity=500),
+                    Storage(name='Finished Products', location='C3', max_capacity=750)
                 ]
 
-                session.add_all(default_storage)
+                session.add_all(default_locations)
                 session.commit()
+                logging.info("Added initial storage locations")
+            else:
+                logging.info("Storage locations already exist")
 
-            # Add other initial data as needed
-
-        except Exception as e:
+        except SQLAlchemyError as data_err:
             session.rollback()
-            logging.error(f"Failed to add initial data: {str(e)}")
+            log_error("Failed to add initial storage data", data_err)
             raise
+
         finally:
             session.close()
+
     except Exception as e:
-        logging.error(f"Error in add_initial_data: {str(e)}")
+        log_error("Comprehensive initial data addition error", e)
+        raise
+
+
+def initialize_database(drop_existing: bool = False):
+    """
+    Initialize the database, optionally dropping existing tables.
+
+    Args:
+        drop_existing (bool, optional): Whether to drop and recreate all tables.
+                                        Defaults to False.
+    """
+    try:
+        logging.info("Initializing database...")
+        config = DatabaseConfig()
+        engine = config.get_engine()
+
+        # If drop_existing is True, drop all tables and recreate
+        if drop_existing:
+            logging.warning("Dropping all existing tables")
+            from database.sqlalchemy.model_utils import get_model_classes
+            from sqlalchemy.schema import DropTable
+
+            # Get all model classes and their table metadata
+            metadata = MetaData()
+            metadata.reflect(bind=engine)
+
+            # Drop all tables
+            with engine.begin() as connection:
+                for table in reversed(metadata.sorted_tables):
+                    connection.execute(DropTable(table))
+                logging.info("All tables dropped successfully")
+
+        # Create all tables that haven't been created
+        from database.sqlalchemy.base import Base  # Import Base from SQLAlchemy configuration
+        Base.metadata.create_all(engine)
+        logging.info("Database tables created successfully")
+
+        # Run migrations
+        migrate_storage_table()
+
+        # Add initial data
+        add_initial_data()
+
+        logging.info("Database initialization completed successfully")
+
+    except Exception as e:
+        log_error("Database initialization failed", e)
+        raise

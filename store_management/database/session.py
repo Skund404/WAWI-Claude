@@ -1,95 +1,64 @@
-# File: store_management/database/session.py
-import os
-import logging
-from typing import Optional
+# database/session.py
+"""
+Database session management for the store management system.
+Provides functions to create and retrieve SQLAlchemy sessions.
+"""
 
-import sqlalchemy
+import logging
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session
-from sqlalchemy_utils import database_exists, create_database
+from sqlalchemy.ext.declarative import declarative_base
 
-from ..config.settings import get_database_path
-from ..utils.error_handling import DatabaseError
+# Change this relative import to an absolute import
+from config.settings import get_database_path
 
-# Configure logging
-logger = logging.getLogger(__name__)
-
-# Global session factory and engine
-engine = None
-SessionLocal = None
+# Global variables
+_engine = None
+_SessionFactory = None
+Base = declarative_base()
 
 
-def init_database(db_url: Optional[str] = None) -> None:
+def init_database(db_url=None):
     """
-    Initialize the database, creating it if it doesn't exist.
+    Initialize the database connection.
 
     Args:
-        db_url: Optional database URL (uses default if not provided)
+        db_url (str): Database URL. If None, it will be determined from settings.
 
-    Raises:
-        DatabaseError: If database initialization fails
+    Returns:
+        Engine: SQLAlchemy engine
     """
-    global engine, SessionLocal
+    global _engine
+    global _SessionFactory
 
-    try:
-        # Use default database path if no URL is provided
-        if not db_url:
-            db_path = get_database_path()
-            db_url = f'sqlite:///{db_path}'
+    if not db_url:
+        db_path = get_database_path()
+        db_url = f"sqlite:///{db_path}"
 
-        # Ensure database exists
-        if not database_exists(db_url):
-            logger.info(f"Creating database at {db_url}")
-            create_database(db_url)
+    _engine = create_engine(db_url, echo=False)
+    _SessionFactory = sessionmaker(bind=_engine)
 
-        # Create engine
-        engine = create_engine(
-            db_url,
-            echo=False,  # Set to True for SQLAlchemy logging
-            connect_args={'check_same_thread': False}  # Important for SQLite
-        )
-
-        # Create session factory
-        SessionLocal = scoped_session(sessionmaker(
-            bind=engine,
-            autocommit=False,
-            autoflush=False
-        ))
-
-        logger.info("Database initialized successfully")
-
-    except Exception as e:
-        # Log the full error
-        logger.error(f"Database initialization failed: {e}", exc_info=True)
-
-        # Raise a custom database error
-        raise DatabaseError("Failed to initialize database", str(e))
+    return _engine
 
 
 def get_db_session():
     """
-    Provide a database session.
+    Get a new database session.
 
-    Yields:
-        SQLAlchemy session object
-
-    Raises:
-        DatabaseError: If session creation fails
+    Returns:
+        Session: A new SQLAlchemy session
     """
-    if SessionLocal is None:
-        raise DatabaseError("Database not initialized", "Call init_database() first")
+    global _SessionFactory
 
-    session = SessionLocal()
-    try:
-        yield session
-    finally:
-        session.close()
+    if _SessionFactory is None:
+        init_database()
+
+    return _SessionFactory()
 
 
 def close_db_session():
     """
-    Close all database sessions.
+    Close all sessions
     """
-    if SessionLocal:
-        SessionLocal.remove()
-        logger.info("Database sessions closed")
+    if _SessionFactory:
+        _SessionFactory.close_all()

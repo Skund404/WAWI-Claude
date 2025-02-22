@@ -2,14 +2,14 @@
 from typing import List, Dict, Any, Optional, Tuple, cast
 from datetime import datetime
 
-from store_management.di.service import Service
-from store_management.di.container import DependencyContainer
-from store_management.services.interfaces.shopping_list_service import IShoppingListService
-from store_management.database.sqlalchemy.base_manager import BaseManager
-from store_management.database.sqlalchemy.models.shopping_list import ShoppingList, ShoppingListItem
-from store_management.database.sqlalchemy.models.part import Part
-from store_management.database.sqlalchemy.models.leather import Leather
-from store_management.database.sqlalchemy.models.supplier import Supplier
+from di.service import Service
+from di.container import DependencyContainer
+from services.interfaces.shopping_list_service import IShoppingListService
+from database.sqlalchemy.base_manager import BaseManager
+from database.models.shopping_list import ShoppingList, ShoppingListItem
+from database.models.part import Part
+from database.models.leather import Leather
+from database.models.supplier import Supplier
 
 
 class ShoppingListService(Service, IShoppingListService):

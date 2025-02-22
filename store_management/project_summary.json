@@ -1,6 +1,6 @@
 {
   "project_name": "store_management",
-  "total_files": 191,
+  "total_files": 175,
   "files": {
     "anotator.py": {
       "path": "anotator.py",
@@ -150,6 +150,10 @@
       "path": "main.py",
       "classes": [],
       "functions": [
+        {
+          "name": "setup_logging",
+          "args": []
+        },
         {
           "name": "main",
           "args": []
@@ -472,7 +476,23 @@
       "classes": [],
       "functions": [
         {
+          "name": "_find_project_root",
+          "args": []
+        },
+        {
           "name": "get_database_path",
+          "args": []
+        },
+        {
+          "name": "get_log_path",
+          "args": []
+        },
+        {
+          "name": "get_backup_path",
+          "args": []
+        },
+        {
+          "name": "get_config_path",
           "args": []
         }
       ]
@@ -533,15 +553,24 @@
       "classes": [],
       "functions": [
         {
-          "name": "initialize_database",
+          "name": "check_column_exists",
           "args": [
-            "drop_existing"
+            "table_name",
+            "column_name"
           ]
         },
         {
+          "name": "migrate_storage_table",
+          "args": []
+        },
+        {
           "name": "add_initial_data",
+          "args": []
+        },
+        {
+          "name": "initialize_database",
           "args": [
-            "engine"
+            "drop_existing"
           ]
         }
       ]
@@ -569,7 +598,24 @@
     "database\\__init__.py": {
       "path": "database\\__init__.py",
       "classes": [],
-      "functions": []
+      "functions": [
+        {
+          "name": "initialize_database",
+          "args": [
+            "drop_existing"
+          ]
+        },
+        {
+          "name": "_ensure_all_models_loaded",
+          "args": []
+        },
+        {
+          "name": "add_initial_data",
+          "args": [
+            "engine"
+          ]
+        }
+      ]
     },
     "di\\config.py": {
       "path": "di\\config.py",
@@ -617,24 +663,23 @@
               ]
             },
             {
-              "name": "_get_type_key",
-              "args": [
-                "self",
-                "type_"
-              ]
-            },
-            {
               "name": "register",
               "args": [
                 "self",
                 "interface_type",
                 "implementation_factory",
-                "singleton",
-                "dependencies"
+                "singleton"
               ]
             },
             {
               "name": "resolve",
+              "args": [
+                "self",
+                "interface_type"
+              ]
+            },
+            {
+              "name": "is_registered",
               "args": [
                 "self",
                 "interface_type"
@@ -654,16 +699,9 @@
               ]
             },
             {
-              "name": "get_all_registered_types",
+              "name": "__repr__",
               "args": [
                 "self"
-              ]
-            },
-            {
-              "name": "is_registered",
-              "args": [
-                "self",
-                "interface_type"
               ]
             }
           ],
@@ -1538,7 +1576,8 @@
             {
               "name": "get_logger",
               "args": [
-                "self"
+                "self",
+                "name"
               ]
             }
           ],
@@ -2979,7 +3018,7 @@
             }
           ],
           "base_classes": [
-            "IBaseService"
+            "ABC"
           ]
         }
       ],
@@ -3036,85 +3075,6 @@
     },
     "services\\interfaces\\__init__.py": {
       "path": "services\\interfaces\\__init__.py",
-      "classes": [],
-      "functions": []
-    },
-    "services\\services\\storage_service.py": {
-      "path": "services\\services\\storage_service.py",
-      "classes": [
-        {
-          "name": "IStorageService",
-          "methods": [
-            {
-              "name": "get_all_storage_locations",
-              "args": [
-                "self"
-              ]
-            },
-            {
-              "name": "get_storage_by_id",
-              "args": [
-                "self",
-                "storage_id"
-              ]
-            }
-          ],
-          "base_classes": [
-            "ABC"
-          ]
-        }
-      ],
-      "functions": []
-    },
-    "services\\services\\__init__.py": {
-      "path": "services\\services\\__init__.py",
-      "classes": [],
-      "functions": []
-    },
-    "services\\services\\implementations\\stoarage_service.py": {
-      "path": "services\\services\\implementations\\stoarage_service.py",
-      "classes": [
-        {
-          "name": "StorageService",
-          "methods": [
-            {
-              "name": "__init__",
-              "args": [
-                "self",
-                "container"
-              ]
-            },
-            {
-              "name": "get_all_storage_locations",
-              "args": [
-                "self"
-              ]
-            },
-            {
-              "name": "get_storage_by_id",
-              "args": [
-                "self",
-                "storage_id"
-              ]
-            },
-            {
-              "name": "_to_dict",
-              "args": [
-                "self",
-                "storage"
-              ]
-            }
-          ],
-          "base_classes": [
-            "Service",
-            "IStorageService"
-          ]
-        }
-      ],
-      "functions": []
-    },
-    "services\\services\\implementations\\__init__.py": {
-      "path": "services\\services\\implementations\\__init__.py",
       "classes": [],
       "functions": []
     },
@@ -4649,7 +4609,7 @@
       "path": "database\\models\\base.py",
       "classes": [
         {
-          "name": "Base",
+          "name": "BaseModel",
           "methods": [
             {
               "name": "__repr__",
@@ -4665,7 +4625,7 @@
             }
           ],
           "base_classes": [
-            "DeclarativeBase"
+            "Base"
           ]
         }
       ],
@@ -4723,10 +4683,23 @@
               "args": [
                 "self"
               ]
+            },
+            {
+              "name": "usage_percentage",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "can_fulfill_requirement",
+              "args": [
+                "self",
+                "required_area"
+              ]
             }
           ],
           "base_classes": [
-            "Base"
+            "BaseModel"
           ]
         }
       ],
@@ -4736,6 +4709,20 @@
       "path": "database\\models\\order.py",
       "classes": [
         {
+          "name": "OrderStatus",
+          "methods": [],
+          "base_classes": [
+            "PyEnum"
+          ]
+        },
+        {
+          "name": "PaymentStatus",
+          "methods": [],
+          "base_classes": [
+            "PyEnum"
+          ]
+        },
+        {
           "name": "Order",
           "methods": [
             {
@@ -4743,10 +4730,22 @@
               "args": [
                 "self"
               ]
+            },
+            {
+              "name": "calculate_total_amount",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "update_total_amount",
+              "args": [
+                "self"
+              ]
             }
           ],
           "base_classes": [
-            "Base"
+            "BaseModel"
           ]
         },
         {
@@ -4757,10 +4756,16 @@
               "args": [
                 "self"
               ]
+            },
+            {
+              "name": "update_total_price",
+              "args": [
+                "self"
+              ]
             }
           ],
           "base_classes": [
-            "Base"
+            "BaseModel"
           ]
         }
       ],
@@ -4777,10 +4782,22 @@
               "args": [
                 "self"
               ]
+            },
+            {
+              "name": "total_value",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "needs_reorder",
+              "args": [
+                "self"
+              ]
             }
           ],
           "base_classes": [
-            "Base"
+            "BaseModel"
           ]
         }
       ],
@@ -4797,10 +4814,28 @@
               "args": [
                 "self"
               ]
+            },
+            {
+              "name": "total_value",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "get_primary_recipe",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "calculate_production_cost",
+              "args": [
+                "self"
+              ]
             }
           ],
           "base_classes": [
-            "Base"
+            "BaseModel"
           ]
         }
       ],
@@ -4817,10 +4852,22 @@
               "args": [
                 "self"
               ]
+            },
+            {
+              "name": "calculate_total_cost",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "check_ingredient_availability",
+              "args": [
+                "self"
+              ]
             }
           ],
           "base_classes": [
-            "Base"
+            "BaseModel"
           ]
         },
         {
@@ -4831,10 +4878,22 @@
               "args": [
                 "self"
               ]
+            },
+            {
+              "name": "calculate_item_cost",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "is_available",
+              "args": [
+                "self"
+              ]
             }
           ],
           "base_classes": [
-            "Base"
+            "BaseModel"
           ]
         }
       ],
@@ -4845,30 +4904,16 @@
       "classes": [
         {
           "name": "ShoppingList",
-          "methods": [
-            {
-              "name": "__repr__",
-              "args": [
-                "self"
-              ]
-            }
-          ],
+          "methods": [],
           "base_classes": [
-            "Base"
+            "BaseModel"
           ]
         },
         {
           "name": "ShoppingListItem",
-          "methods": [
-            {
-              "name": "__repr__",
-              "args": [
-                "self"
-              ]
-            }
-          ],
+          "methods": [],
           "base_classes": [
-            "Base"
+            "BaseModel"
           ]
         }
       ],
@@ -4880,6 +4925,12 @@
         {
           "name": "Storage",
           "methods": [
+            {
+              "name": "occupancy_percentage",
+              "args": [
+                "self"
+              ]
+            },
             {
               "name": "__repr__",
               "args": [
@@ -4905,10 +4956,40 @@
               "args": [
                 "self"
               ]
+            },
+            {
+              "name": "total_parts",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "total_products",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "total_leather_materials",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "total_orders",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "get_performance_metrics",
+              "args": [
+                "self"
+              ]
             }
           ],
           "base_classes": [
-            "Base"
+            "BaseModel"
           ]
         }
       ],
@@ -4917,6 +4998,13 @@
     "database\\models\\transaction.py": {
       "path": "database\\models\\transaction.py",
       "classes": [
+        {
+          "name": "TransactionType",
+          "methods": [],
+          "base_classes": [
+            "Enum"
+          ]
+        },
         {
           "name": "InventoryTransaction",
           "methods": [
@@ -4928,7 +5016,7 @@
             }
           ],
           "base_classes": [
-            "Base"
+            "BaseModel"
           ]
         },
         {
@@ -4939,10 +5027,16 @@
               "args": [
                 "self"
               ]
+            },
+            {
+              "name": "net_area_change",
+              "args": [
+                "self"
+              ]
             }
           ],
           "base_classes": [
-            "Base"
+            "BaseModel"
           ]
         }
       ],
@@ -5300,7 +5394,32 @@
     },
     "database\\sqlalchemy\\base.py": {
       "path": "database\\sqlalchemy\\base.py",
-      "classes": [],
+      "classes": [
+        {
+          "name": "CustomBase",
+          "methods": [
+            {
+              "name": "__tablename__",
+              "args": [
+                "cls"
+              ]
+            },
+            {
+              "name": "__repr__",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "to_dict",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": []
+        }
+      ],
       "functions": []
     },
     "database\\sqlalchemy\\base_manager.py": {
@@ -5313,19 +5432,92 @@
               "name": "__init__",
               "args": [
                 "self",
-                "connection_string"
+                "model_class",
+                "session_factory"
               ]
             },
             {
-              "name": "create_tables",
+              "name": "session_scope",
               "args": [
                 "self"
               ]
             },
             {
-              "name": "get_session",
+              "name": "create",
+              "args": [
+                "self",
+                "data"
+              ]
+            },
+            {
+              "name": "get",
+              "args": [
+                "self",
+                "id"
+              ]
+            },
+            {
+              "name": "get_all",
+              "args": [
+                "self",
+                "order_by",
+                "limit"
+              ]
+            },
+            {
+              "name": "update",
+              "args": [
+                "self",
+                "id",
+                "data"
+              ]
+            },
+            {
+              "name": "delete",
+              "args": [
+                "self",
+                "id"
+              ]
+            },
+            {
+              "name": "exists",
+              "args": [
+                "self",
+                "id"
+              ]
+            },
+            {
+              "name": "count",
               "args": [
                 "self"
+              ]
+            },
+            {
+              "name": "filter_by",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "search",
+              "args": [
+                "self",
+                "term",
+                "fields"
+              ]
+            },
+            {
+              "name": "bulk_create",
+              "args": [
+                "self",
+                "items"
+              ]
+            },
+            {
+              "name": "bulk_update",
+              "args": [
+                "self",
+                "items"
               ]
             }
           ],
@@ -5344,6 +5536,12 @@
               "name": "__new__",
               "args": [
                 "cls"
+              ]
+            },
+            {
+              "name": "__init__",
+              "args": [
+                "self"
               ]
             },
             {
@@ -5373,11 +5571,12 @@
             {
               "name": "_create_engine",
               "args": [
-                "self"
+                "self",
+                "db_url"
               ]
             },
             {
-              "name": "_create_session_factory",
+              "name": "get_engine",
               "args": [
                 "self"
               ]
@@ -5391,17 +5590,12 @@
             {
               "name": "close_session",
               "args": [
-                "self"
+                "self",
+                "session"
               ]
             },
             {
               "name": "test_connection",
-              "args": [
-                "self"
-              ]
-            },
-            {
-              "name": "get_database_url",
               "args": [
                 "self"
               ]
@@ -5632,43 +5826,7 @@
     },
     "database\\sqlalchemy\\models.py": {
       "path": "database\\sqlalchemy\\models.py",
-      "classes": [
-        {
-          "name": "InventoryStatus",
-          "methods": [],
-          "base_classes": [
-            "Enum"
-          ]
-        },
-        {
-          "name": "OrderStatus",
-          "methods": [],
-          "base_classes": [
-            "Enum"
-          ]
-        },
-        {
-          "name": "PaymentStatus",
-          "methods": [],
-          "base_classes": [
-            "Enum"
-          ]
-        },
-        {
-          "name": "TransactionType",
-          "methods": [],
-          "base_classes": [
-            "Enum"
-          ]
-        },
-        {
-          "name": "ProductionStatus",
-          "methods": [],
-          "base_classes": [
-            "Enum"
-          ]
-        }
-      ],
+      "classes": [],
       "functions": []
     },
     "database\\sqlalchemy\\model_utils.py": {
@@ -6805,9 +6963,7 @@
               ]
             }
           ],
-          "base_classes": [
-            "BaseManager"
-          ]
+          "base_classes": []
         }
       ],
       "functions": []
@@ -7533,314 +7689,6 @@
       "classes": [],
       "functions": []
     },
-    "database\\sqlalchemy\\models\\base.py": {
-      "path": "database\\sqlalchemy\\models\\base.py",
-      "classes": [
-        {
-          "name": "Base",
-          "methods": [
-            {
-              "name": "__repr__",
-              "args": [
-                "self"
-              ]
-            },
-            {
-              "name": "to_dict",
-              "args": [
-                "self"
-              ]
-            }
-          ],
-          "base_classes": [
-            "DeclarativeBase"
-          ]
-        }
-      ],
-      "functions": []
-    },
-    "database\\sqlalchemy\\models\\enums.py": {
-      "path": "database\\sqlalchemy\\models\\enums.py",
-      "classes": [
-        {
-          "name": "InventoryStatus",
-          "methods": [],
-          "base_classes": [
-            "Enum"
-          ]
-        },
-        {
-          "name": "ProductionStatus",
-          "methods": [],
-          "base_classes": [
-            "Enum"
-          ]
-        },
-        {
-          "name": "TransactionType",
-          "methods": [],
-          "base_classes": [
-            "Enum"
-          ]
-        },
-        {
-          "name": "OrderStatus",
-          "methods": [],
-          "base_classes": [
-            "Enum"
-          ]
-        },
-        {
-          "name": "PaymentStatus",
-          "methods": [],
-          "base_classes": [
-            "Enum"
-          ]
-        }
-      ],
-      "functions": []
-    },
-    "database\\sqlalchemy\\models\\leather.py": {
-      "path": "database\\sqlalchemy\\models\\leather.py",
-      "classes": [
-        {
-          "name": "Leather",
-          "methods": [
-            {
-              "name": "__repr__",
-              "args": [
-                "self"
-              ]
-            }
-          ],
-          "base_classes": [
-            "Base"
-          ]
-        }
-      ],
-      "functions": []
-    },
-    "database\\sqlalchemy\\models\\order.py": {
-      "path": "database\\sqlalchemy\\models\\order.py",
-      "classes": [
-        {
-          "name": "Order",
-          "methods": [
-            {
-              "name": "__repr__",
-              "args": [
-                "self"
-              ]
-            }
-          ],
-          "base_classes": [
-            "Base"
-          ]
-        },
-        {
-          "name": "OrderItem",
-          "methods": [
-            {
-              "name": "__repr__",
-              "args": [
-                "self"
-              ]
-            }
-          ],
-          "base_classes": [
-            "Base"
-          ]
-        }
-      ],
-      "functions": []
-    },
-    "database\\sqlalchemy\\models\\part.py": {
-      "path": "database\\sqlalchemy\\models\\part.py",
-      "classes": [
-        {
-          "name": "Part",
-          "methods": [
-            {
-              "name": "__repr__",
-              "args": [
-                "self"
-              ]
-            }
-          ],
-          "base_classes": [
-            "Base"
-          ]
-        }
-      ],
-      "functions": []
-    },
-    "database\\sqlalchemy\\models\\product.py": {
-      "path": "database\\sqlalchemy\\models\\product.py",
-      "classes": [
-        {
-          "name": "Product",
-          "methods": [
-            {
-              "name": "__repr__",
-              "args": [
-                "self"
-              ]
-            }
-          ],
-          "base_classes": [
-            "Base"
-          ]
-        }
-      ],
-      "functions": []
-    },
-    "database\\sqlalchemy\\models\\recipe.py": {
-      "path": "database\\sqlalchemy\\models\\recipe.py",
-      "classes": [
-        {
-          "name": "Recipe",
-          "methods": [
-            {
-              "name": "__repr__",
-              "args": [
-                "self"
-              ]
-            }
-          ],
-          "base_classes": [
-            "Base"
-          ]
-        },
-        {
-          "name": "RecipeItem",
-          "methods": [
-            {
-              "name": "__repr__",
-              "args": [
-                "self"
-              ]
-            }
-          ],
-          "base_classes": [
-            "Base"
-          ]
-        }
-      ],
-      "functions": []
-    },
-    "database\\sqlalchemy\\models\\shopping_list.py": {
-      "path": "database\\sqlalchemy\\models\\shopping_list.py",
-      "classes": [
-        {
-          "name": "ShoppingList",
-          "methods": [
-            {
-              "name": "__repr__",
-              "args": [
-                "self"
-              ]
-            }
-          ],
-          "base_classes": [
-            "Base"
-          ]
-        },
-        {
-          "name": "ShoppingListItem",
-          "methods": [
-            {
-              "name": "__repr__",
-              "args": [
-                "self"
-              ]
-            }
-          ],
-          "base_classes": [
-            "Base"
-          ]
-        }
-      ],
-      "functions": []
-    },
-    "database\\sqlalchemy\\models\\storage.py": {
-      "path": "database\\sqlalchemy\\models\\storage.py",
-      "classes": [
-        {
-          "name": "Storage",
-          "methods": [
-            {
-              "name": "__repr__",
-              "args": [
-                "self"
-              ]
-            }
-          ],
-          "base_classes": [
-            "Base"
-          ]
-        }
-      ],
-      "functions": []
-    },
-    "database\\sqlalchemy\\models\\supplier.py": {
-      "path": "database\\sqlalchemy\\models\\supplier.py",
-      "classes": [
-        {
-          "name": "Supplier",
-          "methods": [
-            {
-              "name": "__repr__",
-              "args": [
-                "self"
-              ]
-            }
-          ],
-          "base_classes": [
-            "Base"
-          ]
-        }
-      ],
-      "functions": []
-    },
-    "database\\sqlalchemy\\models\\transaction.py": {
-      "path": "database\\sqlalchemy\\models\\transaction.py",
-      "classes": [
-        {
-          "name": "InventoryTransaction",
-          "methods": [
-            {
-              "name": "__repr__",
-              "args": [
-                "self"
-              ]
-            }
-          ],
-          "base_classes": [
-            "Base"
-          ]
-        },
-        {
-          "name": "LeatherTransaction",
-          "methods": [
-            {
-              "name": "__repr__",
-              "args": [
-                "self"
-              ]
-            }
-          ],
-          "base_classes": [
-            "Base"
-          ]
-        }
-      ],
-      "functions": []
-    },
-    "database\\sqlalchemy\\models\\__init__.py": {
-      "path": "database\\sqlalchemy\\models\\__init__.py",
-      "classes": [],
-      "functions": []
-    },
     "database\\sqlalchemy\\migrations\\versions\\202402201_add_relationships.py": {
       "path": "database\\sqlalchemy\\migrations\\versions\\202402201_add_relationships.py",
       "classes": [],
@@ -7902,7 +7750,8 @@
               "name": "get_low_stock_leather",
               "args": [
                 "self",
-                "include_out_of_stock"
+                "include_out_of_stock",
+                "supplier_id"
               ]
             },
             {
@@ -7913,7 +7762,9 @@
               ]
             }
           ],
-          "base_classes": []
+          "base_classes": [
+            "BaseManager"
+          ]
         }
       ],
       "functions": []
@@ -7997,7 +7848,9 @@
               ]
             }
           ],
-          "base_classes": []
+          "base_classes": [
+            "BaseManager"
+          ]
         }
       ],
       "functions": []

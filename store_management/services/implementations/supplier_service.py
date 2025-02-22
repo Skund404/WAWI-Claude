@@ -1,10 +1,10 @@
 # Path: store_management/services/implementations/supplier_service.py
 from typing import List, Optional, Dict, Any
 
-from store_management.di.service import Service
-from store_management.di.container import DependencyContainer
-from store_management.services.interfaces.supplier_service import ISupplierService
-from store_management.database.sqlalchemy.core.specialized.supplier_manager import SupplierManager
+from di.service import Service
+from di.container import DependencyContainer
+from services.interfaces.supplier_service import ISupplierService
+from database.sqlalchemy.core.specialized.supplier_manager import SupplierManager
 
 
 class SupplierService(Service, ISupplierService):

@@ -1,5 +1,5 @@
 # Project Analysis: store_management
-Total Python files: 191
+Total Python files: 175
 
 ## anotator.py
 
@@ -61,6 +61,7 @@ Methods:
 ## main.py
 
 ### Functions:
+- setup_logging()
 - main()
 
 ---
@@ -179,7 +180,11 @@ Methods:
 ## config\settings.py
 
 ### Functions:
+- _find_project_root()
 - get_database_path()
+- get_log_path()
+- get_backup_path()
+- get_config_path()
 
 ---
 
@@ -212,8 +217,10 @@ Methods:
 ## database\initialize.py
 
 ### Functions:
+- check_column_exists(table_name, column_name)
+- migrate_storage_table()
+- add_initial_data()
 - initialize_database(drop_existing)
-- add_initial_data(engine)
 
 ---
 
@@ -227,6 +234,11 @@ Methods:
 ---
 
 ## database\__init__.py
+
+### Functions:
+- initialize_database(drop_existing)
+- _ensure_all_models_loaded()
+- add_initial_data(engine)
 
 ---
 
@@ -251,13 +263,12 @@ Methods:
 
 Methods:
 - __init__(self)
-- _get_type_key(self, type_)
-- register(self, interface_type, implementation_factory, singleton, dependencies)
+- register(self, interface_type, implementation_factory, singleton)
 - resolve(self, interface_type)
+- is_registered(self, interface_type)
 - get_service(self, interface_type)
 - clear(self)
-- get_all_registered_types(self)
-- is_registered(self, interface_type)
+- __repr__(self)
 
 ---
 
@@ -556,7 +567,7 @@ Methods:
 Methods:
 - __new__(cls)
 - _initialize_logger(self)
-- get_logger(self)
+- get_logger(self, name)
 
 ### Functions:
 - get_logger(name)
@@ -992,7 +1003,7 @@ Methods:
 ### Classes:
 
 #### IStorageService
-Inherits from: IBaseService
+Inherits from: ABC
 
 Methods:
 - get_all_storage_locations(self)
@@ -1022,42 +1033,6 @@ Methods:
 ---
 
 ## services\interfaces\__init__.py
-
----
-
-## services\services\storage_service.py
-
-### Classes:
-
-#### IStorageService
-Inherits from: ABC
-
-Methods:
-- get_all_storage_locations(self)
-- get_storage_by_id(self, storage_id)
-
----
-
-## services\services\__init__.py
-
----
-
-## services\services\implementations\stoarage_service.py
-
-### Classes:
-
-#### StorageService
-Inherits from: Service, IStorageService
-
-Methods:
-- __init__(self, container)
-- get_all_storage_locations(self)
-- get_storage_by_id(self, storage_id)
-- _to_dict(self, storage)
-
----
-
-## services\services\implementations\__init__.py
 
 ---
 
@@ -1476,8 +1451,8 @@ Methods:
 
 ### Classes:
 
-#### Base
-Inherits from: DeclarativeBase
+#### BaseModel
+Inherits from: Base
 
 Methods:
 - __repr__(self)
@@ -1511,10 +1486,12 @@ Inherits from: Enum
 ### Classes:
 
 #### Leather
-Inherits from: Base
+Inherits from: BaseModel
 
 Methods:
 - __repr__(self)
+- usage_percentage(self)
+- can_fulfill_requirement(self, required_area)
 
 ---
 
@@ -1522,17 +1499,26 @@ Methods:
 
 ### Classes:
 
+#### OrderStatus
+Inherits from: PyEnum
+
+#### PaymentStatus
+Inherits from: PyEnum
+
 #### Order
-Inherits from: Base
+Inherits from: BaseModel
 
 Methods:
 - __repr__(self)
+- calculate_total_amount(self)
+- update_total_amount(self)
 
 #### OrderItem
-Inherits from: Base
+Inherits from: BaseModel
 
 Methods:
 - __repr__(self)
+- update_total_price(self)
 
 ---
 
@@ -1541,10 +1527,12 @@ Methods:
 ### Classes:
 
 #### Part
-Inherits from: Base
+Inherits from: BaseModel
 
 Methods:
 - __repr__(self)
+- total_value(self)
+- needs_reorder(self)
 
 ---
 
@@ -1553,10 +1541,13 @@ Methods:
 ### Classes:
 
 #### Product
-Inherits from: Base
+Inherits from: BaseModel
 
 Methods:
 - __repr__(self)
+- total_value(self)
+- get_primary_recipe(self)
+- calculate_production_cost(self)
 
 ---
 
@@ -1565,16 +1556,20 @@ Methods:
 ### Classes:
 
 #### Recipe
-Inherits from: Base
+Inherits from: BaseModel
 
 Methods:
 - __repr__(self)
+- calculate_total_cost(self)
+- check_ingredient_availability(self)
 
 #### RecipeItem
-Inherits from: Base
+Inherits from: BaseModel
 
 Methods:
 - __repr__(self)
+- calculate_item_cost(self)
+- is_available(self)
 
 ---
 
@@ -1583,16 +1578,10 @@ Methods:
 ### Classes:
 
 #### ShoppingList
-Inherits from: Base
-
-Methods:
-- __repr__(self)
+Inherits from: BaseModel
 
 #### ShoppingListItem
-Inherits from: Base
-
-Methods:
-- __repr__(self)
+Inherits from: BaseModel
 
 ---
 
@@ -1604,6 +1593,7 @@ Methods:
 Inherits from: Base
 
 Methods:
+- occupancy_percentage(self)
 - __repr__(self)
 
 ---
@@ -1613,10 +1603,15 @@ Methods:
 ### Classes:
 
 #### Supplier
-Inherits from: Base
+Inherits from: BaseModel
 
 Methods:
 - __repr__(self)
+- total_parts(self)
+- total_products(self)
+- total_leather_materials(self)
+- total_orders(self)
+- get_performance_metrics(self)
 
 ---
 
@@ -1624,17 +1619,21 @@ Methods:
 
 ### Classes:
 
+#### TransactionType
+Inherits from: Enum
+
 #### InventoryTransaction
-Inherits from: Base
+Inherits from: BaseModel
 
 Methods:
 - __repr__(self)
 
 #### LeatherTransaction
-Inherits from: Base
+Inherits from: BaseModel
 
 Methods:
 - __repr__(self)
+- net_area_change(self)
 
 ---
 
@@ -1774,6 +1773,15 @@ Methods:
 
 ## database\sqlalchemy\base.py
 
+### Classes:
+
+#### CustomBase
+
+Methods:
+- __tablename__(cls)
+- __repr__(self)
+- to_dict(self)
+
 ---
 
 ## database\sqlalchemy\base_manager.py
@@ -1783,9 +1791,19 @@ Methods:
 #### BaseManager
 
 Methods:
-- __init__(self, connection_string)
-- create_tables(self)
-- get_session(self)
+- __init__(self, model_class, session_factory)
+- session_scope(self)
+- create(self, data)
+- get(self, id)
+- get_all(self, order_by, limit)
+- update(self, id, data)
+- delete(self, id)
+- exists(self, id)
+- count(self)
+- filter_by(self)
+- search(self, term, fields)
+- bulk_create(self, items)
+- bulk_update(self, items)
 
 ---
 
@@ -1797,16 +1815,16 @@ Methods:
 
 Methods:
 - __new__(cls)
+- __init__(self)
 - _initialize(self)
 - _find_project_root(self)
 - _load_config(self)
 - _get_database_url(self)
-- _create_engine(self)
-- _create_session_factory(self)
+- _create_engine(self, db_url)
+- get_engine(self)
 - get_session(self)
-- close_session(self)
+- close_session(self, session)
 - test_connection(self)
-- get_database_url(self)
 
 ### Functions:
 - get_database_url()
@@ -1873,23 +1891,6 @@ Methods:
 ---
 
 ## database\sqlalchemy\models.py
-
-### Classes:
-
-#### InventoryStatus
-Inherits from: Enum
-
-#### OrderStatus
-Inherits from: Enum
-
-#### PaymentStatus
-Inherits from: Enum
-
-#### TransactionType
-Inherits from: Enum
-
-#### ProductionStatus
-Inherits from: Enum
 
 ---
 
@@ -2149,7 +2150,6 @@ Methods:
 ### Classes:
 
 #### StorageManager
-Inherits from: BaseManager
 
 Methods:
 - __init__(self, session_factory)
@@ -2403,176 +2403,6 @@ Methods:
 
 ---
 
-## database\sqlalchemy\models\base.py
-
-### Classes:
-
-#### Base
-Inherits from: DeclarativeBase
-
-Methods:
-- __repr__(self)
-- to_dict(self)
-
----
-
-## database\sqlalchemy\models\enums.py
-
-### Classes:
-
-#### InventoryStatus
-Inherits from: Enum
-
-#### ProductionStatus
-Inherits from: Enum
-
-#### TransactionType
-Inherits from: Enum
-
-#### OrderStatus
-Inherits from: Enum
-
-#### PaymentStatus
-Inherits from: Enum
-
----
-
-## database\sqlalchemy\models\leather.py
-
-### Classes:
-
-#### Leather
-Inherits from: Base
-
-Methods:
-- __repr__(self)
-
----
-
-## database\sqlalchemy\models\order.py
-
-### Classes:
-
-#### Order
-Inherits from: Base
-
-Methods:
-- __repr__(self)
-
-#### OrderItem
-Inherits from: Base
-
-Methods:
-- __repr__(self)
-
----
-
-## database\sqlalchemy\models\part.py
-
-### Classes:
-
-#### Part
-Inherits from: Base
-
-Methods:
-- __repr__(self)
-
----
-
-## database\sqlalchemy\models\product.py
-
-### Classes:
-
-#### Product
-Inherits from: Base
-
-Methods:
-- __repr__(self)
-
----
-
-## database\sqlalchemy\models\recipe.py
-
-### Classes:
-
-#### Recipe
-Inherits from: Base
-
-Methods:
-- __repr__(self)
-
-#### RecipeItem
-Inherits from: Base
-
-Methods:
-- __repr__(self)
-
----
-
-## database\sqlalchemy\models\shopping_list.py
-
-### Classes:
-
-#### ShoppingList
-Inherits from: Base
-
-Methods:
-- __repr__(self)
-
-#### ShoppingListItem
-Inherits from: Base
-
-Methods:
-- __repr__(self)
-
----
-
-## database\sqlalchemy\models\storage.py
-
-### Classes:
-
-#### Storage
-Inherits from: Base
-
-Methods:
-- __repr__(self)
-
----
-
-## database\sqlalchemy\models\supplier.py
-
-### Classes:
-
-#### Supplier
-Inherits from: Base
-
-Methods:
-- __repr__(self)
-
----
-
-## database\sqlalchemy\models\transaction.py
-
-### Classes:
-
-#### InventoryTransaction
-Inherits from: Base
-
-Methods:
-- __repr__(self)
-
-#### LeatherTransaction
-Inherits from: Base
-
-Methods:
-- __repr__(self)
-
----
-
-## database\sqlalchemy\models\__init__.py
-
----
-
 ## database\sqlalchemy\migrations\versions\202402201_add_relationships.py
 
 ### Functions:
@@ -2598,11 +2428,12 @@ Methods:
 ### Classes:
 
 #### LeatherManager
+Inherits from: BaseManager
 
 Methods:
 - get_leather_with_transactions(self, leather_id)
 - update_leather_area(self, leather_id, area_change, transaction_type, notes, wastage)
-- get_low_stock_leather(self, include_out_of_stock)
+- get_low_stock_leather(self, include_out_of_stock, supplier_id)
 - get_by_supplier(self, supplier_id)
 
 ---
@@ -2627,6 +2458,7 @@ Methods:
 ### Classes:
 
 #### PartManager
+Inherits from: BaseManager
 
 Methods:
 - get_part_with_transactions(self, part_id)

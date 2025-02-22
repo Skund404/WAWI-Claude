@@ -1,18 +1,37 @@
-"""
-File: database/models/__init__.py
-Model imports for database package.
-Centralizes model imports to prevent circular dependencies.
-"""
-from database.models.base import Base
-from database.models.part import Part
-from database.models.storage import Storage
+# Path: database/models/__init__.py
+# Import the base from SQLAlchemy configuration
+from database.sqlalchemy.base import Base
 
-# Import other models as needed
-# Uncomment as you implement these models
-# from database.models.product import Product
-# from database.models.supplier import Supplier
-# from database.models.order import Order, OrderItem
-# from database.models.recipe import Recipe, RecipeItem
-# from database.models.shopping_list import ShoppingList, ShoppingListItem
-# from database.models.leather import Leather
-# from database.models.transaction import InventoryTransaction, LeatherTransaction
+# Import all model classes to ensure they are loaded and registered with Base
+from .order import Order, OrderItem
+from .part import Part
+from .leather import Leather
+from .product import Product
+from .recipe import Recipe, RecipeItem
+from .shopping_list import ShoppingList, ShoppingListItem
+from .storage import Storage
+from .supplier import Supplier
+from .transaction import InventoryTransaction, LeatherTransaction
+from .enums import (
+    InventoryStatus,
+    ProductionStatus,
+    TransactionType,
+    OrderStatus,
+    PaymentStatus
+)
+
+# List of all model classes for convenience
+__all__ = [
+    'Base',
+    'Order', 'OrderItem',
+    'Part',
+    'Leather',
+    'Product',
+    'Recipe', 'RecipeItem',
+    'ShoppingList', 'ShoppingListItem',
+    'Storage',
+    'Supplier',
+    'InventoryTransaction', 'LeatherTransaction',
+    'InventoryStatus', 'ProductionStatus',
+    'TransactionType', 'OrderStatus', 'PaymentStatus'
+]

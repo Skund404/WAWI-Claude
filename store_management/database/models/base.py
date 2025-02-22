@@ -1,25 +1,46 @@
+# database/models/base.py
 """
-File: database/models/base.py
-Base model definition for all SQLAlchemy models.
-Provides common functionality for model classes.
+Base model definition for all SQLAlchemy models in the system.
+Provides common functionality and base class for all models.
 """
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import inspect
 
-# Create a single base class for all models
+from sqlalchemy import Column, Integer, DateTime, func
+from sqlalchemy.ext.declarative import declarative_base
+from datetime import datetime
+
+# Create the base class
 Base = declarative_base()
 
-
-def to_dict(self):
+class BaseModel(Base):
     """
-    Convert model instance to dictionary.
-
-    Returns:
-        dict: Dictionary representation of the model
+    Abstract base model that all other models should inherit from.
+    Provides common columns and methods.
     """
-    return {c.key: getattr(self, c.key)
-            for c in inspect(self).mapper.column_attrs}
+    __abstract__ = True
 
+    # Common columns for all tables
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
-# Add common method to all models
-Base.to_dict = to_dict
+    def __repr__(self):
+        """String representation of the model instance"""
+        return f"<{self.__class__.__name__}(id={getattr(self, 'id', None)})>"
+
+    def to_dict(self):
+        """
+        Convert model instance to dictionary.
+
+        Returns:
+            dict: Dictionary representation of the model
+        """
+        result = {}
+        for column in self.__table__.columns:
+            value = getattr(self, column.name)
+
+            # Handle datetime objects
+            if isinstance(value, datetime):
+                value = value.isoformat()
+
+            result[column.name] = value
+
+        return result

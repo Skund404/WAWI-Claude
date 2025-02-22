@@ -1,49 +1,48 @@
 # database/sqlalchemy/core/specialized/leather_manager.py
 """
-database/sqlalchemy/core/specialized/leather_manager.py
-Specialized manager for Leather models with additional capabilities.
+Specialized manager for Leather-related database operations.
 """
 
-from typing import List, Optional, Dict, Any, Tuple
-from datetime import datetime
-from sqlalchemy import select, and_, or_, func
-from sqlalchemy.orm import joinedload
+from typing import List, Optional, Union
 
-from store_management.database.sqlalchemy.core.base_manager import BaseManager
-from store_management.database.sqlalchemy.models import Leather, LeatherTransaction, InventoryStatus, TransactionType
-from store_management.utils.error_handling import DatabaseError
+from database.sqlalchemy.base_manager import BaseManager
+from database.sqlalchemy.models import (
+    Leather,
+    LeatherTransaction,
+    InventoryStatus,
+    TransactionType
+)
 
 
-class LeatherManager(BaseManager[Leather]):
+class LeatherManager(BaseManager):
     """
-    Specialized manager for Leather model operations.
+    Specialized manager for handling Leather-related database operations.
 
-    Extends BaseManager with leather-specific operations.
+    Provides methods for managing leather inventory, transactions,
+    and stock-related queries.
     """
 
     def get_leather_with_transactions(self, leather_id: int) -> Optional[Leather]:
         """
-        Get leather with its transaction history.
+        Retrieve a leather item with its associated transactions.
 
         Args:
-            leather_id: Leather ID
+            leather_id (int): The unique identifier of the leather item.
 
         Returns:
-            Leather with transactions loaded or None if not found
-
-        Raises:
-            DatabaseError: If retrieval fails
+            Optional[Leather]: The leather item with its transactions, or None if not found.
         """
         try:
             with self.session_scope() as session:
-                query = select(Leather).options(
-                    joinedload(Leather.transactions)
-                ).where(Leather.id == leather_id)
-
-                result = session.execute(query)
-                return result.scalars().first()
+                leather = session.query(Leather).filter(Leather.id == leather_id).first()
+                if leather:
+                    # Eager load transactions if needed
+                    leather.transactions  # This will fetch related transactions
+                return leather
         except Exception as e:
-            raise DatabaseError(f"Failed to retrieve leather with transactions", str(e))
+            # Assuming self._logger is available from BaseManager
+            self._logger.error(f"Error retrieving leather with transactions: {e}")
+            return None
 
     def update_leather_area(
             self,
@@ -52,109 +51,96 @@ class LeatherManager(BaseManager[Leather]):
             transaction_type: TransactionType,
             notes: Optional[str] = None,
             wastage: Optional[float] = None
-    ) -> Tuple[Optional[Leather], Optional[LeatherTransaction]]:
+    ) -> bool:
         """
-        Update leather area with transaction tracking.
+        Update leather area and create a corresponding transaction.
 
         Args:
-            leather_id: Leather ID
-            area_change: Change in area (positive or negative)
-            transaction_type: Type of transaction
-            notes: Optional transaction notes
-            wastage: Optional wastage area
+            leather_id (int): The unique identifier of the leather.
+            area_change (float): The amount to change in area (can be positive or negative).
+            transaction_type (TransactionType): The type of stock transaction.
+            notes (Optional[str], optional): Additional notes about the transaction. Defaults to None.
+            wastage (Optional[float], optional): Wastage amount during the transaction. Defaults to None.
 
         Returns:
-            Tuple of (updated Leather, created Transaction)
-
-        Raises:
-            DatabaseError: If update fails
+            bool: True if the update was successful, False otherwise.
         """
         try:
             with self.session_scope() as session:
-                # Get the leather
-                leather = session.get(Leather, leather_id)
+                leather = session.query(Leather).filter(Leather.id == leather_id).first()
                 if not leather:
-                    return None, None
+                    self._logger.warning(f"Leather with ID {leather_id} not found.")
+                    return False
 
-                # Check if we're removing area and have enough
-                if area_change < 0 and leather.area + area_change < 0:
-                    raise ValueError(f"Not enough area. Current: {leather.area}, Change: {area_change}")
-
-                # Update area
-                old_area = leather.area
-                leather.area += area_change
-
-                # Update status if needed
-                if leather.area <= 0:
-                    leather.status = InventoryStatus.OUT_OF_STOCK
-                elif leather.area <= leather.min_area:
-                    leather.status = InventoryStatus.LOW_STOCK
-                else:
-                    leather.status = InventoryStatus.IN_STOCK
+                # Update leather area
+                leather.current_area += area_change
 
                 # Create transaction record
                 transaction = LeatherTransaction(
                     leather_id=leather_id,
                     area_change=area_change,
-                    previous_area=old_area,
-                    new_area=leather.area,
                     transaction_type=transaction_type,
-                    transaction_date=datetime.now(),
                     notes=notes,
                     wastage=wastage
                 )
-
                 session.add(transaction)
-                session.flush()
 
-                return leather, transaction
+                return True
         except Exception as e:
-            raise DatabaseError(f"Failed to update leather area", str(e))
+            self._logger.error(f"Error updating leather area: {e}")
+            return False
 
-    def get_low_stock_leather(self, include_out_of_stock: bool = True) -> List[Leather]:
+    def get_low_stock_leather(
+            self,
+            include_out_of_stock: bool = False,
+            supplier_id: Optional[int] = None
+    ) -> List[Leather]:
         """
-        Get leather items with low stock levels.
+        Retrieve leather items with low stock.
 
         Args:
-            include_out_of_stock: Whether to include out of stock items
+            include_out_of_stock (bool, optional): Whether to include leather with zero area.
+                                                   Defaults to False.
+            supplier_id (Optional[int], optional): Filter by specific supplier. Defaults to None.
 
         Returns:
-            List of Leather instances with low stock
-
-        Raises:
-            DatabaseError: If retrieval fails
+            List[Leather]: List of leather items with low stock.
         """
         try:
             with self.session_scope() as session:
-                # Build the query
-                query = select(Leather).where(
-                    Leather.area <= Leather.min_area
-                )
+                query = session.query(Leather)
 
-                if not include_out_of_stock:
-                    query = query.where(Leather.area > 0)
+                # Filter by low stock
+                if include_out_of_stock:
+                    query = query.filter(Leather.current_area <= Leather.min_area)
+                else:
+                    query = query.filter(
+                        (Leather.current_area <= Leather.min_area) &
+                        (Leather.current_area > 0)
+                    )
 
-                # Order by area ratio (area / min_area)
-                query = query.order_by(
-                    (Leather.area / Leather.min_area).asc()
-                )
+                # Optional supplier filter
+                if supplier_id is not None:
+                    query = query.filter(Leather.supplier_id == supplier_id)
 
-                result = session.execute(query)
-                return list(result.scalars().all())
+                return query.all()
         except Exception as e:
-            raise DatabaseError(f"Failed to get low stock leather", str(e))
+            self._logger.error(f"Error retrieving low stock leather: {e}")
+            return []
 
     def get_by_supplier(self, supplier_id: int) -> List[Leather]:
         """
-        Get leather by supplier.
+        Retrieve leather items associated with a specific supplier.
 
         Args:
-            supplier_id: Supplier ID
+            supplier_id (int): The unique identifier of the supplier.
 
         Returns:
-            List of leather from the specified supplier
-
-        Raises:
-            DatabaseError: If retrieval fails
+            List[Leather]: List of leather items from the specified supplier.
         """
-        return self.filter_by(supplier_id=supplier_id)
+        try:
+            with self.session_scope() as session:
+                return session.query(Leather).filter(Leather.supplier_id == supplier_id).all()
+        except Exception as e:
+            self._logger.error(f"Error retrieving leather by supplier: {e}")
+            return []

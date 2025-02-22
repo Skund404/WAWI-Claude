@@ -8,9 +8,9 @@ from typing import List, Optional, Dict, Any, Tuple
 from sqlalchemy import select, and_, or_, func
 from sqlalchemy.orm import joinedload
 
-from store_management.database.sqlalchemy.core.base_manager import BaseManager
-from store_management.database.sqlalchemy.models import Recipe, RecipeItem, Part, Leather
-from store_management.utils.error_handling import DatabaseError
+from database.sqlalchemy.core.base_manager import BaseManager
+from database.sqlalchemy.models import Recipe, RecipeItem, Part, Leather
+from utils.error_handling import DatabaseError
 
 
 class RecipeManager(BaseManager[Recipe]):
