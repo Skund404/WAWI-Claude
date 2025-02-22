@@ -1,144 +1,130 @@
-# File: store_management/gui/base_view.py
-# Description: Base View Component for GUI Applications
-
+# Path: gui/base_view.py
+"""
+Base view that all other views will inherit from.
+This provides common functionality for all views.
+"""
 import tkinter as tk
-import tkinter.ttk as ttk
-import tkinter.messagebox as messagebox
-from typing import Any, Optional, Type
+from tkinter import ttk, messagebox
+import logging
 
-from application import Application
-from services.interfaces.base_service import IBaseService
-
+logger = logging.getLogger(__name__)
 
 class BaseView(ttk.Frame):
     """
-    Base class for all view components in the application.
-
-    Provides common functionality for GUI views:
-    - Service resolution
-    - Basic error handling
-    - Message dialogs
-    - Lifecycle management methods
-
-    Attributes:
-        _app (Application): Reference to the main application instance
-        _parent (tk.Widget): Parent widget for this view
+    Base view class that provides common functionality for all views.
     """
 
-    def __init__(self, parent: tk.Widget, app: Application):
+    def __init__(self, parent, app):
         """
         Initialize the base view.
 
         Args:
             parent: Parent widget
-            app: Main application instance
+            app: Application instance
         """
         super().__init__(parent)
+        self.parent = parent
+        self.app = app
+        self.pack(fill=tk.BOTH, expand=True)
 
-        # Store references to parent and application
-        self._parent = parent
-        self._app = app
+        logger.debug(f"BaseView initialized with app: {app}")
 
-    def get_service(self, service_type: Type[IBaseService]) -> IBaseService:
+    def get_service(self, service_type):
         """
-        Retrieve a service from the application's dependency container.
+        Get a service from the application.
 
         Args:
             service_type: Type of service to retrieve
 
         Returns:
-            Resolved service instance
-
-        Raises:
-            ValueError: If service cannot be resolved
+            Service instance
         """
-        return self._app.get_service(service_type)
+        try:
+            if self.app is not None and hasattr(self.app, 'get_service'):
+                service = self.app.get_service(service_type)
+                logger.debug(f"Service retrieved: {service_type}")
+                return service
+            else:
+                logger.warning("App not available or doesn't have get_service method")
+                return None
+        except Exception as e:
+            logger.error(f"Error getting service {service_type}: {str(e)}")
+            return None
 
-    def load_data(self) -> None:
-        """
-        Load initial data for the view.
-
-        Subclasses should override this method to implement
-        data loading logic specific to the view.
-        """
+    def load_data(self):
+        """Load data for the view. To be implemented by subclasses."""
         pass
 
-    def save(self) -> None:
-        """
-        Save current view data.
-
-        Subclasses should override this method to implement
-        data saving logic specific to the view.
-        """
+    def save(self):
+        """Save data from the view. To be implemented by subclasses."""
         pass
 
-    def undo(self) -> None:
-        """
-        Undo the last action in the view.
-
-        Subclasses should override this method to implement
-        undo functionality specific to the view.
-        """
+    def undo(self):
+        """Undo the last action. To be implemented by subclasses."""
         pass
 
-    def redo(self) -> None:
-        """
-        Redo the last undone action in the view.
-
-        Subclasses should override this method to implement
-        redo functionality specific to the view.
-        """
+    def redo(self):
+        """Redo the last undone action. To be implemented by subclasses."""
         pass
 
-    def show_error(self, title: str, message: str) -> None:
+    def show_error(self, title, message):
         """
-        Display an error message dialog.
+        Show an error message.
 
         Args:
-            title: Title of the error dialog
-            message: Error message to display
+            title: Title of the message
+            message: Error message
         """
         messagebox.showerror(title, message)
+        logger.error(f"Error: {title} - {message}")
 
-    def show_info(self, title: str, message: str) -> None:
+    def show_info(self, title, message):
         """
-        Display an information message dialog.
+        Show an information message.
 
         Args:
-            title: Title of the info dialog
-            message: Information message to display
+            title: Title of the message
+            message: Information message
         """
         messagebox.showinfo(title, message)
+        logger.info(f"Info: {title} - {message}")
 
-    def show_warning(self, title: str, message: str) -> None:
+    def show_warning(self, title, message):
         """
-        Display a warning message dialog.
+        Show a warning message.
 
         Args:
-            title: Title of the warning dialog
-            message: Warning message to display
+            title: Title of the message
+            message: Warning message
         """
         messagebox.showwarning(title, message)
+        logger.warning(f"Warning: {title} - {message}")
 
-    def confirm(self, title: str, message: str) -> bool:
+    def confirm(self, title, message):
         """
-        Show a confirmation dialog with Yes/No options.
+        Show a confirmation dialog.
 
         Args:
-            title: Title of the confirmation dialog
-            message: Confirmation message to display
+            title: Title of the message
+            message: Confirmation message
 
         Returns:
-            True if user clicks Yes, False otherwise
+            bool: True if the user confirmed, False otherwise
         """
         return messagebox.askyesno(title, message)
 
-    def set_status(self, message: str) -> None:
+    def set_status(self, message):
         """
-        Set status message in the main window.
+        Set the status message in the status bar.
 
         Args:
-            message: Status message to display
+            message: Status message
         """
-        if hasattr(self._parent, 'set_status'):
-            self._parent.set_status(message)
+        try:
+            # Try to set the status in the main window if it has a set_status method
+            if hasattr(self.parent, 'set_status'):
+                self.parent.set_status(message)
+            elif hasattr(self.app, 'main_window') and hasattr(self.app.main_window, 'set_status'):
+                self.app.main_window.set_status(message)
+        except Exception as e:
+            logger.warning(f"Could not set status: {str(e)}")

@@ -2,8 +2,8 @@
 """Factory for creating database managers."""
 from typing import Type, Dict, Any, TypeVar, Optional, Callable, Union, List
 from sqlalchemy.orm import Session
-from store_management.database.sqlalchemy.base_manager import BaseManager
-from store_management.database.session import get_db_session
+from database.sqlalchemy.base_manager import BaseManager
+from database.session import get_db_session
 
 T = TypeVar('T')
 

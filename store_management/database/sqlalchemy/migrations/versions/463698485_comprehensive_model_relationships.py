@@ -12,7 +12,7 @@ from sqlalchemy.dialects import sqlite
 from enum import Enum
 
 # Import your enum types (if using custom enums)
-from store_management.database.sqlalchemy.models import InventoryStatus, ProductionStatus, TransactionType
+from database.sqlalchemy.models import InventoryStatus, ProductionStatus, TransactionType
 
 
 def upgrade():

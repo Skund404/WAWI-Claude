@@ -10,7 +10,7 @@ from sqlalchemy.orm import joinedload
 
 from database.sqlalchemy.core.base_manager import BaseManager
 from database.models import Product, Storage, Recipe
-from store_management.utils.error_handling import DatabaseError
+from utils.error_handling import DatabaseError
 
 
 class ProductManager(BaseManager[Product]):

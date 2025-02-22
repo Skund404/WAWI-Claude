@@ -12,8 +12,8 @@ import pandas as pd
 from utils.logger import logger, log_error
 from utils.error_handler import ErrorHandler, check_database_connection, DatabaseError
 from config import TABLES, COLORS
-from store_management.config import get_database_path
-from store_management.database.base import DatabaseManager
+from config import get_database_path
+from database.base import DatabaseManager
 
 
 class SupplierView(ttk.Frame):

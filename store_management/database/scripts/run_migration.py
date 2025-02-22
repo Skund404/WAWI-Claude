@@ -1,8 +1,8 @@
 # database/scripts/initialize_db.py
 
 from sqlalchemy import create_engine
-from store_management.database.sqlalchemy.models import Base
-from store_management.database.sqlalchemy.session import DATABASE_URL
+from database.sqlalchemy.models import Base
+from database.sqlalchemy.session import DATABASE_URL
 
 
 def initialize_database():

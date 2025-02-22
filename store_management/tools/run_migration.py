@@ -10,8 +10,8 @@ import sys
 from pathlib import Path
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from store_management.database.models.base import Base
-from store_management.config.application_config import ApplicationConfig
+from database.models.base import Base
+from config.application_config import ApplicationConfig
 
 
 def setup_logging():

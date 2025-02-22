@@ -1,6 +1,6 @@
 {
   "project_name": "store_management",
-  "total_files": 175,
+  "total_files": 174,
   "files": {
     "anotator.py": {
       "path": "anotator.py",
@@ -119,10 +119,28 @@
               ]
             },
             {
+              "name": "_register_services",
+              "args": [
+                "self"
+              ]
+            },
+            {
               "name": "get_service",
               "args": [
                 "self",
                 "service_type"
+              ]
+            },
+            {
+              "name": "run",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "quit",
+              "args": [
+                "self"
               ]
             }
           ],
@@ -151,7 +169,7 @@
       "classes": [],
       "functions": [
         {
-          "name": "setup_logging",
+          "name": "create_necessary_directories",
           "args": []
         },
         {
@@ -445,25 +463,31 @@
               ]
             },
             {
-              "name": "_initialize",
-              "args": [
-                "self"
-              ]
-            },
-            {
               "name": "get",
               "args": [
+                "cls",
                 "key",
                 "default"
               ]
             },
             {
               "name": "is_debug",
-              "args": []
+              "args": [
+                "cls"
+              ]
             },
             {
               "name": "get_log_level",
-              "args": []
+              "args": [
+                "cls"
+              ]
+            },
+            {
+              "name": "set_debug",
+              "args": [
+                "cls",
+                "enable"
+              ]
             }
           ],
           "base_classes": []
@@ -553,19 +577,22 @@
       "classes": [],
       "functions": [
         {
-          "name": "check_column_exists",
+          "name": "create_storage_table",
           "args": [
-            "table_name",
-            "column_name"
+            "engine"
           ]
         },
         {
           "name": "migrate_storage_table",
-          "args": []
+          "args": [
+            "engine"
+          ]
         },
         {
           "name": "add_initial_data",
-          "args": []
+          "args": [
+            "session"
+          ]
         },
         {
           "name": "initialize_database",
@@ -850,25 +877,25 @@
               ]
             },
             {
+              "name": "_setup_window",
+              "args": [
+                "self"
+              ]
+            },
+            {
               "name": "_create_menu",
               "args": [
                 "self"
               ]
             },
             {
-              "name": "_create_main_notebook",
+              "name": "_create_notebook",
               "args": [
                 "self"
               ]
             },
             {
               "name": "_create_status_bar",
-              "args": [
-                "self"
-              ]
-            },
-            {
-              "name": "_bind_global_shortcuts",
               "args": [
                 "self"
               ]
@@ -883,52 +910,35 @@
             {
               "name": "_on_new",
               "args": [
-                "self",
-                "event"
+                "self"
               ]
             },
             {
               "name": "_on_open",
               "args": [
-                "self",
-                "event"
+                "self"
               ]
             },
             {
               "name": "_on_save",
               "args": [
-                "self",
-                "event"
+                "self"
               ]
             },
             {
               "name": "_on_undo",
               "args": [
-                "self",
-                "event"
+                "self"
               ]
             },
             {
               "name": "_on_redo",
-              "args": [
-                "self",
-                "event"
-              ]
-            },
-            {
-              "name": "_get_current_view",
               "args": [
                 "self"
               ]
             },
             {
               "name": "_on_exit",
-              "args": [
-                "self"
-              ]
-            },
-            {
-              "name": "run",
               "args": [
                 "self"
               ]
@@ -1178,16 +1188,6 @@
       "path": "services\\__init__.py",
       "classes": [],
       "functions": []
-    },
-    "src\\database_init.py": {
-      "path": "src\\database_init.py",
-      "classes": [],
-      "functions": [
-        {
-          "name": "init_database",
-          "args": []
-        }
-      ]
     },
     "src\\__init__.py": {
       "path": "src\\__init__.py",
@@ -1557,34 +1557,16 @@
     },
     "utils\\logger.py": {
       "path": "utils\\logger.py",
-      "classes": [
-        {
-          "name": "AppLogger",
-          "methods": [
-            {
-              "name": "__new__",
-              "args": [
-                "cls"
-              ]
-            },
-            {
-              "name": "_initialize_logger",
-              "args": [
-                "self"
-              ]
-            },
-            {
-              "name": "get_logger",
-              "args": [
-                "self",
-                "name"
-              ]
-            }
-          ],
-          "base_classes": []
-        }
-      ],
+      "classes": [],
       "functions": [
+        {
+          "name": "setup_logging",
+          "args": [
+            "log_level",
+            "log_dir",
+            "log_filename"
+          ]
+        },
         {
           "name": "get_logger",
           "args": [
@@ -4926,13 +4908,26 @@
           "name": "Storage",
           "methods": [
             {
-              "name": "occupancy_percentage",
+              "name": "__init__",
+              "args": [
+                "self",
+                "name",
+                "location",
+                "capacity",
+                "current_occupancy",
+                "type",
+                "description",
+                "status"
+              ]
+            },
+            {
+              "name": "__repr__",
               "args": [
                 "self"
               ]
             },
             {
-              "name": "__repr__",
+              "name": "occupancy_percentage",
               "args": [
                 "self"
               ]
@@ -5399,12 +5394,6 @@
           "name": "CustomBase",
           "methods": [
             {
-              "name": "__tablename__",
-              "args": [
-                "cls"
-              ]
-            },
-            {
               "name": "__repr__",
               "args": [
                 "self"
@@ -5539,40 +5528,9 @@
               ]
             },
             {
-              "name": "__init__",
-              "args": [
-                "self"
-              ]
-            },
-            {
               "name": "_initialize",
               "args": [
                 "self"
-              ]
-            },
-            {
-              "name": "_find_project_root",
-              "args": [
-                "self"
-              ]
-            },
-            {
-              "name": "_load_config",
-              "args": [
-                "self"
-              ]
-            },
-            {
-              "name": "_get_database_url",
-              "args": [
-                "self"
-              ]
-            },
-            {
-              "name": "_create_engine",
-              "args": [
-                "self",
-                "db_url"
               ]
             },
             {
@@ -5607,11 +5565,9 @@
       "functions": [
         {
           "name": "get_database_url",
-          "args": []
-        },
-        {
-          "name": "get_database_path",
-          "args": []
+          "args": [
+            "config"
+          ]
         }
       ]
     },

@@ -1,58 +1,83 @@
-# File: store_management/config/environment.py
+# Path: config/environment.py
 import os
-from pathlib import Path
-from dotenv import load_dotenv
+import logging
+from typing import Optional
 
 
 class EnvironmentManager:
     """
-    Centralized environment configuration management
+    Manage application environment configuration.
     """
-    _instance = None
+    _debug_mode = False
+    _log_level = 'INFO'
 
+    @classmethod
     def __new__(cls):
-        if not cls._instance:
-            cls._instance = super().__new__(cls)
-            cls._instance._initialize()
-        return cls._instance
-
-    def _initialize(self):
-        # Determine project root
-        self.project_root = Path(__file__).resolve().parents[2]
-
-        # Potential .env file locations
-        env_paths = [
-            self.project_root / '.env',
-            self.project_root / '.env.local',
-        ]
-
-        # Load first existing .env file
-        for env_path in env_paths:
-            if env_path.exists():
-                load_dotenv(env_path)
-                break
-
-    @staticmethod
-    def get(key: str, default: str = None) -> str:
         """
-        Retrieve environment variable with optional default
-        """
-        return os.getenv(key, default)
+        Prevent direct instantiation.
 
-    @staticmethod
-    def is_debug() -> bool:
+        Returns:
+            EnvironmentManager: Class reference
         """
-        Check if application is in debug mode
-        """
-        return EnvironmentManager.get('DEBUG', 'False').lower() == 'true'
+        raise TypeError("EnvironmentManager is a static class and cannot be instantiated")
 
-    @staticmethod
-    def get_log_level() -> str:
+    @classmethod
+    def get(cls, key: str, default: Optional[str] = None) -> Optional[str]:
         """
-        Get configured log level
+        Get an environment variable.
+
+        Args:
+            key (str): Environment variable name
+            default (Optional[str]): Default value if not found
+
+        Returns:
+            Optional[str]: Environment variable value
         """
-        return EnvironmentManager.get('LOG_LEVEL', 'INFO')
+        return os.environ.get(key, default)
 
+    @classmethod
+    def is_debug(cls) -> bool:
+        """
+        Check if application is in debug mode.
 
-# Create a singleton instance
-env = EnvironmentManager()
+        Returns:
+            bool: True if in debug mode, False otherwise
+        """
+        # Check environment variable or class attribute
+        debug_env = os.environ.get('DEBUG', '').lower()
+        return debug_env in ('1', 'true', 'yes') or cls._debug_mode
+
+    @classmethod
+    def get_log_level(cls) -> str:
+        """
+        Get the current logging level.
+
+        Returns:
+            str: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+        """
+        # Check environment variable first
+        log_level_env = os.environ.get('LOG_LEVEL', '').upper()
+
+        # Use environment variable if valid, otherwise use class attribute
+        if log_level_env in ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']:
+            return log_level_env
+
+        # If debugging is enabled, default to DEBUG
+        if cls.is_debug():
+            return 'DEBUG'
+
+        # Return default or configured log level
+        return cls._log_level
+
+    @classmethod
+    def set_debug(cls, enable: bool = True):
+        """
+        Enable or disable debug mode.
+
+        Args:
+            enable (bool): Whether to enable debug mode
+        """
+        cls._debug_mode = enable
+
+        # Adjust log level when debug mode changes
+        cls._log_level = 'DEBUG' if enable else 'INFO'

@@ -15,7 +15,7 @@ sys.path.insert(0, project_root)
 
 # Lazy import to prevent circular dependencies
 def get_base_metadata():
-    from store_management.database.sqlalchemy.models import Base
+    from database.sqlalchemy.models import Base
     return Base.metadata
 
 
@@ -71,7 +71,7 @@ def main(config_file: Optional[str] = None) -> None:
     config = context.config
 
     # Set SQLAlchemy URL dynamically
-    from store_management.database.sqlalchemy.session import DATABASE_URL
+    from database.sqlalchemy.session import DATABASE_URL
     config.set_main_option('sqlalchemy.url', DATABASE_URL)
 
     # Determine migration mode
@@ -159,7 +159,7 @@ class MigrationTracker:
         from alembic.runtime.migration import MigrationContext
         from sqlalchemy import create_engine
 
-        from store_management.database.sqlalchemy.session import DATABASE_URL
+        from database.sqlalchemy.session import DATABASE_URL
 
         alembic_cfg = Config('alembic.ini')
         script = ScriptDirectory.from_config(alembic_cfg)

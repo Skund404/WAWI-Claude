@@ -2,7 +2,7 @@
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Optional, Tuple
 
-from store_management.services.interfaces.base_service import IBaseService
+from services.interfaces.base_service import IBaseService
 
 
 class IRecipeService(IBaseService):

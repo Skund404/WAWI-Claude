@@ -1,5 +1,5 @@
 # Project Analysis: store_management
-Total Python files: 175
+Total Python files: 174
 
 ## anotator.py
 
@@ -43,7 +43,10 @@ Methods:
 
 Methods:
 - __init__(self)
+- _register_services(self)
 - get_service(self, service_type)
+- run(self)
+- quit(self)
 
 ---
 
@@ -61,7 +64,7 @@ Methods:
 ## main.py
 
 ### Functions:
-- setup_logging()
+- create_necessary_directories()
 - main()
 
 ---
@@ -170,10 +173,10 @@ Methods:
 
 Methods:
 - __new__(cls)
-- _initialize(self)
-- get(key, default)
-- is_debug()
-- get_log_level()
+- get(cls, key, default)
+- is_debug(cls)
+- get_log_level(cls)
+- set_debug(cls, enable)
 
 ---
 
@@ -217,9 +220,9 @@ Methods:
 ## database\initialize.py
 
 ### Functions:
-- check_column_exists(table_name, column_name)
-- migrate_storage_table()
-- add_initial_data()
+- create_storage_table(engine)
+- migrate_storage_table(engine)
+- add_initial_data(session)
 - initialize_database(drop_existing)
 
 ---
@@ -319,19 +322,17 @@ Methods:
 
 Methods:
 - __init__(self, root, app)
+- _setup_window(self)
 - _create_menu(self)
-- _create_main_notebook(self)
+- _create_notebook(self)
 - _create_status_bar(self)
-- _bind_global_shortcuts(self)
 - set_status(self, message)
-- _on_new(self, event)
-- _on_open(self, event)
-- _on_save(self, event)
-- _on_undo(self, event)
-- _on_redo(self, event)
-- _get_current_view(self)
+- _on_new(self)
+- _on_open(self)
+- _on_save(self)
+- _on_undo(self)
+- _on_redo(self)
 - _on_exit(self)
-- run(self)
 
 ---
 
@@ -417,13 +418,6 @@ Methods:
 ---
 
 ## services\__init__.py
-
----
-
-## src\database_init.py
-
-### Functions:
-- init_database()
 
 ---
 
@@ -560,16 +554,8 @@ Methods:
 
 ## utils\logger.py
 
-### Classes:
-
-#### AppLogger
-
-Methods:
-- __new__(cls)
-- _initialize_logger(self)
-- get_logger(self, name)
-
 ### Functions:
+- setup_logging(log_level, log_dir, log_filename)
 - get_logger(name)
 - log_error(error, context)
 - log_info(message)
@@ -1593,8 +1579,9 @@ Inherits from: BaseModel
 Inherits from: Base
 
 Methods:
-- occupancy_percentage(self)
+- __init__(self, name, location, capacity, current_occupancy, type, description, status)
 - __repr__(self)
+- occupancy_percentage(self)
 
 ---
 
@@ -1778,7 +1765,6 @@ Methods:
 #### CustomBase
 
 Methods:
-- __tablename__(cls)
 - __repr__(self)
 - to_dict(self)
 
@@ -1815,20 +1801,14 @@ Methods:
 
 Methods:
 - __new__(cls)
-- __init__(self)
 - _initialize(self)
-- _find_project_root(self)
-- _load_config(self)
-- _get_database_url(self)
-- _create_engine(self, db_url)
 - get_engine(self)
 - get_session(self)
 - close_session(self, session)
 - test_connection(self)
 
 ### Functions:
-- get_database_url()
-- get_database_path()
+- get_database_url(config)
 
 ---
 

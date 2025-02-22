@@ -1,6 +1,6 @@
 from typing import List, Dict, Any, Optional, Tuple
 from sqlalchemy import select, func
-from store_management.database.sqlalchemy.session import get_db_session
+from database.sqlalchemy.session import get_db_session
 
 
 class PaginatedQueryMixin:

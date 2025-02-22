@@ -3,9 +3,9 @@
 import unittest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from store_management.database.models.base import Base
-from store_management.database.models.storage import Storage
-from store_management.database.repositories.storage_repository import StorageRepository
+from database.models.base import Base
+from database.models.storage import Storage
+from database.repositories.storage_repository import StorageRepository
 
 
 class TestStorageRepository(unittest.TestCase):

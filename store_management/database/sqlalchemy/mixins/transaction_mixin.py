@@ -1,6 +1,6 @@
 from typing import Optional, Dict, Any, Type, TypeVar, Generic, Callable
 from contextlib import contextmanager
-from store_management.database.sqlalchemy.session import get_db_session
+from database.sqlalchemy.session import get_db_session
 
 T = TypeVar('T')
 

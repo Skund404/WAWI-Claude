@@ -68,7 +68,7 @@ class StorageRepository(BaseManager[Storage]):
                 }
             except Exception as e:
                 # Use error handling from previous implementation
-                from store_management.utils.error_handling import handle_database_error
+                from utils.error_handling import handle_database_error
                 raise handle_database_error("get_storage_with_details", e)
 
     def search_storage(self, search_term: str) -> List[Storage]:
@@ -99,7 +99,7 @@ def get_storage_repository(session: Optional[Session] = None) -> StorageReposito
     Returns:
         StorageRepository instance
     """
-    from store_management.database.sqlalchemy.session import get_db_session
+    from database.sqlalchemy.session import get_db_session
 
     # If a session is provided, create a custom session factory
     if session:

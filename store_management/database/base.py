@@ -1,46 +1,41 @@
-# File: database/sqlalchemy/models/base.py
-# Purpose: Provide base declarative model for SQLAlchemy
-
+# Path: database/base.py
+"""
+Defines the SQLAlchemy base class for all models.
+"""
+import logging
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, Integer, DateTime
-from datetime import datetime
+from sqlalchemy.orm import declarative_base
+from sqlalchemy.ext.declarative import declared_attr
 
-# Create base declarative class
+logger = logging.getLogger(__name__)
+
+# Create the declarative base
 Base = declarative_base()
 
 
 class BaseModel(Base):
     """
-    Abstract base model providing common fields and behaviors.
-
-    Automatically adds:
-    - Primary key (id)
-    - Creation timestamp
-    - Last update timestamp
+    Base model class that adds common functionality to all models.
     """
     __abstract__ = True
 
-    id = Column(Integer, primary_key=True)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    @declared_attr
+    def __tablename__(cls):
+        return cls.__name__.lower()
 
     def __repr__(self):
-        """
-        Default string representation of the model.
-
-        Returns:
-            String representation with class name and ID
-        """
-        return f"<{self.__class__.__name__}(id={self.id})>"
+        """Create a string representation of the model."""
+        attrs = []
+        for col in self.__table__.columns:
+            attrs.append(f"{col.name}={getattr(self, col.name)}")
+        return f"<{self.__class__.__name__}({', '.join(attrs)})>"
 
     def to_dict(self):
-        """
-        Convert model instance to dictionary.
+        """Convert the model to a dictionary."""
+        result = {}
+        for col in self.__table__.columns:
+            result[col.name] = getattr(self, col.name)
+        return result
 
-        Returns:
-            Dictionary representation of the model
-        """
-        return {
-            column.name: getattr(self, column.name)
-            for column in self.__table__.columns
-        }
+
+logger.debug("Base and BaseModel classes defined")

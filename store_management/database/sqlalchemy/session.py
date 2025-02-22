@@ -7,8 +7,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.pool import NullPool
 from sqlalchemy_utils import database_exists, create_database
-from store_management.database.sqlalchemy.base import Base
-from store_management.utils.error_handling import DatabaseError
+from database.sqlalchemy.base import Base
+from utils.error_handling import DatabaseError
 
 # Default database URL
 DEFAULT_DATABASE_URL = "sqlite:///store_management.db"

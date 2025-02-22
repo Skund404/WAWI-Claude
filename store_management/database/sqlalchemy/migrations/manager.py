@@ -10,9 +10,9 @@ from alembic.script import ScriptDirectory
 from alembic.runtime.migration import MigrationContext
 from sqlalchemy import create_engine, inspect
 
-from store_management.database.sqlalchemy.base_manager import BaseManager
-from store_management.utils.error_handler import DatabaseError
-from store_management.utils.logger import logger
+from database.sqlalchemy.base_manager import BaseManager
+from utils.error_handler import DatabaseError
+from utils.logger import logger
 
 
 class MigrationManager:
@@ -140,7 +140,7 @@ class MigrationManager:
         """
         try:
             # Get model metadata
-            from store_management.database.sqlalchemy.models import Base
+            from database.sqlalchemy.models import Base
             expected_tables = Base.metadata.tables.keys()
 
             # Get actual database tables

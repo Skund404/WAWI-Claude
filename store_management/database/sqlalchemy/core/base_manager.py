@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select, inspect, and_, or_, func
 from sqlalchemy.exc import SQLAlchemyError
 
-from store_management.utils.error_handling import DatabaseError
+from utils.error_handling import DatabaseError
 
 # Type variable for the model class
 T = TypeVar('T')

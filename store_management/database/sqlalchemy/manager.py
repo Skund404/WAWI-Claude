@@ -8,8 +8,8 @@ from contextlib import contextmanager
 from typing import List, Optional, Dict, Any, Type, Union
 from datetime import datetime
 
-from store_management.database.sqlalchemy.models.base import Base
-import store_management.database.sqlalchemy.models as models
+from database.sqlalchemy.models.base import Base
+import database.sqlalchemy.models as models
 
 class DatabaseError(Exception):
     """Custom database error for SQLAlchemy operations"""

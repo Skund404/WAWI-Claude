@@ -7,10 +7,10 @@ from sqlalchemy import or_
 from typing import Optional, Dict, Any
 import uuid
 
-from store_management.database.sqlalchemy.models import (
+from database.sqlalchemy.models import (
     Storage, Product, Recipe
 )
-from store_management.database.sqlalchemy.manager import DatabaseManagerSQLAlchemy
+from database.sqlalchemy.manager import DatabaseManagerSQLAlchemy
 
 
 class StorageView(ttk.Frame):

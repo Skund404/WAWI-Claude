@@ -6,15 +6,15 @@ from typing import List, Optional, Dict
 
 from sqlalchemy.orm import Session
 
-from store_management.database.sqlalchemy.models import (
+from database.sqlalchemy.models import (
     Order,
     OrderStatus,
     PaymentStatus
 )
-from store_management.database.sqlalchemy.managers.order_manager import OrderManager
-from store_management.utils.exporters.order_exporter import OrderExporter
-from store_management.utils.validators.order_validator import OrderValidator
-from store_management.gui.base_view import BaseView
+from database.sqlalchemy.managers.order_manager import OrderManager
+from utils.exporters.order_exporter import OrderExporter
+from utils.validators.order_validator import OrderValidator
+from gui.base_view import BaseView
 
 
 class IncomingGoodsView(BaseView):

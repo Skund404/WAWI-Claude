@@ -3,9 +3,9 @@
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 
-from store_management.database.sqlalchemy.models import Order, OrderDetail, Supplier, Storage, Product
-from store_management.database.sqlalchemy.models.order import OrderStatus, PaymentStatus
-from store_management.database.sqlalchemy.session import get_session
+from database.sqlalchemy.models import Order, OrderDetail, Supplier, Storage, Product
+from database.sqlalchemy.models.order import OrderStatus, PaymentStatus
+from database.sqlalchemy.session import get_session
 
 class IncomingGoodsManager:
     def __init__(self):

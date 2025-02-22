@@ -1,15 +1,13 @@
 # Path: database/models/__init__.py
-# Import the base from SQLAlchemy configuration
-from database.sqlalchemy.base import Base
+# Import all models to ensure they're registered with SQLAlchemy
 
-# Import all model classes to ensure they are loaded and registered with Base
-from .order import Order, OrderItem
+from .storage import Storage
 from .part import Part
 from .leather import Leather
+from .order import Order, OrderItem
 from .product import Product
 from .recipe import Recipe, RecipeItem
 from .shopping_list import ShoppingList, ShoppingListItem
-from .storage import Storage
 from .supplier import Supplier
 from .transaction import InventoryTransaction, LeatherTransaction
 from .enums import (
@@ -20,18 +18,11 @@ from .enums import (
     PaymentStatus
 )
 
-# List of all model classes for convenience
+# List of all model classes for easy reference
 __all__ = [
-    'Base',
-    'Order', 'OrderItem',
-    'Part',
-    'Leather',
-    'Product',
-    'Recipe', 'RecipeItem',
-    'ShoppingList', 'ShoppingListItem',
-    'Storage',
-    'Supplier',
-    'InventoryTransaction', 'LeatherTransaction',
-    'InventoryStatus', 'ProductionStatus',
+    'Storage', 'Part', 'Leather', 'Order', 'OrderItem',
+    'Product', 'Recipe', 'RecipeItem', 'ShoppingList',
+    'ShoppingListItem', 'Supplier', 'InventoryTransaction',
+    'LeatherTransaction', 'InventoryStatus', 'ProductionStatus',
     'TransactionType', 'OrderStatus', 'PaymentStatus'
 ]

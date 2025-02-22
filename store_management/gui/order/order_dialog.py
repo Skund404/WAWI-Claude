@@ -7,7 +7,7 @@ import tkinter.messagebox as messagebox
 from typing import List, Dict, Any, Optional, Callable
 from datetime import datetime
 
-from store_management.gui.dialogs.base_dialog import BaseDialog
+from gui.dialogs.base_dialog import BaseDialog
 
 
 class AddOrderDialog(BaseDialog):

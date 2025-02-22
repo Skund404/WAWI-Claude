@@ -69,7 +69,7 @@ def _create_manager(model_class: Type[T],
     """
     # Use default session factory if none provided
     if session_factory is None:
-        from store_management.database.sqlalchemy.session import get_db_session
+        from database.sqlalchemy.session import get_db_session
         session_factory = get_db_session
 
     # Check if there's a specialized manager for this model

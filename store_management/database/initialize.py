@@ -1,166 +1,159 @@
 # Path: database/initialize.py
 import logging
 from typing import Optional
-from sqlalchemy import Table, Column, Integer, String, DateTime, MetaData
-from sqlalchemy.orm import Session
-from sqlalchemy.exc import SQLAlchemyError
 
-from database.sqlalchemy.config import DatabaseConfig
-from database.models.storage import Storage  # Adjust this import as needed
-from utils.logger import log_error
+from sqlalchemy import create_engine, inspect
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.exc import SQLAlchemyError, NoSuchTableError
+from sqlalchemy.schema import CreateTable
+
+from config.settings import get_database_path
+from database.sqlalchemy.config import get_database_url
+from utils.logger import get_logger
+
+# Dynamically import models to ensure they're loaded
+from database.models.storage import Storage  # Ensure model is imported
+from database.sqlalchemy.base import Base
+
+logger = get_logger(__name__)
 
 
-def check_column_exists(table_name: str, column_name: str) -> bool:
+def create_storage_table(engine):
     """
-    Check if a specific column exists in a table.
+    Create tables based on SQLAlchemy models, handling existing tables.
 
     Args:
-        table_name (str): Name of the table to check
-        column_name (str): Name of the column to verify
-
-    Returns:
-        bool: True if column exists, False otherwise
+        engine: SQLAlchemy engine
     """
     try:
-        config = DatabaseConfig()
-        engine = config.get_engine()
-        inspector = engine.dialect.inspector(engine)
-        columns = inspector.get_columns(table_name)
-        return any(col['name'] == column_name for col in columns)
-    except Exception as e:
-        log_error(f"Error checking column {column_name} in {table_name}", e)
-        return False
+        # Inspect existing tables
+        inspector = inspect(engine)
 
-
-def migrate_storage_table():
-    """
-    Perform migrations specific to the storage table.
-
-    Checks and adds any missing columns to the storage table.
-    Handles database session and potential errors.
-    """
-    try:
-        config = DatabaseConfig()
-        engine = config.get_engine()
-        metadata = MetaData()
-        metadata.reflect(bind=engine)
-
-        # Get or create storage table
-        storage_table = Table('storage', metadata, autoload_with=engine)
-
-        # Start a session
-        session = config.get_session()
-
-        try:
-            # Add migration logic here
-            # Example: Add a new column if it doesn't exist
-            if not check_column_exists('storage', 'capacity'):
-                with engine.begin() as connection:
-                    connection.execute(f'ALTER TABLE storage ADD COLUMN capacity REAL')
-                logging.info("Added 'capacity' column to storage table")
-
-            # Commit changes
-            session.commit()
-            logging.info("Storage table migration completed successfully")
-
-        except SQLAlchemyError as migrate_err:
-            # Rollback in case of migration error
-            session.rollback()
-            log_error("Storage table migration failed", migrate_err)
-            raise
-
-        finally:
-            # Always close the session
-            session.close()
-
-    except Exception as e:
-        log_error("Comprehensive storage table migration error", e)
-        raise
-
-
-def add_initial_data():
-    """
-    Add initial data to the database if it's empty.
-
-    This function can be used to populate the database with default/seed data.
-    """
-    try:
-        config = DatabaseConfig()
-        session = config.get_session()
-
-        try:
-            # Check if storage locations exist
-            existing_storage = session.query(Storage).count()
-
-            if existing_storage == 0:
-                # Add default storage locations
-                default_locations = [
-                    Storage(name='Main Warehouse', location='A1', max_capacity=1000),
-                    Storage(name='Incoming Goods', location='B2', max_capacity=500),
-                    Storage(name='Finished Products', location='C3', max_capacity=750)
-                ]
-
-                session.add_all(default_locations)
-                session.commit()
-                logging.info("Added initial storage locations")
+        # Create tables, extending existing ones
+        for table in Base.metadata.sorted_tables:
+            if not inspector.has_table(table.name):
+                # Create table if it doesn't exist
+                table.create(engine)
+                logger.info(f"Created table: {table.name}")
             else:
-                logging.info("Storage locations already exist")
+                # Check and add missing columns
+                existing_columns = [col['name'] for col in inspector.get_columns(table.name)]
+                for column in table.columns:
+                    if column.name not in existing_columns:
+                        try:
+                            # Add missing column
+                            add_column_sql = f"ALTER TABLE {table.name} ADD COLUMN {column.name} {column.type}"
+                            with engine.connect() as connection:
+                                connection.execute(add_column_sql)
+                            logger.info(f"Added column {column.name} to table {table.name}")
+                        except Exception as col_error:
+                            logger.warning(f"Could not add column {column.name}: {col_error}")
 
-        except SQLAlchemyError as data_err:
-            session.rollback()
-            log_error("Failed to add initial storage data", data_err)
-            raise
-
-        finally:
-            session.close()
-
-    except Exception as e:
-        log_error("Comprehensive initial data addition error", e)
+        logger.info("Storage table created or verified successfully")
+    except SQLAlchemyError as e:
+        logger.error(f"Error creating storage table: {e}")
         raise
 
 
-def initialize_database(drop_existing: bool = False):
+def migrate_storage_table(engine) -> None:
     """
-    Initialize the database, optionally dropping existing tables.
+    Perform migration for the storage table.
 
     Args:
-        drop_existing (bool, optional): Whether to drop and recreate all tables.
-                                        Defaults to False.
+        engine: SQLAlchemy engine
     """
     try:
-        logging.info("Initializing database...")
-        config = DatabaseConfig()
-        engine = config.get_engine()
+        # Create or update tables
+        create_storage_table(engine)
 
-        # If drop_existing is True, drop all tables and recreate
-        if drop_existing:
-            logging.warning("Dropping all existing tables")
-            from database.sqlalchemy.model_utils import get_model_classes
-            from sqlalchemy.schema import DropTable
+        logger.info("Storage table migration completed successfully")
+    except NoSuchTableError:
+        logger.error("Storage table does not exist and could not be created")
+        raise
+    except SQLAlchemyError as e:
+        logger.error(f"Storage table migration error: {e}")
+        raise
 
-            # Get all model classes and their table metadata
-            metadata = MetaData()
-            metadata.reflect(bind=engine)
 
-            # Drop all tables
-            with engine.begin() as connection:
-                for table in reversed(metadata.sorted_tables):
-                    connection.execute(DropTable(table))
-                logging.info("All tables dropped successfully")
+def add_initial_data(session) -> None:
+    """
+    Add initial data to the database tables.
 
-        # Create all tables that haven't been created
-        from database.sqlalchemy.base import Base  # Import Base from SQLAlchemy configuration
-        Base.metadata.create_all(engine)
-        logging.info("Database tables created successfully")
+    Args:
+        session: SQLAlchemy session
+    """
+    try:
+        # Add initial storage locations
+        initial_storage_locations = [
+            Storage(
+                name='Main Warehouse',
+                location='Central Storage Area',
+                capacity=1000.0,
+                current_occupancy=0.0,
+                type='Warehouse',
+                description='Primary storage location for inventory',
+                status='active'
+            ),
+            Storage(
+                name='Small Storage Room',
+                location='Side Building',
+                capacity=250.0,
+                current_occupancy=0.0,
+                type='Storage Room',
+                description='Secondary storage for less-used items',
+                status='active'
+            )
+        ]
 
-        # Run migrations
-        migrate_storage_table()
+        # Check and add initial storage locations
+        for location in initial_storage_locations:
+            existing = session.query(Storage).filter_by(name=location.name).first()
+            if not existing:
+                session.add(location)
 
-        # Add initial data
-        add_initial_data()
-
-        logging.info("Database initialization completed successfully")
-
+        session.commit()
+        logger.info("Initial storage locations added successfully")
     except Exception as e:
-        log_error("Database initialization failed", e)
+        session.rollback()
+        logger.error(f"Error adding initial storage locations: {e}")
+        raise
+
+
+def initialize_database(drop_existing: bool = False) -> None:
+    """
+    Initialize the entire database, creating tables and adding initial data.
+
+    Args:
+        drop_existing (bool): Whether to drop existing tables before recreation
+    """
+    try:
+        logger.info("Initializing database...")
+
+        # Get database URL and create engine
+        db_url = get_database_url()
+        engine = create_engine(db_url)
+
+        # If drop_existing is True, drop all tables (use with caution)
+        if drop_existing:
+            Base.metadata.drop_all(bind=engine)
+
+        # Create a session
+        Session = sessionmaker(bind=engine)
+        session = Session()
+
+        try:
+            # Perform migrations and table creation
+            migrate_storage_table(engine)
+
+            # Add initial data
+            add_initial_data(session)
+        except Exception as init_error:
+            session.rollback()
+            raise
+        finally:
+            session.close()
+
+        logger.info("Database tables created successfully")
+    except Exception as e:
+        logger.error(f"Database initialization failed: {e}")
         raise

@@ -6,10 +6,10 @@ from sqlalchemy.exc import SQLAlchemyError
 from typing import Optional, List
 from datetime import datetime
 
-from store_management.database.sqlalchemy.models import (
+from database.sqlalchemy.models import (
     ShoppingList, ShoppingListItem, Supplier, Part, Leather
 )
-from store_management.database.sqlalchemy.manager import DatabaseManagerSQLAlchemy
+from database.sqlalchemy.manager import DatabaseManagerSQLAlchemy
 
 
 class ShoppingListView(ttk.Frame):

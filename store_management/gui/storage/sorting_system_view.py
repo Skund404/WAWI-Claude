@@ -6,13 +6,13 @@ import pandas as pd
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
-from store_management.database.sqlalchemy.session import SessionLocal
-from store_management.database.sqlalchemy.models import Storage, Product
-from store_management.gui.dialogs.add_dialog import AddDialog
-from store_management.gui.dialogs.search_dialog import SearchDialog
-from store_management.gui.dialogs.filter_dialog import FilterDialog
-from store_management.utils.error_handler import handle_error
-from store_management.utils.logger import log_action
+from database.sqlalchemy.session import SessionLocal
+from database.sqlalchemy.models import Storage, Product
+from gui.dialogs.add_dialog import AddDialog
+from gui.dialogs.search_dialog import SearchDialog
+from gui.dialogs.filter_dialog import FilterDialog
+from utils.error_handler import handle_error
+from utils.logger import log_action
 
 
 class SortingSystemView(ttk.Frame):

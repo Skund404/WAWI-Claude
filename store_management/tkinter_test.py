@@ -22,7 +22,7 @@ def print_import_chain():
     Try to trace the import chain to identify circular import issues.
     """
     try:
-        import store_management.database.sqlalchemy.models.storage
+        import database.sqlalchemy.models.storage
         logger.debug("Successfully imported storage module")
     except ImportError as e:
         logger.error(f"Import error in storage module: {e}")
@@ -35,7 +35,7 @@ def test_tkinter():
     print_import_chain()
 
     try:
-        from store_management.application import Application
+        from application import Application
 
         # Create application instance
         app = Application()

@@ -7,10 +7,10 @@ from sqlalchemy import or_
 from typing import Optional
 from datetime import datetime
 
-from store_management.database.sqlalchemy.models import (
+from database.sqlalchemy.models import (
     Recipe, RecipeItem, Part, Leather
 )
-from store_management.database.sqlalchemy.manager import DatabaseManagerSQLAlchemy
+from database.sqlalchemy.manager import DatabaseManagerSQLAlchemy
 
 
 class RecipeView(ttk.Frame):

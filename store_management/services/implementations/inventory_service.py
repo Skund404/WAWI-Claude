@@ -3,7 +3,7 @@ from typing import List, Optional, Dict, Any, Tuple, Type, cast
 from datetime import datetime
 
 from di.service import Service
-from store_management.di.container import DependencyContainer
+from di.container import DependencyContainer
 from services.interfaces.inventory_service import IInventoryService
 from database.sqlalchemy.base_manager import BaseManager
 from database.models.part import Part

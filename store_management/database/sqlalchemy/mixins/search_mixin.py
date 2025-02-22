@@ -2,8 +2,8 @@
 
 from typing import List, Optional, Type, Any, Dict
 from sqlalchemy import select, or_, func
-from store_management.database.sqlalchemy.base import Base
-from store_management.database.sqlalchemy.session import get_db_session
+from database.sqlalchemy.base import Base
+from database.sqlalchemy.session import get_db_session
 
 
 class SearchMixin:

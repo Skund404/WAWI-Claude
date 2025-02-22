@@ -3,11 +3,11 @@
 import unittest
 from unittest.mock import MagicMock, patch
 from sqlalchemy.orm import Session
-from store_management.services.storage_service import StorageService
-from store_management.database.repositories.storage_repository import StorageRepository
-from store_management.database.repositories.product_repository import ProductRepository
-from store_management.database.models.storage import Storage
-from store_management.database.models.product import Product
+from services.storage_service import StorageService
+from database.repositories.storage_repository import StorageRepository
+from database.repositories.product_repository import ProductRepository
+from database.models.storage import Storage
+from database.models.product import Product
 
 
 class TestStorageService(unittest.TestCase):

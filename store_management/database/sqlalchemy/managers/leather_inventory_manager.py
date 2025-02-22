@@ -6,16 +6,16 @@ from sqlalchemy import select, and_, or_, func, case
 from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import SQLAlchemyError
 
-from store_management.database.sqlalchemy.base_manager import BaseManager
-from store_management.database.sqlalchemy.models import (
+from database.sqlalchemy.base_manager import BaseManager
+from database.sqlalchemy.models import (
     Leather,
     LeatherTransaction,
     Supplier,
     TransactionType,
     InventoryStatus
 )
-from store_management.utils.error_handler import DatabaseError
-from store_management.utils.logger import logger
+from utils.error_handler import DatabaseError
+from utils.logger import logger
 
 
 class LeatherInventoryManager(BaseManager[Leather]):

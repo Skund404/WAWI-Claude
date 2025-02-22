@@ -7,7 +7,7 @@ from database.models.leather import Leather
 from database.models.InventoryStatus import InventoryStatus
 from database.models.TransactionType import TransactionType
 from database.models.InventoryTransaction import InventoryTransaction
-from store_management.database.sqlalchemy.core.manager_factory import get_manager
+from database.sqlalchemy.core.manager_factory import get_manager
 
 
 class InventoryService:

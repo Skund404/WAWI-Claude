@@ -6,7 +6,7 @@ from sqlalchemy import Column, Integer, String, create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 from typing import Dict, Any, List
 
-from store_management.database.sqlalchemy.mixins.base_mixins import (
+from database.sqlalchemy.mixins.base_mixins import (
     BaseMixin,
     SearchMixin,
     FilterMixin,

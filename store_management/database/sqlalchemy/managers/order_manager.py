@@ -3,10 +3,10 @@ from datetime import datetime
 from sqlalchemy import select, and_, or_
 from sqlalchemy.orm import joinedload
 
-from store_management.database.sqlalchemy.base_manager import BaseManager
-from store_management.database.sqlalchemy.models import Order, OrderItem, Part, Leather
-from store_management.utils.error_handler import DatabaseError
-from store_management.utils.logger import logger
+from database.sqlalchemy.base_manager import BaseManager
+from database.sqlalchemy.models import Order, OrderItem, Part, Leather
+from utils.error_handler import DatabaseError
+from utils.logger import logger
 
 
 class OrderManager(BaseManager[Order]):

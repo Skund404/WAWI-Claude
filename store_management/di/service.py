@@ -1,7 +1,7 @@
 # Path:store_management\store_management\di\service.py
 import abc
 from typing import TypeVar, Type, Generic, Any
-from store_management.di.container import DependencyContainer
+from di.container import DependencyContainer
 
 T = TypeVar('T')
 

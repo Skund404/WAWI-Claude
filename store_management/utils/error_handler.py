@@ -2,7 +2,7 @@ import tkinter
 import tkinter.messagebox
 import functools
 from functools import wraps
-from store_management.utils.logger import log_error, logger #modified
+from utils.logger import log_error, logger #modified
 import traceback
 
 class ErrorHandler:

@@ -2,8 +2,8 @@
 
 from typing import Callable
 from sqlalchemy.orm import Session
-from store_management.database.sqlalchemy.core.base_manager import BaseManager
-from store_management.database.models.storage import Storage
+from database.sqlalchemy.core.base_manager import BaseManager
+from database.models.storage import Storage
 
 class StorageManager(BaseManager):
     """

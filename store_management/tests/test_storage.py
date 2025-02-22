@@ -1,4 +1,4 @@
-from store_management.database.sqlalchemy.managers.storage_manager import StorageManager
+from database.sqlalchemy.managers.storage_manager import StorageManager
 
 def test_storage_operations():
     manager = StorageManager(get_session)

@@ -5,8 +5,8 @@ import pytest
 from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-from store_management.database.sqlalchemy.base_manager import BaseManager
-from store_management.database.sqlalchemy.manager_factory import (
+from database.sqlalchemy.base_manager import BaseManager
+from database.sqlalchemy.manager_factory import (
     get_manager,
     register_specialized_manager,
     clear_manager_cache

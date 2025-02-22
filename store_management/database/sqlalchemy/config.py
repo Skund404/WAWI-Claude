@@ -4,131 +4,98 @@ import logging
 from typing import Optional
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.engine import Engine
+from sqlalchemy.exc import SQLAlchemyError
+
+from config.settings import get_database_path
+
+
+def get_database_url(config: Optional[dict] = None) -> str:
+    """
+    Generate the database URL based on configuration or default settings.
+
+    Args:
+        config (dict, optional): Database configuration dictionary
+
+    Returns:
+        str: SQLAlchemy database connection URL
+    """
+    if config:
+        # Use provided configuration if available
+        db_type = config.get('type', 'sqlite')
+        host = config.get('host', '')
+        port = config.get('port', '')
+        username = config.get('username', '')
+        password = config.get('password', '')
+        database = config.get('database', '')
+    else:
+        # Default to SQLite if no config provided
+        db_type = 'sqlite'
+        database = get_database_path()
+
+    # Construct database URL based on type
+    if db_type == 'sqlite':
+        return f'sqlite:///{database}'
+    elif db_type == 'postgresql':
+        return f'postgresql://{username}:{password}@{host}:{port}/{database}'
+    elif db_type == 'mysql':
+        return f'mysql+pymysql://{username}:{password}@{host}:{port}/{database}'
+    else:
+        raise ValueError(f"Unsupported database type: {db_type}")
 
 
 class DatabaseConfig:
     """
-    Centralized configuration management for database connections.
-
-    This singleton class handles database configuration, connection creation,
-    and session management.
+    Singleton class for managing database configuration and connections.
     """
     _instance = None
-    _engine: Optional[Engine] = None
-    _session_factory: Optional[sessionmaker] = None
+    _engine = None
+    _session_factory = None
 
     def __new__(cls):
         """
-        Implement singleton pattern to ensure only one configuration instance.
+        Implement singleton pattern for database configuration.
 
         Returns:
-            DatabaseConfig: The singleton instance of DatabaseConfig
+            DatabaseConfig: Singleton instance
         """
         if not cls._instance:
-            # Create new instance using object.__new__
-            cls._instance = object.__new__(cls)
-            # Call the initialization method
+            cls._instance = super(DatabaseConfig, cls).__new__(cls)
             cls._instance._initialize()
         return cls._instance
 
-    def __init__(self):
-        """
-        Prevent reinitialization of the existing instance.
-        """
-        # This method does nothing to prevent multiple initializations
-        pass
-
     def _initialize(self):
         """
-        Initialize database configuration, creating engine and session factory.
+        Initialize database engine and session factory.
         """
         try:
-            # Prevent re-initialization if already done
-            if self._engine is not None:
-                return
+            # Get database URL and create engine
+            db_url = get_database_url()
+            self._engine = create_engine(
+                db_url,
+                echo=False,  # Set to True for SQL query logging
+                pool_pre_ping=True,  # Test connections before using
+                pool_recycle=3600  # Recycle connections every hour
+            )
 
-            db_url = self._get_database_url()
-            self._engine = self._create_engine(db_url)
-            self._session_factory = sessionmaker(bind=self._engine)
-        except Exception as e:
-            logging.error(f"Database initialization failed: {e}")
+            # Create session factory
+            self._session_factory = sessionmaker(
+                bind=self._engine,
+                autocommit=False,
+                autoflush=False
+            )
+        except SQLAlchemyError as e:
+            logging.error(f"Database initialization error: {e}")
             raise
 
-    def _find_project_root(self) -> str:
+    def get_engine(self):
         """
-        Find the project root directory.
-
-        Returns:
-            str: Path to the project root directory
-        """
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        # Go up three levels from database/sqlalchemy/config.py to project root
-        return os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
-
-    def _load_config(self) -> dict:
-        """
-        Load database configuration.
-
-        Returns:
-            dict: Database configuration parameters
-        """
-        # In a real-world scenario, this might load from a config file
-        return {
-            'database_type': 'sqlite',
-            'database_name': 'store_management.db'
-        }
-
-    def _get_database_url(self) -> str:
-        """
-        Generate the database URL based on configuration.
-
-        Returns:
-            str: SQLAlchemy database connection URL
-        """
-        config = self._load_config()
-        project_root = self._find_project_root()
-
-        if config['database_type'] == 'sqlite':
-            db_path = os.path.join(project_root, config['database_name'])
-            return f'sqlite:///{db_path}'
-
-        # Add support for other database types if needed
-        raise ValueError("Unsupported database type")
-
-    def _create_engine(self, db_url: str) -> Engine:
-        """
-        Create SQLAlchemy engine for database connection.
-
-        Args:
-            db_url (str): Database connection URL
+        Get the SQLAlchemy engine.
 
         Returns:
             Engine: SQLAlchemy database engine
         """
-        try:
-            engine = create_engine(
-                db_url,
-                echo=False,  # Set to True for SQL query logging
-                connect_args={'check_same_thread': False}  # Needed for SQLite
-            )
-            return engine
-        except Exception as e:
-            logging.error(f"Failed to create database engine: {e}")
-            raise
-
-    def get_engine(self) -> Engine:
-        """
-        Get the database engine.
-
-        Returns:
-            Engine: Configured SQLAlchemy database engine
-
-        Raises:
-            RuntimeError: If engine has not been initialized
-        """
-        if self._engine is None:
-            raise RuntimeError("Database engine not initialized")
+        if not self._engine:
+            self._initialize()
         return self._engine
 
     def get_session(self) -> Session:
@@ -137,60 +104,34 @@ class DatabaseConfig:
 
         Returns:
             Session: SQLAlchemy database session
-
-        Raises:
-            RuntimeError: If session factory has not been initialized
         """
-        if self._session_factory is None:
-            raise RuntimeError("Session factory not initialized")
+        if not self._session_factory:
+            self._initialize()
         return self._session_factory()
 
-    def close_session(self, session: Optional[Session] = None):
+    def close_session(self, session: Session):
         """
-        Close the provided session or all sessions.
+        Close the given database session.
 
         Args:
-            session (Optional[Session], optional): Specific session to close. Defaults to None.
+            session (Session): SQLAlchemy session to close
         """
-        if session:
+        try:
             session.close()
-        elif self._session_factory:
-            self._session_factory.close_all()
+        except Exception as e:
+            logging.error(f"Error closing database session: {e}")
 
     def test_connection(self) -> bool:
         """
-        Test database connection.
+        Test the database connection.
 
         Returns:
             bool: True if connection is successful, False otherwise
         """
         try:
-            with self.get_session() as session:
-                session.execute('SELECT 1')
+            with self._engine.connect() as connection:
+                connection.execute("SELECT 1")
             return True
-        except Exception as e:
+        except SQLAlchemyError as e:
             logging.error(f"Database connection test failed: {e}")
             return False
-
-
-def get_database_url() -> str:
-    """
-    Global function to get database URL.
-
-    Returns:
-        str: Database connection URL
-    """
-    return DatabaseConfig()._get_database_url()
-
-
-def get_database_path() -> str:
-    """
-    Global function to get database file path.
-
-    Returns:
-        str: Path to the database file
-    """
-    config = DatabaseConfig()
-    url = config._get_database_url()
-    # Extract path from SQLite URL
-    return url.replace('sqlite:///', '')

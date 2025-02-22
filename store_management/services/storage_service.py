@@ -1,7 +1,7 @@
 # File: store_management/services/storage_service.py
 from typing import List, Optional, Dict, Any
-from store_management.database.sqlalchemy.models import Storage, Product
-from store_management.services.interfaces.storage_service import IStorageService
+from database.sqlalchemy.models import Storage, Product
+from services.interfaces.storage_service import IStorageService
 
 class StorageService(IStorageService):
     """

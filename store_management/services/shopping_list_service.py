@@ -1,9 +1,9 @@
 from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
-from store_management.database.sqlalchemy.models.shopping_list import ShoppingList, ShoppingListItem
-from store_management.database.sqlalchemy.models.part import Part
-from store_management.database.sqlalchemy.models.leather import Leather
-from store_management.database.sqlalchemy.manager_factory import get_manager
+from database.sqlalchemy.models.shopping_list import ShoppingList, ShoppingListItem
+from database.sqlalchemy.models.part import Part
+from database.sqlalchemy.models.leather import Leather
+from database.sqlalchemy.manager_factory import get_manager
 
 
 class ShoppingListService:

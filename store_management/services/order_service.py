@@ -1,11 +1,11 @@
 from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
-from store_management.database.sqlalchemy.models.order import Order, OrderItem
-from store_management.database.sqlalchemy.models.supplier import Supplier
-from store_management.database.sqlalchemy.models.part import Part
-from store_management.database.sqlalchemy.models.leather import Leather
-from store_management.database.sqlalchemy.models.enums import OrderStatus, PaymentStatus
-from store_management.database.sqlalchemy.manager_factory import get_manager
+from database.sqlalchemy.models.order import Order, OrderItem
+from database.sqlalchemy.models.supplier import Supplier
+from database.sqlalchemy.models.part import Part
+from database.sqlalchemy.models.leather import Leather
+from database.sqlalchemy.models.enums import OrderStatus, PaymentStatus
+from database.sqlalchemy.manager_factory import get_manager
 
 
 class OrderService:

@@ -4,10 +4,10 @@ from typing import Dict, List, Optional
 from datetime import datetime
 import csv
 
-from store_management.database.sqlalchemy.manager import ReportManager
-from store_management.database.sqlalchemy.session import get_session
-from store_management.gui.dialogs.base_dialog import BaseDialog
-from store_management.utils.logger import get_logger
+from database.sqlalchemy.manager import ReportManager
+from database.sqlalchemy.session import get_session
+from gui.dialogs.base_dialog import BaseDialog
+from utils.logger import get_logger
 
 logger = get_logger(__name__)
 

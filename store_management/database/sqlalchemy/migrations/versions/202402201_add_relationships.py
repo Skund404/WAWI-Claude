@@ -13,7 +13,7 @@ from datetime import datetime
 from sqlalchemy.dialects import sqlite
 
 # Import enums
-from store_management.database.sqlalchemy.models import InventoryStatus, ProductionStatus
+from database.sqlalchemy.models import InventoryStatus, ProductionStatus
 
 # revision identifiers, used by Alembic.
 revision = '202402201'

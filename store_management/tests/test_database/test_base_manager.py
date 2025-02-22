@@ -8,13 +8,13 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy.exc import SQLAlchemyError
 
 # Import the components to test
-from store_management.database.sqlalchemy.base_manager import BaseManager
-from store_management.database.sqlalchemy.manager_factory import (
+from database.sqlalchemy.base_manager import BaseManager
+from database.sqlalchemy.manager_factory import (
     get_manager,
     register_specialized_manager,
     clear_manager_cache
 )
-from store_management.utils.error_handling import DatabaseError
+from utils.error_handling import DatabaseError
 
 # Create a test base and model
 TestBase = declarative_base()

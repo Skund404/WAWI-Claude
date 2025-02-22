@@ -1,339 +1,210 @@
-# Path: store_management/gui/order/order_view.py
+# Path: gui/order/order_view.py
+"""
+Order view implementation that displays orders.
+"""
 import tkinter as tk
-import tkinter.ttk as ttk
-import tkinter.messagebox as messagebox
-from typing import List, Dict, Any, Optional
+from tkinter import ttk
+import logging
+import sqlite3
+import os
+from datetime import datetime
 
-from application import Application
 from gui.base_view import BaseView
 from services.interfaces.order_service import IOrderService
-from services.interfaces.supplier_service import ISupplierService
 
+# Set up logging
+logging.basicConfig(level=logging.INFO, 
+                   format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 class OrderView(BaseView):
     """
-    Comprehensive view for managing orders with:
-    - Treeview for listing orders
-    - Detailed order information display
-    - Actions for creating, editing, and managing orders
+    View for displaying and managing orders.
     """
 
-    def __init__(self, parent: tk.Widget, app: Application):
+    def __init__(self, parent, app):
         """
-        Initialize the Order View.
+        Initialize the order view.
 
         Args:
             parent: Parent widget
             app: Application instance
         """
         super().__init__(parent, app)
-
-        # Resolve services
-        self.order_service = self.get_service(IOrderService)
-        self.supplier_service = self.get_service(ISupplierService)
-
-        # Setup UI components
+        self.db_path = self._find_database_file()
+        logger.debug(f"OrderView initialized with database: {self.db_path}")
         self.setup_ui()
+        self.load_data()
+
+    def _find_database_file(self):
+        """Find the SQLite database file."""
+        # List of possible locations
+        possible_locations = [
+            "store_management.db",
+            "data/store_management.db",
+            "database/store_management.db",
+            "config/database/store_management.db"
+        ]
+
+        for location in possible_locations:
+            if os.path.exists(location):
+                return location
+
+        # If not found in the predefined locations, search for it
+        logger.info("Searching for database file...")
+        for root, _, files in os.walk("."):
+            for file in files:
+                if file.endswith('.db'):
+                    path = os.path.join(root, file)
+                    logger.info(f"Found database file: {path}")
+                    return path
+
+        return None
 
     def setup_ui(self):
-        """Set up the UI components."""
-        # Configure grid layout
-        self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(1, weight=1)
-
-        # Create toolbar
+        """Set up the user interface components."""
         self.create_toolbar()
-
-        # Create order list treeview
-        self.create_order_list()
-
-        # Create order details view
-        self.create_order_details()
+        self.create_treeview()
 
     def create_toolbar(self):
-        """Create toolbar with order management actions."""
-        toolbar_frame = ttk.Frame(self)
-        toolbar_frame.grid(row=0, column=0, sticky='ew', padx=5, pady=5)
+        """Create the toolbar with buttons."""
+        toolbar = ttk.Frame(self)
+        toolbar.pack(side=tk.TOP, fill=tk.X, padx=5, pady=5)
 
         # Add buttons
-        add_btn = ttk.Button(toolbar_frame, text="Add Order", command=self.show_add_order_dialog)
-        add_btn.pack(side=tk.LEFT,
-                     padx=2)
+        ttk.Button(toolbar, text="Add Order", command=self.show_add_dialog).pack(side=tk.LEFT, padx=2)
+        ttk.Button(toolbar, text="Delete Selected", command=lambda e=None: self.delete_selected(e)).pack(side=tk.LEFT, padx=2)
+        ttk.Button(toolbar, text="Search", command=self.show_search_dialog).pack(side=tk.LEFT, padx=2)
+        ttk.Button(toolbar, text="Refresh", command=self.load_data).pack(side=tk.LEFT, padx=2)
 
-        edit_btn = ttk.Button(toolbar_frame, text="Edit Order", command=self._edit_order)
-        edit_btn.pack(side=tk.LEFT, padx=2)
+        logger.debug("Toolbar created")
 
-        delete_btn = ttk.Button(toolbar_frame, text="Delete Order", command=self.delete_order)
-        delete_btn.pack(side=tk.LEFT, padx=2)
+    def create_treeview(self):
+        """Create the treeview for displaying orders."""
+        # Create a frame to hold the treeview and scrollbar
+        frame = ttk.Frame(self)
+        frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
-        search_btn = ttk.Button(toolbar_frame, text="Search", command=self._show_search_dialog)
-        search_btn.pack(side=tk.LEFT, padx=2)
+        # Define columns
+        columns = ("id", "order_number", "customer", "date", "status", "total")
 
-    def create_order_list(self):
-        """Create treeview to display list of orders."""
-        # Create frame for order list
-        list_frame = ttk.Frame(self)
-        list_frame.grid(row=1, column=0, sticky='nsew', padx=5, pady=5)
+        # Create the treeview
+        self.tree = ttk.Treeview(frame, columns=columns, show="headings")
 
-        # Scrollbars
-        list_scroll_y = ttk.Scrollbar(list_frame)
-        list_scroll_y.pack(side=tk.RIGHT, fill=tk.Y)
+        # Define headings
+        self.tree.heading("id", text="ID")
+        self.tree.heading("order_number", text="Order #")
+        self.tree.heading("customer", text="Customer")
+        self.tree.heading("date", text="Date")
+        self.tree.heading("status", text="Status")
+        self.tree.heading("total", text="Total")
 
-        list_scroll_x = ttk.Scrollbar(list_frame, orient=tk.HORIZONTAL)
-        list_scroll_x.pack(side=tk.BOTTOM, fill=tk.X)
+        # Define column widths
+        self.tree.column("id", width=50)
+        self.tree.column("order_number", width=100)
+        self.tree.column("customer", width=200)
+        self.tree.column("date", width=100)
+        self.tree.column("status", width=100)
+        self.tree.column("total", width=100)
 
-        # Treeview for orders
-        self.order_tree = ttk.Treeview(
-            list_frame,
-            yscrollcommand=list_scroll_y.set,
-            xscrollcommand=list_scroll_x.set,
-            columns=('ID', 'Order Number', 'Supplier', 'Date', 'Total Amount', 'Status')
-        )
-        self.order_tree.pack(expand=True, fill=tk.BOTH)
+        # Add scrollbars
+        vsb = ttk.Scrollbar(frame, orient="vertical", command=self.tree.yview)
+        hsb = ttk.Scrollbar(frame, orient="horizontal", command=self.tree.xview)
+        self.tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
 
-        # Configure scrollbars
-        list_scroll_y.config(command=self.order_tree.yview)
-        list_scroll_x.config(command=self.order_tree.xview)
+        # Pack scrollbars and treeview
+        vsb.pack(side=tk.RIGHT, fill=tk.Y)
+        hsb.pack(side=tk.BOTTOM, fill=tk.X)
+        self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-        # Configure columns
-        self.order_tree.column('#0', width=0, stretch=tk.NO)
-        self.order_tree.column('ID', anchor=tk.CENTER, width=50)
-        self.order_tree.column('Order Number', anchor=tk.W, width=100)
-        self.order_tree.column('Supplier', anchor=tk.W, width=150)
-        self.order_tree.column('Date', anchor=tk.CENTER, width=100)
-        self.order_tree.column('Total Amount', anchor=tk.E, width=100)
-        self.order_tree.column('Status', anchor=tk.CENTER, width=100)
+        # Bind events
+        self.tree.bind("<Double-1>", self.on_double_click)
 
-        # Headings
-        self.order_tree.heading('#0', text='', anchor=tk.CENTER)
-        self.order_tree.heading('ID', text='ID', anchor=tk.CENTER)
-        self.order_tree.heading('Order Number', text='Order Number', anchor=tk.W)
-        self.order_tree.heading('Supplier', text='Supplier', anchor=tk.W)
-        self.order_tree.heading('Date', text='Date', anchor=tk.CENTER)
-        self.order_tree.heading('Total Amount', text='Total Amount', anchor=tk.E)
-        self.order_tree.heading('Status', text='Status', anchor=tk.CENTER)
-
-        # Bind selection event
-        self.order_tree.bind('<<TreeviewSelect>>', self._on_order_select)
-
-    def create_order_details(self):
-        """Create detailed view for selected order."""
-        # Create details frame
-        details_frame = ttk.LabelFrame(self, text="Order Details")
-        details_frame.grid(row=2, column=0, sticky='ew', padx=5, pady=5)
-
-        # Create text widget for order details
-        self.details_text = tk.Text(details_frame, height=10, wrap=tk.WORD)
-        self.details_text.pack(expand=True, fill=tk.BOTH, padx=5, pady=5)
-        self.details_text.config(state=tk.DISABLED)
+        logger.debug("Treeview created")
 
     def load_data(self):
-        """Load orders from the order service."""
+        """Load orders from the database and display them."""
         try:
+            logger.info("Loading order data")
+
             # Clear existing items
-            self.order_tree.delete(*self.order_tree.get_children())
+            for item in self.tree.get_children():
+                self.tree.delete(item)
 
-            # Retrieve orders
-            orders = self.order_service.get_all_orders()
+            if not self.db_path:
+                logger.error("Database file not found")
+                self.set_status("Error: Database file not found")
+                return
 
-            # Populate treeview
-            for order in orders:
-                self.order_tree.insert('', 'end', values=(
-                    order.get('id', 'N/A'),
-                    order.get('order_number', 'N/A'),
-                    order.get('supplier_name', 'N/A'),
-                    order.get('order_date', 'N/A'),
-                    order.get('total_amount', 'N/A'),
-                    order.get('status', 'N/A')
-                ))
+            # Connect to database
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+
+            # Check if order table exists
+            cursor.execute("""
+                SELECT name FROM sqlite_master 
+                WHERE type='table' AND name='order';
+            """)
+
+            if not cursor.fetchone():
+                logger.info("Order table doesn't exist. Creating sample data.")
+                self.set_status("Order table doesn't exist - showing sample data")
+
+                # Add sample data since table doesn't exist
+                today = datetime.now().strftime("%Y-%m-%d")
+
+                sample_data = [
+                    (1, "ORD-001", "John Smith", today, "New", "$150.00"),
+                    (2, "ORD-002", "Jane Doe", today, "Processing", "$275.50"),
+                    (3, "ORD-003", "Robert Johnson", today, "Shipped", "$432.25"),
+                    (4, "ORD-004", "Emily Williams", today, "Delivered", "$98.75"),
+                    (5, "ORD-005", "Michael Brown", today, "Cancelled", "$0.00")
+                ]
+
+                # Add to treeview
+                for order in sample_data:
+                    self.tree.insert("", tk.END, values=order)
+
+                return
+
+            # Get order data
+            cursor.execute("SELECT id, order_number, customer, date, status, total FROM 'order';")
+            rows = cursor.fetchall()
+
+            # Add to treeview
+            for row in rows:
+                self.tree.insert("", tk.END, values=row)
+
+            self.set_status(f"Loaded {len(rows)} orders")
+            logger.info(f"Loaded {len(rows)} orders")
+
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to load orders: {str(e)}")
+            logger.error(f"Error loading order data: {str(e)}", exc_info=True)
+            self.show_error("Data Load Error", f"Failed to load order data: {str(e)}")
+        finally:
+            if 'conn' in locals():
+                conn.close()
 
-    def show_add_order_dialog(self):
+    def show_add_dialog(self):
         """Show dialog to add a new order."""
-        from store_management.gui.order.order_dialog import AddOrderDialog
+        # Implementation would go here
+        logger.debug("Add dialog requested but not implemented")
+        self.show_info("Not Implemented", "Add order functionality is not yet implemented.")
 
-        # Get suppliers for the dialog
-        try:
-            suppliers = self.supplier_service.get_all_suppliers()
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to load suppliers: {str(e)}")
-            return
+    def on_double_click(self, event):
+        """Handle double-click on an order item."""
+        # Implementation would go here
+        logger.debug("Double-click event received but not implemented")
+        self.show_info("Not Implemented", "Edit order functionality is not yet implemented.")
 
-        # Create and show add order dialog
-        dialog = AddOrderDialog(
-            self,
-            self._save_new_order,
-            suppliers=suppliers,
-            title="Add New Order"
-        )
-
-    def _save_new_order(self, order_data: Dict[str, Any]):
-        """
-        Save a new order.
-
-        Args:
-            order_data: Dictionary containing order information
-        """
-        try:
-            # Call order service to create order
-            result = self.order_service.create_order(order_data)
-
-            if result:
-                messagebox.showinfo("Success", "Order created successfully")
-                # Refresh order list
-                self.load_data()
-            else:
-                messagebox.showerror("Error", "Failed to create order")
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to create order: {str(e)}")
-
-    def _on_order_select(self, event=None):
-        """
-        Handle order selection in treeview.
-
-        Args:
-            event: Tkinter event (optional)
-        """
-        selected_items = self.order_tree.selection()
-        if not selected_items:
-            # Clear details if no selection
-            self.details_text.config(state=tk.NORMAL)
-            self.details_text.delete(1.0, tk.END)
-            self.details_text.config(state=tk.DISABLED)
-            return
-
-        # Get selected order ID
-        order_id = self.order_tree.item(selected_items[0])['values'][0]
-        self._load_order_details(order_id)
-
-    def _load_order_details(self, order_id):
-        """
-        Load details for a specific order.
-
-        Args:
-            order_id: ID of the order to load details for
-        """
-        try:
-            # Retrieve order details
-            order = self.order_service.get_order_by_id(order_id)
-
-            if not order:
-                messagebox.showinfo("Order Not Found", f"No order found with ID {order_id}")
-                return
-
-            # Update details text
-            self.details_text.config(state=tk.NORMAL)
-            self.details_text.delete(1.0, tk.END)
-
-            # Display order details
-            for key, value in order.items():
-                self.details_text.insert(tk.END, f"{key.replace('_', ' ').title()}: {value}\n")
-
-            self.details_text.config(state=tk.DISABLED)
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to load order details: {str(e)}")
-
-    def _edit_order(self):
-        """Edit the selected order."""
-        selected_items = self.order_tree.selection()
-        if not selected_items:
-            messagebox.showwarning("Edit Order", "Please select an order to edit.")
-            return
-
-        # Get selected order ID
-        order_id = self.order_tree.item(selected_items[0])['values'][0]
-
-        try:
-            # Retrieve order details
-            order = self.order_service.get_order_by_id(order_id)
-
-            if not order:
-                messagebox.showwarning("Edit Order", "Could not retrieve order details.")
-                return
-
-            # Get suppliers for the dialog
-            suppliers = self.supplier_service.get_all_suppliers()
-
-            # Create and show edit order dialog
-            from store_management.gui.order.order_dialog import AddOrderDialog
-            dialog = AddOrderDialog(
-                self,
-                self._save_edited_order,
-                existing_data=order,
-                suppliers=suppliers,
-                title="Edit Order"
-            )
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to load order for editing: {str(e)}")
-
-    def _save_edited_order(self, order_data: Dict[str, Any]):
-        """
-        Save edited order details.
-
-        Args:
-            order_data: Updated order information
-        """
-        try:
-            # Call order service to update order
-            result = self.order_service.update_order(order_data)
-
-            if result:
-                messagebox.showinfo("Success", "Order updated successfully")
-                # Refresh order list
-                self.load_data()
-            else:
-                messagebox.showerror("Error", "Failed to update order")
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to update order: {str(e)}")
-
-    def delete_order(self):
+    def delete_selected(self, event):
         """Delete the selected order."""
-        selected_items = self.order_tree.selection()
-        if not selected_items:
-            messagebox.showwarning("Delete Order", "Please select an order to delete.")
-            return
+        # Implementation would go here
+        logger.debug("Delete requested but not implemented")
+        self.show_info("Not Implemented", "Delete order functionality is not yet implemented.")
 
-        # Get selected order ID
-        order_id = self.order_tree.item(selected_items[0])['values'][0]
-
-        # Confirm deletion
-        confirm = messagebox.askyesno(
-            "Confirm Deletion",
-            f"Are you sure you want to delete order {order_id}?"
-        )
-
-        if confirm:
-            try:
-                # Call order service to delete order
-                result = self.order_service.delete_order(order_id)
-
-                if result:
-                    messagebox.showinfo("Success", "Order deleted successfully")
-                    # Refresh order list
-                    self.load_data()
-                else:
-                    messagebox.showerror("Error", "Failed to delete order")
-            except Exception as e:
-                messagebox.showerror("Error", f"Failed to delete order: {str(e)}")
-
-    def _show_search_dialog(self):
-        """Show search dialog for orders."""
-        messagebox.showinfo("Search", "Order search functionality not implemented yet.")
-
-    def save(self):
-        """Save current view data."""
-        messagebox.showinfo("Save", "Save functionality not implemented yet.")
-
-    def undo(self):
-        """Undo the last action."""
-        messagebox.showinfo("Undo", "Undo functionality not implemented yet.")
-
-    def redo(self):
-        """Redo the last undone action."""
-        messagebox.showinfo("Redo", "Redo functionality not implemented yet.")
-
-    def cleanup(self):
-        """Perform cleanup when view is closed."""
-        # Any necessary cleanup operations
-        pass
+    def show_search_dialog(self):
+        """Show search dialog."""
+        # Implementation would go here
+        logger.debug("Search requested but not implemented")
+        self.show_info("Not Implemented", "Search functionality is not yet implemented.")
