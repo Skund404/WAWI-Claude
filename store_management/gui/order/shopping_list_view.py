@@ -6,7 +6,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from typing import Optional, List
 from datetime import datetime
 
-from database.sqlalchemy.models import (
+from database.sqlalchemy.models_file import (
     ShoppingList, ShoppingListItem, Supplier, Part, Leather
 )
 from database.sqlalchemy.manager import DatabaseManagerSQLAlchemy

@@ -22,7 +22,7 @@ from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import sessionmaker
 
 # Import your project models
-from database.sqlalchemy.models import Base
+from database.sqlalchemy.models_file import Base
 
 # Logging configuration
 logging.basicConfig(

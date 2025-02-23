@@ -12,7 +12,7 @@ from sqlalchemy.dialects import sqlite
 from enum import Enum
 
 # Import your enum types (if using custom enums)
-from database.sqlalchemy.models import InventoryStatus, ProductionStatus, TransactionType
+from database.sqlalchemy.models_file import InventoryStatus, ProductionStatus, TransactionType
 
 
 def upgrade():
@@ -67,7 +67,7 @@ def upgrade():
                     sa.PrimaryKeyConstraint('id')
                     )
 
-    # Recipe Items table
+    # Project Items table
     op.create_table('recipe_items',
                     sa.Column('id', sa.Integer(), nullable=False),
                     sa.Column('quantity', sa.Float(), nullable=False),

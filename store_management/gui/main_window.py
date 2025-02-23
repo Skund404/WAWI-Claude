@@ -1,251 +1,159 @@
-# Path: gui/main_window.py
-"""
-Main window implementation for the application.
-"""
-import os
-import sys
-import tkinter as tk
-from tkinter import ttk, messagebox, filedialog
-import logging
+# gui/main_window.py
 
-from gui.storage.storage_view import StorageView
-from gui.recipe.recipe_view import RecipeView
-from gui.order.order_view import OrderView
-from gui.shopping_list.shopping_list_view import ShoppingListView
+import tkinter as tk
+from tkinter import ttk, messagebox
+from typing import Any, Dict, Optional, Callable
+import logging
+from abc import ABC
 
 logger = logging.getLogger(__name__)
 
-class MainWindow:
+
+class MainWindow(ttk.Frame):
     """
-    Main window of the application.
-    Contains the menu, notebook for views, and status bar.
+    Main application window that contains the primary UI components including
+    menu bar, notebook for views, and status bar.
+
+    Args:
+        root (tk.Tk): Root window of the application
+        app (Any): Main application instance for accessing services and configuration
     """
 
-    def __init__(self, root, app):
-        """
-        Initialize the main window.
-
-        Args:
-            root: Root Tkinter window
-            app: Application instance
-        """
+    def __init__(self, root: tk.Tk, app: Any) -> None:
+        super().__init__(root)
         self.root = root
         self.app = app
+        self.views: Dict[str, ttk.Frame] = {}
 
-        # Set up the main window
+        # Initialize UI components
         self._setup_window()
         self._create_menu()
         self._create_notebook()
         self._create_status_bar()
 
-        logger.info("Main window initialized")
+        logger.debug("MainWindow initialized")
 
-    def _setup_window(self):
-        """Set up the main window properties."""
+    def _setup_window(self) -> None:
+        """Configure the main window properties and layout."""
         self.root.title("Store Management System")
         self.root.geometry("1024x768")
-
-        # Make the window resizable
-        self.root.resizable(True, True)
 
         # Configure grid weights
         self.root.grid_rowconfigure(0, weight=1)
         self.root.grid_columnconfigure(0, weight=1)
 
-    def _create_menu(self):
-        """Create the main menu."""
+        # Place main frame
+        self.grid(row=0, column=0, sticky="nsew")
+        self.grid_rowconfigure(1, weight=1)
+        self.grid_columnconfigure(0, weight=1)
+
+    def _create_menu(self) -> None:
+        """Create and configure the main menu bar."""
         self.menu_bar = tk.Menu(self.root)
+        self.root.config(menu=self.menu_bar)
 
         # File menu
         file_menu = tk.Menu(self.menu_bar, tearoff=0)
-        file_menu.add_command(label="New", command=self._on_new, accelerator="Ctrl+N")
-        file_menu.add_command(label="Open", command=self._on_open, accelerator="Ctrl+O")
-        file_menu.add_command(label="Save", command=self._on_save, accelerator="Ctrl+S")
-        file_menu.add_separator()
-        file_menu.add_command(label="Exit", command=self._on_exit, accelerator="Alt+F4")
         self.menu_bar.add_cascade(label="File", menu=file_menu)
+        file_menu.add_command(label="New", command=self._on_new)
+        file_menu.add_command(label="Open", command=self._on_open)
+        file_menu.add_command(label="Save", command=self._on_save)
+        file_menu.add_separator()
+        file_menu.add_command(label="Exit", command=self._on_exit)
 
         # Edit menu
         edit_menu = tk.Menu(self.menu_bar, tearoff=0)
-        edit_menu.add_command(label="Undo", command=self._on_undo, accelerator="Ctrl+Z")
-        edit_menu.add_command(label="Redo", command=self._on_redo, accelerator="Ctrl+Y")
         self.menu_bar.add_cascade(label="Edit", menu=edit_menu)
+        edit_menu.add_command(label="Undo", command=self._on_undo)
+        edit_menu.add_command(label="Redo", command=self._on_redo)
+        edit_menu.add_separator()
+        edit_menu.add_command(label="Refresh", command=self._on_refresh)
 
-        # Set the menu
-        self.root.config(menu=self.menu_bar)
+    def _create_notebook(self) -> None:
+        """Create the notebook widget for managing multiple views."""
+        self.notebook = ttk.Notebook(self)
+        self.notebook.grid(row=1, column=0, sticky="nsew", padx=5, pady=5)
 
-        # Bind keyboard shortcuts
-        self.root.bind("<Control-n>", lambda event: self._on_new())
-        self.root.bind("<Control-o>", lambda event: self._on_open())
-        self.root.bind("<Control-s>", lambda event: self._on_save())
-        self.root.bind("<Control-z>", lambda event: self._on_undo())
-        self.root.bind("<Control-y>", lambda event: self._on_redo())
-
-    def _create_notebook(self):
-        """Create the notebook with tabs for different views."""
-        self.notebook = ttk.Notebook(self.root)
-        self.notebook.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
-
-        # Create and add tabs
-        self._add_storage_tab()
-        self._add_recipes_tab()
-        self._add_orders_tab()
-        self._add_shopping_list_tab()
-
-    def _add_storage_tab(self):
-        """Add the storage tab to the notebook."""
-        try:
-            logger.info("Creating storage view")
-            storage_frame = ttk.Frame(self.notebook)
-            storage_view = StorageView(storage_frame, self.app)
-            self.notebook.add(storage_frame, text="Storage")
-            logger.info("Storage view created and added to notebook")
-        except Exception as e:
-            logger.error(f"Error creating storage view: {str(e)}", exc_info=True)
-            messagebox.showerror("Error", f"Failed to create Storage view: {str(e)}")
-
-    def _add_recipes_tab(self):
-        """Add the recipes tab to the notebook."""
-        try:
-            logger.info("Creating recipe view")
-            recipes_frame = ttk.Frame(self.notebook)
-            recipe_view = RecipeView(recipes_frame, self.app)
-            self.notebook.add(recipes_frame, text="Recipes")
-            logger.info("Recipe view created and added to notebook")
-        except Exception as e:
-            logger.error(f"Error creating recipe view: {str(e)}", exc_info=True)
-            messagebox.showerror("Error", f"Failed to create Recipes view: {str(e)}")
-
-    def _add_orders_tab(self):
-        """Add the orders tab to the notebook."""
-        try:
-            logger.info("Creating order view")
-            orders_frame = ttk.Frame(self.notebook)
-            order_view = OrderView(orders_frame, self.app)
-            self.notebook.add(orders_frame, text="Orders")
-            logger.info("Order view created and added to notebook")
-        except Exception as e:
-            logger.error(f"Error creating order view: {str(e)}", exc_info=True)
-            messagebox.showerror("Error", f"Failed to create Orders view: {str(e)}")
-
-    def _add_shopping_list_tab(self):
-        """Add the shopping list tab to the notebook."""
-        try:
-            logger.info("Creating shopping list view")
-            shopping_list_frame = ttk.Frame(self.notebook)
-            shopping_list_view = ShoppingListView(shopping_list_frame, self.app)
-            self.notebook.add(shopping_list_frame, text="Shopping Lists")
-            logger.info("Shopping list view created and added to notebook")
-        except Exception as e:
-            logger.error(f"Error creating shopping list view: {str(e)}", exc_info=True)
-            messagebox.showerror("Error", f"Failed to create Shopping Lists view: {str(e)}")
-
-    def _create_status_bar(self):
+    def _create_status_bar(self) -> None:
         """Create the status bar at the bottom of the window."""
-        self.status_var = tk.StringVar()
-        self.status_var.set("Ready")
+        self.status_bar = ttk.Label(self, text="Ready", relief=tk.SUNKEN)
+        self.status_bar.grid(row=2, column=0, sticky="ew")
 
-        self.status_bar = ttk.Label(
-            self.root, 
-            textvariable=self.status_var, 
-            relief=tk.SUNKEN, 
-            anchor=tk.W
-        )
-        self.status_bar.grid(row=1, column=0, sticky="ew")
-
-    def set_status(self, message):
+    def set_status(self, message: str) -> None:
         """
-        Set the status message in the status bar.
+        Update the status bar message.
 
         Args:
-            message: Status message
+            message (str): Message to display in the status bar
         """
-        self.status_var.set(message)
-        logger.debug(f"Status set to: {message}")
+        self.status_bar.config(text=message)
+        logger.debug(f"Status bar updated: {message}")
 
-    def _on_new(self):
-        """Handle New menu action."""
-        logger.info("New action triggered")
-        # Implementation depends on the specific functionality needed
+    def add_view(self, name: str, view: ttk.Frame) -> None:
+        """
+        Add a new view to the notebook.
 
-    def _on_open(self):
-        """Handle Open menu action."""
-        logger.info("Open action triggered")
-        # Implementation depends on the specific functionality needed
-
-    def _on_save(self):
-        """Handle Save menu action."""
-        logger.info("Save action triggered")
-
-        # Get the current tab
-        current_tab = self.notebook.select()
-        if not current_tab:
-            return
-
-        # Get the view in the current tab
-        tab_index = self.notebook.index(current_tab)
-        tab_name = self.notebook.tab(tab_index, "text")
-
-        # Find the view and call its save method
+        Args:
+            name (str): Name of the view (displayed in tab)
+            view (ttk.Frame): View instance to add
+        """
         try:
-            for child in self.notebook.winfo_children()[tab_index].winfo_children():
-                if hasattr(child, 'save'):
-                    child.save()
-                    self.set_status(f"{tab_name} data saved")
-                    break
+            self.notebook.add(view, text=name)
+            self.views[name] = view
+            logger.info(f"Added view: {name}")
         except Exception as e:
-            logger.error(f"Error saving {tab_name}: {str(e)}")
-            messagebox.showerror("Save Error", f"Error saving {tab_name}: {str(e)}")
+            logger.error(f"Error adding view {name}: {str(e)}")
+            messagebox.showerror("Error", f"Failed to add view: {name}")
 
-    def _on_undo(self):
-        """Handle Undo menu action."""
-        logger.info("Undo action triggered")
+    def _on_new(self) -> None:
+        """Handle New menu command."""
+        logger.debug("New command triggered")
+        # Implement new document/record creation
 
-        # Get the current tab
-        current_tab = self.notebook.select()
-        if not current_tab:
-            return
+    def _on_open(self) -> None:
+        """Handle Open menu command."""
+        logger.debug("Open command triggered")
+        # Implement open functionality
 
-        # Get the view in the current tab
-        tab_index = self.notebook.index(current_tab)
+    def _on_save(self) -> None:
+        """Handle Save menu command."""
+        logger.debug("Save command triggered")
+        # Implement save functionality
 
-        # Find the view and call its undo method
-        try:
-            for child in self.notebook.winfo_children()[tab_index].winfo_children():
-                if hasattr(child, 'undo'):
-                    child.undo()
-                    break
-        except Exception as e:
-            logger.error(f"Error in undo: {str(e)}")
-            messagebox.showerror("Undo Error", f"Error in undo operation: {str(e)}")
+    def _on_undo(self) -> None:
+        """Handle Undo menu command."""
+        logger.debug("Undo command triggered")
+        # Implement undo functionality
 
-    def _on_redo(self):
-        """Handle Redo menu action."""
-        logger.info("Redo action triggered")
+    def _on_redo(self) -> None:
+        """Handle Redo menu command."""
+        logger.debug("Redo command triggered")
+        # Implement redo functionality
 
-        # Get the current tab
-        current_tab = self.notebook.select()
-        if not current_tab:
-            return
+    def _on_refresh(self) -> None:
+        """Handle Refresh menu command."""
+        logger.debug("Refresh command triggered")
+        current_view = self.notebook.select()
+        if current_view:
+            view_name = self.notebook.tab(current_view, "text")
+            if view_name in self.views:
+                try:
+                    self.views[view_name].refresh()
+                    self.set_status(f"Refreshed {view_name}")
+                except Exception as e:
+                    logger.error(f"Error refreshing view {view_name}: {str(e)}")
+                    messagebox.showerror("Error", f"Failed to refresh {view_name}")
 
-        # Get the view in the current tab
-        tab_index = self.notebook.index(current_tab)
-
-        # Find the view and call its redo method
-        try:
-            for child in self.notebook.winfo_children()[tab_index].winfo_children():
-                if hasattr(child, 'redo'):
-                    child.redo()
-                    break
-        except Exception as e:
-            logger.error(f"Error in redo: {str(e)}")
-            messagebox.showerror("Redo Error", f"Error in redo operation: {str(e)}")
-
-    def _on_exit(self):
-        """Handle Exit menu action."""
-        logger.info("Exit action triggered")
-
-        # Ask for confirmation
-        if messagebox.askyesno("Exit", "Are you sure you want to exit?"):
+    def _on_exit(self) -> None:
+        """Handle Exit menu command."""
+        logger.debug("Exit command triggered")
+        if messagebox.askokcancel("Exit", "Are you sure you want to exit?"):
             # Clean up and close the application
-            self.app.quit()
+            try:
+                for view in self.views.values():
+                    if hasattr(view, 'cleanup'):
+                        view.cleanup()
+                self.root.quit()
+            except Exception as e:
+                logger.error(f"Error during application exit: {str(e)}")
+                messagebox.showerror("Error", "Failed to exit cleanly")

@@ -1,115 +1,143 @@
 # di/config.py
-import importlib
-import logging
-from typing import Any, Callable
 
-from di.container import DependencyContainer
+from typing import Type, TypeVar, Any
+from .container import DependencyContainer
 
-from services.interfaces.inventory_service import IInventoryService
+# Service interfaces
 from services.interfaces.order_service import IOrderService
 from services.interfaces.recipe_service import IRecipeService
 from services.interfaces.shopping_list_service import IShoppingListService
+from services.interfaces.project_service import IProjectService
 from services.interfaces.storage_service import IStorageService
 from services.interfaces.supplier_service import ISupplierService
+from services.interfaces.hardware_service import IHardwareService
+from services.interfaces.material_service import IMaterialService
+
+# Service implementations
+from services.implementations.order_service import OrderService
+from services.implementations.recipe_service import RecipeService
+from services.implementations.shopping_list_service import ShoppingListService
+from services.implementations.project_service import ProjectService
+from services.implementations.storage_service import StorageService
+from services.implementations.supplier_service import SupplierService
+from services.implementations.hardware_service import HardwareService
+from services.implementations.material_service import MaterialService
+
+T = TypeVar('T')
 
 
 class ApplicationConfig:
     """
     Configuration class for dependency injection and service registration.
 
-    Handles the initialization and registration of services
-    in the dependency injection container.
+    Handles:
+    - Service registration
+    - Container configuration
+    - Service resolution
     """
 
-    @classmethod
-    def configure_container(cls) -> DependencyContainer:
-        """
-        Configure and set up the dependency injection container.
-
-        Returns:
-            DependencyContainer: Configured container with registered services.
-        """
-        logger = logging.getLogger(__name__)
-        try:
-            container = DependencyContainer()
-
-            # Register services
-            cls._register_services(container)
-
-            logger.info("Dependency container configured successfully")
-            return container
-        except Exception as e:
-            logger.error(f"Error configuring dependency container: {e}")
-            raise
+    _container: DependencyContainer = None
 
     @classmethod
-    def _register_services(cls, container
-                           ):
+    def configure_container(cls) -> None:
+        """Configure the dependency injection container with all required services."""
+        container = DependencyContainer()
+        cls._register_services(container)
+        ApplicationConfig._container = container
+
+    @classmethod
+    def _register_services(cls, container: DependencyContainer) -> None:
         """
-        Register services in the dependency injection container.
+        Register all application services.
 
         Args:
-            container (DependencyContainer): Container to register services in.
+            container: Dependency container to register services with
         """
-        logger = logging.getLogger(__name__)
+        # Register Order service
+        container.register(
+            IOrderService,
+            lambda c: OrderService(c),
+            singleton=True
+        )
 
-        # Service implementations to register
-        service_mappings = [
-            (IInventoryService, 'services.implementations.inventory_service.InventoryService'),
-            (IOrderService, 'services.implementations.order_service.OrderService'),
-            (IRecipeService, 'services.implementations.recipe_service.RecipeService'),
-            (IShoppingListService, 'services.implementations.shopping_list_service.ShoppingListService'),
-            (IStorageService, 'services.implementations.storage_service.StorageService'),
-            (ISupplierService, 'services.implementations.supplier_service.SupplierService')
-        ]
+        # Register Recipe service
+        container.register(
+            IRecipeService,
+            lambda c: RecipeService(c),
+            singleton=True
+        )
 
-        # Register each service
-        for interface, implementation_path in service_mappings:
-            try:
-                # Dynamically import the implementation
-                module_path, class_name = implementation_path.rsplit('.', 1)
-                module = importlib.import_module(module_path)
-                implementation_class = getattr(module, class_name)
+        # Register Shopping List service
+        container.register(
+            IShoppingListService,
+            lambda c: ShoppingListService(c),
+            singleton=True
+        )
 
-                # Only register if not already registered
-                if not container.is_registered(interface):
-                    container.register(
-                        interface_type=interface,
-                        implementation_factory=lambda cont, impl=implementation_class: impl(cont),
-                        singleton=True
-                    )
-                    logger.info(f"Registered {implementation_path} for {interface.__name__}")
-            except ImportError as e:
-                logger.warning(f"Could not import {implementation_path}: {e}")
-            except Exception as e:
-                logger.error(f"Error registering {implementation_path}: {e}")
+        # Register Project service
+        container.register(
+            IProjectService,
+            lambda c: ProjectService(c),
+            singleton=True
+        )
+
+        # Register Storage service
+        container.register(
+            IStorageService,
+            lambda c: StorageService(c),
+            singleton=True
+        )
+
+        # Register Supplier service
+        container.register(
+            ISupplierService,
+            lambda c: SupplierService(c),
+            singleton=True
+        )
+
+        # Register Hardware service
+        container.register(
+            IHardwareService,
+            lambda c: HardwareService(c),
+            singleton=True
+        )
+
+        # Register Material service
+        container.register(
+            IMaterialService,
+            lambda c: MaterialService(c),
+            singleton=True
+        )
 
     @classmethod
-    def get_service(cls, container: DependencyContainer, service_type: type) -> Any:
+    def get_container(cls) -> DependencyContainer:
         """
-        Retrieve a service from the container.
-
-        Args:
-            container (DependencyContainer): Dependency injection container.
-            service_type (type): Interface type of the service to retrieve.
+        Get the configured dependency container.
 
         Returns:
-            The requested service implementation.
+            DependencyContainer: Configured container instance
 
         Raises:
-            ValueError: If no implementation is registered for the service type.
+            RuntimeError: If container is not configured
         """
-        logger = logging.getLogger(__name__)
-        try:
-            return container.resolve(service_type)
-        except Exception as e:
-            logger.error(f"Error retrieving service {service_type}: {e}")
-            raise ValueError(f"No implementation registered for {service_type}")
+        if cls._container is None:
+            raise RuntimeError("Container not configured. Call configure_container() first.")
+        return cls._container
 
-    # Configure logging
+    @classmethod
+    def get_service(cls, service_type: Type[T]) -> T:
+        """
+        Get a service instance of the specified type.
 
+        Args:
+            service_type: Type of service to retrieve
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+        Returns:
+            Service instance
+
+        Raises:
+            RuntimeError: If container is not configured
+            Exception: If service resolution fails
+        """
+        container = cls.get_container()
+        return container.resolve(service_type)

@@ -1,132 +1,351 @@
-# Path: store_management/services/implementations/order_service.py
-from typing import List, Dict, Any, Optional, Tuple
+# services/implementations/order_service.py
 
-from di.service import Service
-from di.container import DependencyContainer
+import logging
+from typing import List, Dict, Any, Optional
+from datetime import datetime
+from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError
+
 from services.interfaces.order_service import IOrderService
-from database.sqlalchemy.core.specialized.order_manager import OrderManager
+from database.models.order import Order, OrderItem
+from database.models.enums import OrderStatus, PaymentStatus
+from database.session import get_db_session
 
-class OrderService(Service, IOrderService):
-    """Service for order management operations"""
 
-    def __init__(self, container: DependencyContainer):
+class OrderService(IOrderService):
+    """
+    Service implementation for managing orders.
+
+    Handles:
+    - Order CRUD operations
+    - Order status management
+    - Payment processing
+    - Order reporting
+    """
+
+    def __init__(self, container: Any) -> None:
         """
-        Initialize with appropriate managers.
+        Initialize the order service.
 
         Args:
             container: Dependency injection container
         """
-        super().__init__(container)
-        self.order_manager = self.get_dependency(OrderManager)
+        self.logger = logging.getLogger(__name__)
+        self.session: Session = get_db_session()
 
-    def get_all_orders(self) -> List[Dict[str, Any]]:
+    def get_all_orders(self) -> List[Order]:
         """
-        Retrieve all orders.
+        Get all orders in the system.
 
         Returns:
-            List of order dictionaries
+            List of Order objects
+
+        Raises:
+            Exception: If database query fails
         """
         try:
-            orders = self.order_manager.get_all()
-            return [self._to_dict(order) for order in orders]
-        except Exception as e:
-            print(f"Error retrieving orders: {e}")
-            return []
+            return self.session.query(Order).order_by(Order.created_at.desc()).all()
+        except SQLAlchemyError as e:
+            self.logger.error(f"Error retrieving orders: {str(e)}")
+            raise Exception("Failed to retrieve orders") from e
 
-    def get_order_by_id(self, order_id: int) -> Optional[Dict[str, Any]]:
+    def get_order_by_id(self, order_id: int) -> Optional[Order]:
         """
-        Get order details by ID.
+        Get an order by its ID.
 
         Args:
-            order_id: Order ID
+            order_id: ID of the order to retrieve
 
         Returns:
-            Order details or None if not found
+            Order object if found, None otherwise
+
+        Raises:
+            Exception: If database query fails
         """
         try:
-            order = self.order_manager.get(order_id)
-            return self._to_dict(order) if order else None
-        except Exception as e:
-            print(f"Error retrieving order {order_id}: {e}")
-            return None
+            return self.session.query(Order).filter(Order.id == order_id).first()
+        except SQLAlchemyError as e:
+            self.logger.error(f"Error retrieving order {order_id}: {str(e)}")
+            raise Exception(f"Failed to retrieve order {order_id}") from e
 
-    def create_order(self, order_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def get_order_by_number(self, order_number: str) -> Optional[Order]:
+        """
+        Get an order by its order number.
+
+        Args:
+            order_number: Order number to search for
+
+        Returns:
+            Order object if found, None otherwise
+
+        Raises:
+            Exception: If database query fails
+        """
+        try:
+            return self.session.query(Order).filter(Order.order_number == order_number).first()
+        except SQLAlchemyError as e:
+            self.logger.error(f"Error retrieving order {order_number}: {str(e)}")
+            raise Exception(f"Failed to retrieve order {order_number}") from e
+
+    def create_order(self, order_data: Dict[str, Any]) -> Order:
         """
         Create a new order.
 
         Args:
-            order_data: Dictionary with order data
+            order_data: Dictionary containing order data
 
         Returns:
-            Created order or None
+            Created Order object
+
+        Raises:
+            Exception: If order creation fails
         """
         try:
-            new_order = self.order_manager.create(order_data)
-            return self._to_dict(new_order)
-        except Exception as e:
-            print(f"Error creating order: {e}")
-            return None
+            # Generate order number if not provided
+            if 'order_number' not in order_data:
+                order_data['order_number'] = self._generate_order_number()
 
-    def update_order(self, order_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+            # Create order
+            order = Order(
+                order_number=order_data['order_number'],
+                customer_name=order_data['customer_name'],
+                status=OrderStatus[order_data.get('status', 'NEW')],
+                payment_status=PaymentStatus[order_data.get('payment_status', 'PENDING')],
+                notes=order_data.get('notes')
+            )
+
+            # Add items if provided
+            if 'items' in order_data:
+                for item_data in order_data['items']:
+                    item = OrderItem(
+                        product_name=item_data['product_name'],
+                        quantity=item_data['quantity'],
+                        unit_price=item_data['unit_price'],
+                        total_price=item_data['quantity'] * item_data['unit_price']
+                    )
+                    order.items.append(item)
+
+            # Calculate total
+            order.total_amount = sum(item.total_price for item in order.items)
+
+            # Save to database
+            self.session.add(order)
+            self.session.commit()
+
+            self.logger.info(f"Created order {order.order_number}")
+            return order
+
+        except SQLAlchemyError as e:
+            self.session.rollback()
+            self.logger.error(f"Error creating order: {str(e)}")
+            raise Exception("Failed to create order") from e
+
+    def update_order(self, order_id: int, order_data: Dict[str, Any]) -> Order:
         """
         Update an existing order.
 
         Args:
-            order_data: Dictionary with updated order information
+            order_id: ID of the order to update
+            order_data: Dictionary containing updated order data
 
         Returns:
-            Updated order or None
+            Updated Order object
+
+        Raises:
+            Exception: If order update fails
         """
         try:
-            order_id = order_data.get('id')
-            if not order_id:
-                print("Order ID is required for update")
-                return None
+            order = self.get_order_by_id(order_id)
+            if not order:
+                raise Exception(f"Order {order_id} not found")
 
-            updated_order = self.order_manager.update(order_id, order_data)
-            return self._to_dict(updated_order)
-        except Exception as e:
-            print(f"Error updating order: {e}")
-            return None
+            # Update basic fields
+            order.customer_name = order_data.get('customer_name', order.customer_name)
+            order.status = OrderStatus[order_data.get('status', order.status.name)]
+            order.payment_status = PaymentStatus[order_data.get('payment_status', order.payment_status.name)]
+            order.notes = order_data.get('notes', order.notes)
 
-    def delete_order(self, order_id: int) -> bool:
+            # Update items if provided
+            if 'items' in order_data:
+                # Remove existing items
+                order.items.clear()
+
+                # Add new items
+                for item_data in order_data['items']:
+                    item = OrderItem(
+                        product_name=item_data['product_name'],
+                        quantity=item_data['quantity'],
+                        unit_price=item_data['unit_price'],
+                        total_price=item_data['quantity'] * item_data['unit_price']
+                    )
+                    order.items.append(item)
+
+                # Recalculate total
+                order.total_amount = sum(item.total_price for item in order.items)
+
+            self.session.commit()
+            self.logger.info(f"Updated order {order.order_number}")
+            return order
+
+        except SQLAlchemyError as e:
+            self.session.rollback()
+            self.logger.error(f"Error updating order {order_id}: {str(e)}")
+            raise Exception(f"Failed to update order {order_id}") from e
+
+    def delete_order(self, order_id: int) -> None:
         """
         Delete an order.
 
         Args:
             order_id: ID of the order to delete
 
-        Returns:
-            True if deletion successful, False otherwise
+        Raises:
+            Exception: If order deletion fails
         """
         try:
-            return self.order_manager.delete(order_id)
-        except Exception as e:
-            print(f"Error deleting order {order_id}: {e}")
-            return False
+            order = self.get_order_by_id(order_id)
+            if not order:
+                raise Exception(f"Order {order_id} not found")
 
-    def _to_dict(self, order):
+            self.session.delete(order)
+            self.session.commit()
+            self.logger.info(f"Deleted order {order.order_number}")
+
+        except SQLAlchemyError as e:
+            self.session.rollback()
+            self.logger.error(f"Error deleting order {order_id}: {str(e)}")
+            raise Exception(f"Failed to delete order {order_id}") from e
+
+    def process_order_payment(self, order_id: int, payment_amount: float) -> Order:
         """
-        Convert order model to dictionary.
+        Process a payment for an order.
 
         Args:
-            order: Order model instance
+            order_id: ID of the order
+            payment_amount: Amount being paid
 
         Returns:
-            Dictionary representation of the order
-        """
-        if not order:
-            return {}
+            Updated Order object
 
-        return {
-            'id': order.id,
-            'order_number': getattr(order, 'order_number', ''),
-            'supplier_id': getattr(order, 'supplier_id', None),
-            'order_date': str(getattr(order, 'order_date', '')),
-            'expected_delivery_date': str(getattr(order, 'expected_delivery_date', '')),
-            'total_amount': getattr(order, 'total_amount', 0.0),
-            'status': getattr(order, 'status', ''),
-            'payment_status': getattr(order, 'payment_status', ''),
-            'is_paid': getattr(order, 'is_paid', False),
-            'notes': getattr(order, 'notes', '')
-        }
+        Raises:
+            Exception: If payment processing fails
+        """
+        try:
+            order = self.get_order_by_id(order_id)
+            if not order:
+                raise Exception(f"Order {order_id} not found")
+
+            # Validate payment amount
+            if payment_amount <= 0:
+                raise ValueError("Payment amount must be greater than zero")
+
+            if payment_amount >= order.total_amount:
+                order.payment_status = PaymentStatus.PAID
+            else:
+                order.payment_status = PaymentStatus.PARTIAL
+
+            self.session.commit()
+            self.logger.info(f"Processed payment of ${payment_amount:.2f} for order {order.order_number}")
+            return order
+
+        except SQLAlchemyError as e:
+            self.session.rollback()
+            self.logger.error(f"Error processing payment for order {order_id}: {str(e)}")
+            raise Exception(f"Failed to process payment for order {order_id}") from e
+
+    def get_orders_by_status(self, status: OrderStatus) -> List[Order]:
+        """
+        Get all orders with a specific status.
+
+        Args:
+            status: Status to filter by
+
+        Returns:
+            List of matching Order objects
+
+        Raises:
+            Exception: If query fails
+        """
+        try:
+            return self.session.query(Order).filter(Order.status == status).all()
+        except SQLAlchemyError as e:
+            self.logger.error(f"Error retrieving orders with status {status}: {str(e)}")
+            raise Exception(f"Failed to retrieve orders with status {status}") from e
+
+    def get_orders_by_customer(self, customer_name: str) -> List[Order]:
+        """
+        Get all orders for a specific customer.
+
+        Args:
+            customer_name: Name of the customer
+
+        Returns:
+            List of matching Order objects
+
+        Raises:
+            Exception: If query fails
+        """
+        try:
+            return (self.session.query(Order)
+                    .filter(Order.customer_name.ilike(f"%{customer_name}%"))
+                    .order_by(Order.created_at.desc())
+                    .all())
+        except SQLAlchemyError as e:
+            self.logger.error(f"Error retrieving orders for customer {customer_name}: {str(e)}")
+            raise Exception(f"Failed to retrieve orders for customer {customer_name}") from e
+
+    def get_order_statistics(self) -> Dict[str, Any]:
+        """
+        Get statistics about orders.
+
+        Returns:
+            Dictionary containing order statistics
+
+        Raises:
+            Exception: If query fails
+        """
+        try:
+            total_orders = self.session.query(Order).count()
+            pending_orders = self.session.query(Order).filter(Order.status == OrderStatus.NEW).count()
+            completed_orders = self.session.query(Order).filter(Order.status == OrderStatus.COMPLETED).count()
+            total_revenue = self.session.query(func.sum(Order.total_amount)).scalar() or 0.0
+
+            return {
+                'total_orders': total_orders,
+                'pending_orders': pending_orders,
+                'completed_orders': completed_orders,
+                'total_revenue': total_revenue
+            }
+
+        except SQLAlchemyError as e:
+            self.logger.error(f"Error retrieving order statistics: {str(e)}")
+            raise Exception("Failed to retrieve order statistics") from e
+
+    def _generate_order_number(self) -> str:
+        """
+        Generate a unique order number.
+
+        Returns:
+            Unique order number string
+        """
+        prefix = "ORD"
+        date_part = datetime.now().strftime("%Y%m")
+
+        # Get the last order number for this month
+        last_order = (self.session.query(Order)
+                      .filter(Order.order_number.like(f"{prefix}-{date_part}%"))
+                      .order_by(Order.order_number.desc())
+                      .first())
+
+        if last_order:
+            # Extract and increment the sequence number
+            seq_num = int(last_order.order_number.split('-')[-1]) + 1
+        else:
+            seq_num = 1
+
+        return f"{prefix}-{date_part}-{seq_num:04d}"
+
+    def cleanup(self) -> None:
+        """Clean up resources used by the service."""
+        if self.session:
+            self.session.close()

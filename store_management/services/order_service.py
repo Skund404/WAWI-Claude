@@ -1,98 +1,137 @@
-from typing import List, Dict, Any, Optional, Tuple
-from datetime import datetime
-from database.sqlalchemy.models.order import Order, OrderItem
-from database.sqlalchemy.models.supplier import Supplier
-from database.sqlalchemy.models.part import Part
-from database.sqlalchemy.models.leather import Leather
-from database.sqlalchemy.models.enums import OrderStatus, PaymentStatus
-from database.sqlalchemy.manager_factory import get_manager
+# File: services/order_service.py
+from typing import List, Dict, Optional
+from database.models.order import Order, OrderItem
+from services.interfaces.order_service import IOrderService
+from di.service import Service
 
 
-class OrderService:
-    """Service for order management operations"""
+class OrderService(Service, IOrderService):
+    """
+    Service for handling order-related operations.
+    """
 
-    def __init__(self):
-        """Initialize with appropriate managers"""
-        self.order_manager = get_manager(Order)
-        self.order_item_manager = get_manager(OrderItem)
-        self.supplier_manager = get_manager(Supplier)
-        self.part_manager = get_manager(Part)
-        self.leather_manager = get_manager(Leather)
-
-    def create_order(self, order_data: Dict[str, Any], items: List[Dict[str, Any]]) -> Tuple[Optional[Order], str]:
-        """Create a new order with items.
+    def __init__(self, container):
+        """
+        Initialize the OrderService with a dependency injection container.
 
         Args:
-            order_data: Dictionary with order data
-            items: List of dictionaries with item data
+            container: Dependency injection container
+        """
+        super().__init__(container)
+
+    def get_all_orders(self) -> List[Order]:
+        """
+        Retrieve all orders.
 
         Returns:
-            Tuple of (created order or None, result message)
+            List[Order]: A list of all orders
         """
-        try:
-            # Validate supplier exists
-            supplier_id = order_data.get('supplier_id')
-            if supplier_id and not self.supplier_manager.get(supplier_id):
-                return None, f"Supplier with ID {supplier_id} not found"
+        # Implement order retrieval logic
+        return []
 
-            # Create order
-            order = self.order_manager.create(order_data)
-
-            # Create order items
-            for item_data in items:
-                item_data['order_id'] = order.id
-                self.order_item_manager.create(item_data)
-
-            return order, "Order created successfully"
-        except Exception as e:
-            return None, f"Error creating order: {str(e)}"
-
-    def update_order_status(self, order_id: int, status: OrderStatus) -> Tuple[bool, str]:
-        """Update order status with validation of status transitions.
+    def get_order_by_id(self, order_id: int) -> Optional[Order]:
+        """
+        Retrieve an order by its ID.
 
         Args:
-            order_id: Order ID
-            status: New status
+            order_id (int): The unique identifier of the order
 
         Returns:
-            Tuple of (success, message)
+            Optional[Order]: The order if found, None otherwise
         """
-        try:
-            order = self.order_manager.get(order_id)
-            if not order:
-                return False, f"Order with ID {order_id} not found"
+        # Implement order retrieval by ID logic
+        return None
 
-            # Validate status transition
-            if not self._is_valid_status_transition(order.status, status):
-                return False, f"Invalid status transition from {order.status} to {status}"
-
-            # Update order status
-            self.order_manager.update(order_id, {"status": status})
-
-            return True, f"Order status updated to {status}"
-        except Exception as e:
-            return False, f"Error updating order status: {str(e)}"
-
-    def _is_valid_status_transition(self, current_status: OrderStatus, new_status: OrderStatus) -> bool:
-        """Validate if a status transition is allowed.
+    def create_order(self, order_data: Dict) -> Order:
+        """
+        Create a new order.
 
         Args:
-            current_status: Current order status
-            new_status: New order status
+            order_data (Dict): Dictionary containing order information
 
         Returns:
-            True if transition is valid, False otherwise
+            Order: The created order
         """
-        # Define valid transitions (simplified example)
-        valid_transitions = {
-            OrderStatus.NEW: [OrderStatus.PENDING, OrderStatus.CANCELLED],
-            OrderStatus.PENDING: [OrderStatus.PROCESSING, OrderStatus.CANCELLED],
-            OrderStatus.PROCESSING: [OrderStatus.SHIPPED, OrderStatus.CANCELLED],
-            OrderStatus.SHIPPED: [OrderStatus.DELIVERED, OrderStatus.RETURNED],
-            OrderStatus.DELIVERED: [OrderStatus.RETURNED],
-            # No transitions from final states
-            OrderStatus.CANCELLED: [],
-            OrderStatus.RETURNED: []
-        }
+        # Implement order creation logic
+        return Order()
 
-        return new_status in valid_transitions.get(current_status, [])
+    def update_order(self, order_id: int, order_data: Dict) -> Optional[Order]:
+        """
+        Update an existing order.
+
+        Args:
+            order_id (int): The unique identifier of the order to update
+            order_data (Dict): Dictionary containing updated order information
+
+        Returns:
+            Optional[Order]: The updated order, or None if update failed
+        """
+        # Implement order update logic
+        return None
+
+    def delete_order(self, order_id: int) -> bool:
+        """
+        Delete an order.
+
+        Args:
+            order_id (int): The unique identifier of the order to delete
+
+        Returns:
+            bool: True if deletion was successful, False otherwise
+        """
+        # Implement order deletion logic
+        return False
+
+    def process_order_payment(self, order_id: int, payment_amount: float) -> bool:
+        """
+        Process payment for an order.
+
+        Args:
+            order_id (int): The unique identifier of the order
+            payment_amount (float): The amount of payment
+
+        Returns:
+            bool: True if payment was processed successfully, False otherwise
+        """
+        # Implement payment processing logic
+        return False
+
+    def get_orders_by_status(self, status: str) -> List[Order]:
+        """
+        Retrieve orders by their status.
+
+        Args:
+            status (str): The status to filter orders by
+
+        Returns:
+            List[Order]: A list of orders with the specified status
+        """
+        # Implement order status filtering logic
+        return []
+
+    def get_supplier_orders(self, supplier_id: int) -> List[Order]:
+        """
+        Retrieve orders for a specific supplier.
+
+        Args:
+            supplier_id (int): The unique identifier of the supplier
+
+        Returns:
+            List[Order]: A list of orders from the specified supplier
+        """
+        # Implement supplier order retrieval logic
+        return []
+
+    def generate_order_report(self, start_date: str, end_date: str) -> Dict:
+        """
+        Generate a report of orders within a specified date range.
+
+        Args:
+            start_date (str): The start date for the report
+            end_date (str): The end date for the report
+
+        Returns:
+            Dict: A dictionary containing order report information
+        """
+        # Implement order report generation logic
+        return {}

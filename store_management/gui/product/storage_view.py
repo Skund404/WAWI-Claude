@@ -7,8 +7,8 @@ from sqlalchemy import or_
 from typing import Optional, Dict, Any
 import uuid
 
-from database.sqlalchemy.models import (
-    Storage, Product, Recipe
+from database.sqlalchemy.models_file import (
+    Storage, Product, Project
 )
 from database.sqlalchemy.manager import DatabaseManagerSQLAlchemy
 
@@ -150,10 +150,10 @@ class StorageView(ttk.Frame):
 
         # Get recipes for dropdown
         with self.db.session_scope() as session:
-            recipes = session.query(Recipe.unique_id, Recipe.name).all()
+            recipes = session.query(Project.unique_id, Project.name).all()
 
         # Create fields
-        ttk.Label(main_frame, text="Recipe:").grid(row=0, column=0, sticky='w')
+        ttk.Label(main_frame, text="Project:").grid(row=0, column=0, sticky='w')
         recipe_var = tk.StringVar()
         recipe_combo = ttk.Combobox(
             main_frame,
@@ -211,12 +211,12 @@ class StorageView(ttk.Frame):
 
                 with self.db.session_scope() as session:
                     # Get or create product
-                    recipe = session.query(Recipe) \
-                        .filter(Recipe.unique_id == recipe_id) \
+                    recipe = session.query(Project) \
+                        .filter(Project.unique_id == recipe_id) \
                         .first()
 
                     if not recipe:
-                        messagebox.showerror("Error", "Recipe not found")
+                        messagebox.showerror("Error", "Project not found")
                         return
 
                     product = Product(
@@ -325,7 +325,7 @@ class StorageView(ttk.Frame):
                     if target_var.get() == "all":
                         conditions = [
                             Product.name.ilike(f"%{search_text}%"),
-                            Recipe.type.ilike(f"%{search_text}%"),
+                            Project.type.ilike(f"%{search_text}%"),
                             Storage.bin.ilike(f"%{search_text}%")
                         ]
                         query = query.filter(or_(*conditions))
@@ -333,7 +333,7 @@ class StorageView(ttk.Frame):
                         if target_var.get() == 'name':
                             query = query.filter(Product.name.ilike(f"%{search_text}%"))
                         elif target_var.get() == 'type':
-                            query = query.filter(Recipe.type.ilike(f"%{search_text}%"))
+                            query = query.filter(Project.type.ilike(f"%{search_text}%"))
                         elif target_var.get() == 'bin':
                             query = query.filter(Storage.bin.ilike(f"%{search_text}%"))
 
@@ -401,9 +401,9 @@ class StorageView(ttk.Frame):
         ttk.Label(filter_frame, text="Type:").grid(row=0, column=0, sticky='w', padx=5)
         # Get unique types from database
         with self.db.session_scope() as session:
-            types = session.query(Recipe.type) \
+            types = session.query(Project.type) \
                 .distinct() \
-                .order_by(Recipe.type) \
+                .order_by(Project.type) \
                 .all()
             type_list = ['All'] + [t[0] for t in types if t[0]]
 
@@ -453,7 +453,7 @@ class StorageView(ttk.Frame):
 
                     # Apply type filter
                     if type_var.get() != 'All':
-                        query = query.filter(Recipe.type == type_var.get())
+                        query = query.filter(Project.type == type_var.get())
 
                     # Apply amount filter
                     if amount_var.get().strip():

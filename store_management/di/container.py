@@ -1,132 +1,110 @@
 # di/container.py
-from typing import Any, Callable, Dict, Optional, Type
+
+from typing import Any, Dict, Callable, Optional, Type
 import logging
+
+logger = logging.getLogger(__name__)
 
 
 class DependencyContainer:
     """
-    A flexible dependency injection container.
-
-    Manages service registrations and resolutions with support for
-    singleton and factory-based dependency creation.
+    Container for managing dependencies and service instances
+    using dependency injection pattern.
     """
 
-    def __init__(self):
-        """
-        Initialize the dependency container.
+    def __init__(self) -> None:
+        """Initialize the dependency container."""
+        self._registrations: Dict[str, Callable] = {}
+        self._singletons: Dict[str, Any] = {}
+        self._singleton_flags: Dict[str, bool] = {}
+        logger.debug("DependencyContainer initialized")
 
-        Stores registered services with their factories and singleton instances.
+    def register(self, interface_type: str,
+                 implementation_factory: Callable[['DependencyContainer'], Any],
+                 singleton: bool = False) -> None:
         """
-        self._services: Dict[Type, Dict[str, Any]] = {}
-        self._logger = logging.getLogger(self.__class__.__name__)
-
-    def register(
-            self,
-            interface_type: Type,
-            implementation_factory: Callable[[Any], Any],
-            singleton: bool = False
-    ) -> None:
-        """
-        Register a service in the container.
+        Register a service implementation with the container.
 
         Args:
-            interface_type (Type): The interface/abstract base class
-            implementation_factory (Callable): A factory function to create the implementation
-            singleton (bool, optional): Whether to cache the first created instance. Defaults to False.
+            interface_type: String identifier for the service type
+            implementation_factory: Factory function to create service instances
+            singleton: Whether service should be a singleton
 
         Raises:
-            ValueError: If the interface type is already registered
+            ValueError: If interface_type is already registered
         """
-        # Check if already registered
-        if self.is_registered(interface_type):
-            # Optionally log a warning or raise an error
-            self._logger.warning(f"Service {interface_type} is already registered. Skipping.")
-            return
+        if interface_type in self._registrations:
+            raise ValueError(f"Type {interface_type} is already registered")
 
-        self._services[interface_type] = {
-            'factory': implementation_factory,
-            'singleton': singleton,
-            'instance': None
-        }
-        self._logger.info(f"Registered service for {interface_type}")
+        self._registrations[interface_type] = implementation_factory
+        self._singleton_flags[interface_type] = singleton
+        logger.debug(f"Registered service: {interface_type} (singleton={singleton})")
 
-    def resolve(self, interface_type: Type) -> Any:
+    def resolve(self, interface_type: str) -> Any:
         """
-        Resolve a service implementation for a given interface.
+        Resolve and return a service instance.
 
         Args:
-            interface_type (Type): The interface type to resolve.
+            interface_type: String identifier for the service type
 
         Returns:
-            The service implementation.
+            Service instance
 
         Raises:
-            ValueError: If no implementation is registered for the interface type.
+            ValueError: If interface_type is not registered
         """
-        # Validate registration
-        if not self.is_registered(interface_type):
-            raise ValueError(f"No implementation registered for {interface_type}")
+        if interface_type not in self._registrations:
+            raise ValueError(f"No registration found for type {interface_type}")
 
-        # Retrieve service registration
-        service_reg = self._services[interface_type]
-
-        # If singleton and instance exists, return cached instance
-        if service_reg['singleton'] and service_reg['instance'] is not None:
-            return service_reg['instance']
+        # Check if it's a singleton and already instantiated
+        if self._singleton_flags.get(interface_type):
+            if interface_type not in self._singletons:
+                self._singletons[interface_type] = self._registrations[interface_type](self)
+            return self._singletons[interface_type]
 
         # Create new instance
-        try:
-            instance = service_reg['factory'](self)
-
-            # Cache instance if singleton
-            if service_reg['singleton']:
-                service_reg['instance'] = instance
-
-            return instance
-        except Exception as e:
-            self._logger.error(f"Error resolving {interface_type}: {e}")
-            raise
-
-    def is_registered(self, interface_type: Type) -> bool:
-        """
-        Check if a service is registered in the container.
-
-        Args:
-            interface_type (Type): The interface type to check.
-
-        Returns:
-            bool: True if registered, False otherwise.
-        """
-        return interface_type in self._services
+        return self._registrations[interface_type](self)
 
     def get_service(self, interface_type: Type) -> Any:
         """
-        Convenience method to resolve a service.
-
-        Alias for resolve method.
+        Get a service instance by its type.
 
         Args:
-            interface_type (Type): The interface type to resolve.
+            interface_type: Type of service to retrieve
 
         Returns:
-            The service implementation.
+            Service instance
+
+        Raises:
+            ValueError: If service type is not registered
         """
-        return self.resolve(interface_type)
+        type_name = interface_type.__name__
+        try:
+            return self.resolve(type_name)
+        except Exception as e:
+            logger.error(f"Error resolving service {type_name}: {str(e)}")
+            raise ValueError(f"Could not resolve service {type_name}") from e
+
+    def is_registered(self, interface_type: str) -> bool:
+        """
+        Check if a service type is registered.
+
+        Args:
+            interface_type: String identifier for the service type
+
+        Returns:
+            bool: True if service is registered, False otherwise
+        """
+        return interface_type in self._registrations
 
     def clear(self) -> None:
-        """
-        Clear all registered services.
-
-        Useful for testing or resetting the container.
-        """
-        self._services.clear()
-        self._logger.info("Dependency container cleared")
+        """Clear all registrations and instances from the container."""
+        self._registrations.clear()
+        self._singletons.clear()
+        self._singleton_flags.clear()
+        logger.debug("Container cleared")
 
     def __repr__(self) -> str:
-        """
-        String representation of the container.
-
-        Returns:
-            str: Description of registered services.
-        """
-        return f"DependencyContainer(registered_services={list(self._services.keys())})"
+        """String representation of the container."""
+        services = ', '.join(self._registrations.keys())
+        return f"DependencyContainer(services=[{services}])"

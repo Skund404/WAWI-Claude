@@ -3,8 +3,8 @@
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 
-from database.sqlalchemy.models import Order, OrderDetail, Supplier, Storage, Product
-from database.sqlalchemy.models.order import OrderStatus, PaymentStatus
+from database.sqlalchemy.models_file import Order, OrderDetail, Supplier, Storage, Product
+from database.sqlalchemy.models_file.order import OrderStatus, PaymentStatus
 from database.sqlalchemy.session import get_session
 
 class IncomingGoodsManager:

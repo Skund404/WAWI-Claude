@@ -1,275 +1,365 @@
-# store_management/services/implementations/shopping_list_service.py
-from typing import List, Dict, Any, Optional, Tuple, cast
+# services/implementations/shopping_list_service.py
+
+import logging
+from typing import List, Dict, Any, Optional
 from datetime import datetime
 
-from di.service import Service
-from di.container import DependencyContainer
 from services.interfaces.shopping_list_service import IShoppingListService
-from database.sqlalchemy.base_manager import BaseManager
 from database.models.shopping_list import ShoppingList, ShoppingListItem
-from database.models.part import Part
-from database.models.leather import Leather
-from database.models.supplier import Supplier
+from di.service import Service
 
 
 class ShoppingListService(Service, IShoppingListService):
-    """Service for shopping list management operations"""
+    """
+    Service implementation for managing shopping lists.
 
-    def __init__(self, container: DependencyContainer):
-        """Initialize with appropriate managers"""
+    Handles:
+    - Shopping list CRUD operations
+    - Item management
+    - Purchase tracking
+    - List status management
+    """
+
+    def __init__(self, container):
+        """
+        Initialize the shopping list service.
+
+        Args:
+            container: Dependency injection container
+        """
         super().__init__(container)
-        self._shopping_list_manager = self.get_dependency(BaseManager[ShoppingList])
-        self._shopping_list_item_manager = self.get_dependency(BaseManager[ShoppingListItem])
-        self._supplier_manager = self.get_dependency(BaseManager[Supplier])
-        self._part_manager = self.get_dependency(BaseManager[Part])
-        self._leather_manager = self.get_dependency(BaseManager[Leather])
+        self.logger = logging.getLogger(__name__)
+        self.shopping_list_repository = self.get_dependency('shopping_list_repository')
 
-    def create_shopping_list(self, list_data: Dict[str, Any],
-                             items: Optional[List[Dict[str, Any]]] = None) -> Tuple[Optional[Dict[str, Any]], str]:
+    def get_all_shopping_lists(self) -> List[ShoppingList]:
+        """
+        Get all shopping lists from the database.
+
+        Returns:
+            List of all shopping lists, ordered by creation date
+        """
+        try:
+            return self.shopping_list_repository.get_all()
+        except Exception as e:
+            self.logger.error(f"Error retrieving shopping lists: {str(e)}")
+            raise
+
+    def get_shopping_list_by_id(self, list_id: int) -> Optional[ShoppingList]:
+        """
+        Get a specific shopping list by ID.
+
+        Args:
+            list_id: Unique identifier of the shopping list
+
+        Returns:
+            Shopping list if found, None otherwise
+        """
+        try:
+            return self.shopping_list_repository.get(list_id)
+        except Exception as e:
+            self.logger.error(f"Error retrieving shopping list {list_id}: {str(e)}")
+            raise
+
+    def create_shopping_list(self, list_data: Dict[str, Any]) -> ShoppingList:
         """
         Create a new shopping list with optional items.
 
         Args:
-            list_data: Shopping list data
-            items: Optional list of item data
+            list_data: Dictionary containing shopping list details
 
         Returns:
-            Tuple of (created shopping list or None, result message)
+            Created shopping list
         """
         try:
-            # Validate list data
-            if not list_data.get('name'):
-                return None, "Shopping list name is required"
-
             # Prepare shopping list data
             shopping_list_data = {
-                'name': list_data.get('name'),
+                'name': list_data['name'],
                 'description': list_data.get('description', ''),
-                'date_created': datetime.now(),
-                'created_by': list_data.get('created_by', 'system'),
-                'priority': list_data.get('priority', 'NORMAL')
+                'status': list_data.get('status', 'active')
             }
 
-            # Create shopping list
-            shopping_list = self._shopping_list_manager.create(shopping_list_data)
+            # Create shopping list first
+            shopping_list = self.shopping_list_repository.create(shopping_list_data)
 
-            # Create shopping list items if provided
-            if items:
-                for item_data in items:
-                    # Add shopping_list_id to item data
+            # Add items if provided
+            if 'items' in list_data:
+                for item_data in list_data['items']:
                     item_data['shopping_list_id'] = shopping_list.id
+                    self._add_item_to_list(item_data)
 
-                    # Create item
-                    self._shopping_list_item_manager.create(item_data)
-
-            # Get created shopping list with items
-            created_list = self._get_shopping_list_with_items(shopping_list.id)
-            if not created_list:
-                return None, "Shopping list created but failed to retrieve"
-
-            return created_list, "Shopping list created successfully"
+            self.logger.info(f"Created shopping list: {shopping_list.name}")
+            return shopping_list
 
         except Exception as e:
-            return None, f"Error creating shopping list: {str(e)}"
+            self.logger.error(f"Error creating shopping list: {str(e)}")
+            raise
 
-    def add_item_to_list(self, list_id: int,
-                         item_data: Dict[str, Any]) -> Tuple[Optional[Dict[str, Any]], str]:
+    def update_shopping_list(self, list_id: int, list_data: Dict[str, Any]) -> ShoppingList:
         """
-        Add an item to a shopping list.
+        Update an existing shopping list.
 
         Args:
-            list_id: Shopping list ID
-            item_data: Item data
+            list_id: ID of the shopping list to update
+            list_data: Dictionary of updated fields
 
         Returns:
-            Tuple of (created item or None, result message)
+            Updated shopping list
         """
         try:
-            # Get the shopping list
-            shopping_list = self._shopping_list_manager.get(list_id)
-            if not shopping_list:
-                return None, f"Shopping list with ID {list_id} not found"
-
-            # Validate item data
-            if not (item_data.get('part_id') or item_data.get('leather_id')):
-                return None, "Either part_id or leather_id is required"
-
-            if not item_data.get('quantity'):
-                return None, "Quantity is required"
-
-            # Check if the part or leather exists
-            if item_data.get('part_id'):
-                part = self._part_manager.get(item_data.get('part_id'))
-                if not part:
-                    return None, f"Part with ID {item_data.get('part_id')} not found"
-
-            if item_data.get('leather_id'):
-                leather = self._leather_manager.get(item_data.get('leather_id'))
-                if not leather:
-                    return None, f"Leather with ID {item_data.get('leather_id')} not found"
-
-            # Add shopping_list_id to item data
-            item_data['shopping_list_id'] = list_id
-
-            # Set default values
-            if 'date_added' not in item_data:
-                item_data['date_added'] = datetime.now()
-
-            if 'is_purchased' not in item_data:
-                item_data['is_purchased'] = False
-
-            # Create item
-            shopping_list_item = self._shopping_list_item_manager.create(item_data)
-
-            return self._shopping_list_item_to_dict(shopping_list_item), "Item added to shopping list"
-
-        except Exception as e:
-            return None, f"Error adding item to shopping list: {str(e)}"
-
-    def mark_item_purchased(self, item_id: int,
-                            purchase_data: Dict[str, Any]) -> Tuple[bool, str]:
-        """
-        Mark a shopping list item as purchased with purchase details.
-
-        Args:
-            item_id: Shopping list item ID
-            purchase_data: Purchase details (date, price)
-
-        Returns:
-            Tuple of (success, message)
-        """
-        try:
-            # Get the shopping list item
-            item = self._shopping_list_item_manager.get(item_id)
-            if not item:
-                return False, f"Shopping list item with ID {item_id} not found"
-
-            # Validate purchase data
-            if not purchase_data.get('price'):
-                return False, "Purchase price is required"
-
-            # Prepare update data
+            # Update basic list details
             update_data = {
-                'is_purchased': True,
-                'purchase_date': purchase_data.get('date', datetime.now()),
-                'purchase_price': purchase_data.get('price'),
-                'purchase_notes': purchase_data.get('notes', '')
+                'name': list_data.get('name'),
+                'description': list_data.get('description'),
+                'status': list_data.get('status')
             }
 
-            # Update the item
-            self._shopping_list_item_manager.update(item_id, update_data)
+            # Remove None values
+            update_data = {k: v for k, v in update_data.items() if v is not None}
 
-            return True, "Item marked as purchased"
+            # Update the list
+            shopping_list = self.shopping_list_repository.update(list_id, update_data)
 
-        except Exception as e:
-            return False, f"Error marking item as purchased: {str(e)}"
+            # Update items if provided
+            if 'items' in list_data:
+                # First, remove existing items
+                self._remove_all_list_items(list_id)
 
-    def get_pending_items_by_supplier(self) -> Dict[int, List[Dict[str, Any]]]:
-        """
-        Get pending items grouped by supplier.
+                # Add new items
+                for item_data in list_data['items']:
+                    item_data['shopping_list_id'] = list_id
+                    self._add_item_to_list(item_data)
 
-        Returns:
-            Dictionary mapping supplier IDs to lists of pending items
-        """
-        try:
-            # Get all shopping list items
-            all_items = self._shopping_list_item_manager.get_all()
-
-            # Filter pending items
-            pending_items = [item for item in all_items if not item.is_purchased]
-
-            # Group by supplier
-            supplier_items = {}
-
-            for item in pending_items:
-                # Determine supplier ID
-                supplier_id = None
-
-                if item.part_id:
-                    part = self._part_manager.get(item.part_id)
-                    if part:
-                        supplier_id = part.supplier_id
-
-                elif item.leather_id:
-                    leather = self._leather_manager.get(item.leather_id)
-                    if leather:
-                        supplier_id = leather.supplier_id
-
-                # Skip if no supplier
-                if not supplier_id:
-                    continue
-
-                # Add to supplier group
-                if supplier_id not in supplier_items:
-                    supplier_items[supplier_id] = []
-
-                supplier_items[supplier_id].append(self._shopping_list_item_to_dict(item))
-
-            return supplier_items
+            self.logger.info(f"Updated shopping list: {shopping_list.name}")
+            return shopping_list
 
         except Exception as e:
-            # Log the error
-            print(f"Error getting pending items by supplier: {str(e)}")
-            return {}
+            self.logger.error(f"Error updating shopping list {list_id}: {str(e)}")
+            raise
 
-    def _get_shopping_list_with_items(self, list_id: int) -> Optional[Dict[str, Any]]:
+    def delete_shopping_list(self, list_id: int) -> None:
         """
-        Get shopping list with its items.
+        Delete a shopping list by ID.
 
         Args:
-            list_id: Shopping list ID
-
-        Returns:
-            Dictionary with shopping list and items or None if not found
+            list_id: ID of the shopping list to delete
         """
         try:
-            # Get shopping list
-            shopping_list = self._shopping_list_manager.get(list_id)
+            self.shopping_list_repository.delete(list_id)
+            self.logger.info(f"Deleted shopping list with ID: {list_id}")
+        except Exception as e:
+            self.logger.error(f"Error deleting shopping list {list_id}: {str(e)}")
+            raise
+
+    def add_item_to_list(self, list_id: int, item_data: Dict[str, Any]) -> ShoppingList:
+        """
+        Add a new item to an existing shopping list.
+
+        Args:
+            list_id: ID of the shopping list
+            item_data: Details of the item to add
+
+        Returns:
+            Updated shopping list
+        """
+        try:
+            # Ensure the list exists
+            shopping_list = self.get_shopping_list_by_id(list_id)
             if not shopping_list:
-                return None
+                raise ValueError(f"Shopping list {list_id} not found")
 
-            # Get items
-            all_items = self._shopping_list_item_manager.get_all()
-            list_items = []
+            # Add item to list
+            item_data['shopping_list_id'] = list_id
+            self._add_item_to_list(item_data)
 
-            for item in all_items:
-                if item.shopping_list_id == list_id:
-                    list_items.append(self._shopping_list_item_to_dict(item))
-
-            # Create full shopping list dictionary
-            shopping_list_dict = self._shopping_list_to_dict(shopping_list)
-            shopping_list_dict['items'] = list_items
-
-            return shopping_list_dict
+            self.logger.info(f"Added item to shopping list: {item_data.get('item_name', 'Unknown')}")
+            return shopping_list
 
         except Exception as e:
-            # Log the error
-            print(f"Error getting shopping list with items: {str(e)}")
-            return None
+            self.logger.error(f"Error adding item to shopping list {list_id}: {str(e)}")
+            raise
 
-    def _shopping_list_to_dict(self, shopping_list: ShoppingList) -> Dict[str, Any]:
-        """Convert ShoppingList model to dictionary."""
-        return {
-            'id': shopping_list.id,
-            'name': shopping_list.name,
-            'description': shopping_list.description,
-            'date_created': shopping_list.date_created,
-            'created_by': shopping_list.created_by,
-            'priority': shopping_list.priority
-        }
+    def _add_item_to_list(self, item_data: Dict[str, Any]) -> ShoppingListItem:
+        """
+        Internal method to add an item to a shopping list.
 
-    def _shopping_list_item_to_dict(self, item: ShoppingListItem) -> Dict[str, Any]:
-        """Convert ShoppingListItem model to dictionary."""
-        return {
-            'id': item.id,
-            'shopping_list_id': item.shopping_list_id,
-            'part_id': item.part_id,
-            'leather_id': item.leather_id,
-            'quantity': item.quantity,
-            'date_added': item.date_added,
-            'is_purchased': item.is_purchased,
-            'purchase_date': item.purchase_date,
-            'purchase_price': item.purchase_price,
-            'purchase_notes': item.purchase_notes,
-            'notes': item.notes
-        }
+        Args:
+            item_data: Details of the item to add
+
+        Returns:
+            Created shopping list item
+        """
+        try:
+            return self.shopping_list_repository.add_item(item_data)
+        except Exception as e:
+            self.logger.error(f"Error adding item to list: {str(e)}")
+            raise
+
+    def _remove_all_list_items(self, list_id: int) -> None:
+        """
+        Remove all items from a shopping list.
+
+        Args:
+            list_id: ID of the shopping list
+        """
+        try:
+            self.shopping_list_repository.remove_all_items(list_id)
+        except Exception as e:
+            self.logger.error(f"Error removing items from list {list_id}: {str(e)}")
+            raise
+
+    def remove_item_from_list(self, list_id: int, item_id: int) -> ShoppingList:
+        """
+        Remove a specific item from a shopping list.
+
+        Args:
+            list_id: ID of the shopping list
+            item_id: ID of the item to remove
+
+        Returns:
+            Updated shopping list
+        """
+        try:
+            shopping_list = self.get_shopping_list_by_id(list_id)
+            if not shopping_list:
+                raise ValueError(f"Shopping list {list_id} not found")
+
+            self.shopping_list_repository.remove_item(item_id)
+
+            self.logger.info(f"Removed item {item_id} from shopping list {list_id}")
+            return shopping_list
+
+        except Exception as e:
+            self.logger.error(f"Error removing item from shopping list {list_id}: {str(e)}")
+            raise
+
+    def mark_item_purchased(self, list_id: int, item_id: int, quantity: float) -> ShoppingList:
+        """
+        Mark an item as purchased with the specified quantity.
+
+        Args:
+            list_id: ID of the shopping list
+            item_id: ID of the item to mark
+            quantity: Quantity purchased
+
+        Returns:
+            Updated shopping list
+        """
+        try:
+            shopping_list = self.get_shopping_list_by_id(list_id)
+            if not shopping_list:
+                raise ValueError(f"Shopping list {list_id} not found")
+
+            # Update item purchase status
+            self.shopping_list_repository.update_item_purchase(item_id, quantity)
+
+            # Refresh the list to get updated status
+            updated_list = self.get_shopping_list_by_id(list_id)
+
+            # Check if entire list is complete
+            if all(item.purchased >= item.quantity for item in updated_list.items):
+                self.update_shopping_list(list_id, {'status': 'completed'})
+
+            self.logger.info(f"Marked item {item_id} as purchased in list {list_id}")
+            return updated_list
+
+        except Exception as e:
+            self.logger.error(f"Error marking item as purchased in list {list_id}: {str(e)}")
+            raise
+
+    def get_active_lists(self) -> List[ShoppingList]:
+        """
+        Get all active shopping lists.
+
+        Returns:
+            List of active shopping lists
+        """
+        try:
+            return self.shopping_list_repository.get_lists_by_status('active')
+        except Exception as e:
+            self.logger.error(f"Error retrieving active shopping lists: {str(e)}")
+            raise
+
+    def get_lists_by_status(self, status: str) -> List[ShoppingList]:
+        """
+        Get shopping lists by specific status.
+
+        Args:
+            status: Status to filter lists by
+
+        Returns:
+            List of shopping lists with given status
+        """
+        try:
+            return self.shopping_list_repository.get_lists_by_status(status)
+        except Exception as e:
+            self.logger.error(f"Error retrieving shopping lists with status {status}: {str(e)}")
+            raise
+
+    def search_shopping_lists(self, search_term: str) -> List[ShoppingList]:
+        """
+        Search shopping lists by name or description.
+
+        Args:
+            search_term: Term to search for
+
+        Returns:
+            List of matching shopping lists
+        """
+        try:
+            return self.shopping_list_repository.search(search_term)
+        except Exception as e:
+            self.logger.error(f"Error searching shopping lists: {str(e)}")
+            raise
+
+    def get_pending_items(self) -> List[Dict[str, Any]]:
+        """
+        Get all unpurchased items across active lists.
+
+        Returns:
+            List of pending items with detailed information
+        """
+        try:
+            return self.shopping_list_repository.get_pending_items()
+        except Exception as e:
+            self.logger.error(f"Error retrieving pending items: {str(e)}")
+            raise
+
+    def get_shopping_list_summary(self, list_id: int) -> Dict[str, Any]:
+        """
+        Get a summary of a shopping list.
+
+        Args:
+            list_id: ID of the list to summarize
+
+        Returns:
+            Dictionary with list summary information
+        """
+        try:
+            return self.shopping_list_repository.get_list_summary(list_id)
+        except Exception as e:
+            self.logger.error(f"Error generating summary for list {list_id}: {str(e)}")
+            raise
+
+    def merge_shopping_lists(self, source_ids: List[int], target_id: int) -> ShoppingList:
+        """
+        Merge multiple shopping lists into a target list.
+
+        Args:
+            source_ids: List of source list IDs to merge
+            target_id: ID of the target list to merge into
+
+        Returns:
+            Updated target shopping list
+        """
+        try:
+            return self.shopping_list_repository.merge_lists(source_ids, target_id)
+        except Exception as e:
+            self.logger.error(f"Error merging shopping lists: {str(e)}")
+            raise
+
+    def cleanup(self) -> None:
+        """
+        Clean up service resources.
+        """
+        # Any necessary cleanup operations
+        self.logger.info("Shopping List Service cleanup complete")

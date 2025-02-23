@@ -4,8 +4,8 @@ database/sqlalchemy/core/register_managers.py
 Registers specialized managers for models.
 """
 
-from database.sqlalchemy.models import (
-    Storage, Product, Supplier, Part, Leather, Recipe, RecipeItem, Order, OrderItem,
+from database.sqlalchemy.models_file import (
+    Storage, Product, Supplier, Part, Leather, Project, ProjectComponent, Order, OrderItem,
     ShoppingList, ShoppingListItem
 )
 from database.sqlalchemy.core.manager_factory import register_specialized_manager
@@ -30,6 +30,6 @@ def register_all_specialized_managers():
     register_specialized_manager(Supplier, SupplierManager)
     register_specialized_manager(Part, PartManager)
     register_specialized_manager(Leather, LeatherManager)
-    register_specialized_manager(Recipe, RecipeManager)
+    register_specialized_manager(Project, RecipeManager)
     register_specialized_manager(Order, OrderManager)
     register_specialized_manager(ShoppingList, ShoppingListManager)

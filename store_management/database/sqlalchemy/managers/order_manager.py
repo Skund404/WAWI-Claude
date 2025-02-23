@@ -4,7 +4,7 @@ from sqlalchemy import select, and_, or_
 from sqlalchemy.orm import joinedload
 
 from database.sqlalchemy.base_manager import BaseManager
-from database.sqlalchemy.models import Order, OrderItem, Part, Leather
+from database.sqlalchemy.models_file import Order, OrderItem, Part, Leather
 from utils.error_handler import DatabaseError
 from utils.logger import logger
 

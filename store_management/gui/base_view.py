@@ -1,37 +1,39 @@
-# Path: gui/base_view.py
-"""
-Base view that all other views will inherit from.
-This provides common functionality for all views.
-"""
+# gui/base_view.py
+
+from typing import Optional, Any, Type
 import tkinter as tk
 from tkinter import ttk, messagebox
+from abc import ABC, abstractmethod
 import logging
 
 logger = logging.getLogger(__name__)
 
-class BaseView(ttk.Frame):
+
+class BaseView(ttk.Frame, ABC):
     """
-    Base view class that provides common functionality for all views.
+    Abstract base class for all views in the application.
+    Provides common functionality and interface for views.
     """
 
-    def __init__(self, parent, app):
+    def __init__(self, parent: tk.Widget, app: Any) -> None:
         """
         Initialize the base view.
 
         Args:
             parent: Parent widget
-            app: Application instance
+            app: Application instance for accessing services and configuration
         """
         super().__init__(parent)
         self.parent = parent
         self.app = app
-        self.pack(fill=tk.BOTH, expand=True)
+        self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
 
-        logger.debug(f"BaseView initialized with app: {app}")
+        # Initialize UI elements
+        self.setup_ui()
 
-    def get_service(self, service_type):
+    def get_service(self, service_type: Type) -> Any:
         """
-        Get a service from the application.
+        Get a service instance from the application container.
 
         Args:
             service_type: Type of service to retrieve
@@ -40,91 +42,87 @@ class BaseView(ttk.Frame):
             Service instance
         """
         try:
-            if self.app is not None and hasattr(self.app, 'get_service'):
-                service = self.app.get_service(service_type)
-                logger.debug(f"Service retrieved: {service_type}")
-                return service
-            else:
-                logger.warning("App not available or doesn't have get_service method")
-                return None
+            return self.app.get_service(service_type)
         except Exception as e:
-            logger.error(f"Error getting service {service_type}: {str(e)}")
-            return None
+            self.logger.error(f"Failed to get service {service_type}: {e}")
+            raise
 
-    def load_data(self):
-        """Load data for the view. To be implemented by subclasses."""
+    @abstractmethod
+    def setup_ui(self) -> None:
+        """Set up the user interface elements. Must be implemented by subclasses."""
         pass
 
-    def save(self):
-        """Save data from the view. To be implemented by subclasses."""
+    @abstractmethod
+    def load_data(self) -> None:
+        """Load data into the view. Must be implemented by subclasses."""
         pass
 
-    def undo(self):
-        """Undo the last action. To be implemented by subclasses."""
-        pass
-
-    def redo(self):
-        """Redo the last undone action. To be implemented by subclasses."""
-        pass
-
-    def show_error(self, title, message):
+    def show_error(self, title: str, message: str) -> None:
         """
-        Show an error message.
+        Display an error message dialog.
 
         Args:
-            title: Title of the message
+            title: Dialog title
             message: Error message
         """
+        self.logger.error(f"Error: {message}")
         messagebox.showerror(title, message)
-        logger.error(f"Error: {title} - {message}")
 
-    def show_info(self, title, message):
+    def show_info(self, title: str, message: str) -> None:
         """
-        Show an information message.
+        Display an information message dialog.
 
         Args:
-            title: Title of the message
+            title: Dialog title
             message: Information message
         """
         messagebox.showinfo(title, message)
-        logger.info(f"Info: {title} - {message}")
 
-    def show_warning(self, title, message):
+    def show_warning(self, title: str, message: str) -> None:
         """
-        Show a warning message.
+        Display a warning message dialog.
 
         Args:
-            title: Title of the message
+            title: Dialog title
             message: Warning message
         """
+        self.logger.warning(f"Warning: {message}")
         messagebox.showwarning(title, message)
-        logger.warning(f"Warning: {title} - {message}")
 
-    def confirm(self, title, message):
+    def confirm(self, title: str, message: str) -> bool:
         """
-        Show a confirmation dialog.
+        Display a confirmation dialog.
 
         Args:
-            title: Title of the message
+            title: Dialog title
             message: Confirmation message
 
         Returns:
-            bool: True if the user confirmed, False otherwise
+            bool: True if user confirmed, False otherwise
         """
         return messagebox.askyesno(title, message)
 
-    def set_status(self, message):
-        """
-        Set the status message in the status bar.
+    def refresh(self) -> None:
+        """Refresh the view's data and update the display."""
+        try:
+            self.load_data()
+        except Exception as e:
+            self.logger.error(f"Error refreshing view: {e}")
+            self.show_error("Refresh Error", f"Failed to refresh view: {str(e)}")
+
+    def cleanup(self) -> None:
+        """Perform cleanup operations before view is destroyed."""
+        pass
+
+    def set_status(self, message: str) -> None:
+        """Sets the status message in the main window's status bar.
 
         Args:
-            message: Status message
+            message (str): The status message to display.
         """
-        try:
-            # Try to set the status in the main window if it has a set_status method
-            if hasattr(self.parent, 'set_status'):
-                self.parent.set_status(message)
-            elif hasattr(self.app, 'main_window') and hasattr(self.app.main_window, 'set_status'):
-                self.app.main_window.set_status(message)
-        except Exception as e:
-            logger.warning(f"Could not set status: {str(e)}")
+        if self.parent and hasattr(self.parent, "set_status"):
+            self.parent.set_status(message)
+        else:
+            logger.warning(
+                f"Parent does not have set_status method. Message was: {message}"
+            )

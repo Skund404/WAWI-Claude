@@ -55,16 +55,16 @@ class ReportManager(BaseManager):
             Product.id,
             Product.unique_id,
             Product.name,
-            Recipe.name.label('recipe_name'),
+            Project.name.label('recipe_name'),
             Storage.amount.label('current_stock'),
             Storage.warning_threshold
-        ).outerjoin(Recipe).outerjoin(Storage)
+        ).outerjoin(Project).outerjoin(Storage)
 
         if filters:
             if 'product_name' in filters:
                 query = query.filter(Product.name.ilike(f"%{filters['product_name']}%"))
             if 'recipe_name' in filters:
-                query = query.filter(Recipe.name.ilike(f"%{filters['recipe_name']}%"))
+                query = query.filter(Project.name.ilike(f"%{filters['recipe_name']}%"))
 
         result = query.all()
         return pd.DataFrame([dict(row) for row in result])
@@ -91,15 +91,15 @@ class ReportManager(BaseManager):
     def generate_recipe_usage_report(self, filters: Optional[Dict[str, Any]] = None) -> pd.DataFrame:
         """Generate report showing recipe usage in products."""
         query = self.session.query(
-            Recipe.id,
-            Recipe.name.label('recipe_name'),
+            Project.id,
+            Project.name.label('recipe_name'),
             func.count(Product.id).label('product_count'),
             func.sum(Storage.amount).label('total_stock')
-        ).outerjoin(Product).outerjoin(Storage).group_by(Recipe.id)
+        ).outerjoin(Product).outerjoin(Storage).group_by(Project.id)
 
         if filters:
             if 'recipe_name' in filters:
-                query = query.filter(Recipe.name.ilike(f"%{filters['recipe_name']}%"))
+                query = query.filter(Project.name.ilike(f"%{filters['recipe_name']}%"))
 
         result = query.all()
         return pd.DataFrame([dict(row) for row in result])
@@ -243,13 +243,13 @@ class ReportDialog(BaseDialog):
 
         elif report_type == 'products':
             self._add_filter('product_name', 'Product Name:', widget_type='entry')
-            self._add_filter('recipe_name', 'Recipe Name:', widget_type='entry')
+            self._add_filter('recipe_name', 'Project Name:', widget_type='entry')
 
         elif report_type == 'low_stock':
             self._add_filter('min_threshold', 'Min Threshold:', widget_type='entry')
 
         elif report_type == 'recipe_usage':
-            self._add_filter('recipe_name', 'Recipe Name:', widget_type='entry')
+            self._add_filter('recipe_name', 'Project Name:', widget_type='entry')
 
     def _add_filter(self, name: str, label: str, widget_type: str, **kwargs):
         """Add a filter widget to the filters frame."""

@@ -7,9 +7,9 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import SQLAlchemyError
 
 from database.sqlalchemy.base_manager import BaseManager
-from database.sqlalchemy.models import (
+from database.sqlalchemy.models_file import (
     ProductionOrder,
-    Recipe,
+    Project,
     ProducedItem,
     InventoryTransaction,
     LeatherTransaction,
@@ -37,7 +37,7 @@ class ProductionOrderManager(BaseManager[ProductionOrder]):
         """Create a new production order with recipe validation.
 
         Args:
-            recipe_id: Recipe ID to produce
+            recipe_id: Project ID to produce
             quantity: Number of items to produce
             start_date: Optional planned start date
             notes: Optional production notes
@@ -51,8 +51,8 @@ class ProductionOrderManager(BaseManager[ProductionOrder]):
         try:
             with self.session_scope() as session:
                 # Verify recipe exists and is active
-                recipe = session.query(Recipe).filter(
-                    and_(Recipe.id == recipe_id, Recipe.is_active == True)
+                recipe = session.query(Project).filter(
+                    and_(Project.id == recipe_id, Project.is_active == True)
                 ).first()
 
                 if not recipe:
@@ -99,7 +99,7 @@ class ProductionOrderManager(BaseManager[ProductionOrder]):
                     session.query(ProductionOrder)
                     .options(
                         joinedload(ProductionOrder.recipe)
-                        .joinedload(Recipe.items)
+                        .joinedload(Project.items)
                     )
                     .filter(ProductionOrder.id == order_id)
                     .first()

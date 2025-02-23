@@ -13,7 +13,7 @@ from datetime import datetime
 from sqlalchemy.dialects import sqlite
 
 # Import enums
-from database.sqlalchemy.models import InventoryStatus, ProductionStatus
+from database.sqlalchemy.models_file import InventoryStatus, ProductionStatus
 
 # revision identifiers, used by Alembic.
 revision = '202402201'
@@ -84,7 +84,7 @@ def upgrade():
         batch_op.create_unique_constraint('uq_produced_serial', ['serial_number'])
         batch_op.create_index('idx_produced_serial', ['serial_number'])
 
-    # Update Recipe table
+    # Update Project table
     with op.batch_alter_table('recipes') as batch_op:
         batch_op.add_column(sa.Column('version', sa.String(20), nullable=True))
         batch_op.add_column(sa.Column('is_active', sa.Boolean(), nullable=True))

@@ -15,7 +15,7 @@ sys.path.insert(0, project_root)
 
 # Lazy import to prevent circular dependencies
 def get_base_metadata():
-    from database.sqlalchemy.models import Base
+    from database.sqlalchemy.models_file import Base
     return Base.metadata
 
 

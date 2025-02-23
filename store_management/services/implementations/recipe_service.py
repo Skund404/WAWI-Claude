@@ -1,196 +1,248 @@
-# Path: store_management/services/implementations/recipe_service.py
-from typing import List, Dict, Any, Optional, Tuple
+# services/implementations/recipe_service.py
 
-from di.service import Service
-from di.container import DependencyContainer
+import logging
+from typing import List, Dict, Any, Optional
+from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import or_
+
 from services.interfaces.recipe_service import IRecipeService
-from database.sqlalchemy.core.specialized.recipe_manager import RecipeManager
+from database.models.recipe import Project, ProjectComponent
+from database.session import get_db_session
 
-class RecipeService(Service, IRecipeService):
-    """Service for recipe management operations"""
 
-    def __init__(self, container: DependencyContainer):
+class RecipeService(IRecipeService):
+    """
+    Service implementation for managing recipes.
+
+    Handles:
+    - Project CRUD operations
+    - Material requirements checking
+    - Cost calculations
+    - Project search and categorization
+    """
+
+    def __init__(self, container: Any) -> None:
         """
-        Initialize with appropriate managers.
+        Initialize the recipe service.
 
         Args:
             container: Dependency injection container
         """
-        super().__init__(container)
-        self.recipe_manager = self.get_dependency(RecipeManager)
+        self.logger = logging.getLogger(__name__)
+        self.session: Session = get_db_session()
 
-    def get_all_recipes(self) -> List[Dict[str, Any]]:
-        """
-        Retrieve all recipes.
-
-        Returns:
-            List of recipe dictionaries
-        """
+    def get_all_recipes(self) -> List[Project]:
+        """Get all recipes from the database."""
         try:
-            recipes = self.recipe_manager.get_all()
-            return [self._to_dict(recipe) for recipe in recipes]
-        except Exception as e:
-            print(f"Error retrieving recipes: {e}")
-            return []
+            return self.session.query(Project).order_by(Project.name).all()
+        except SQLAlchemyError as e:
+            self.logger.error(f"Error retrieving recipes: {str(e)}")
+            raise Exception("Failed to retrieve recipes") from e
 
-    def get_recipe_by_id(self, recipe_id: int) -> Optional[Dict[str, Any]]:
-        """
-        Get recipe details by ID.
-
-        Args:
-            recipe_id: Recipe ID
-
-        Returns:
-            Recipe details or None if not found
-        """
+    def get_recipe_by_id(self, recipe_id: int) -> Optional[Project]:
+        """Get a specific recipe by ID."""
         try:
-            recipe = self.recipe_manager.get(recipe_id)
-            return self._to_dict(recipe) if recipe else None
-        except Exception as e:
-            print(f"Error retrieving recipe {recipe_id}: {e}")
-            return None
+            return self.session.query(Project).filter(Project.id == recipe_id).first()
+        except SQLAlchemyError as e:
+            self.logger.error(f"Error retrieving recipe {recipe_id}: {str(e)}")
+            raise Exception(f"Failed to retrieve recipe {recipe_id}") from e
 
-    def create_recipe(self, recipe_data: Dict[str, Any], items: Optional[List[Dict[str, Any]]] = None) -> Optional[Dict[str, Any]]:
-        """
-        Create a new recipe with items.
-
-        Args:
-            recipe_data: Dictionary with recipe data
-            items: Optional list of recipe item data
-
-        Returns:
-            Tuple of (created recipe or None, result message)
-        """
+    def create_project(self, recipe_data: Dict[str, Any]) -> Project:
+        """Create a new recipe with its items."""
         try:
-            # Prepare items if provided
-            if items:
-                recipe_data['items'] = items
+            # Create recipe
+            recipe = Project(
+                name=recipe_data['name'],
+                description=recipe_data.get('description', ''),
+                preparation_time=recipe_data.get('preparation_time', 0)
+            )
 
-            new_recipe = self.recipe_manager.create(recipe_data)
-            return self._to_dict(new_recipe)
-        except Exception as e:
-            print(f"Error creating recipe: {e}")
-            return None
+            # Add items
+            if 'items' in recipe_data:
+                for item_data in recipe_data['items']:
+                    item = ProjectComponent(
+                        material_name=item_data['material_name'],
+                        quantity=item_data['quantity'],
+                        unit=item_data['unit']
+                    )
+                    recipe.items.append(item)
 
-    def update_recipe(self, recipe_id: int, recipe_data: Dict[str, Any], items: Optional[List[Dict[str, Any]]] = None) -> Optional[Dict[str, Any]]:
-        """
-        Update an existing recipe.
+            # Calculate initial cost
+            recipe.total_cost = self._calculate_materials_cost(recipe)
 
-        Args:
-            recipe_id: ID of the recipe to update
-            recipe_data:
-            Updated recipe data
-            items: Optional list of recipe item data
+            self.session.add(recipe)
+            self.session.commit()
 
-        Returns:
-            Updated recipe or None
-        """
+            self.logger.info(f"Created recipe: {recipe.name}")
+            return recipe
+
+        except SQLAlchemyError as e:
+            self.session.rollback()
+            self.logger.error(f"Error creating recipe: {str(e)}")
+            raise Exception("Failed to create recipe") from e
+
+    def update_project(self, recipe_id: int, recipe_data: Dict[str, Any]) -> Project:
+        """Update an existing recipe."""
         try:
-            # Prepare update data
-            update_data = recipe_data.copy()
+            recipe = self.get_recipe_by_id(recipe_id)
+            if not recipe:
+                raise Exception(f"Project {recipe_id} not found")
 
-            # If items are provided, include them in the update
-            if items:
-                update_data['items'] = items
+            # Update basic fields
+            recipe.name = recipe_data.get('name', recipe.name)
+            recipe.description = recipe_data.get('description', recipe.description)
+            recipe.preparation_time = recipe_data.get('preparation_time', recipe.preparation_time)
 
-            updated_recipe = self.recipe_manager.update(recipe_id, update_data)
-            return self._to_dict(updated_recipe)
-        except Exception as e:
-            print(f"Error updating recipe {recipe_id}: {e}")
-            return None
+            # Update items if provided
+            if 'items' in recipe_data:
+                # Clear existing items
+                recipe.items.clear()
 
-    def delete_recipe(self, recipe_id: int) -> bool:
-        """
-        Delete a recipe.
+                # Add new items
+                for item_data in recipe_data['items']:
+                    item = ProjectComponent(
+                        material_name=item_data['material_name'],
+                        quantity=item_data['quantity'],
+                        unit=item_data['unit']
+                    )
+                    recipe.items.append(item)
 
-        Args:
-            recipe_id: ID of the recipe to delete
+                # Recalculate cost
+                recipe.total_cost = self._calculate_materials_cost(recipe)
 
-        Returns:
-            True if deletion successful, False otherwise
-        """
+            self.session.commit()
+            self.logger.info(f"Updated recipe: {recipe.name}")
+            return recipe
+
+        except SQLAlchemyError as e:
+            self.session.rollback()
+            self.logger.error(f"Error updating recipe {recipe_id}: {str(e)}")
+            raise Exception(f"Failed to update recipe {recipe_id}") from e
+
+    def delete_project(self, recipe_id: int) -> None:
+        """Delete a recipe and its items."""
         try:
-            return self.recipe_manager.delete(recipe_id)
-        except Exception as e:
-            print(f"Error deleting recipe {recipe_id}: {e}")
-            return False
+            recipe = self.get_recipe_by_id(recipe_id)
+            if not recipe:
+                raise Exception(f"Project {recipe_id} not found")
 
-    def check_materials_availability(self, recipe_id: int, quantity: int) -> Tuple[bool, List[Dict[str, Any]]]:
-        """
-        Check if materials for a recipe are available in sufficient quantity.
+            self.session.delete(recipe)
+            self.session.commit()
+            self.logger.info(f"Deleted recipe: {recipe.name}")
 
-        Args:
-            recipe_id: Recipe ID
-            quantity: Number of items to produce
+        except SQLAlchemyError as e:
+            self.session.rollback()
+            self.logger.error(f"Error deleting recipe {recipe_id}: {str(e)}")
+            raise Exception(f"Failed to delete recipe {recipe_id}") from e
 
-        Returns:
-            Tuple of (all materials available, list of missing items)
-        """
+    def check_materials_availability(self, recipe_id: int, quantity: int = 1) -> Dict[str, Any]:
+        """Check if all materials are available for producing a recipe."""
         try:
-            # Delegate to recipe manager's availability check
-            available, missing_items = self.recipe_manager.check_materials_availability(recipe_id, quantity)
+            recipe = self.get_recipe_by_id(recipe_id)
+            if not recipe:
+                raise Exception(f"Project {recipe_id} not found")
 
-            # Convert missing items to dictionaries if needed
-            formatted_missing_items = [
-                {
-                    'item_id': item.get('id'),
-                    'name': item.get('name', 'Unknown'),
-                    'required_quantity': item.get('required_quantity'),
-                    'available_quantity': item.get('available_quantity')
-                }
-                for item in missing_items
-            ]
+            missing_materials = []
+            available_materials = []
 
-            return available, formatted_missing_items
+            for item in recipe.items:
+                # TODO: Integrate with inventory service
+                # For now, we'll mock the availability check
+                available = True  # This should check actual inventory
+                required_quantity = item.quantity * quantity
+
+                if available:
+                    available_materials.append({
+                        'material_name': item.material_name,
+                        'required_quantity': required_quantity,
+                        'unit': item.unit
+                    })
+                else:
+                    missing_materials.append({
+                        'material_name': item.material_name,
+                        'required_quantity': required_quantity,
+                        'unit': item.unit
+                    })
+
+            return {
+                'recipe_id': recipe_id,
+                'recipe_name': recipe.name,
+                'quantity': quantity,
+                'can_produce': len(missing_materials) == 0,
+                'missing_materials': missing_materials,
+                'available_materials': available_materials
+            }
+
         except Exception as e:
-            print(f"Error checking materials availability for recipe {recipe_id}: {e}")
-            return False, []
+            self.logger.error(f"Error checking materials for recipe {recipe_id}: {str(e)}")
+            raise Exception(f"Failed to check materials for recipe {recipe_id}") from e
 
-    def _to_dict(self, recipe):
-        """
-        Convert recipe model to dictionary.
-
-        Args:
-            recipe: Recipe model instance
-
-        Returns:
-            Dictionary representation of the recipe
-        """
-        if not recipe:
-            return {}
-
-        # Convert recipe to dictionary
-        recipe_dict = {
-            'id': recipe.id,
-            'name': getattr(recipe, 'name', ''),
-            'description': getattr(recipe, 'description', ''),
-            'product_id': getattr(recipe, 'product_id', None),
-            'estimated_production_time': getattr(recipe, 'estimated_production_time', 0.0),
-            'notes': getattr(recipe, 'notes', ''),
-            'created_at': str(getattr(recipe, 'created_at', '')),
-            'updated_at': str(getattr(recipe, 'updated_at', '')),
-            'items': []
-        }
-
-        # Add recipe items if available
+    def calculate_production_cost(self, recipe_id: int, quantity: int = 1) -> Dict[str, float]:
+        """Calculate the total cost of producing a recipe."""
         try:
-            # Attempt to load recipe items
-            # This might require a specific method from the recipe manager
-            items = self.recipe_manager.get_recipe_items(recipe.id) if recipe.id else []
+            recipe = self.get_recipe_by_id(recipe_id)
+            if not recipe:
+                raise Exception(f"Project {recipe_id} not found")
 
-            recipe_dict['items'] = [
-                {
-                    'id': item.id,
-                    'name': getattr(item, 'name', 'Unknown'),
-                    'part_id': getattr(item, 'part_id', None),
-                    'leather_id': getattr(item, 'leather_id', None),
-                    'quantity': getattr(item, 'quantity', 0),
-                    'is_optional': getattr(item, 'is_optional', False),
-                    'notes': getattr(item, 'notes', '')
-                }
-                for item in items
-            ]
+            material_cost = self._calculate_materials_cost(recipe) * quantity
+            labor_cost = self._calculate_labor_cost(recipe) * quantity
+            total_cost = material_cost + labor_cost
+
+            return {
+                'material_cost': material_cost,
+                'labor_cost': labor_cost,
+                'total_cost': total_cost
+            }
+
         except Exception as e:
-            print(f"Error loading recipe items: {e}")
+            self.logger.error(f"Error calculating costs for recipe {recipe_id}: {str(e)}")
+            raise Exception(f"Failed to calculate costs for recipe {recipe_id}") from e
 
-        return recipe_dict
+    def get_recipes_by_category(self, category: str) -> List[Project]:
+        """Get all recipes in a specific category."""
+        try:
+            return (self.session.query(Project)
+                    .filter(Project.category == category)
+                    .order_by(Project.name)
+                    .all())
+        except SQLAlchemyError as e:
+            self.logger.error(f"Error retrieving recipes for category {category}: {str(e)}")
+            raise Exception(f"Failed to retrieve recipes for category {category}") from e
+
+    def search_recipes(self, search_term: str) -> List[Project]:
+        """Search recipes by name or description."""
+        try:
+            return (self.session.query(Project)
+                    .filter(or_(
+                Project.name.ilike(f"%{search_term}%"),
+                Project.description.ilike(f"%{search_term}%")
+            ))
+                    .order_by(Project.name)
+                    .all())
+        except SQLAlchemyError as e:
+            self.logger.error(f"Error searching recipes: {str(e)}")
+            raise Exception("Failed to search recipes") from e
+
+    def _calculate_materials_cost(self, recipe: Project) -> float:
+        """Calculate the total cost of materials for a recipe."""
+        total_cost = 0.0
+        for item in recipe.items:
+            # TODO: Get actual material costs from inventory/pricing service
+            # For now, we'll use a mock cost
+            unit_cost = 1.0  # This should get the actual material cost
+            total_cost += item.quantity * unit_cost
+        return total_cost
+
+    def _calculate_labor_cost(self, recipe: Project) -> float:
+        """Calculate the labor cost for a recipe."""
+        # TODO: Implement proper labor cost calculation
+        # For now, use a simple time-based calculation
+        hourly_rate = 20.0  # This should be configurable
+        hours = recipe.preparation_time / 60.0  # Convert minutes to hours
+        return hours * hourly_rate
+
+    def cleanup(self) -> None:
+        """Clean up service resources."""
+        if self.session:
+            self.session.close()

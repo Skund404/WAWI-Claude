@@ -1,7 +1,7 @@
 # database/scripts/initialize_db.py
 
 from sqlalchemy import create_engine
-from database.sqlalchemy.models import Base
+from database.sqlalchemy.models_file import Base
 from database.sqlalchemy.session import DATABASE_URL
 
 

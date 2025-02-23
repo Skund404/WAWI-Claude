@@ -1,127 +1,132 @@
-# Path: database/models/order.py
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Text, Enum
+# database/models/order.py
+"""
+Path: database/models/order.py
+Order and OrderItem models defining the core order management functionality.
+"""
+
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, Enum as SQLEnum, Table
 from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
-from enum import Enum as PyEnum
-from .base import BaseModel
+from datetime import datetime
+from typing import List, Optional, Dict, Any
 
-
-class OrderStatus(PyEnum):
-    """
-    Enum representing different statuses of an order.
-    """
-    PENDING = "Pending"
-    PROCESSING = "Processing"
-    SHIPPED = "Shipped"
-    DELIVERED = "Delivered"
-    CANCELLED = "Cancelled"
-
-
-class PaymentStatus(PyEnum):
-    """
-    Enum representing different payment statuses of an order.
-    """
-    UNPAID = "Unpaid"
-    PARTIAL = "Partial Payment"
-    PAID = "Paid"
-    REFUNDED = "Refunded"
+from database.models.base import BaseModel
+from database.models.enums import OrderStatus, PaymentStatus
 
 
 class Order(BaseModel):
     """
-    Represents an order in the inventory management system.
+    Order model representing customer orders in the system.
 
     Attributes:
-        id (int): Unique identifier for the order
-        order_number (str): Unique order number
-        supplier_id (int): Foreign key to the supplier of the order
-        status (OrderStatus): Current status of the order
-        payment_status (PaymentStatus): Payment status of the order
-        total_amount (float): Total amount of the order
-        order_date (DateTime): Date the order was placed
-        expected_delivery_date (DateTime): Expected delivery date
-        actual_delivery_date (DateTime): Actual delivery date
-        notes (str): Additional notes about the order
-
-        supplier (relationship): Supplier associated with the order
-        items (relationship): Items in the order
+        number (str): Unique order number
+        customer_name (str): Name of the customer
+        status (OrderStatus): Current order status
+        payment_status (PaymentStatus): Current payment status
+        total_amount (float): Total order amount
+        notes (str): Additional order notes
+        items (List[OrderItem]): List of order items
     """
     __tablename__ = 'orders'
 
-    id = Column(Integer, primary_key=True)
-    order_number = Column(String(50), unique=True, nullable=False)
-    supplier_id = Column(Integer, ForeignKey('suppliers.id'), nullable=False)
-    status = Column(String(50), nullable=False, default=OrderStatus.PENDING.value)
-    payment_status = Column(String(50), nullable=False, default=PaymentStatus.UNPAID.value)
-    total_amount = Column(Float, nullable=False, default=0.0)
-    order_date = Column(DateTime(timezone=True), server_default=func.now())
-    expected_delivery_date = Column(DateTime(timezone=True), nullable=True)
-    actual_delivery_date = Column(DateTime(timezone=True), nullable=True)
-    notes = Column(Text, nullable=True)
+    number = Column(String(50), unique=True, nullable=False, index=True)
+    customer_name = Column(String(100), nullable=False)
+    status = Column(SQLEnum(OrderStatus), default=OrderStatus.PENDING)
+    payment_status = Column(SQLEnum(PaymentStatus), default=PaymentStatus.PENDING)
+    total_amount = Column(Float, default=0.0)
+    notes = Column(String(500))
 
     # Relationships
-    supplier = relationship('Supplier', back_populates='orders')
-    items = relationship('OrderItem', back_populates='order',
-                         cascade='all, delete-orphan')
+    items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
 
-    def __repr__(self):
-        return f"<Order(id={self.id}, order_number='{self.order_number}', status='{self.status}')>"
+    def __init__(self, **kwargs):
+        """Initialize an order with the given attributes."""
+        super().__init__(**kwargs)
+        self.update_total()
 
-    def calculate_total_amount(self):
+    def update_total(self) -> None:
+        """Recalculate and update the total order amount."""
+        self.total_amount = sum(item.total_price for item in self.items)
+
+    def add_item(self, item: 'OrderItem') -> None:
         """
-        Recalculate the total amount based on order items.
+        Add an item to the order.
+
+        Args:
+            item: OrderItem to add
+        """
+        self.items.append(item)
+        self.update_total()
+
+    def remove_item(self, item: 'OrderItem') -> None:
+        """
+        Remove an item from the order.
+
+        Args:
+            item: OrderItem to remove
+        """
+        self.items.remove(item)
+        self.update_total()
+
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Convert order to dictionary including related items.
 
         Returns:
-            float: Total amount of the order
+            dict: Dictionary representation of the order
         """
-        return sum(item.total_price for item in self.items)
-
-    def update_total_amount(self):
-        """
-        Update the total amount of the order based on its items.
-        """
-        self.total_amount = self.calculate_total_amount()
+        data = super().to_dict()
+        data.update({
+            'items': [item.to_dict() for item in self.items],
+            'status': self.status.value if self.status else None,
+            'payment_status': self.payment_status.value if self.payment_status else None
+        })
+        return data
 
 
 class OrderItem(BaseModel):
     """
-    Represents an individual item in an order.
+    OrderItem model representing individual items within an order.
 
     Attributes:
-        id (int): Unique identifier for the order item
-        order_id (int): Foreign key to the parent order
-        part_id (int): Foreign key to the inventory part (optional)
-        leather_id (int): Foreign key to the leather material (optional)
-        quantity (float): Quantity of the item ordered
-        unit_price (float): Unit price of the item
-        total_price (float): Total price of the item
-        notes (str): Additional notes about the order item
-
-        order (relationship): Parent order
-        part (relationship): Inventory part in the order
-        leather (relationship): Leather material in the order
+        order_id (int): Foreign key to parent order
+        product_name (str): Name of the product
+        quantity (int): Quantity ordered
+        unit_price (float): Price per unit
+        total_price (float): Total price for this item
     """
     __tablename__ = 'order_items'
 
-    id = Column(Integer, primary_key=True)
     order_id = Column(Integer, ForeignKey('orders.id'), nullable=False)
-    part_id = Column(Integer, ForeignKey('parts.id'), nullable=True)
-    leather_id = Column(Integer, ForeignKey('leather.id'), nullable=True)
-    quantity = Column(Float, nullable=False, default=1.0)
-    unit_price = Column(Float, nullable=False, default=0.0)
-    total_price = Column(Float, nullable=False, default=0.0)
-    notes = Column(Text, nullable=True)
+    product_name = Column(String(100), nullable=False)
+    quantity = Column(Integer, nullable=False)
+    unit_price = Column(Float, nullable=False)
+    total_price = Column(Float, nullable=False)
 
     # Relationships
-    order = relationship('Order', back_populates='items')
-    part = relationship('Part')
-    leather = relationship('Leather')
+    order = relationship("Order", back_populates="items")
 
-    def __repr__(self):
-        return f"<OrderItem(id={self.id}, order_id={self.order_id}, quantity={self.quantity})>"
+    def __init__(self, **kwargs):
+        """Initialize an order item with the given attributes."""
+        super().__init__(**kwargs)
+        self.update_total_price()
 
-    def update_total_price(self):
-        """
-        Calculate and update the total price of the order item.
-        """
+    def update_total_price(self) -> None:
+        """Calculate and update the total price for this item."""
         self.total_price = self.quantity * self.unit_price
+
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Convert order item to dictionary.
+
+        Returns:
+            dict: Dictionary representation of the order item
+        """
+        data = super().to_dict()
+        data.update({
+            'order_id': self.order_id,
+            'product_name': self.product_name,
+            'quantity': self.quantity,
+            'unit_price': self.unit_price,
+            'total_price': self.total_price
+        })
+        return data

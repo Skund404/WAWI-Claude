@@ -1,97 +1,80 @@
 # database/sqlalchemy/session.py
 
-import os
-from contextlib import contextmanager
-from typing import Optional
+"""
+Database session management.
+"""
+
+import logging
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session
-from sqlalchemy.pool import NullPool
-from sqlalchemy_utils import database_exists, create_database
-from database.sqlalchemy.base import Base
-from utils.error_handling import DatabaseError
+from sqlalchemy.engine import Engine
+from typing import Optional
 
-# Default database URL
-DEFAULT_DATABASE_URL = "sqlite:///store_management.db"
+from ..models.base import Base
+from .config import get_database_url
 
-# Global variables for engine and session factory
-DATABASE_URL = None
-engine = None
-session_factory = None
+logger = logging.getLogger(__name__)
+
+# Global session factory
+_session_factory = None
+_engine = None
 
 
-def init_database(db_url: Optional[str] = None):
-    """Initialize the database, creating it if it doesn't exist.
-
-    Args:
-        db_url: Optional database URL (uses default if not provided)
-
-    Raises:
-        DatabaseError: If database initialization fails
+def init_database() -> Engine:
     """
-    global DATABASE_URL, engine, session_factory
+    Initialize database engine and session factory.
+
+    Returns:
+        SQLAlchemy engine instance
+    """
+    global _session_factory, _engine
 
     try:
-        # Use provided URL or default
-        DATABASE_URL = db_url or os.environ.get("DATABASE_URL", DEFAULT_DATABASE_URL)
+        # Get database URL from config
+        db_url = get_database_url()
+        logger.debug(f"Initializing database with URL: {db_url}")
 
         # Create engine
-        engine = create_engine(
-            DATABASE_URL,
-            echo=False,  # Set to True for SQL logging
-            pool_pre_ping=True,  # Check connection before using it
-            poolclass=NullPool if DATABASE_URL.startswith("sqlite") else None
+        _engine = create_engine(
+            db_url,
+            echo=False,  # Set to True for SQL query logging
+            pool_pre_ping=True,  # Enable connection health checks
+            pool_recycle=3600  # Recycle connections after 1 hour
         )
 
-        # Create database if it doesn't exist
-        if not database_exists(engine.url):
-            create_database(engine.url)
-
-        # Create tables if they don't exist
-        Base.metadata.create_all(engine)
-
         # Create session factory
-        session_factory = scoped_session(sessionmaker(
+        session_factory = sessionmaker(
+            bind=_engine,
             autocommit=False,
-            autoflush=False,
-            bind=engine
-        ))
+            autoflush=False
+        )
+
+        # Create scoped session factory
+        _session_factory = scoped_session(session_factory)
+
+        return _engine
 
     except Exception as e:
-        raise DatabaseError(f"Failed to initialize database: {str(e)}")
+        logger.error(f"Failed to initialize database: {str(e)}")
+        raise
 
 
-@contextmanager
 def get_db_session():
-    """Context manager for database sessions.
+    """
+    Get a database session.
 
-    Provides a transactional scope for database operations.
-    Automatically handles session creation, commit, and rollback.
-
-    Yields:
-        SQLAlchemy session object
+    Returns:
+        Scoped session instance
 
     Raises:
-        DatabaseError: If session management fails
+        RuntimeError: If database is not initialized
     """
-    # Ensure database is initialized
-    if session_factory is None:
-        init_database()
-
-    session = session_factory()
-    try:
-        yield session
-        session.commit()
-    except Exception as e:
-        session.rollback()
-        raise DatabaseError(f"Database session error: {str(e)}")
-    finally:
-        session.close()
+    if _session_factory is None:
+        raise RuntimeError("Database not initialized. Call init_database() first.")
+    return _session_factory()
 
 
-def close_all_sessions():
-    """Close all active database sessions.
-
-    Useful for cleanup and testing.
-    """
-    if session_factory is not None:
-        session_factory.remove()
+def close_db_session() -> None:
+    """Close all sessions and clean up."""
+    if _session_factory is not None:
+        _session_factory.remove()

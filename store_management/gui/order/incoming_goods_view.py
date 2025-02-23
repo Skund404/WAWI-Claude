@@ -6,7 +6,7 @@ from typing import List, Optional, Dict
 
 from sqlalchemy.orm import Session
 
-from database.sqlalchemy.models import (
+from database.sqlalchemy.models_file import (
     Order,
     OrderStatus,
     PaymentStatus

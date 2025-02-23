@@ -1,6 +1,6 @@
 {
   "project_name": "store_management",
-  "total_files": 174,
+  "total_files": 236,
   "files": {
     "anotator.py": {
       "path": "anotator.py",
@@ -119,7 +119,19 @@
               ]
             },
             {
+              "name": "_setup_application",
+              "args": [
+                "self"
+              ]
+            },
+            {
               "name": "_register_services",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_register_views",
               "args": [
                 "self"
               ]
@@ -159,6 +171,51 @@
         }
       ]
     },
+    "examples.py": {
+      "path": "examples.py",
+      "classes": [
+        {
+          "name": "LeatherworkingProjectWorkflow",
+          "methods": [
+            {
+              "name": "__init__",
+              "args": [
+                "self",
+                "project_service",
+                "hardware_service",
+                "supplier_service"
+              ]
+            },
+            {
+              "name": "create_leather_bag_project",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "track_project_progress",
+              "args": [
+                "self",
+                "project"
+              ]
+            },
+            {
+              "name": "simulate_workflow",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": []
+        }
+      ],
+      "functions": [
+        {
+          "name": "main",
+          "args": []
+        }
+      ]
+    },
     "import_test.py": {
       "path": "import_test.py",
       "classes": [],
@@ -169,7 +226,13 @@
       "classes": [],
       "functions": [
         {
-          "name": "create_necessary_directories",
+          "name": "setup_exception_handler",
+          "args": [
+            "root"
+          ]
+        },
+        {
+          "name": "initialize_app",
           "args": []
         },
         {
@@ -177,6 +240,11 @@
           "args": []
         }
       ]
+    },
+    "mover_temp.py": {
+      "path": "mover_temp.py",
+      "classes": [],
+      "functions": []
     },
     "project_analyzer.py": {
       "path": "project_analyzer.py",
@@ -526,30 +594,75 @@
       "classes": [],
       "functions": []
     },
-    "database\\base.py": {
-      "path": "database\\base.py",
+    "controllers\\dashboard_controller.py": {
+      "path": "controllers\\dashboard_controller.py",
       "classes": [
         {
-          "name": "BaseModel",
+          "name": "MetricsScheduler",
           "methods": [
             {
-              "name": "__repr__",
+              "name": "__init__",
+              "args": [
+                "self",
+                "dashboard_service"
+              ]
+            },
+            {
+              "name": "_setup_jobs",
               "args": [
                 "self"
               ]
             },
             {
-              "name": "to_dict",
+              "name": "_capture_daily_metrics",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_capture_weekly_metrics",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_capture_monthly_metrics",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_cleanup_old_metrics",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "start",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "shutdown",
               "args": [
                 "self"
               ]
             }
           ],
-          "base_classes": [
-            "Base"
-          ]
+          "base_classes": []
         }
       ],
+      "functions": [
+        {
+          "name": "get_dashboard_service",
+          "args": []
+        }
+      ]
+    },
+    "controllers\\__init__.py": {
+      "path": "controllers\\__init__.py",
+      "classes": [],
       "functions": []
     },
     "database\\config.py": {
@@ -577,19 +690,13 @@
       "classes": [],
       "functions": [
         {
-          "name": "create_storage_table",
+          "name": "create_tables",
           "args": [
             "engine"
           ]
         },
         {
-          "name": "migrate_storage_table",
-          "args": [
-            "engine"
-          ]
-        },
-        {
-          "name": "add_initial_data",
+          "name": "add_sample_data",
           "args": [
             "session"
           ]
@@ -633,14 +740,8 @@
           ]
         },
         {
-          "name": "_ensure_all_models_loaded",
+          "name": "_add_initial_data",
           "args": []
-        },
-        {
-          "name": "add_initial_data",
-          "args": [
-            "engine"
-          ]
         }
       ]
     },
@@ -664,10 +765,15 @@
               ]
             },
             {
+              "name": "get_container",
+              "args": [
+                "cls"
+              ]
+            },
+            {
               "name": "get_service",
               "args": [
                 "cls",
-                "container",
                 "service_type"
               ]
             }
@@ -706,14 +812,14 @@
               ]
             },
             {
-              "name": "is_registered",
+              "name": "get_service",
               "args": [
                 "self",
                 "interface_type"
               ]
             },
             {
-              "name": "get_service",
+              "name": "is_registered",
               "args": [
                 "self",
                 "interface_type"
@@ -770,6 +876,152 @@
       "classes": [],
       "functions": []
     },
+    "examples\\leatherworking_project_workflow.py": {
+      "path": "examples\\leatherworking_project_workflow.py",
+      "classes": [
+        {
+          "name": "LeatherworkingProjectWorkflow",
+          "methods": [
+            {
+              "name": "__init__",
+              "args": [
+                "self",
+                "project_service",
+                "material_service",
+                "inventory_service"
+              ]
+            },
+            {
+              "name": "create_leather_bag_project",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "track_project_progress",
+              "args": [
+                "self",
+                "project_id"
+              ]
+            },
+            {
+              "name": "simulate_workflow",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": []
+        }
+      ],
+      "functions": [
+        {
+          "name": "main",
+          "args": []
+        }
+      ]
+    },
+    "examples\\leatherworking_workflow_example.py": {
+      "path": "examples\\leatherworking_workflow_example.py",
+      "classes": [
+        {
+          "name": "LeatherworkingProjectWorkflow",
+          "methods": [
+            {
+              "name": "__init__",
+              "args": [
+                "self",
+                "project_service",
+                "hardware_service",
+                "supplier_service"
+              ]
+            },
+            {
+              "name": "create_leather_bag_project",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "track_project_progress",
+              "args": [
+                "self",
+                "project"
+              ]
+            },
+            {
+              "name": "simulate_workflow",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": []
+        }
+      ],
+      "functions": [
+        {
+          "name": "main",
+          "args": []
+        }
+      ]
+    },
+    "examples\\material_management_workflow.py": {
+      "path": "examples\\material_management_workflow.py",
+      "classes": [
+        {
+          "name": "MaterialManagementWorkflow",
+          "methods": [
+            {
+              "name": "__init__",
+              "args": [
+                "self",
+                "material_service",
+                "supplier_service"
+              ]
+            },
+            {
+              "name": "onboard_leather_material",
+              "args": [
+                "self",
+                "supplier_id"
+              ]
+            },
+            {
+              "name": "manage_material_inventory",
+              "args": [
+                "self",
+                "material_id"
+              ]
+            },
+            {
+              "name": "generate_material_reports",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "simulate_workflow",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": []
+        }
+      ],
+      "functions": [
+        {
+          "name": "main",
+          "args": []
+        }
+      ]
+    },
+    "examples\\__init__.py": {
+      "path": "examples\\__init__.py",
+      "classes": [],
+      "functions": []
+    },
     "gui\\base_view.py": {
       "path": "gui\\base_view.py",
       "classes": [
@@ -792,25 +1044,13 @@
               ]
             },
             {
+              "name": "setup_ui",
+              "args": [
+                "self"
+              ]
+            },
+            {
               "name": "load_data",
-              "args": [
-                "self"
-              ]
-            },
-            {
-              "name": "save",
-              "args": [
-                "self"
-              ]
-            },
-            {
-              "name": "undo",
-              "args": [
-                "self"
-              ]
-            },
-            {
-              "name": "redo",
               "args": [
                 "self"
               ]
@@ -848,6 +1088,18 @@
               ]
             },
             {
+              "name": "refresh",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "cleanup",
+              "args": [
+                "self"
+              ]
+            },
+            {
               "name": "set_status",
               "args": [
                 "self",
@@ -856,7 +1108,8 @@
             }
           ],
           "base_classes": [
-            "ttk.Frame"
+            "ttk.Frame",
+            "ABC"
           ]
         }
       ],
@@ -908,6 +1161,14 @@
               ]
             },
             {
+              "name": "add_view",
+              "args": [
+                "self",
+                "name",
+                "view"
+              ]
+            },
+            {
               "name": "_on_new",
               "args": [
                 "self"
@@ -938,13 +1199,21 @@
               ]
             },
             {
+              "name": "_on_refresh",
+              "args": [
+                "self"
+              ]
+            },
+            {
               "name": "_on_exit",
               "args": [
                 "self"
               ]
             }
           ],
-          "base_classes": []
+          "base_classes": [
+            "ttk.Frame"
+          ]
         }
       ],
       "functions": []
@@ -959,6 +1228,204 @@
       "classes": [],
       "functions": []
     },
+    "patches\\fix_storage_view.py": {
+      "path": "patches\\fix_storage_view.py",
+      "classes": [],
+      "functions": [
+        {
+          "name": "manually_load_storage_view",
+          "args": []
+        }
+      ]
+    },
+    "patches\\storage_view_debug.py": {
+      "path": "patches\\storage_view_debug.py",
+      "classes": [],
+      "functions": [
+        {
+          "name": "debug_load_data",
+          "args": [
+            "self"
+          ]
+        }
+      ]
+    },
+    "patches\\__init__.py": {
+      "path": "patches\\__init__.py",
+      "classes": [],
+      "functions": []
+    },
+    "services\\advanced_analytics_service.py": {
+      "path": "services\\advanced_analytics_service.py",
+      "classes": [
+        {
+          "name": "AdvancedAnalyticsService",
+          "methods": [
+            {
+              "name": "__init__",
+              "args": [
+                "self",
+                "material_service",
+                "project_service"
+              ]
+            },
+            {
+              "name": "generate_material_efficiency_report",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "project_performance_analysis",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "material_cost_analysis",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "generate_visualization",
+              "args": [
+                "self",
+                "analysis_type",
+                "output_path"
+              ]
+            },
+            {
+              "name": "generate_comprehensive_report",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": []
+        }
+      ],
+      "functions": [
+        {
+          "name": "main",
+          "args": []
+        }
+      ]
+    },
+    "services\\dashboard_service.py": {
+      "path": "services\\dashboard_service.py",
+      "classes": [
+        {
+          "name": "DashboardService",
+          "methods": [
+            {
+              "name": "__init__",
+              "args": [
+                "self",
+                "container"
+              ]
+            },
+            {
+              "name": "get_dashboard_metrics",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_get_inventory_metrics",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_get_project_metrics",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_get_material_usage",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_get_supplier_metrics",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_calculate_stock_percentage",
+              "args": [
+                "self",
+                "items"
+              ]
+            },
+            {
+              "name": "_calculate_completion_rate",
+              "args": [
+                "self",
+                "projects"
+              ]
+            },
+            {
+              "name": "_group_projects_by_status",
+              "args": [
+                "self",
+                "projects"
+              ]
+            },
+            {
+              "name": "_calculate_material_efficiency",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_get_active_supplier_orders",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_get_default_metrics",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_get_default_inventory_metrics",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_get_default_project_metrics",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_get_default_material_usage",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_get_default_supplier_metrics",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": [
+            "Service"
+          ]
+        }
+      ],
+      "functions": []
+    },
     "services\\inventory_service.py": {
       "path": "services\\inventory_service.py",
       "classes": [
@@ -968,7 +1435,8 @@
             {
               "name": "__init__",
               "args": [
-                "self"
+                "self",
+                "container"
               ]
             },
             {
@@ -1005,12 +1473,170 @@
                 "self",
                 "include_out_of_stock"
               ]
+            },
+            {
+              "name": "_update_part_status",
+              "args": [
+                "self",
+                "part"
+              ]
+            },
+            {
+              "name": "_update_leather_status",
+              "args": [
+                "self",
+                "leather"
+              ]
+            },
+            {
+              "name": "_part_to_dict",
+              "args": [
+                "self",
+                "part"
+              ]
+            },
+            {
+              "name": "_leather_to_dict",
+              "args": [
+                "self",
+                "leather"
+              ]
+            }
+          ],
+          "base_classes": [
+            "Service",
+            "IInventoryService"
+          ]
+        }
+      ],
+      "functions": []
+    },
+    "services\\material_management_service.py": {
+      "path": "services\\material_management_service.py",
+      "classes": [
+        {
+          "name": "MaterialStatus",
+          "methods": [],
+          "base_classes": [
+            "Enum"
+          ]
+        },
+        {
+          "name": "MaterialAllocation",
+          "methods": [
+            {
+              "name": "__init__",
+              "args": [
+                "self",
+                "material_id",
+                "total_quantity"
+              ]
+            },
+            {
+              "name": "allocate",
+              "args": [
+                "self",
+                "project_id",
+                "quantity",
+                "allocation_type"
+              ]
+            },
+            {
+              "name": "deallocate",
+              "args": [
+                "self",
+                "project_id",
+                "quantity"
+              ]
+            }
+          ],
+          "base_classes": []
+        },
+        {
+          "name": "MaterialEfficiencyMetrics",
+          "methods": [
+            {
+              "name": "update_metrics",
+              "args": [
+                "self",
+                "used",
+                "wasted",
+                "project_id"
+              ]
+            }
+          ],
+          "base_classes": []
+        },
+        {
+          "name": "MaterialManagementService",
+          "methods": [
+            {
+              "name": "__init__",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "register_material",
+              "args": [
+                "self",
+                "material_id",
+                "total_quantity",
+                "material_type"
+              ]
+            },
+            {
+              "name": "allocate_material",
+              "args": [
+                "self",
+                "material_id",
+                "project_id",
+                "quantity"
+              ]
+            },
+            {
+              "name": "deallocate_material",
+              "args": [
+                "self",
+                "material_id",
+                "project_id",
+                "quantity"
+              ]
+            },
+            {
+              "name": "update_material_efficiency",
+              "args": [
+                "self",
+                "material_id",
+                "project_id",
+                "used",
+                "wasted"
+              ]
+            },
+            {
+              "name": "get_material_efficiency_report",
+              "args": [
+                "self",
+                "material_id"
+              ]
+            },
+            {
+              "name": "get_material_allocation_status",
+              "args": [
+                "self",
+                "material_id"
+              ]
             }
           ],
           "base_classes": []
         }
       ],
-      "functions": []
+      "functions": [
+        {
+          "name": "main",
+          "args": []
+        }
+      ]
     },
     "services\\order_service.py": {
       "path": "services\\order_service.py",
@@ -1021,41 +1647,86 @@
             {
               "name": "__init__",
               "args": [
+                "self",
+                "container"
+              ]
+            },
+            {
+              "name": "get_all_orders",
+              "args": [
                 "self"
+              ]
+            },
+            {
+              "name": "get_order_by_id",
+              "args": [
+                "self",
+                "order_id"
               ]
             },
             {
               "name": "create_order",
               "args": [
                 "self",
-                "order_data",
-                "items"
+                "order_data"
               ]
             },
             {
-              "name": "update_order_status",
+              "name": "update_order",
               "args": [
                 "self",
                 "order_id",
+                "order_data"
+              ]
+            },
+            {
+              "name": "delete_order",
+              "args": [
+                "self",
+                "order_id"
+              ]
+            },
+            {
+              "name": "process_order_payment",
+              "args": [
+                "self",
+                "order_id",
+                "payment_amount"
+              ]
+            },
+            {
+              "name": "get_orders_by_status",
+              "args": [
+                "self",
                 "status"
               ]
             },
             {
-              "name": "_is_valid_status_transition",
+              "name": "get_supplier_orders",
               "args": [
                 "self",
-                "current_status",
-                "new_status"
+                "supplier_id"
+              ]
+            },
+            {
+              "name": "generate_order_report",
+              "args": [
+                "self",
+                "start_date",
+                "end_date"
               ]
             }
           ],
-          "base_classes": []
+          "base_classes": [
+            "Service",
+            "IOrderService"
+          ]
         }
       ],
       "functions": []
     },
-    "services\\recipe_service.py": {
-      "path": "services\\recipe_service.py",
+    "services\\project_service.py": {
+      "path": "services\\project_service.py",
       "classes": [
         {
           "name": "RecipeService",
@@ -1067,7 +1738,7 @@
               ]
             },
             {
-              "name": "create_recipe",
+              "name": "create_project",
               "args": [
                 "self",
                 "recipe_data",
@@ -1087,6 +1758,150 @@
         }
       ],
       "functions": []
+    },
+    "services\\project_workflow_manager.py": {
+      "path": "services\\project_workflow_manager.py",
+      "classes": [
+        {
+          "name": "ProjectType",
+          "methods": [],
+          "base_classes": [
+            "Enum"
+          ]
+        },
+        {
+          "name": "SkillLevel",
+          "methods": [],
+          "base_classes": [
+            "Enum"
+          ]
+        },
+        {
+          "name": "ProjectStatus",
+          "methods": [],
+          "base_classes": [
+            "Enum"
+          ]
+        },
+        {
+          "name": "ProjectMaterial",
+          "methods": [],
+          "base_classes": []
+        },
+        {
+          "name": "ProjectTask",
+          "methods": [],
+          "base_classes": []
+        },
+        {
+          "name": "ProjectWorkflowManager",
+          "methods": [
+            {
+              "name": "__init__",
+              "args": [
+                "self",
+                "material_service"
+              ]
+            },
+            {
+              "name": "create_project",
+              "args": [
+                "self",
+                "name",
+                "project_type",
+                "skill_level",
+                "description"
+              ]
+            },
+            {
+              "name": "update_project_details",
+              "args": [
+                "self",
+                "project_id"
+              ]
+            },
+            {
+              "name": "update_project_status",
+              "args": [
+                "self",
+                "project_id",
+                "new_status"
+              ]
+            },
+            {
+              "name": "add_project_material",
+              "args": [
+                "self",
+                "project_id",
+                "material_id",
+                "expected_quantity",
+                "cost_per_unit",
+                "supplier"
+              ]
+            },
+            {
+              "name": "update_material_usage",
+              "args": [
+                "self",
+                "project_id",
+                "material_id",
+                "actual_quantity",
+                "wastage"
+              ]
+            },
+            {
+              "name": "add_project_task",
+              "args": [
+                "self",
+                "project_id",
+                "name",
+                "description",
+                "dependencies",
+                "estimated_duration",
+                "priority"
+              ]
+            },
+            {
+              "name": "update_task_status",
+              "args": [
+                "self",
+                "project_id",
+                "task_id",
+                "status",
+                "assigned_to"
+              ]
+            },
+            {
+              "name": "_calculate_project_progress",
+              "args": [
+                "self",
+                "project_id"
+              ]
+            },
+            {
+              "name": "generate_project_summary",
+              "args": [
+                "self",
+                "project_id"
+              ]
+            },
+            {
+              "name": "get_all_projects",
+              "args": [
+                "self",
+                "status"
+              ]
+            }
+          ],
+          "base_classes": []
+        }
+      ],
+      "functions": [
+        {
+          "name": "main",
+          "args": []
+        }
+      ]
     },
     "services\\shopping_list_service.py": {
       "path": "services\\shopping_list_service.py",
@@ -1194,6 +2009,119 @@
       "classes": [],
       "functions": []
     },
+    "tests\\advanced_pattern_library.py": {
+      "path": "tests\\advanced_pattern_library.py",
+      "classes": [
+        {
+          "name": "AdvancedPatternLibrary",
+          "methods": [
+            {
+              "name": "__init__",
+              "args": [
+                "self",
+                "parent"
+              ]
+            },
+            {
+              "name": "setup_ui",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "setup_pattern_library",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "setup_test_suite",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "run_tests",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": [
+            "tk.Frame"
+          ]
+        }
+      ],
+      "functions": []
+    },
+    "tests\\test_project_workflow_manager.py": {
+      "path": "tests\\test_project_workflow_manager.py",
+      "classes": [
+        {
+          "name": "TestProjectWorkflowManager",
+          "methods": [
+            {
+              "name": "setUp",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "test_create_project",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "test_update_project_details",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "test_update_project_status",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "test_add_project_material",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "test_update_material_usage",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "test_add_project_task",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "test_update_task_status",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "test_generate_project_summary",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": [
+            "unittest.TestCase"
+          ]
+        }
+      ],
+      "functions": []
+    },
     "tests\\test_storage.py": {
       "path": "tests\\test_storage.py",
       "classes": [],
@@ -1209,6 +2137,280 @@
       "classes": [],
       "functions": []
     },
+    "tools\\check_database.py": {
+      "path": "tools\\check_database.py",
+      "classes": [],
+      "functions": [
+        {
+          "name": "find_database_path",
+          "args": []
+        },
+        {
+          "name": "check_database_file",
+          "args": []
+        },
+        {
+          "name": "list_database_tables",
+          "args": []
+        },
+        {
+          "name": "check_table_contents",
+          "args": [
+            "table_name"
+          ]
+        },
+        {
+          "name": "main",
+          "args": []
+        }
+      ]
+    },
+    "tools\\check_database_data.py": {
+      "path": "tools\\check_database_data.py",
+      "classes": [],
+      "functions": [
+        {
+          "name": "find_database_file",
+          "args": []
+        },
+        {
+          "name": "check_storage_table",
+          "args": []
+        },
+        {
+          "name": "add_sample_data",
+          "args": []
+        },
+        {
+          "name": "main",
+          "args": []
+        }
+      ]
+    },
+    "tools\\check_project_structure.py": {
+      "path": "tools\\check_project_structure.py",
+      "classes": [],
+      "functions": [
+        {
+          "name": "get_project_root",
+          "args": []
+        },
+        {
+          "name": "check_directory_structure",
+          "args": []
+        },
+        {
+          "name": "check_module_imports",
+          "args": []
+        },
+        {
+          "name": "check_database_config",
+          "args": []
+        },
+        {
+          "name": "main",
+          "args": []
+        }
+      ]
+    },
+    "tools\\debug_view.py": {
+      "path": "tools\\debug_view.py",
+      "classes": [],
+      "functions": [
+        {
+          "name": "check_database_connectivity",
+          "args": []
+        },
+        {
+          "name": "check_view_loading",
+          "args": []
+        },
+        {
+          "name": "main",
+          "args": []
+        }
+      ]
+    },
+    "tools\\enable_all_tabs.py": {
+      "path": "tools\\enable_all_tabs.py",
+      "classes": [],
+      "functions": [
+        {
+          "name": "create_recipe_view",
+          "args": []
+        },
+        {
+          "name": "create_order_view",
+          "args": []
+        },
+        {
+          "name": "create_shopping_list_view",
+          "args": []
+        },
+        {
+          "name": "enable_tabs_in_main_window",
+          "args": []
+        },
+        {
+          "name": "main",
+          "args": []
+        }
+      ]
+    },
+    "tools\\fix_application.py": {
+      "path": "tools\\fix_application.py",
+      "classes": [],
+      "functions": [
+        {
+          "name": "fix_application",
+          "args": []
+        }
+      ]
+    },
+    "tools\\fix_base_view.py": {
+      "path": "tools\\fix_base_view.py",
+      "classes": [],
+      "functions": [
+        {
+          "name": "fix_base_view",
+          "args": []
+        }
+      ]
+    },
+    "tools\\fix_database_structure.py": {
+      "path": "tools\\fix_database_structure.py",
+      "classes": [],
+      "functions": [
+        {
+          "name": "find_database_file",
+          "args": []
+        },
+        {
+          "name": "check_storage_table_structure",
+          "args": []
+        },
+        {
+          "name": "fix_storage_table",
+          "args": []
+        },
+        {
+          "name": "add_sample_data",
+          "args": []
+        },
+        {
+          "name": "backup_database",
+          "args": []
+        },
+        {
+          "name": "main",
+          "args": []
+        }
+      ]
+    },
+    "tools\\fix_imports.py": {
+      "path": "tools\\fix_imports.py",
+      "classes": [],
+      "functions": [
+        {
+          "name": "scan_for_problematic_imports",
+          "args": []
+        },
+        {
+          "name": "fix_imports",
+          "args": [
+            "file_paths",
+            "dry_run"
+          ]
+        },
+        {
+          "name": "create_standalone_viewer",
+          "args": []
+        },
+        {
+          "name": "main",
+          "args": []
+        }
+      ]
+    },
+    "tools\\fix_main_window.py": {
+      "path": "tools\\fix_main_window.py",
+      "classes": [],
+      "functions": [
+        {
+          "name": "fix_main_window",
+          "args": []
+        }
+      ]
+    },
+    "tools\\fix_main_window_tabs.py": {
+      "path": "tools\\fix_main_window_tabs.py",
+      "classes": [],
+      "functions": [
+        {
+          "name": "fix_main_window",
+          "args": []
+        }
+      ]
+    },
+    "tools\\fix_standalone_viewer.py": {
+      "path": "tools\\fix_standalone_viewer.py",
+      "classes": [],
+      "functions": [
+        {
+          "name": "fix_viewer",
+          "args": []
+        }
+      ]
+    },
+    "tools\\rename_project_files.py": {
+      "path": "tools\\rename_project_files.py",
+      "classes": [
+        {
+          "name": "ProjectRenamer",
+          "methods": [
+            {
+              "name": "__init__",
+              "args": [
+                "self",
+                "project_root"
+              ]
+            },
+            {
+              "name": "_find_files",
+              "args": [
+                "self",
+                "pattern"
+              ]
+            },
+            {
+              "name": "rename_files",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "update_file_contents",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "run",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": []
+        }
+      ],
+      "functions": [
+        {
+          "name": "main",
+          "args": []
+        }
+      ]
+    },
     "tools\\run_migration.py": {
       "path": "tools\\run_migration.py",
       "classes": [],
@@ -1223,6 +2425,54 @@
             "db_url",
             "drop_existing"
           ]
+        },
+        {
+          "name": "main",
+          "args": []
+        }
+      ]
+    },
+    "tools\\standalone_storage_viewer.py": {
+      "path": "tools\\standalone_storage_viewer.py",
+      "classes": [
+        {
+          "name": "StorageViewer",
+          "methods": [
+            {
+              "name": "__init__",
+              "args": [
+                "self",
+                "root"
+              ]
+            },
+            {
+              "name": "setup_ui",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "load_data",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "show_error",
+              "args": [
+                "self",
+                "title",
+                "message"
+              ]
+            }
+          ],
+          "base_classes": []
+        }
+      ],
+      "functions": [
+        {
+          "name": "find_database_file",
+          "args": []
         },
         {
           "name": "main",
@@ -1577,19 +2827,22 @@
           "name": "log_error",
           "args": [
             "error",
-            "context"
+            "context",
+            "logger_name"
           ]
         },
         {
           "name": "log_info",
           "args": [
-            "message"
+            "message",
+            "logger_name"
           ]
         },
         {
           "name": "log_debug",
           "args": [
-            "message"
+            "message",
+            "logger_name"
           ]
         }
       ]
@@ -2264,6 +3517,112 @@
       "classes": [],
       "functions": []
     },
+    "services\\implementations\\hardware_service.py": {
+      "path": "services\\implementations\\hardware_service.py",
+      "classes": [
+        {
+          "name": "HardwareService",
+          "methods": [
+            {
+              "name": "__init__",
+              "args": [
+                "self",
+                "hardware_repository"
+              ]
+            },
+            {
+              "name": "create_hardware",
+              "args": [
+                "self",
+                "hardware_data"
+              ]
+            },
+            {
+              "name": "_validate_hardware_data",
+              "args": [
+                "self",
+                "hardware_data"
+              ]
+            },
+            {
+              "name": "_check_duplicate_hardware",
+              "args": [
+                "self",
+                "hardware_data"
+              ]
+            },
+            {
+              "name": "_post_hardware_creation_tasks",
+              "args": [
+                "self",
+                "hardware"
+              ]
+            },
+            {
+              "name": "get_hardware",
+              "args": [
+                "self",
+                "hardware_id"
+              ]
+            },
+            {
+              "name": "update_hardware",
+              "args": [
+                "self",
+                "hardware_id",
+                "update_data"
+              ]
+            },
+            {
+              "name": "_validate_hardware_update",
+              "args": [
+                "self",
+                "update_data"
+              ]
+            },
+            {
+              "name": "delete_hardware",
+              "args": [
+                "self",
+                "hardware_id"
+              ]
+            },
+            {
+              "name": "get_low_stock_hardware",
+              "args": [
+                "self",
+                "include_zero_stock"
+              ]
+            },
+            {
+              "name": "generate_hardware_performance_report",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "find_compatible_hardware",
+              "args": [
+                "self",
+                "project_component",
+                "hardware_type"
+              ]
+            },
+            {
+              "name": "analyze_hardware_usage",
+              "args": [
+                "self",
+                "project_id"
+              ]
+            }
+          ],
+          "base_classes": [
+            "IHardwareService"
+          ]
+        }
+      ],
+      "functions": []
+    },
     "services\\implementations\\inventory_service.py": {
       "path": "services\\implementations\\inventory_service.py",
       "classes": [
@@ -2335,6 +3694,99 @@
       ],
       "functions": []
     },
+    "services\\implementations\\material_service.py": {
+      "path": "services\\implementations\\material_service.py",
+      "classes": [
+        {
+          "name": "MaterialService",
+          "methods": [
+            {
+              "name": "__init__",
+              "args": [
+                "self",
+                "material_repository"
+              ]
+            },
+            {
+              "name": "_validate_material_data",
+              "args": [
+                "self",
+                "material_data"
+              ]
+            },
+            {
+              "name": "create_material",
+              "args": [
+                "self",
+                "material_data"
+              ]
+            },
+            {
+              "name": "get_material",
+              "args": [
+                "self",
+                "material_id"
+              ]
+            },
+            {
+              "name": "update_material",
+              "args": [
+                "self",
+                "material_id",
+                "material_data"
+              ]
+            },
+            {
+              "name": "delete_material",
+              "args": [
+                "self",
+                "material_id"
+              ]
+            },
+            {
+              "name": "get_low_stock_materials",
+              "args": [
+                "self",
+                "include_zero_stock"
+              ]
+            },
+            {
+              "name": "track_material_usage",
+              "args": [
+                "self",
+                "material_id",
+                "quantity_used"
+              ]
+            },
+            {
+              "name": "search_materials",
+              "args": [
+                "self",
+                "search_params"
+              ]
+            },
+            {
+              "name": "generate_sustainability_report",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "calculate_material_efficiency",
+              "args": [
+                "self",
+                "material_id",
+                "period_days"
+              ]
+            }
+          ],
+          "base_classes": [
+            "IMaterialService"
+          ]
+        }
+      ],
+      "functions": []
+    },
     "services\\implementations\\order_service.py": {
       "path": "services\\implementations\\order_service.py",
       "classes": [
@@ -2362,6 +3814,13 @@
               ]
             },
             {
+              "name": "get_order_by_number",
+              "args": [
+                "self",
+                "order_number"
+              ]
+            },
+            {
               "name": "create_order",
               "args": [
                 "self",
@@ -2372,6 +3831,7 @@
               "name": "update_order",
               "args": [
                 "self",
+                "order_id",
                 "order_data"
               ]
             },
@@ -2383,16 +3843,141 @@
               ]
             },
             {
-              "name": "_to_dict",
+              "name": "process_order_payment",
               "args": [
                 "self",
-                "order"
+                "order_id",
+                "payment_amount"
+              ]
+            },
+            {
+              "name": "get_orders_by_status",
+              "args": [
+                "self",
+                "status"
+              ]
+            },
+            {
+              "name": "get_orders_by_customer",
+              "args": [
+                "self",
+                "customer_name"
+              ]
+            },
+            {
+              "name": "get_order_statistics",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_generate_order_number",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "cleanup",
+              "args": [
+                "self"
               ]
             }
           ],
           "base_classes": [
-            "Service",
             "IOrderService"
+          ]
+        }
+      ],
+      "functions": []
+    },
+    "services\\implementations\\project_service.py": {
+      "path": "services\\implementations\\project_service.py",
+      "classes": [
+        {
+          "name": "ProjectService",
+          "methods": [
+            {
+              "name": "__init__",
+              "args": [
+                "self",
+                "project_repository"
+              ]
+            },
+            {
+              "name": "_validate_project_data",
+              "args": [
+                "self",
+                "project_data"
+              ]
+            },
+            {
+              "name": "create_project",
+              "args": [
+                "self",
+                "project_data"
+              ]
+            },
+            {
+              "name": "get_project",
+              "args": [
+                "self",
+                "project_id",
+                "include_components"
+              ]
+            },
+            {
+              "name": "update_project",
+              "args": [
+                "self",
+                "project_id",
+                "project_data"
+              ]
+            },
+            {
+              "name": "delete_project",
+              "args": [
+                "self",
+                "project_id"
+              ]
+            },
+            {
+              "name": "search_projects",
+              "args": [
+                "self",
+                "search_params"
+              ]
+            },
+            {
+              "name": "get_complex_projects",
+              "args": [
+                "self",
+                "complexity_threshold"
+              ]
+            },
+            {
+              "name": "analyze_project_material_usage",
+              "args": [
+                "self",
+                "project_id"
+              ]
+            },
+            {
+              "name": "generate_project_complexity_report",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "update_project_status",
+              "args": [
+                "self",
+                "project_id",
+                "new_status"
+              ]
+            }
+          ],
+          "base_classes": [
+            "IProjectService"
           ]
         }
       ],
@@ -2425,24 +4010,22 @@
               ]
             },
             {
-              "name": "create_recipe",
+              "name": "create_project",
               "args": [
                 "self",
-                "recipe_data",
-                "items"
+                "recipe_data"
               ]
             },
             {
-              "name": "update_recipe",
+              "name": "update_project",
               "args": [
                 "self",
                 "recipe_id",
-                "recipe_data",
-                "items"
+                "recipe_data"
               ]
             },
             {
-              "name": "delete_recipe",
+              "name": "delete_project",
               "args": [
                 "self",
                 "recipe_id"
@@ -2457,15 +4040,49 @@
               ]
             },
             {
-              "name": "_to_dict",
+              "name": "calculate_production_cost",
+              "args": [
+                "self",
+                "recipe_id",
+                "quantity"
+              ]
+            },
+            {
+              "name": "get_recipes_by_category",
+              "args": [
+                "self",
+                "category"
+              ]
+            },
+            {
+              "name": "search_recipes",
+              "args": [
+                "self",
+                "search_term"
+              ]
+            },
+            {
+              "name": "_calculate_materials_cost",
               "args": [
                 "self",
                 "recipe"
               ]
+            },
+            {
+              "name": "_calculate_labor_cost",
+              "args": [
+                "self",
+                "recipe"
+              ]
+            },
+            {
+              "name": "cleanup",
+              "args": [
+                "self"
+              ]
             }
           ],
           "base_classes": [
-            "Service",
             "IRecipeService"
           ]
         }
@@ -2486,11 +4103,38 @@
               ]
             },
             {
+              "name": "get_all_shopping_lists",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "get_shopping_list_by_id",
+              "args": [
+                "self",
+                "list_id"
+              ]
+            },
+            {
               "name": "create_shopping_list",
               "args": [
                 "self",
-                "list_data",
-                "items"
+                "list_data"
+              ]
+            },
+            {
+              "name": "update_shopping_list",
+              "args": [
+                "self",
+                "list_id",
+                "list_data"
+              ]
+            },
+            {
+              "name": "delete_shopping_list",
+              "args": [
+                "self",
+                "list_id"
               ]
             },
             {
@@ -2502,38 +4146,81 @@
               ]
             },
             {
-              "name": "mark_item_purchased",
+              "name": "_add_item_to_list",
               "args": [
                 "self",
-                "item_id",
-                "purchase_data"
+                "item_data"
               ]
             },
             {
-              "name": "get_pending_items_by_supplier",
-              "args": [
-                "self"
-              ]
-            },
-            {
-              "name": "_get_shopping_list_with_items",
+              "name": "_remove_all_list_items",
               "args": [
                 "self",
                 "list_id"
               ]
             },
             {
-              "name": "_shopping_list_to_dict",
+              "name": "remove_item_from_list",
               "args": [
                 "self",
-                "shopping_list"
+                "list_id",
+                "item_id"
               ]
             },
             {
-              "name": "_shopping_list_item_to_dict",
+              "name": "mark_item_purchased",
               "args": [
                 "self",
-                "item"
+                "list_id",
+                "item_id",
+                "quantity"
+              ]
+            },
+            {
+              "name": "get_active_lists",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "get_lists_by_status",
+              "args": [
+                "self",
+                "status"
+              ]
+            },
+            {
+              "name": "search_shopping_lists",
+              "args": [
+                "self",
+                "search_term"
+              ]
+            },
+            {
+              "name": "get_pending_items",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "get_shopping_list_summary",
+              "args": [
+                "self",
+                "list_id"
+              ]
+            },
+            {
+              "name": "merge_shopping_lists",
+              "args": [
+                "self",
+                "source_ids",
+                "target_id"
+              ]
+            },
+            {
+              "name": "cleanup",
+              "args": [
+                "self"
               ]
             }
           ],
@@ -2705,6 +4392,62 @@
       ],
       "functions": []
     },
+    "services\\interfaces\\hardware_service.py": {
+      "path": "services\\interfaces\\hardware_service.py",
+      "classes": [
+        {
+          "name": "IHardwareService",
+          "methods": [
+            {
+              "name": "create_hardware",
+              "args": [
+                "self",
+                "hardware_data"
+              ]
+            },
+            {
+              "name": "get_hardware",
+              "args": [
+                "self",
+                "hardware_id"
+              ]
+            },
+            {
+              "name": "update_hardware",
+              "args": [
+                "self",
+                "hardware_id",
+                "update_data"
+              ]
+            },
+            {
+              "name": "delete_hardware",
+              "args": [
+                "self",
+                "hardware_id"
+              ]
+            },
+            {
+              "name": "get_low_stock_hardware",
+              "args": [
+                "self",
+                "include_zero_stock"
+              ]
+            },
+            {
+              "name": "generate_hardware_performance_report",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": [
+            "ABC"
+          ]
+        }
+      ],
+      "functions": []
+    },
     "services\\interfaces\\inventory_service.py": {
       "path": "services\\interfaces\\inventory_service.py",
       "classes": [
@@ -2754,6 +4497,92 @@
       ],
       "functions": []
     },
+    "services\\interfaces\\material_service.py": {
+      "path": "services\\interfaces\\material_service.py",
+      "classes": [
+        {
+          "name": "MaterialType",
+          "methods": [],
+          "base_classes": [
+            "Enum"
+          ]
+        },
+        {
+          "name": "IMaterialService",
+          "methods": [
+            {
+              "name": "create_material",
+              "args": [
+                "self",
+                "material_data"
+              ]
+            },
+            {
+              "name": "get_material",
+              "args": [
+                "self",
+                "material_id"
+              ]
+            },
+            {
+              "name": "update_material",
+              "args": [
+                "self",
+                "material_id",
+                "material_data"
+              ]
+            },
+            {
+              "name": "delete_material",
+              "args": [
+                "self",
+                "material_id"
+              ]
+            },
+            {
+              "name": "get_low_stock_materials",
+              "args": [
+                "self",
+                "include_zero_stock"
+              ]
+            },
+            {
+              "name": "track_material_usage",
+              "args": [
+                "self",
+                "material_id",
+                "quantity_used"
+              ]
+            },
+            {
+              "name": "search_materials",
+              "args": [
+                "self",
+                "search_params"
+              ]
+            },
+            {
+              "name": "generate_sustainability_report",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "calculate_material_efficiency",
+              "args": [
+                "self",
+                "material_id",
+                "period_days"
+              ]
+            }
+          ],
+          "base_classes": [
+            "ABC"
+          ]
+        }
+      ],
+      "functions": []
+    },
     "services\\interfaces\\order_service.py": {
       "path": "services\\interfaces\\order_service.py",
       "classes": [
@@ -2774,6 +4603,13 @@
               ]
             },
             {
+              "name": "get_order_by_number",
+              "args": [
+                "self",
+                "order_number"
+              ]
+            },
+            {
               "name": "create_order",
               "args": [
                 "self",
@@ -2784,6 +4620,7 @@
               "name": "update_order",
               "args": [
                 "self",
+                "order_id",
                 "order_data"
               ]
             },
@@ -2793,10 +4630,137 @@
                 "self",
                 "order_id"
               ]
+            },
+            {
+              "name": "process_order_payment",
+              "args": [
+                "self",
+                "order_id",
+                "payment_amount"
+              ]
+            },
+            {
+              "name": "get_orders_by_status",
+              "args": [
+                "self",
+                "status"
+              ]
+            },
+            {
+              "name": "get_orders_by_customer",
+              "args": [
+                "self",
+                "customer_name"
+              ]
+            },
+            {
+              "name": "get_order_statistics",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "cleanup",
+              "args": [
+                "self"
+              ]
             }
           ],
           "base_classes": [
-            "IBaseService"
+            "ABC"
+          ]
+        }
+      ],
+      "functions": []
+    },
+    "services\\interfaces\\project_service.py": {
+      "path": "services\\interfaces\\project_service.py",
+      "classes": [
+        {
+          "name": "ProjectType",
+          "methods": [],
+          "base_classes": [
+            "Enum"
+          ]
+        },
+        {
+          "name": "SkillLevel",
+          "methods": [],
+          "base_classes": [
+            "Enum"
+          ]
+        },
+        {
+          "name": "IProjectService",
+          "methods": [
+            {
+              "name": "create_project",
+              "args": [
+                "self",
+                "project_data"
+              ]
+            },
+            {
+              "name": "get_project",
+              "args": [
+                "self",
+                "project_id",
+                "include_components"
+              ]
+            },
+            {
+              "name": "update_project",
+              "args": [
+                "self",
+                "project_id",
+                "project_data"
+              ]
+            },
+            {
+              "name": "delete_project",
+              "args": [
+                "self",
+                "project_id"
+              ]
+            },
+            {
+              "name": "search_projects",
+              "args": [
+                "self",
+                "search_params"
+              ]
+            },
+            {
+              "name": "get_complex_projects",
+              "args": [
+                "self",
+                "complexity_threshold"
+              ]
+            },
+            {
+              "name": "analyze_project_material_usage",
+              "args": [
+                "self",
+                "project_id"
+              ]
+            },
+            {
+              "name": "generate_project_complexity_report",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "update_project_status",
+              "args": [
+                "self",
+                "project_id",
+                "new_status"
+              ]
+            }
+          ],
+          "base_classes": [
+            "ABC"
           ]
         }
       ],
@@ -2822,24 +4786,22 @@
               ]
             },
             {
-              "name": "create_recipe",
+              "name": "create_project",
               "args": [
                 "self",
-                "recipe_data",
-                "items"
+                "recipe_data"
               ]
             },
             {
-              "name": "update_recipe",
+              "name": "update_project",
               "args": [
                 "self",
                 "recipe_id",
-                "recipe_data",
-                "items"
+                "recipe_data"
               ]
             },
             {
-              "name": "delete_recipe",
+              "name": "delete_project",
               "args": [
                 "self",
                 "recipe_id"
@@ -2852,10 +4814,38 @@
                 "recipe_id",
                 "quantity"
               ]
+            },
+            {
+              "name": "calculate_production_cost",
+              "args": [
+                "self",
+                "recipe_id",
+                "quantity"
+              ]
+            },
+            {
+              "name": "get_recipes_by_category",
+              "args": [
+                "self",
+                "category"
+              ]
+            },
+            {
+              "name": "search_recipes",
+              "args": [
+                "self",
+                "search_term"
+              ]
+            },
+            {
+              "name": "cleanup",
+              "args": [
+                "self"
+              ]
             }
           ],
           "base_classes": [
-            "IBaseService"
+            "ABC"
           ]
         }
       ],
@@ -2884,8 +4874,7 @@
               "name": "create_shopping_list",
               "args": [
                 "self",
-                "list_data",
-                "items"
+                "list_data"
               ]
             },
             {
@@ -2893,8 +4882,7 @@
               "args": [
                 "self",
                 "list_id",
-                "list_data",
-                "items"
+                "list_data"
               ]
             },
             {
@@ -2924,8 +4912,22 @@
               "name": "mark_item_purchased",
               "args": [
                 "self",
+                "list_id",
                 "item_id",
-                "purchase_data"
+                "quantity"
+              ]
+            },
+            {
+              "name": "get_active_lists",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "get_lists_by_status",
+              "args": [
+                "self",
+                "status"
               ]
             },
             {
@@ -2934,10 +4936,22 @@
                 "self",
                 "search_term"
               ]
+            },
+            {
+              "name": "get_pending_items",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "cleanup",
+              "args": [
+                "self"
+              ]
             }
           ],
           "base_classes": [
-            "IBaseService"
+            "ABC"
           ]
         }
       ],
@@ -3046,10 +5060,97 @@
                 "self",
                 "supplier_id"
               ]
+            },
+            {
+              "name": "get_supplier_performance",
+              "args": [
+                "self",
+                "supplier_id",
+                "start_date",
+                "end_date"
+              ]
+            },
+            {
+              "name": "generate_supplier_report",
+              "args": [
+                "self"
+              ]
             }
           ],
           "base_classes": [
-            "IBaseService"
+            "ABC"
+          ]
+        },
+        {
+          "name": "SupplierService",
+          "methods": [
+            {
+              "name": "__init__",
+              "args": [
+                "self",
+                "container"
+              ]
+            },
+            {
+              "name": "_validate_supplier_data",
+              "args": [
+                "self",
+                "supplier_data"
+              ]
+            },
+            {
+              "name": "get_all_suppliers",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "get_supplier_by_id",
+              "args": [
+                "self",
+                "supplier_id"
+              ]
+            },
+            {
+              "name": "create_supplier",
+              "args": [
+                "self",
+                "supplier_data"
+              ]
+            },
+            {
+              "name": "update_supplier",
+              "args": [
+                "self",
+                "supplier_id",
+                "supplier_data"
+              ]
+            },
+            {
+              "name": "delete_supplier",
+              "args": [
+                "self",
+                "supplier_id"
+              ]
+            },
+            {
+              "name": "get_supplier_performance",
+              "args": [
+                "self",
+                "supplier_id",
+                "start_date",
+                "end_date"
+              ]
+            },
+            {
+              "name": "generate_supplier_report",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": [
+            "ISupplierService"
           ]
         }
       ],
@@ -3365,6 +5466,1412 @@
       "classes": [],
       "functions": []
     },
+    "gui\\leatherworking\\advanced_pattern_library.py": {
+      "path": "gui\\leatherworking\\advanced_pattern_library.py",
+      "classes": [
+        {
+          "name": "AdvancedPatternLibrary",
+          "methods": [
+            {
+              "name": "__init__",
+              "args": [
+                "self",
+                "parent",
+                "app"
+              ]
+            },
+            {
+              "name": "setup_ui",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "setup_pattern_library",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "setup_pattern_list",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "setup_pattern_details",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "setup_toolbar",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "setup_test_suite",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "load_data",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "update_pattern_list",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "on_pattern_select",
+              "args": [
+                "self",
+                "event"
+              ]
+            },
+            {
+              "name": "display_pattern_details",
+              "args": [
+                "self",
+                "pattern_id"
+              ]
+            },
+            {
+              "name": "add_pattern",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "edit_pattern",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "delete_pattern",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "clear_pattern_details",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "import_patterns",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "export_patterns",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "run_tests",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": [
+            "BaseView"
+          ]
+        },
+        {
+          "name": "PatternDialog",
+          "methods": [
+            {
+              "name": "__init__",
+              "args": [
+                "self",
+                "parent",
+                "title",
+                "pattern"
+              ]
+            },
+            {
+              "name": "setup_ui",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "setup_materials_ui",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "add_material",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "remove_material",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "select_image",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "save",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "cancel",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": [
+            "tk.Toplevel"
+          ]
+        }
+      ],
+      "functions": []
+    },
+    "gui\\leatherworking\\cost_analyzer.py": {
+      "path": "gui\\leatherworking\\cost_analyzer.py",
+      "classes": [
+        {
+          "name": "ProjectCostAnalyzer",
+          "methods": [
+            {
+              "name": "__init__",
+              "args": [
+                "self",
+                "parent",
+                "app"
+              ]
+            },
+            {
+              "name": "setup_ui",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "create_toolbar",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "create_project_section",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "create_cost_section",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "create_cost_breakdown",
+              "args": [
+                "self",
+                "parent"
+              ]
+            },
+            {
+              "name": "create_profitability_analysis",
+              "args": [
+                "self",
+                "parent"
+              ]
+            },
+            {
+              "name": "create_pricing_recommendations",
+              "args": [
+                "self",
+                "parent"
+              ]
+            },
+            {
+              "name": "load_projects",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "calculate_materials_cost",
+              "args": [
+                "self",
+                "project"
+              ]
+            },
+            {
+              "name": "calculate_component_cost",
+              "args": [
+                "self",
+                "component"
+              ]
+            },
+            {
+              "name": "calculate_total_cost",
+              "args": [
+                "self",
+                "project"
+              ]
+            },
+            {
+              "name": "update_cost_breakdown",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "on_project_select",
+              "args": [
+                "self",
+                "event"
+              ]
+            },
+            {
+              "name": "cleanup",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "load_settings",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "save_settings",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "update_labor_rate",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "update_profitability",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": [
+            "BaseView"
+          ]
+        }
+      ],
+      "functions": []
+    },
+    "gui\\leatherworking\\cost_estimator.py": {
+      "path": "gui\\leatherworking\\cost_estimator.py",
+      "classes": [
+        {
+          "name": "CostEstimator",
+          "methods": [
+            {
+              "name": "__init__",
+              "args": [
+                "self",
+                "parent",
+                "controller"
+              ]
+            },
+            {
+              "name": "_setup_layout",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_create_cost_input",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_create_cost_breakdown",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_create_cost_visualization",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_create_cost_summary",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "add_cost_item",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "recalculate_costs",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_update_cost_distribution_chart",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "delete_selected_cost_item",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "show_context_menu",
+              "args": [
+                "self",
+                "event"
+              ]
+            },
+            {
+              "name": "export_cost_report",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "load_initial_costs",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": [
+            "tk.Frame"
+          ]
+        }
+      ],
+      "functions": [
+        {
+          "name": "main",
+          "args": []
+        }
+      ]
+    },
+    "gui\\leatherworking\\cutting_layout.py": {
+      "path": "gui\\leatherworking\\cutting_layout.py",
+      "classes": [
+        {
+          "name": "LeatherPiece",
+          "methods": [],
+          "base_classes": []
+        },
+        {
+          "name": "LeatherCuttingView",
+          "methods": [
+            {
+              "name": "__init__",
+              "args": [
+                "self",
+                "parent",
+                "app"
+              ]
+            },
+            {
+              "name": "setup_ui",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "create_toolbar",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "load_data",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "refresh_canvas",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "draw_grid",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "draw_piece",
+              "args": [
+                "self",
+                "piece"
+              ]
+            },
+            {
+              "name": "_get_color_for_priority",
+              "args": [
+                "self",
+                "priority"
+              ]
+            },
+            {
+              "name": "on_canvas_click",
+              "args": [
+                "self",
+                "event"
+              ]
+            },
+            {
+              "name": "on_drag",
+              "args": [
+                "self",
+                "event"
+              ]
+            },
+            {
+              "name": "on_zoom",
+              "args": [
+                "self",
+                "event"
+              ]
+            },
+            {
+              "name": "adjust_zoom",
+              "args": [
+                "self",
+                "factor"
+              ]
+            },
+            {
+              "name": "update_grid",
+              "args": [
+                "self",
+                "event"
+              ]
+            },
+            {
+              "name": "add_piece",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "clear_layout",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "export_layout",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": [
+            "BaseView"
+          ]
+        },
+        {
+          "name": "MockApp",
+          "methods": [
+            {
+              "name": "get_service",
+              "args": [
+                "self",
+                "service_type"
+              ]
+            }
+          ],
+          "base_classes": []
+        }
+      ],
+      "functions": [
+        {
+          "name": "main",
+          "args": []
+        }
+      ]
+    },
+    "gui\\leatherworking\\leather_dialog.py": {
+      "path": "gui\\leatherworking\\leather_dialog.py",
+      "classes": [
+        {
+          "name": "LeatherDetailsDialog",
+          "methods": [
+            {
+              "name": "__init__",
+              "args": [
+                "self",
+                "parent",
+                "callback",
+                "initial_data"
+              ]
+            },
+            {
+              "name": "_create_main_frame",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_create_input_fields",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_create_buttons",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_load_initial_data",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_validate_input",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_on_save",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": [
+            "tk.Toplevel"
+          ]
+        }
+      ],
+      "functions": [
+        {
+          "name": "main",
+          "args": []
+        }
+      ]
+    },
+    "gui\\leatherworking\\leather_inventory.py": {
+      "path": "gui\\leatherworking\\leather_inventory.py",
+      "classes": [
+        {
+          "name": "LeatherInventoryView",
+          "methods": [
+            {
+              "name": "__init__",
+              "args": [
+                "self",
+                "parent",
+                "app"
+              ]
+            },
+            {
+              "name": "_setup_layout",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_create_inventory_list",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_create_analytics_section",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_create_action_buttons",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_add_leather_dialog",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_add_leather",
+              "args": [
+                "self",
+                "leather_data"
+              ]
+            },
+            {
+              "name": "_update_leather_dialog",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_update_leather",
+              "args": [
+                "self",
+                "updated_data"
+              ]
+            },
+            {
+              "name": "_delete_leather",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_validate_leather_data",
+              "args": [
+                "self",
+                "leather_data"
+              ]
+            },
+            {
+              "name": "_update_inventory_tree",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_update_analytics",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_show_leather_details",
+              "args": [
+                "self",
+                "event"
+              ]
+            },
+            {
+              "name": "_show_context_menu",
+              "args": [
+                "self",
+                "event"
+              ]
+            },
+            {
+              "name": "_generate_leather_report",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_load_initial_leather_data",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": [
+            "tk.Frame"
+          ]
+        }
+      ],
+      "functions": [
+        {
+          "name": "main",
+          "args": []
+        }
+      ]
+    },
+    "gui\\leatherworking\\material_calculator.py": {
+      "path": "gui\\leatherworking\\material_calculator.py",
+      "classes": [
+        {
+          "name": "MaterialCalculator",
+          "methods": [
+            {
+              "name": "__init__",
+              "args": [
+                "self",
+                "parent",
+                "controller"
+              ]
+            },
+            {
+              "name": "_setup_layout",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_create_material_input",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_create_material_list",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_create_calculation_summary",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "add_material",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "delete_selected_material",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "show_context_menu",
+              "args": [
+                "self",
+                "event"
+              ]
+            },
+            {
+              "name": "recalculate_summary",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "export_material_report",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "load_initial_materials",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": [
+            "tk.Frame"
+          ]
+        }
+      ],
+      "functions": [
+        {
+          "name": "main",
+          "args": []
+        }
+      ]
+    },
+    "gui\\leatherworking\\material_tracker.py": {
+      "path": "gui\\leatherworking\\material_tracker.py",
+      "classes": [
+        {
+          "name": "MaterialUsageTracker",
+          "methods": [
+            {
+              "name": "__init__",
+              "args": [
+                "self",
+                "parent",
+                "app"
+              ]
+            },
+            {
+              "name": "setup_ui",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "create_toolbar",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "create_material_list",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "create_analytics_section",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "create_visualization",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "load_data",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "on_material_select",
+              "args": [
+                "self",
+                "event"
+              ]
+            },
+            {
+              "name": "load_material_data",
+              "args": [
+                "self",
+                "material_id"
+              ]
+            },
+            {
+              "name": "update_metrics",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "calculate_cost_per_unit",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "calculate_projected_usage",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "update_trend_analysis",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "calculate_period_efficiency",
+              "args": [
+                "self",
+                "start_days",
+                "end_days"
+              ]
+            },
+            {
+              "name": "update_visualization",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "group_data_by_periods",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "draw_axes",
+              "args": [
+                "self",
+                "margin",
+                "width",
+                "height"
+              ]
+            },
+            {
+              "name": "draw_usage_line",
+              "args": [
+                "self",
+                "periods",
+                "margin",
+                "x_scale",
+                "y_scale",
+                "height"
+              ]
+            },
+            {
+              "name": "draw_efficiency_line",
+              "args": [
+                "self",
+                "periods",
+                "margin",
+                "x_scale",
+                "y_scale",
+                "height"
+              ]
+            },
+            {
+              "name": "draw_period_labels",
+              "args": [
+                "self",
+                "periods",
+                "margin",
+                "x_scale",
+                "height"
+              ]
+            },
+            {
+              "name": "get_days_for_range",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "export_data",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": [
+            "BaseView"
+          ]
+        }
+      ],
+      "functions": []
+    },
+    "gui\\leatherworking\\pattern_library.py": {
+      "path": "gui\\leatherworking\\pattern_library.py",
+      "classes": [
+        {
+          "name": "PatternLibrary",
+          "methods": [
+            {
+              "name": "__init__",
+              "args": [
+                "self",
+                "parent",
+                "controller"
+              ]
+            },
+            {
+              "name": "_setup_layout",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_create_pattern_input",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "browse_image",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_create_pattern_list",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_create_pattern_details",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "add_pattern",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_update_pattern_tree",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "show_pattern_details",
+              "args": [
+                "self",
+                "event"
+              ]
+            },
+            {
+              "name": "show_context_menu",
+              "args": [
+                "self",
+                "event"
+              ]
+            },
+            {
+              "name": "edit_pattern",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "delete_pattern",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "load_initial_patterns",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": [
+            "tk.Frame"
+          ]
+        }
+      ],
+      "functions": [
+        {
+          "name": "main",
+          "args": []
+        }
+      ]
+    },
+    "gui\\leatherworking\\project_dashboard.py": {
+      "path": "gui\\leatherworking\\project_dashboard.py",
+      "classes": [
+        {
+          "name": "ProjectDashboard",
+          "methods": [
+            {
+              "name": "__init__",
+              "args": [
+                "self",
+                "parent",
+                "controller"
+              ]
+            },
+            {
+              "name": "_setup_layout",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_create_overview_section",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_create_project_list",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_create_quick_actions",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "load_data",
+              "args": [
+                "self",
+                "projects"
+              ]
+            },
+            {
+              "name": "new_project",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "import_project",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "generate_report",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": [
+            "tk.Frame"
+          ]
+        }
+      ],
+      "functions": [
+        {
+          "name": "main",
+          "args": []
+        }
+      ]
+    },
+    "gui\\leatherworking\\project_view.py": {
+      "path": "gui\\leatherworking\\project_view.py",
+      "classes": [
+        {
+          "name": "LeatherworkingProjectView",
+          "methods": [
+            {
+              "name": "__init__",
+              "args": [
+                "self",
+                "parent",
+                "app"
+              ]
+            },
+            {
+              "name": "setup_ui",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "create_toolbar",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "create_project_list",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "create_project_details",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "create_material_tracking",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "load_data",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "on_project_select",
+              "args": [
+                "self",
+                "event"
+              ]
+            },
+            {
+              "name": "update_project_details",
+              "args": [
+                "self",
+                "project"
+              ]
+            },
+            {
+              "name": "update_materials_list",
+              "args": [
+                "self",
+                "project"
+              ]
+            },
+            {
+              "name": "show_new_project_dialog",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "show_add_material_dialog",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "remove_selected_material",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "delete_selected_project",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "export_project_report",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "filter_projects",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "show_error",
+              "args": [
+                "self",
+                "title",
+                "message"
+              ]
+            },
+            {
+              "name": "cleanup",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": [
+            "BaseView"
+          ]
+        }
+      ],
+      "functions": []
+    },
+    "gui\\leatherworking\\timeline_viewer.py": {
+      "path": "gui\\leatherworking\\timeline_viewer.py",
+      "classes": [
+        {
+          "name": "TimelineViewer",
+          "methods": [
+            {
+              "name": "__init__",
+              "args": [
+                "self",
+                "parent",
+                "controller"
+              ]
+            },
+            {
+              "name": "_setup_layout",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_create_project_input",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_create_timeline_chart",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_create_project_list",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "add_project",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "update_timeline_chart",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "delete_selected_project",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "show_context_menu",
+              "args": [
+                "self",
+                "event"
+              ]
+            },
+            {
+              "name": "load_initial_projects",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": [
+            "tk.Frame"
+          ]
+        }
+      ],
+      "functions": [
+        {
+          "name": "main",
+          "args": []
+        }
+      ]
+    },
+    "gui\\leatherworking\\__init__.py": {
+      "path": "gui\\leatherworking\\__init__.py",
+      "classes": [],
+      "functions": []
+    },
     "gui\\order\\incoming_goods_view.py": {
       "path": "gui\\order\\incoming_goods_view.py",
       "classes": [
@@ -3538,19 +7045,13 @@
               ]
             },
             {
-              "name": "create_toolbar",
+              "name": "_get_columns",
               "args": [
                 "self"
               ]
             },
             {
-              "name": "create_order_list",
-              "args": [
-                "self"
-              ]
-            },
-            {
-              "name": "create_order_details",
+              "name": "_setup_treeview",
               "args": [
                 "self"
               ]
@@ -3562,79 +7063,50 @@
               ]
             },
             {
-              "name": "show_add_order_dialog",
+              "name": "show_add_dialog",
               "args": [
                 "self"
               ]
             },
             {
-              "name": "_save_new_order",
-              "args": [
-                "self",
-                "order_data"
-              ]
-            },
-            {
-              "name": "_on_order_select",
+              "name": "delete_selected",
               "args": [
                 "self",
                 "event"
               ]
             },
             {
-              "name": "_load_order_details",
+              "name": "on_double_click",
               "args": [
                 "self",
-                "order_id"
+                "event"
               ]
             },
             {
-              "name": "_edit_order",
-              "args": [
-                "self"
-              ]
-            },
-            {
-              "name": "_save_edited_order",
+              "name": "_sort_column",
               "args": [
                 "self",
-                "order_data"
+                "col"
               ]
             },
             {
-              "name": "delete_order",
+              "name": "_get_dialog_fields",
               "args": [
                 "self"
               ]
             },
             {
-              "name": "_show_search_dialog",
+              "name": "show_search_dialog",
               "args": [
                 "self"
               ]
             },
             {
-              "name": "save",
+              "name": "_search_orders",
               "args": [
-                "self"
-              ]
-            },
-            {
-              "name": "undo",
-              "args": [
-                "self"
-              ]
-            },
-            {
-              "name": "redo",
-              "args": [
-                "self"
-              ]
-            },
-            {
-              "name": "cleanup",
-              "args": [
-                "self"
+                "self",
+                "search_term",
+                "columns"
               ]
             }
           ],
@@ -3839,8 +7311,8 @@
       "classes": [],
       "functions": []
     },
-    "gui\\product\\recipe_view.py": {
-      "path": "gui\\product\\recipe_view.py",
+    "gui\\product\\project_view.py": {
+      "path": "gui\\product\\project_view.py",
       "classes": [
         {
           "name": "RecipeView",
@@ -4070,8 +7542,8 @@
       "classes": [],
       "functions": []
     },
-    "gui\\recipe\\recipe_view.py": {
-      "path": "gui\\recipe\\recipe_view.py",
+    "gui\\recipe\\project_view.py": {
+      "path": "gui\\recipe\\project_view.py",
       "classes": [
         {
           "name": "RecipeView",
@@ -4082,6 +7554,12 @@
                 "self",
                 "parent",
                 "app"
+              ]
+            },
+            {
+              "name": "_find_database_file",
+              "args": [
+                "self"
               ]
             },
             {
@@ -4097,57 +7575,7 @@
               ]
             },
             {
-              "name": "create_recipes_treeview",
-              "args": [
-                "self"
-              ]
-            },
-            {
-              "name": "create_details_view",
-              "args": [
-                "self"
-              ]
-            },
-            {
-              "name": "create_info_view",
-              "args": [
-                "self"
-              ]
-            },
-            {
-              "name": "create_items_view",
-              "args": [
-                "self"
-              ]
-            },
-            {
-              "name": "on_recipe_select",
-              "args": [
-                "self",
-                "event"
-              ]
-            },
-            {
-              "name": "load_recipe_details",
-              "args": [
-                "self",
-                "recipe_id"
-              ]
-            },
-            {
-              "name": "show_add_recipe_dialog",
-              "args": [
-                "self"
-              ]
-            },
-            {
-              "name": "edit_recipe",
-              "args": [
-                "self"
-              ]
-            },
-            {
-              "name": "delete_recipe",
+              "name": "create_treeview",
               "args": [
                 "self"
               ]
@@ -4159,7 +7587,27 @@
               ]
             },
             {
-              "name": "cleanup",
+              "name": "show_add_dialog",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "on_double_click",
+              "args": [
+                "self",
+                "event"
+              ]
+            },
+            {
+              "name": "delete_selected",
+              "args": [
+                "self",
+                "event"
+              ]
+            },
+            {
+              "name": "show_search_dialog",
               "args": [
                 "self"
               ]
@@ -4202,6 +7650,12 @@
               ]
             },
             {
+              "name": "_find_database_file",
+              "args": [
+                "self"
+              ]
+            },
+            {
               "name": "setup_ui",
               "args": [
                 "self"
@@ -4214,25 +7668,7 @@
               ]
             },
             {
-              "name": "create_lists_treeview",
-              "args": [
-                "self"
-              ]
-            },
-            {
-              "name": "create_details_view",
-              "args": [
-                "self"
-              ]
-            },
-            {
-              "name": "create_info_view",
-              "args": [
-                "self"
-              ]
-            },
-            {
-              "name": "create_items_view",
+              "name": "create_treeview",
               "args": [
                 "self"
               ]
@@ -4244,75 +7680,27 @@
               ]
             },
             {
-              "name": "on_list_select",
+              "name": "show_add_dialog",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "on_double_click",
               "args": [
                 "self",
                 "event"
               ]
             },
             {
-              "name": "load_list_details",
+              "name": "delete_selected",
               "args": [
                 "self",
-                "list_id"
-              ]
-            },
-            {
-              "name": "show_add_list_dialog",
-              "args": [
-                "self"
-              ]
-            },
-            {
-              "name": "show_add_item_dialog",
-              "args": [
-                "self"
-              ]
-            },
-            {
-              "name": "show_mark_purchased_dialog",
-              "args": [
-                "self"
-              ]
-            },
-            {
-              "name": "remove_item",
-              "args": [
-                "self"
-              ]
-            },
-            {
-              "name": "delete_list",
-              "args": [
-                "self"
+                "event"
               ]
             },
             {
               "name": "show_search_dialog",
-              "args": [
-                "self"
-              ]
-            },
-            {
-              "name": "save",
-              "args": [
-                "self"
-              ]
-            },
-            {
-              "name": "undo",
-              "args": [
-                "self"
-              ]
-            },
-            {
-              "name": "redo",
-              "args": [
-                "self"
-              ]
-            },
-            {
-              "name": "cleanup",
               "args": [
                 "self"
               ]
@@ -4329,6 +7717,26 @@
       "path": "gui\\shopping_list\\__init__.py",
       "classes": [],
       "functions": []
+    },
+    "gui\\storage\\fix_storage_view.py": {
+      "path": "gui\\storage\\fix_storage_view.py",
+      "classes": [],
+      "functions": [
+        {
+          "name": "find_database_file",
+          "args": []
+        },
+        {
+          "name": "patch_storage_view",
+          "args": [
+            "override"
+          ]
+        },
+        {
+          "name": "main",
+          "args": []
+        }
+      ]
     },
     "gui\\storage\\sorting_system_view.py": {
       "path": "gui\\storage\\sorting_system_view.py",
@@ -4447,6 +7855,12 @@
               ]
             },
             {
+              "name": "_find_database_file",
+              "args": [
+                "self"
+              ]
+            },
+            {
               "name": "setup_ui",
               "args": [
                 "self"
@@ -4481,14 +7895,6 @@
               "args": [
                 "self",
                 "event"
-              ]
-            },
-            {
-              "name": "start_cell_edit",
-              "args": [
-                "self",
-                "item",
-                "column"
               ]
             },
             {
@@ -4613,9 +8019,71 @@
       ],
       "functions": []
     },
+    "database\\models\\base_transaction.py": {
+      "path": "database\\models\\base_transaction.py",
+      "classes": [
+        {
+          "name": "BaseTransaction",
+          "methods": [
+            {
+              "name": "__init__",
+              "args": [
+                "self",
+                "transaction_type",
+                "notes"
+              ]
+            },
+            {
+              "name": "__repr__",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "to_dict",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": [
+            "BaseModel"
+          ]
+        }
+      ],
+      "functions": []
+    },
     "database\\models\\enums.py": {
       "path": "database\\models\\enums.py",
       "classes": [
+        {
+          "name": "OrderStatus",
+          "methods": [],
+          "base_classes": [
+            "Enum"
+          ]
+        },
+        {
+          "name": "MaterialType",
+          "methods": [],
+          "base_classes": [
+            "Enum"
+          ]
+        },
+        {
+          "name": "LeatherType",
+          "methods": [],
+          "base_classes": [
+            "Enum"
+          ]
+        },
+        {
+          "name": "MaterialQualityGrade",
+          "methods": [],
+          "base_classes": [
+            "Enum"
+          ]
+        },
         {
           "name": "InventoryStatus",
           "methods": [],
@@ -4624,7 +8092,49 @@
           ]
         },
         {
-          "name": "ProductionStatus",
+          "name": "ProjectType",
+          "methods": [],
+          "base_classes": [
+            "Enum"
+          ]
+        },
+        {
+          "name": "SkillLevel",
+          "methods": [],
+          "base_classes": [
+            "Enum"
+          ]
+        },
+        {
+          "name": "ProjectStatus",
+          "methods": [],
+          "base_classes": [
+            "Enum"
+          ]
+        },
+        {
+          "name": "SupplierStatus",
+          "methods": [],
+          "base_classes": [
+            "Enum"
+          ]
+        },
+        {
+          "name": "StorageLocationType",
+          "methods": [],
+          "base_classes": [
+            "Enum"
+          ]
+        },
+        {
+          "name": "MeasurementUnit",
+          "methods": [],
+          "base_classes": [
+            "Enum"
+          ]
+        },
+        {
+          "name": "Priority",
           "methods": [],
           "base_classes": [
             "Enum"
@@ -4638,7 +8148,7 @@
           ]
         },
         {
-          "name": "OrderStatus",
+          "name": "QualityCheckStatus",
           "methods": [],
           "base_classes": [
             "Enum"
@@ -4649,6 +8159,59 @@
           "methods": [],
           "base_classes": [
             "Enum"
+          ]
+        }
+      ],
+      "functions": []
+    },
+    "database\\models\\hardware.py": {
+      "path": "database\\models\\hardware.py",
+      "classes": [
+        {
+          "name": "HardwareType",
+          "methods": [],
+          "base_classes": [
+            "Enum"
+          ]
+        },
+        {
+          "name": "HardwareMaterial",
+          "methods": [],
+          "base_classes": [
+            "Enum"
+          ]
+        },
+        {
+          "name": "Hardware",
+          "methods": [
+            {
+              "name": "__repr__",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "is_low_stock",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "update_stock",
+              "args": [
+                "self",
+                "quantity_change"
+              ]
+            },
+            {
+              "name": "to_dict",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": [
+            "BaseModel"
           ]
         }
       ],
@@ -4661,22 +8224,32 @@
           "name": "Leather",
           "methods": [
             {
+              "name": "__init__",
+              "args": [
+                "self",
+                "name",
+                "leather_type",
+                "quality_grade",
+                "area",
+                "minimum_area"
+              ]
+            },
+            {
               "name": "__repr__",
               "args": [
                 "self"
               ]
             },
             {
-              "name": "usage_percentage",
+              "name": "to_dict",
               "args": [
                 "self"
               ]
             },
             {
-              "name": "can_fulfill_requirement",
+              "name": "needs_reorder",
               "args": [
-                "self",
-                "required_area"
+                "self"
               ]
             }
           ],
@@ -4687,25 +8260,32 @@
       ],
       "functions": []
     },
-    "database\\models\\order.py": {
-      "path": "database\\models\\order.py",
+    "database\\models\\material.py": {
+      "path": "database\\models\\material.py",
       "classes": [
         {
-          "name": "OrderStatus",
+          "name": "MaterialType",
           "methods": [],
           "base_classes": [
-            "PyEnum"
+            "Enum"
           ]
         },
         {
-          "name": "PaymentStatus",
+          "name": "LeatherType",
           "methods": [],
           "base_classes": [
-            "PyEnum"
+            "Enum"
           ]
         },
         {
-          "name": "Order",
+          "name": "MaterialQualityGrade",
+          "methods": [],
+          "base_classes": [
+            "Enum"
+          ]
+        },
+        {
+          "name": "Material",
           "methods": [
             {
               "name": "__repr__",
@@ -4714,13 +8294,278 @@
               ]
             },
             {
-              "name": "calculate_total_amount",
+              "name": "calculate_sustainability_impact",
               "args": [
                 "self"
               ]
             },
             {
-              "name": "update_total_amount",
+              "name": "is_low_stock",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "update_stock",
+              "args": [
+                "self",
+                "quantity_change"
+              ]
+            },
+            {
+              "name": "_trigger_reorder",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": [
+            "BaseModel"
+          ]
+        }
+      ],
+      "functions": []
+    },
+    "database\\models\\metrics.py": {
+      "path": "database\\models\\metrics.py",
+      "classes": [
+        {
+          "name": "MetricType",
+          "methods": [],
+          "base_classes": [
+            "enum.Enum"
+          ]
+        },
+        {
+          "name": "TimeFrame",
+          "methods": [],
+          "base_classes": [
+            "enum.Enum"
+          ]
+        },
+        {
+          "name": "MetricSnapshot",
+          "methods": [
+            {
+              "name": "__repr__",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": [
+            "BaseModel"
+          ]
+        },
+        {
+          "name": "MaterialUsageLog",
+          "methods": [
+            {
+              "name": "calculate_efficiency",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": [
+            "BaseModel"
+          ]
+        },
+        {
+          "name": "MetricsRepository",
+          "methods": [
+            {
+              "name": "__init__",
+              "args": [
+                "self",
+                "session"
+              ]
+            },
+            {
+              "name": "create_metric_snapshot",
+              "args": [
+                "self",
+                "snapshot_data"
+              ]
+            },
+            {
+              "name": "get_latest_metrics",
+              "args": [
+                "self",
+                "metric_type"
+              ]
+            },
+            {
+              "name": "get_metrics_history",
+              "args": [
+                "self",
+                "metric_type",
+                "time_frame",
+                "start_date",
+                "end_date"
+              ]
+            },
+            {
+              "name": "log_material_usage",
+              "args": [
+                "self",
+                "usage_data"
+              ]
+            },
+            {
+              "name": "get_material_usage_history",
+              "args": [
+                "self",
+                "material_id",
+                "start_date",
+                "end_date"
+              ]
+            },
+            {
+              "name": "get_material_efficiency_stats",
+              "args": [
+                "self",
+                "material_id",
+                "days"
+              ]
+            },
+            {
+              "name": "cleanup_old_metrics",
+              "args": [
+                "self",
+                "days_to_keep"
+              ]
+            }
+          ],
+          "base_classes": []
+        },
+        {
+          "name": "DashboardService",
+          "methods": [
+            {
+              "name": "__init__",
+              "args": [
+                "self",
+                "container"
+              ]
+            },
+            {
+              "name": "get_dashboard_metrics",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "capture_metrics",
+              "args": [
+                "self",
+                "time_frame"
+              ]
+            },
+            {
+              "name": "_get_inventory_metrics",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_get_project_metrics",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_get_material_usage",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_get_supplier_metrics",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_calculate_stock_percentage",
+              "args": [
+                "self",
+                "items"
+              ]
+            },
+            {
+              "name": "_calculate_completion_rate",
+              "args": [
+                "self",
+                "projects"
+              ]
+            },
+            {
+              "name": "_get_default_inventory_metrics",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_get_default_project_metrics",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_get_default_material_metrics",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "_get_default_supplier_metrics",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": [
+            "IBaseService"
+          ]
+        }
+      ],
+      "functions": []
+    },
+    "database\\models\\order.py": {
+      "path": "database\\models\\order.py",
+      "classes": [
+        {
+          "name": "Order",
+          "methods": [
+            {
+              "name": "__init__",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "update_total",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "add_item",
+              "args": [
+                "self",
+                "item"
+              ]
+            },
+            {
+              "name": "remove_item",
+              "args": [
+                "self",
+                "item"
+              ]
+            },
+            {
+              "name": "to_dict",
               "args": [
                 "self"
               ]
@@ -4734,13 +8579,19 @@
           "name": "OrderItem",
           "methods": [
             {
-              "name": "__repr__",
+              "name": "__init__",
               "args": [
                 "self"
               ]
             },
             {
               "name": "update_total_price",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "to_dict",
               "args": [
                 "self"
               ]
@@ -4758,26 +8609,7 @@
       "classes": [
         {
           "name": "Part",
-          "methods": [
-            {
-              "name": "__repr__",
-              "args": [
-                "self"
-              ]
-            },
-            {
-              "name": "total_value",
-              "args": [
-                "self"
-              ]
-            },
-            {
-              "name": "needs_reorder",
-              "args": [
-                "self"
-              ]
-            }
-          ],
+          "methods": [],
           "base_classes": [
             "BaseModel"
           ]
@@ -4823,11 +8655,101 @@
       ],
       "functions": []
     },
+    "database\\models\\project.py": {
+      "path": "database\\models\\project.py",
+      "classes": [
+        {
+          "name": "ProjectType",
+          "methods": [],
+          "base_classes": [
+            "Enum"
+          ]
+        },
+        {
+          "name": "SkillLevel",
+          "methods": [],
+          "base_classes": [
+            "Enum"
+          ]
+        },
+        {
+          "name": "ProductionStatus",
+          "methods": [],
+          "base_classes": [
+            "Enum"
+          ]
+        },
+        {
+          "name": "Project",
+          "methods": [
+            {
+              "name": "__repr__",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "calculate_complexity",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "update_quality_metrics",
+              "args": [
+                "self",
+                "quality_rating",
+                "customer_satisfaction"
+              ]
+            }
+          ],
+          "base_classes": [
+            "BaseModel"
+          ]
+        }
+      ],
+      "functions": []
+    },
+    "database\\models\\project_component.py": {
+      "path": "database\\models\\project_component.py",
+      "classes": [
+        {
+          "name": "ComponentType",
+          "methods": [],
+          "base_classes": [
+            "Enum"
+          ]
+        },
+        {
+          "name": "ProjectComponent",
+          "methods": [
+            {
+              "name": "__repr__",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "calculate_material_efficiency",
+              "args": [
+                "self",
+                "actual_material_used",
+                "planned_material"
+              ]
+            }
+          ],
+          "base_classes": [
+            "BaseModel"
+          ]
+        }
+      ],
+      "functions": []
+    },
     "database\\models\\recipe.py": {
       "path": "database\\models\\recipe.py",
       "classes": [
         {
-          "name": "Recipe",
+          "name": "Project",
           "methods": [
             {
               "name": "__repr__",
@@ -4853,7 +8775,7 @@
           ]
         },
         {
-          "name": "RecipeItem",
+          "name": "ProjectComponent",
           "methods": [
             {
               "name": "__repr__",
@@ -4947,37 +8869,22 @@
           "name": "Supplier",
           "methods": [
             {
+              "name": "__init__",
+              "args": [
+                "self",
+                "name",
+                "notes",
+                "rating"
+              ]
+            },
+            {
               "name": "__repr__",
               "args": [
                 "self"
               ]
             },
             {
-              "name": "total_parts",
-              "args": [
-                "self"
-              ]
-            },
-            {
-              "name": "total_products",
-              "args": [
-                "self"
-              ]
-            },
-            {
-              "name": "total_leather_materials",
-              "args": [
-                "self"
-              ]
-            },
-            {
-              "name": "total_orders",
-              "args": [
-                "self"
-              ]
-            },
-            {
-              "name": "get_performance_metrics",
+              "name": "to_dict",
               "args": [
                 "self"
               ]
@@ -4994,17 +8901,24 @@
       "path": "database\\models\\transaction.py",
       "classes": [
         {
-          "name": "TransactionType",
-          "methods": [],
-          "base_classes": [
-            "Enum"
-          ]
-        },
-        {
-          "name": "InventoryTransaction",
+          "name": "BaseTransaction",
           "methods": [
             {
+              "name": "__init__",
+              "args": [
+                "self",
+                "transaction_type",
+                "notes"
+              ]
+            },
+            {
               "name": "__repr__",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "to_dict",
               "args": [
                 "self"
               ]
@@ -5015,10 +8929,45 @@
           ]
         },
         {
+          "name": "InventoryTransaction",
+          "methods": [
+            {
+              "name": "__init__",
+              "args": [
+                "self",
+                "part_id",
+                "quantity_change",
+                "transaction_type",
+                "notes"
+              ]
+            },
+            {
+              "name": "to_dict",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": [
+            "BaseTransaction"
+          ]
+        },
+        {
           "name": "LeatherTransaction",
           "methods": [
             {
-              "name": "__repr__",
+              "name": "__init__",
+              "args": [
+                "self",
+                "leather_id",
+                "area_change",
+                "transaction_type",
+                "notes",
+                "wastage"
+              ]
+            },
+            {
+              "name": "to_dict",
               "args": [
                 "self"
               ]
@@ -5031,7 +8980,7 @@
             }
           ],
           "base_classes": [
-            "BaseModel"
+            "BaseTransaction"
           ]
         }
       ],
@@ -5040,6 +8989,87 @@
     "database\\models\\__init__.py": {
       "path": "database\\models\\__init__.py",
       "classes": [],
+      "functions": []
+    },
+    "database\\repositories\\hardware_repository.py": {
+      "path": "database\\repositories\\hardware_repository.py",
+      "classes": [
+        {
+          "name": "HardwareRepository",
+          "methods": [
+            {
+              "name": "__init__",
+              "args": [
+                "self",
+                "session"
+              ]
+            },
+            {
+              "name": "create_hardware",
+              "args": [
+                "self",
+                "hardware_data"
+              ]
+            },
+            {
+              "name": "get_hardware_by_id",
+              "args": [
+                "self",
+                "hardware_id"
+              ]
+            },
+            {
+              "name": "search_hardware",
+              "args": [
+                "self",
+                "hardware_type",
+                "material",
+                "finish",
+                "min_stock",
+                "max_stock",
+                "min_load_capacity",
+                "max_load_capacity"
+              ]
+            },
+            {
+              "name": "update_hardware",
+              "args": [
+                "self",
+                "hardware_id",
+                "update_data"
+              ]
+            },
+            {
+              "name": "delete_hardware",
+              "args": [
+                "self",
+                "hardware_id"
+              ]
+            },
+            {
+              "name": "get_low_stock_hardware",
+              "args": [
+                "self",
+                "include_zero_stock"
+              ]
+            },
+            {
+              "name": "get_hardware_by_supplier",
+              "args": [
+                "self",
+                "supplier_id"
+              ]
+            },
+            {
+              "name": "generate_hardware_performance_report",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": []
+        }
+      ],
       "functions": []
     },
     "database\\repositories\\leather_repository.py": {
@@ -5081,6 +9111,159 @@
       ],
       "functions": []
     },
+    "database\\repositories\\material_repository.py": {
+      "path": "database\\repositories\\material_repository.py",
+      "classes": [
+        {
+          "name": "MaterialRepository",
+          "methods": [
+            {
+              "name": "__init__",
+              "args": [
+                "self",
+                "session"
+              ]
+            },
+            {
+              "name": "create_material",
+              "args": [
+                "self",
+                "material_data"
+              ]
+            },
+            {
+              "name": "get_material_by_id",
+              "args": [
+                "self",
+                "material_id"
+              ]
+            },
+            {
+              "name": "search_materials",
+              "args": [
+                "self",
+                "material_type",
+                "leather_type",
+                "quality_grade",
+                "min_stock",
+                "max_stock"
+              ]
+            },
+            {
+              "name": "update_material",
+              "args": [
+                "self",
+                "material_id",
+                "update_data"
+              ]
+            },
+            {
+              "name": "delete_material",
+              "args": [
+                "self",
+                "material_id"
+              ]
+            },
+            {
+              "name": "get_low_stock_materials",
+              "args": [
+                "self",
+                "include_zero_stock"
+              ]
+            },
+            {
+              "name": "get_materials_by_supplier",
+              "args": [
+                "self",
+                "supplier_id"
+              ]
+            },
+            {
+              "name": "generate_sustainability_report",
+              "args": [
+                "self"
+              ]
+            }
+          ],
+          "base_classes": []
+        }
+      ],
+      "functions": []
+    },
+    "database\\repositories\\metrics_repository.py": {
+      "path": "database\\repositories\\metrics_repository.py",
+      "classes": [
+        {
+          "name": "MetricsRepository",
+          "methods": [
+            {
+              "name": "__init__",
+              "args": [
+                "self",
+                "session"
+              ]
+            },
+            {
+              "name": "create_metric_snapshot",
+              "args": [
+                "self",
+                "snapshot_data"
+              ]
+            },
+            {
+              "name": "get_latest_metrics",
+              "args": [
+                "self",
+                "metric_type"
+              ]
+            },
+            {
+              "name": "get_metrics_history",
+              "args": [
+                "self",
+                "metric_type",
+                "time_frame",
+                "start_date",
+                "end_date"
+              ]
+            },
+            {
+              "name": "log_material_usage",
+              "args": [
+                "self",
+                "usage_data"
+              ]
+            },
+            {
+              "name": "get_material_usage_history",
+              "args": [
+                "self",
+                "material_id",
+                "start_date",
+                "end_date"
+              ]
+            },
+            {
+              "name": "get_material_efficiency_stats",
+              "args": [
+                "self",
+                "material_id",
+                "days"
+              ]
+            },
+            {
+              "name": "cleanup_old_metrics",
+              "args": [
+                "self",
+                "days_to_keep"
+              ]
+            }
+          ],
+          "base_classes": []
+        }
+      ],
+      "functions": []
+    },
     "database\\repositories\\order_repository.py": {
       "path": "database\\repositories\\order_repository.py",
       "classes": [
@@ -5109,6 +9292,13 @@
               ]
             },
             {
+              "name": "get_by_supplier",
+              "args": [
+                "self",
+                "supplier_id"
+              ]
+            },
+            {
               "name": "get_by_date_range",
               "args": [
                 "self",
@@ -5117,14 +9307,40 @@
               ]
             },
             {
-              "name": "get_by_supplier",
+              "name": "search",
               "args": [
                 "self",
-                "supplier_id"
+                "search_term",
+                "fields",
+                "limit"
+              ]
+            },
+            {
+              "name": "create",
+              "args": [
+                "self",
+                "order"
+              ]
+            },
+            {
+              "name": "update",
+              "args": [
+                "self",
+                "order_id",
+                "order"
+              ]
+            },
+            {
+              "name": "delete",
+              "args": [
+                "self",
+                "order_id"
               ]
             }
           ],
-          "base_classes": []
+          "base_classes": [
+            "BaseRepository"
+          ]
         }
       ],
       "functions": []
@@ -5197,6 +9413,70 @@
             }
           ],
           "base_classes": []
+        }
+      ],
+      "functions": []
+    },
+    "database\\repositories\\project_repository.py": {
+      "path": "database\\repositories\\project_repository.py",
+      "classes": [
+        {
+          "name": "ProjectRepository",
+          "methods": [
+            {
+              "name": "__init__",
+              "args": [
+                "self",
+                "session"
+              ]
+            },
+            {
+              "name": "get_project_with_details",
+              "args": [
+                "self",
+                "project_id"
+              ]
+            },
+            {
+              "name": "search_projects",
+              "args": [
+                "self",
+                "search_params",
+                "limit"
+              ]
+            },
+            {
+              "name": "get_project_material_usage",
+              "args": [
+                "self",
+                "project_id"
+              ]
+            },
+            {
+              "name": "generate_project_complexity_report",
+              "args": [
+                "self"
+              ]
+            },
+            {
+              "name": "create",
+              "args": [
+                "self",
+                "project"
+              ]
+            },
+            {
+              "name": "update",
+              "args": [
+                "self",
+                "project_id",
+                "project"
+              ]
+            }
+          ],
+          "base_classes": [
+            "BaseRepository"
+          ]
         }
       ],
       "functions": []
@@ -5348,21 +9628,57 @@
               ]
             },
             {
-              "name": "get_with_products",
+              "name": "search",
+              "args": [
+                "self",
+                "search_term",
+                "fields",
+                "limit"
+              ]
+            },
+            {
+              "name": "get_supplier_orders",
+              "args": [
+                "self",
+                "supplier_id",
+                "start_date",
+                "end_date"
+              ]
+            },
+            {
+              "name": "get_top_suppliers",
+              "args": [
+                "self",
+                "limit",
+                "performance_metric"
+              ]
+            },
+            {
+              "name": "create",
+              "args": [
+                "self",
+                "data"
+              ]
+            },
+            {
+              "name": "update",
+              "args": [
+                "self",
+                "supplier_id",
+                "data"
+              ]
+            },
+            {
+              "name": "delete",
               "args": [
                 "self",
                 "supplier_id"
               ]
-            },
-            {
-              "name": "search",
-              "args": [
-                "self",
-                "term"
-              ]
             }
           ],
-          "base_classes": []
+          "base_classes": [
+            "BaseRepository"
+          ]
         }
       ],
       "functions": []
@@ -5426,7 +9742,7 @@
               ]
             },
             {
-              "name": "session_scope",
+              "name": "_get_session",
               "args": [
                 "self"
               ]
@@ -5467,96 +9783,6 @@
                 "self",
                 "id"
               ]
-            },
-            {
-              "name": "exists",
-              "args": [
-                "self",
-                "id"
-              ]
-            },
-            {
-              "name": "count",
-              "args": [
-                "self"
-              ]
-            },
-            {
-              "name": "filter_by",
-              "args": [
-                "self"
-              ]
-            },
-            {
-              "name": "search",
-              "args": [
-                "self",
-                "term",
-                "fields"
-              ]
-            },
-            {
-              "name": "bulk_create",
-              "args": [
-                "self",
-                "items"
-              ]
-            },
-            {
-              "name": "bulk_update",
-              "args": [
-                "self",
-                "items"
-              ]
-            }
-          ],
-          "base_classes": []
-        }
-      ],
-      "functions": []
-    },
-    "database\\sqlalchemy\\config.py": {
-      "path": "database\\sqlalchemy\\config.py",
-      "classes": [
-        {
-          "name": "DatabaseConfig",
-          "methods": [
-            {
-              "name": "__new__",
-              "args": [
-                "cls"
-              ]
-            },
-            {
-              "name": "_initialize",
-              "args": [
-                "self"
-              ]
-            },
-            {
-              "name": "get_engine",
-              "args": [
-                "self"
-              ]
-            },
-            {
-              "name": "get_session",
-              "args": [
-                "self"
-              ]
-            },
-            {
-              "name": "close_session",
-              "args": [
-                "self",
-                "session"
-              ]
-            },
-            {
-              "name": "test_connection",
-              "args": [
-                "self"
-              ]
             }
           ],
           "base_classes": []
@@ -5564,10 +9790,25 @@
       ],
       "functions": [
         {
-          "name": "get_database_url",
+          "name": "create_base_manager",
           "args": [
-            "config"
+            "model_class",
+            "session_factory"
           ]
+        }
+      ]
+    },
+    "database\\sqlalchemy\\config.py": {
+      "path": "database\\sqlalchemy\\config.py",
+      "classes": [],
+      "functions": [
+        {
+          "name": "get_database_url",
+          "args": []
+        },
+        {
+          "name": "_find_project_root",
+          "args": []
         }
       ]
     },
@@ -5701,7 +9942,38 @@
     },
     "database\\sqlalchemy\\manager_factory.py": {
       "path": "database\\sqlalchemy\\manager_factory.py",
-      "classes": [],
+      "classes": [
+        {
+          "name": "ManagerFactory",
+          "methods": [
+            {
+              "name": "register_specialized_manager",
+              "args": [
+                "cls",
+                "model_class",
+                "manager_class"
+              ]
+            },
+            {
+              "name": "get_manager",
+              "args": [
+                "cls",
+                "model_class",
+                "session_factory",
+                "mixins",
+                "force_new"
+              ]
+            },
+            {
+              "name": "clear_manager_cache",
+              "args": [
+                "cls"
+              ]
+            }
+          ],
+          "base_classes": []
+        }
+      ],
       "functions": [
         {
           "name": "register_specialized_manager",
@@ -5709,27 +9981,6 @@
             "model_class",
             "manager_class"
           ]
-        },
-        {
-          "name": "get_manager",
-          "args": [
-            "model_class",
-            "session_factory",
-            "mixins",
-            "force_new"
-          ]
-        },
-        {
-          "name": "_create_manager",
-          "args": [
-            "model_class",
-            "session_factory",
-            "mixins"
-          ]
-        },
-        {
-          "name": "clear_manager_cache",
-          "args": []
         }
       ]
     },
@@ -5780,8 +10031,8 @@
         }
       ]
     },
-    "database\\sqlalchemy\\models.py": {
-      "path": "database\\sqlalchemy\\models.py",
+    "database\\sqlalchemy\\models_file.py": {
+      "path": "database\\sqlalchemy\\models_file.py",
       "classes": [],
       "functions": []
     },
@@ -5801,16 +10052,14 @@
       "functions": [
         {
           "name": "init_database",
-          "args": [
-            "db_url"
-          ]
+          "args": []
         },
         {
           "name": "get_db_session",
           "args": []
         },
         {
-          "name": "close_all_sessions",
+          "name": "close_db_session",
           "args": []
         }
       ]
@@ -6492,7 +10741,7 @@
               ]
             },
             {
-              "name": "create_recipe",
+              "name": "create_project",
               "args": [
                 "self",
                 "recipe_data",
@@ -7659,6 +11908,34 @@
         }
       ]
     },
+    "database\\sqlalchemy\\migrations\\versions\\20240222_add_metrics_tables.py": {
+      "path": "database\\sqlalchemy\\migrations\\versions\\20240222_add_metrics_tables.py",
+      "classes": [],
+      "functions": [
+        {
+          "name": "upgrade",
+          "args": []
+        },
+        {
+          "name": "downgrade",
+          "args": []
+        }
+      ]
+    },
+    "database\\sqlalchemy\\migrations\\versions\\20240222_leatherworking_model_transformation.py": {
+      "path": "database\\sqlalchemy\\migrations\\versions\\20240222_leatherworking_model_transformation.py",
+      "classes": [],
+      "functions": [
+        {
+          "name": "upgrade",
+          "args": []
+        },
+        {
+          "name": "downgrade",
+          "args": []
+        }
+      ]
+    },
     "database\\sqlalchemy\\migrations\\versions\\463698485_comprehensive_model_relationships.py": {
       "path": "database\\sqlalchemy\\migrations\\versions\\463698485_comprehensive_model_relationships.py",
       "classes": [],
@@ -7866,7 +12143,7 @@
               ]
             },
             {
-              "name": "create_recipe",
+              "name": "create_project",
               "args": [
                 "self",
                 "recipe_data",
@@ -7910,6 +12187,13 @@
           "name": "ShoppingListManager",
           "methods": [
             {
+              "name": "__init__",
+              "args": [
+                "self",
+                "session_factory"
+              ]
+            },
+            {
               "name": "get_shopping_list_with_items",
               "args": [
                 "self",
@@ -7922,14 +12206,6 @@
                 "self",
                 "data",
                 "items"
-              ]
-            },
-            {
-              "name": "add_shopping_list_item",
-              "args": [
-                "self",
-                "list_id",
-                "item_data"
               ]
             },
             {
@@ -7961,7 +12237,9 @@
               ]
             }
           ],
-          "base_classes": []
+          "base_classes": [
+            "BaseManager"
+          ]
         }
       ],
       "functions": []

@@ -6,7 +6,7 @@ Specialized manager for Leather-related database operations.
 from typing import List, Optional, Union
 
 from database.sqlalchemy.base_manager import BaseManager
-from database.sqlalchemy.models import (
+from database.sqlalchemy.models_file import (
     Leather,
     LeatherTransaction,
     InventoryStatus,

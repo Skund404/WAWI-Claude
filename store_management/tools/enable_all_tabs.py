@@ -20,11 +20,11 @@ def create_recipe_view():
     # Create directory if it doesn't exist
     os.makedirs(recipe_view_dir, exist_ok=True)
 
-    # Recipe view content
+    # Project view content
     recipe_view_content = '''
 # Path: gui/recipe/recipe_view.py
 """
-Recipe view implementation that displays recipes.
+Project view implementation that displays recipes.
 """
 import tkinter as tk
 from tkinter import ttk
@@ -95,7 +95,7 @@ class RecipeView(BaseView):
         toolbar.pack(side=tk.TOP, fill=tk.X, padx=5, pady=5)
 
         # Add buttons
-        ttk.Button(toolbar, text="Add Recipe", command=self.show_add_dialog).pack(side=tk.LEFT, padx=2)
+        ttk.Button(toolbar, text="Add Project", command=self.show_add_dialog).pack(side=tk.LEFT, padx=2)
         ttk.Button(toolbar, text="Delete Selected", command=lambda e=None: self.delete_selected(e)).pack(side=tk.LEFT, padx=2)
         ttk.Button(toolbar, text="Search", command=self.show_search_dialog).pack(side=tk.LEFT, padx=2)
         ttk.Button(toolbar, text="Refresh", command=self.load_data).pack(side=tk.LEFT, padx=2)
@@ -170,8 +170,8 @@ class RecipeView(BaseView):
             """)
 
             if not cursor.fetchone():
-                logger.info("Recipe table doesn't exist. Creating sample data.")
-                self.set_status("Recipe table doesn't exist - showing sample data")
+                logger.info("Project table doesn't exist. Creating sample data.")
+                self.set_status("Project table doesn't exist - showing sample data")
 
                 # Add sample data since table doesn't exist
                 sample_data = [
@@ -732,7 +732,7 @@ def main():
 
     # First create the required views
     if create_recipe_view():
-        logger.info("Recipe view created successfully")
+        logger.info("Project view created successfully")
     else:
         logger.error("Failed to create recipe view")
 

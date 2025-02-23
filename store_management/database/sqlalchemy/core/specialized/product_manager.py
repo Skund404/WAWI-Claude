@@ -9,7 +9,7 @@ from sqlalchemy import select, and_, or_, func
 from sqlalchemy.orm import joinedload
 
 from database.sqlalchemy.core.base_manager import BaseManager
-from database.models import Product, Storage, Recipe
+from database.models import Product, Storage, Project
 from utils.error_handling import DatabaseError
 
 

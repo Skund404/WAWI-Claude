@@ -1,28 +1,49 @@
-# Path: database/models/__init__.py
-# Import all models to ensure they're registered with SQLAlchemy
+# database\models\__init__.py
 
-from .storage import Storage
-from .part import Part
-from .leather import Leather
+from .base import Base, BaseModel
 from .order import Order, OrderItem
-from .product import Product
-from .recipe import Recipe, RecipeItem
-from .shopping_list import ShoppingList, ShoppingListItem
+from .enums import OrderStatus, PaymentStatus, MaterialType, LeatherType, MaterialQualityGrade, InventoryStatus, ProjectType, SkillLevel, ProjectStatus, SupplierStatus, StorageLocationType, MeasurementUnit, Priority, QualityCheckStatus, TransactionType
+from .storage import Storage
 from .supplier import Supplier
+from .product import Product
+from .material import Material
+from .metrics import MetricSnapshot, MaterialUsageLog
+from .leather import Leather
+from .part import Part
+from .project import Project
+from .project_component import ProjectComponent
 from .transaction import InventoryTransaction, LeatherTransaction
-from .enums import (
-    InventoryStatus,
-    ProductionStatus,
-    TransactionType,
-    OrderStatus,
-    PaymentStatus
-)
 
-# List of all model classes for easy reference
 __all__ = [
-    'Storage', 'Part', 'Leather', 'Order', 'OrderItem',
-    'Product', 'Recipe', 'RecipeItem', 'ShoppingList',
-    'ShoppingListItem', 'Supplier', 'InventoryTransaction',
-    'LeatherTransaction', 'InventoryStatus', 'ProductionStatus',
-    'TransactionType', 'OrderStatus', 'PaymentStatus'
+    "Base",
+    "BaseModel",
+    "Order",
+    "OrderItem",
+    "OrderStatus",
+    "PaymentStatus",
+    "Storage",
+    "Supplier",
+    "Product",
+    "Material",
+    "MetricSnapshot",
+    "MaterialUsageLog",
+    "Leather",
+    "Part",
+    "Project",
+    "ProjectComponent",
+    "LeatherTransaction",
+    "InventoryTransaction",
+    "TransactionType",
+    "MaterialType",
+    "LeatherType",
+    "MaterialQualityGrade",
+    "InventoryStatus",
+    "ProjectType",
+    "SkillLevel",
+    "ProjectStatus",
+    "SupplierStatus",
+    "StorageLocationType",
+    "MeasurementUnit",
+    "Priority",
+    "QualityCheckStatus",
 ]

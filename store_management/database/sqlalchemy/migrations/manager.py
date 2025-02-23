@@ -140,7 +140,7 @@ class MigrationManager:
         """
         try:
             # Get model metadata
-            from database.sqlalchemy.models import Base
+            from database.sqlalchemy.models_file import Base
             expected_tables = Base.metadata.tables.keys()
 
             # Get actual database tables

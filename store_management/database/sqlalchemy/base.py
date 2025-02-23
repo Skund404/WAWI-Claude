@@ -1,35 +1,35 @@
-# Path: database/sqlalchemy/base.py
+# File: database/sqlalchemy/base.py
+from sqlalchemy.ext.declarative import declarative_base
 
-from sqlalchemy import Column, Integer, String
-from sqlalchemy.orm import declarative_base
-
-# Create the declarative base for all models
+# Create a declarative base for SQLAlchemy models
 Base = declarative_base()
+
 
 class CustomBase:
     """
-    Custom base class for SQLAlchemy models with additional utility methods.
+    Custom base mixin to add common methods to SQLAlchemy models.
+
+    Provides a consistent __repr__ and to_dict method for all models.
     """
-    id = Column(Integer, primary_key=True, autoincrement=True)
 
     def __repr__(self):
         """
-        Provides a string representation of the model instance.
+        Generate a string representation of the model.
 
         Returns:
-            str: String representation showing the class name and ID
+            str: A string representation of the model instance.
         """
-        return f"<{self.__class__.__name__}(id={self.id})>"
+        # Exclude SQLAlchemy internal attributes
+        attrs = ', '.join(f"{k}={repr(v)}" for k, v in self.__dict__.items()
+                          if not k.startswith('_') and not callable(v))
+        return f"{self.__class__.__name__}({attrs})"
 
     def to_dict(self):
         """
-        Convert model instance to a dictionary.
+        Convert the model instance to a dictionary.
 
         Returns:
-            dict: Dictionary representation of the model instance
+            dict: A dictionary representation of the model instance.
         """
-        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
-
-
-# Create the declarative base
-Base = declarative_base(cls=CustomBase)
+        return {column.name: getattr(self, column.name)
+                for column in self.__table__.columns}

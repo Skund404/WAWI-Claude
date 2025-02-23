@@ -1,159 +1,129 @@
-# Path: database/initialize.py
+# database/initialize.py
+
 import logging
 from typing import Optional
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.exc import SQLAlchemyError
 
-from sqlalchemy import create_engine, inspect
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.exc import SQLAlchemyError, NoSuchTableError
-from sqlalchemy.schema import CreateTable
+from database.models.base import Base
+from database.models.order import Order, OrderItem
+from database.models.recipe import Project, ProjectComponent
+from database.models.shopping_list import ShoppingList, ShoppingListItem
+from database.models.enums import OrderStatus, PaymentStatus
+from database.config import get_database_config
 
-from config.settings import get_database_path
-from database.sqlalchemy.config import get_database_url
-from utils.logger import get_logger
-
-# Dynamically import models to ensure they're loaded
-from database.models.storage import Storage  # Ensure model is imported
-from database.sqlalchemy.base import Base
-
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
-def create_storage_table(engine):
+def create_tables(engine) -> None:
     """
-    Create tables based on SQLAlchemy models, handling existing tables.
+    Create all database tables.
 
     Args:
-        engine: SQLAlchemy engine
+        engine: SQLAlchemy engine instance
     """
     try:
-        # Inspect existing tables
-        inspector = inspect(engine)
-
-        # Create tables, extending existing ones
-        for table in Base.metadata.sorted_tables:
-            if not inspector.has_table(table.name):
-                # Create table if it doesn't exist
-                table.create(engine)
-                logger.info(f"Created table: {table.name}")
-            else:
-                # Check and add missing columns
-                existing_columns = [col['name'] for col in inspector.get_columns(table.name)]
-                for column in table.columns:
-                    if column.name not in existing_columns:
-                        try:
-                            # Add missing column
-                            add_column_sql = f"ALTER TABLE {table.name} ADD COLUMN {column.name} {column.type}"
-                            with engine.connect() as connection:
-                                connection.execute(add_column_sql)
-                            logger.info(f"Added column {column.name} to table {table.name}")
-                        except Exception as col_error:
-                            logger.warning(f"Could not add column {column.name}: {col_error}")
-
-        logger.info("Storage table created or verified successfully")
+        Base.metadata.create_all(engine)
+        logger.info("Database tables created successfully")
     except SQLAlchemyError as e:
-        logger.error(f"Error creating storage table: {e}")
+        logger.error(f"Error creating database tables: {str(e)}")
         raise
 
 
-def migrate_storage_table(engine) -> None:
+def add_sample_data(session: Session) -> None:
     """
-    Perform migration for the storage table.
-
-    Args:
-        engine: SQLAlchemy engine
-    """
-    try:
-        # Create or update tables
-        create_storage_table(engine)
-
-        logger.info("Storage table migration completed successfully")
-    except NoSuchTableError:
-        logger.error("Storage table does not exist and could not be created")
-        raise
-    except SQLAlchemyError as e:
-        logger.error(f"Storage table migration error: {e}")
-        raise
-
-
-def add_initial_data(session) -> None:
-    """
-    Add initial data to the database tables.
+    Add sample data to the database for testing.
 
     Args:
         session: SQLAlchemy session
     """
     try:
-        # Add initial storage locations
-        initial_storage_locations = [
-            Storage(
-                name='Main Warehouse',
-                location='Central Storage Area',
-                capacity=1000.0,
-                current_occupancy=0.0,
-                type='Warehouse',
-                description='Primary storage location for inventory',
-                status='active'
-            ),
-            Storage(
-                name='Small Storage Room',
-                location='Side Building',
-                capacity=250.0,
-                current_occupancy=0.0,
-                type='Storage Room',
-                description='Secondary storage for less-used items',
-                status='active'
-            )
-        ]
+        # Sample Order
+        order = Order(
+            order_number="ORD-2024-001",
+            customer_name="John Doe",
+            status=OrderStatus.NEW,
+            payment_status=PaymentStatus.PENDING,
+            notes="Sample order"
+        )
+        order_item = OrderItem(
+            product_name="Leather Wallet",
+            quantity=1,
+            unit_price=49.99,
+            total_price=49.99
+        )
+        order.items.append(order_item)
+        session.add(order)
 
-        # Check and add initial storage locations
-        for location in initial_storage_locations:
-            existing = session.query(Storage).filter_by(name=location.name).first()
-            if not existing:
-                session.add(location)
+        # Sample Project
+        recipe = Project(
+            name="Basic Leather Wallet",
+            description="Simple bifold wallet design",
+            total_cost=20.00,
+            preparation_time=120
+        )
+        recipe_item = ProjectComponent(
+            material_name="Vegetable Tanned Leather",
+            quantity=2.5,
+            unit="sqft"
+        )
+        recipe.items.append(recipe_item)
+        session.add(recipe)
+
+        # Sample Shopping List
+        shopping_list = ShoppingList(
+            name="Weekly Supplies",
+            description="Regular materials restock",
+            status="active"
+        )
+        shopping_item = ShoppingListItem(
+            item_name="Thread",
+            quantity=5,
+            unit="spools",
+            priority="high"
+        )
+        shopping_list.items.append(shopping_item)
+        session.add(shopping_list)
 
         session.commit()
-        logger.info("Initial storage locations added successfully")
-    except Exception as e:
+        logger.info("Sample data added successfully")
+    except SQLAlchemyError as e:
         session.rollback()
-        logger.error(f"Error adding initial storage locations: {e}")
+        logger.error(f"Error adding sample data: {str(e)}")
         raise
 
 
 def initialize_database(drop_existing: bool = False) -> None:
     """
-    Initialize the entire database, creating tables and adding initial data.
+    Initialize the database with tables and optional sample data.
 
     Args:
-        drop_existing (bool): Whether to drop existing tables before recreation
+        drop_existing: If True, drop existing tables before creation
     """
+    config = get_database_config()
+    engine = create_engine(config['database_url'])
+    Session = sessionmaker(bind=engine)
+
     try:
-        logger.info("Initializing database...")
-
-        # Get database URL and create engine
-        db_url = get_database_url()
-        engine = create_engine(db_url)
-
-        # If drop_existing is True, drop all tables (use with caution)
         if drop_existing:
-            Base.metadata.drop_all(bind=engine)
+            logger.info("Dropping existing tables...")
+            Base.metadata.drop_all(engine)
 
-        # Create a session
-        Session = sessionmaker(bind=engine)
-        session = Session()
+        create_tables(engine)
 
-        try:
-            # Perform migrations and table creation
-            migrate_storage_table(engine)
+        with Session() as session:
+            # Check if database is empty
+            order_count = session.query(Order).count()
+            if order_count == 0:
+                logger.info("Adding sample data...")
+                add_sample_data(session)
 
-            # Add initial data
-            add_initial_data(session)
-        except Exception as init_error:
-            session.rollback()
-            raise
-        finally:
-            session.close()
-
-        logger.info("Database tables created successfully")
     except Exception as e:
-        logger.error(f"Database initialization failed: {e}")
+        logger.error(f"Database initialization failed: {str(e)}")
         raise
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    initialize_database(drop_existing=True)

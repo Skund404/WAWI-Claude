@@ -5,22 +5,22 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import SQLAlchemyError
 
 from database.sqlalchemy.base_manager import BaseManager
-from database.sqlalchemy.models import Recipe, RecipeItem, Part, Leather
+from database.sqlalchemy.models_file import Project, ProjectComponent, Part, Leather
 from utils.error_handler import DatabaseError
 from utils.logger import logger
 
 
-class RecipeManager(BaseManager[Recipe]):
+class RecipeManager(BaseManager[Project]):
     """
-    Recipe manager implementing specialized recipe operations
+    Project manager implementing specialized recipe operations
     while leveraging base manager functionality.
     """
 
     def __init__(self, session_factory):
         """Initialize RecipeManager with session factory."""
-        super().__init__(session_factory, Recipe)
+        super().__init__(session_factory, Project)
 
-    def create_recipe(self, recipe_data: Dict[str, Any], items: List[Dict[str, Any]]) -> Recipe:
+    def create_project(self, recipe_data: Dict[str, Any], items: List[Dict[str, Any]]) -> Project:
         """
         Create a new recipe with items.
 
@@ -29,7 +29,7 @@ class RecipeManager(BaseManager[Recipe]):
             items: List of dictionaries containing recipe item data
 
         Returns:
-            Created Recipe instance
+            Created Project instance
 
         Raises:
             DatabaseError: If validation fails or database operation fails
@@ -43,7 +43,7 @@ class RecipeManager(BaseManager[Recipe]):
 
             with self.session_scope() as session:
                 # Create recipe
-                recipe = Recipe(**recipe_data)
+                recipe = Project(**recipe_data)
                 session.add(recipe)
                 session.flush()
 
@@ -52,7 +52,7 @@ class RecipeManager(BaseManager[Recipe]):
                     if not all(k in item_data for k in ['item_type', 'item_id', 'quantity']):
                         raise DatabaseError("Invalid recipe item data")
 
-                    recipe_item = RecipeItem(
+                    recipe_item = ProjectComponent(
                         recipe_id=recipe.id,
                         **item_data
                     )
@@ -64,40 +64,40 @@ class RecipeManager(BaseManager[Recipe]):
             logger.error(f"Failed to create recipe: {str(e)}")
             raise DatabaseError(f"Failed to create recipe: {str(e)}")
 
-    def get_recipe_with_items(self, recipe_id: int) -> Optional[Recipe]:
+    def get_recipe_with_items(self, recipe_id: int) -> Optional[Project]:
         """
         Get recipe with all its items.
 
         Args:
-            recipe_id: Recipe ID
+            recipe_id: Project ID
 
         Returns:
-            Recipe instance with items loaded or None if not found
+            Project instance with items loaded or None if not found
         """
         with self.session_scope() as session:
-            query = select(Recipe).options(
-                joinedload(Recipe.items)
-            ).filter(Recipe.id == recipe_id)
+            query = select(Project).options(
+                joinedload(Project.items)
+            ).filter(Project.id == recipe_id)
             return session.execute(query).scalar()
 
-    def update_recipe_items(self, recipe_id: int, items: List[Dict[str, Any]]) -> Recipe:
+    def update_recipe_items(self, recipe_id: int, items: List[Dict[str, Any]]) -> Project:
         """
         Update recipe items (replace existing items).
 
         Args:
-            recipe_id: Recipe ID
+            recipe_id: Project ID
             items: New list of recipe items
 
         Returns:
-            Updated Recipe instance
+            Updated Project instance
 
         Raises:
             DatabaseError: If recipe not found or validation fails
         """
         with self.session_scope() as session:
-            recipe = session.get(Recipe, recipe_id)
+            recipe = session.get(Project, recipe_id)
             if not recipe:
-                raise DatabaseError(f"Recipe {recipe_id} not found")
+                raise DatabaseError(f"Project {recipe_id} not found")
 
             # Remove existing items
             for item in recipe.items:
@@ -108,7 +108,7 @@ class RecipeManager(BaseManager[Recipe]):
                 if not all(k in item_data for k in ['item_type', 'item_id', 'quantity']):
                     raise DatabaseError("Invalid recipe item data")
 
-                recipe_item = RecipeItem(
+                recipe_item = ProjectComponent(
                     recipe_id=recipe_id,
                     **item_data
                 )
@@ -117,26 +117,26 @@ class RecipeManager(BaseManager[Recipe]):
             recipe.modified_at = datetime.utcnow()
             return recipe
 
-    def add_recipe_item(self, recipe_id: int, item_data: Dict[str, Any]) -> RecipeItem:
+    def add_recipe_item(self, recipe_id: int, item_data: Dict[str, Any]) -> ProjectComponent:
         """
         Add a single item to a recipe.
 
         Args:
-            recipe_id: Recipe ID
+            recipe_id: Project ID
             item_data: Dictionary containing item data
 
         Returns:
-            Created RecipeItem instance
+            Created ProjectComponent instance
         """
         with self.session_scope() as session:
-            recipe = session.get(Recipe, recipe_id)
+            recipe = session.get(Project, recipe_id)
             if not recipe:
-                raise DatabaseError(f"Recipe {recipe_id} not found")
+                raise DatabaseError(f"Project {recipe_id} not found")
 
             if not all(k in item_data for k in ['item_type', 'item_id', 'quantity']):
                 raise DatabaseError("Invalid recipe item data")
 
-            recipe_item = RecipeItem(
+            recipe_item = ProjectComponent(
                 recipe_id=recipe_id,
                 **item_data
             )
@@ -149,17 +149,17 @@ class RecipeManager(BaseManager[Recipe]):
         Remove an item from a recipe.
 
         Args:
-            recipe_id: Recipe ID
-            item_id: Recipe Item ID
+            recipe_id: Project ID
+            item_id: Project Item ID
 
         Returns:
             True if item was removed, False otherwise
         """
         with self.session_scope() as session:
-            item = session.query(RecipeItem).filter(
+            item = session.query(ProjectComponent).filter(
                 and_(
-                    RecipeItem.recipe_id == recipe_id,
-                    RecipeItem.id == item_id
+                    ProjectComponent.recipe_id == recipe_id,
+                    ProjectComponent.id == item_id
                 )
             ).first()
 
@@ -168,28 +168,28 @@ class RecipeManager(BaseManager[Recipe]):
                 return True
             return False
 
-    def update_recipe_item_quantity(self, recipe_id: int, item_id: int, quantity: float) -> RecipeItem:
+    def update_recipe_item_quantity(self, recipe_id: int, item_id: int, quantity: float) -> ProjectComponent:
         """
         Update the quantity of a recipe item.
 
         Args:
-            recipe_id: Recipe ID
-            item_id: Recipe Item ID
+            recipe_id: Project ID
+            item_id: Project Item ID
             quantity: New quantity
 
         Returns:
-            Updated RecipeItem instance
+            Updated ProjectComponent instance
         """
         with self.session_scope() as session:
-            item = session.query(RecipeItem).filter(
+            item = session.query(ProjectComponent).filter(
                 and_(
-                    RecipeItem.recipe_id == recipe_id,
-                    RecipeItem.id == item_id
+                    ProjectComponent.recipe_id == recipe_id,
+                    ProjectComponent.id == item_id
                 )
             ).first()
 
             if not item:
-                raise DatabaseError(f"Recipe item {item_id} not found")
+                raise DatabaseError(f"Project item {item_id} not found")
 
             item.quantity = quantity
             return item
@@ -199,7 +199,7 @@ class RecipeManager(BaseManager[Recipe]):
         Check if all materials for a recipe are available in sufficient quantity.
 
         Args:
-            recipe_id: Recipe ID
+            recipe_id: Project ID
             quantity: Number of items to produce
 
         Returns:
@@ -208,7 +208,7 @@ class RecipeManager(BaseManager[Recipe]):
         with self.session_scope() as session:
             recipe = self.get_recipe_with_items(recipe_id)
             if not recipe:
-                raise DatabaseError(f"Recipe {recipe_id} not found")
+                raise DatabaseError(f"Project {recipe_id} not found")
 
             missing_items = []
 
@@ -238,7 +238,7 @@ class RecipeManager(BaseManager[Recipe]):
 
             return len(missing_items) == 0, missing_items
 
-    def get_recipes_by_type(self, recipe_type: str) -> List[Recipe]:
+    def get_recipes_by_type(self, recipe_type: str) -> List[Project]:
         """
         Get all recipes of a specific type.
 
@@ -246,13 +246,13 @@ class RecipeManager(BaseManager[Recipe]):
             recipe_type: Type of recipe to filter by
 
         Returns:
-            List of matching Recipe instances
+            List of matching Project instances
         """
-        query = select(Recipe).filter(Recipe.type == recipe_type)
+        query = select(Project).filter(Project.type == recipe_type)
         with self.session_scope() as session:
             return list(session.execute(query).scalars())
 
-    def get_recipes_by_collection(self, collection: str) -> List[Recipe]:
+    def get_recipes_by_collection(self, collection: str) -> List[Project]:
         """
         Get all recipes in a specific collection.
 
@@ -260,13 +260,13 @@ class RecipeManager(BaseManager[Recipe]):
             collection: Collection name
 
         Returns:
-            List of matching Recipe instances
+            List of matching Project instances
         """
-        query = select(Recipe).filter(Recipe.collection == collection)
+        query = select(Project).filter(Project.collection == collection)
         with self.session_scope() as session:
             return list(session.execute(query).scalars())
 
-    def search_recipes(self, search_term: str) -> List[Recipe]:
+    def search_recipes(self, search_term: str) -> List[Project]:
         """
         Search recipes by various fields.
 
@@ -274,20 +274,20 @@ class RecipeManager(BaseManager[Recipe]):
             search_term: Term to search for
 
         Returns:
-            List of matching Recipe instances
+            List of matching Project instances
         """
-        query = select(Recipe).filter(
+        query = select(Project).filter(
             or_(
-                Recipe.name.ilike(f"%{search_term}%"),
-                Recipe.type.ilike(f"%{search_term}%"),
-                Recipe.collection.ilike(f"%{search_term}%"),
-                Recipe.notes.ilike(f"%{search_term}%")
+                Project.name.ilike(f"%{search_term}%"),
+                Project.type.ilike(f"%{search_term}%"),
+                Project.collection.ilike(f"%{search_term}%"),
+                Project.notes.ilike(f"%{search_term}%")
             )
         )
         with self.session_scope() as session:
             return list(session.execute(query).scalars())
 
-    def duplicate_recipe(self, recipe_id: int, new_name: str) -> Recipe:
+    def duplicate_recipe(self, recipe_id: int, new_name: str) -> Project:
         """
         Create a duplicate of an existing recipe.
 
@@ -296,15 +296,15 @@ class RecipeManager(BaseManager[Recipe]):
             new_name: Name for the new recipe
 
         Returns:
-            New Recipe instance
+            New Project instance
         """
         with self.session_scope() as session:
             source_recipe = self.get_recipe_with_items(recipe_id)
             if not source_recipe:
-                raise DatabaseError(f"Recipe {recipe_id} not found")
+                raise DatabaseError(f"Project {recipe_id} not found")
 
             # Create new recipe
-            new_recipe = Recipe(
+            new_recipe = Project(
                 name=new_name,
                 type=source_recipe.type,
                 collection=source_recipe.collection,
@@ -317,7 +317,7 @@ class RecipeManager(BaseManager[Recipe]):
 
             # Copy items
             for item in source_recipe.items:
-                new_item = RecipeItem(
+                new_item = ProjectComponent(
                     recipe_id=new_recipe.id,
                     item_type=item.item_type,
                     item_id=item.item_id,
@@ -333,7 +333,7 @@ class RecipeManager(BaseManager[Recipe]):
         Calculate the total cost of materials for a recipe.
 
         Args:
-            recipe_id: Recipe ID
+            recipe_id: Project ID
 
         Returns:
             Total cost of all materials
@@ -341,7 +341,7 @@ class RecipeManager(BaseManager[Recipe]):
         with self.session_scope() as session:
             recipe = self.get_recipe_with_items(recipe_id)
             if not recipe:
-                raise DatabaseError(f"Recipe {recipe_id} not found")
+                raise DatabaseError(f"Project {recipe_id} not found")
 
             total_cost = 0.0
             for item in recipe.items:

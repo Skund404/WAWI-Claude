@@ -1,5 +1,5 @@
 # Project Analysis: store_management
-Total Python files: 174
+Total Python files: 236
 
 ## anotator.py
 
@@ -43,7 +43,9 @@ Methods:
 
 Methods:
 - __init__(self)
+- _setup_application(self)
 - _register_services(self)
+- _register_views(self)
 - get_service(self, service_type)
 - run(self)
 - quit(self)
@@ -57,6 +59,23 @@ Methods:
 
 ---
 
+## examples.py
+
+### Classes:
+
+#### LeatherworkingProjectWorkflow
+
+Methods:
+- __init__(self, project_service, hardware_service, supplier_service)
+- create_leather_bag_project(self)
+- track_project_progress(self, project)
+- simulate_workflow(self)
+
+### Functions:
+- main()
+
+---
+
 ## import_test.py
 
 ---
@@ -64,8 +83,13 @@ Methods:
 ## main.py
 
 ### Functions:
-- create_necessary_directories()
+- setup_exception_handler(root)
+- initialize_app()
 - main()
+
+---
+
+## mover_temp.py
 
 ---
 
@@ -195,16 +219,28 @@ Methods:
 
 ---
 
-## database\base.py
+## controllers\dashboard_controller.py
 
 ### Classes:
 
-#### BaseModel
-Inherits from: Base
+#### MetricsScheduler
 
 Methods:
-- __repr__(self)
-- to_dict(self)
+- __init__(self, dashboard_service)
+- _setup_jobs(self)
+- _capture_daily_metrics(self)
+- _capture_weekly_metrics(self)
+- _capture_monthly_metrics(self)
+- _cleanup_old_metrics(self)
+- start(self)
+- shutdown(self)
+
+### Functions:
+- get_dashboard_service()
+
+---
+
+## controllers\__init__.py
 
 ---
 
@@ -220,9 +256,8 @@ Methods:
 ## database\initialize.py
 
 ### Functions:
-- create_storage_table(engine)
-- migrate_storage_table(engine)
-- add_initial_data(session)
+- create_tables(engine)
+- add_sample_data(session)
 - initialize_database(drop_existing)
 
 ---
@@ -240,8 +275,7 @@ Methods:
 
 ### Functions:
 - initialize_database(drop_existing)
-- _ensure_all_models_loaded()
-- add_initial_data(engine)
+- _add_initial_data()
 
 ---
 
@@ -254,7 +288,8 @@ Methods:
 Methods:
 - configure_container(cls)
 - _register_services(cls, container)
-- get_service(cls, container, service_type)
+- get_container(cls)
+- get_service(cls, service_type)
 
 ---
 
@@ -268,8 +303,8 @@ Methods:
 - __init__(self)
 - register(self, interface_type, implementation_factory, singleton)
 - resolve(self, interface_type)
-- is_registered(self, interface_type)
 - get_service(self, interface_type)
+- is_registered(self, interface_type)
 - clear(self)
 - __repr__(self)
 
@@ -292,24 +327,80 @@ Methods:
 
 ---
 
+## examples\leatherworking_project_workflow.py
+
+### Classes:
+
+#### LeatherworkingProjectWorkflow
+
+Methods:
+- __init__(self, project_service, material_service, inventory_service)
+- create_leather_bag_project(self)
+- track_project_progress(self, project_id)
+- simulate_workflow(self)
+
+### Functions:
+- main()
+
+---
+
+## examples\leatherworking_workflow_example.py
+
+### Classes:
+
+#### LeatherworkingProjectWorkflow
+
+Methods:
+- __init__(self, project_service, hardware_service, supplier_service)
+- create_leather_bag_project(self)
+- track_project_progress(self, project)
+- simulate_workflow(self)
+
+### Functions:
+- main()
+
+---
+
+## examples\material_management_workflow.py
+
+### Classes:
+
+#### MaterialManagementWorkflow
+
+Methods:
+- __init__(self, material_service, supplier_service)
+- onboard_leather_material(self, supplier_id)
+- manage_material_inventory(self, material_id)
+- generate_material_reports(self)
+- simulate_workflow(self)
+
+### Functions:
+- main()
+
+---
+
+## examples\__init__.py
+
+---
+
 ## gui\base_view.py
 
 ### Classes:
 
 #### BaseView
-Inherits from: ttk.Frame
+Inherits from: ttk.Frame, ABC
 
 Methods:
 - __init__(self, parent, app)
 - get_service(self, service_type)
+- setup_ui(self)
 - load_data(self)
-- save(self)
-- undo(self)
-- redo(self)
 - show_error(self, title, message)
 - show_info(self, title, message)
 - show_warning(self, title, message)
 - confirm(self, title, message)
+- refresh(self)
+- cleanup(self)
 - set_status(self, message)
 
 ---
@@ -319,6 +410,7 @@ Methods:
 ### Classes:
 
 #### MainWindow
+Inherits from: ttk.Frame
 
 Methods:
 - __init__(self, root, app)
@@ -327,11 +419,13 @@ Methods:
 - _create_notebook(self)
 - _create_status_bar(self)
 - set_status(self, message)
+- add_view(self, name, view)
 - _on_new(self)
 - _on_open(self)
 - _on_save(self)
 - _on_undo(self)
 - _on_redo(self)
+- _on_refresh(self)
 - _on_exit(self)
 
 ---
@@ -344,18 +438,122 @@ Methods:
 
 ---
 
+## patches\fix_storage_view.py
+
+### Functions:
+- manually_load_storage_view()
+
+---
+
+## patches\storage_view_debug.py
+
+### Functions:
+- debug_load_data(self)
+
+---
+
+## patches\__init__.py
+
+---
+
+## services\advanced_analytics_service.py
+
+### Classes:
+
+#### AdvancedAnalyticsService
+
+Methods:
+- __init__(self, material_service, project_service)
+- generate_material_efficiency_report(self)
+- project_performance_analysis(self)
+- material_cost_analysis(self)
+- generate_visualization(self, analysis_type, output_path)
+- generate_comprehensive_report(self)
+
+### Functions:
+- main()
+
+---
+
+## services\dashboard_service.py
+
+### Classes:
+
+#### DashboardService
+Inherits from: Service
+
+Methods:
+- __init__(self, container)
+- get_dashboard_metrics(self)
+- _get_inventory_metrics(self)
+- _get_project_metrics(self)
+- _get_material_usage(self)
+- _get_supplier_metrics(self)
+- _calculate_stock_percentage(self, items)
+- _calculate_completion_rate(self, projects)
+- _group_projects_by_status(self, projects)
+- _calculate_material_efficiency(self)
+- _get_active_supplier_orders(self)
+- _get_default_metrics(self)
+- _get_default_inventory_metrics(self)
+- _get_default_project_metrics(self)
+- _get_default_material_usage(self)
+- _get_default_supplier_metrics(self)
+
+---
+
 ## services\inventory_service.py
 
 ### Classes:
 
 #### InventoryService
+Inherits from: Service, IInventoryService
 
 Methods:
-- __init__(self)
+- __init__(self, container)
 - update_part_stock(self, part_id, quantity_change, transaction_type, notes)
 - update_leather_area(self, leather_id, area_change, transaction_type, notes, wastage)
 - get_low_stock_parts(self, include_out_of_stock)
 - get_low_stock_leather(self, include_out_of_stock)
+- _update_part_status(self, part)
+- _update_leather_status(self, leather)
+- _part_to_dict(self, part)
+- _leather_to_dict(self, leather)
+
+---
+
+## services\material_management_service.py
+
+### Classes:
+
+#### MaterialStatus
+Inherits from: Enum
+
+#### MaterialAllocation
+
+Methods:
+- __init__(self, material_id, total_quantity)
+- allocate(self, project_id, quantity, allocation_type)
+- deallocate(self, project_id, quantity)
+
+#### MaterialEfficiencyMetrics
+
+Methods:
+- update_metrics(self, used, wasted, project_id)
+
+#### MaterialManagementService
+
+Methods:
+- __init__(self)
+- register_material(self, material_id, total_quantity, material_type)
+- allocate_material(self, material_id, project_id, quantity)
+- deallocate_material(self, material_id, project_id, quantity)
+- update_material_efficiency(self, material_id, project_id, used, wasted)
+- get_material_efficiency_report(self, material_id)
+- get_material_allocation_status(self, material_id)
+
+### Functions:
+- main()
 
 ---
 
@@ -364,16 +562,23 @@ Methods:
 ### Classes:
 
 #### OrderService
+Inherits from: Service, IOrderService
 
 Methods:
-- __init__(self)
-- create_order(self, order_data, items)
-- update_order_status(self, order_id, status)
-- _is_valid_status_transition(self, current_status, new_status)
+- __init__(self, container)
+- get_all_orders(self)
+- get_order_by_id(self, order_id)
+- create_order(self, order_data)
+- update_order(self, order_id, order_data)
+- delete_order(self, order_id)
+- process_order_payment(self, order_id, payment_amount)
+- get_orders_by_status(self, status)
+- get_supplier_orders(self, supplier_id)
+- generate_order_report(self, start_date, end_date)
 
 ---
 
-## services\recipe_service.py
+## services\project_service.py
 
 ### Classes:
 
@@ -381,8 +586,45 @@ Methods:
 
 Methods:
 - __init__(self)
-- create_recipe(self, recipe_data, items)
+- create_project(self, recipe_data, items)
 - check_materials_availability(self, recipe_id, quantity)
+
+---
+
+## services\project_workflow_manager.py
+
+### Classes:
+
+#### ProjectType
+Inherits from: Enum
+
+#### SkillLevel
+Inherits from: Enum
+
+#### ProjectStatus
+Inherits from: Enum
+
+#### ProjectMaterial
+
+#### ProjectTask
+
+#### ProjectWorkflowManager
+
+Methods:
+- __init__(self, material_service)
+- create_project(self, name, project_type, skill_level, description)
+- update_project_details(self, project_id)
+- update_project_status(self, project_id, new_status)
+- add_project_material(self, project_id, material_id, expected_quantity, cost_per_unit, supplier)
+- update_material_usage(self, project_id, material_id, actual_quantity, wastage)
+- add_project_task(self, project_id, name, description, dependencies, estimated_duration, priority)
+- update_task_status(self, project_id, task_id, status, assigned_to)
+- _calculate_project_progress(self, project_id)
+- generate_project_summary(self, project_id)
+- get_all_projects(self, status)
+
+### Functions:
+- main()
 
 ---
 
@@ -425,6 +667,42 @@ Methods:
 
 ---
 
+## tests\advanced_pattern_library.py
+
+### Classes:
+
+#### AdvancedPatternLibrary
+Inherits from: tk.Frame
+
+Methods:
+- __init__(self, parent)
+- setup_ui(self)
+- setup_pattern_library(self)
+- setup_test_suite(self)
+- run_tests(self)
+
+---
+
+## tests\test_project_workflow_manager.py
+
+### Classes:
+
+#### TestProjectWorkflowManager
+Inherits from: unittest.TestCase
+
+Methods:
+- setUp(self)
+- test_create_project(self)
+- test_update_project_details(self)
+- test_update_project_status(self)
+- test_add_project_material(self)
+- test_update_material_usage(self)
+- test_add_project_task(self)
+- test_update_task_status(self)
+- test_generate_project_summary(self)
+
+---
+
 ## tests\test_storage.py
 
 ### Functions:
@@ -436,11 +714,156 @@ Methods:
 
 ---
 
+## tools\check_database.py
+
+### Functions:
+- find_database_path()
+- check_database_file()
+- list_database_tables()
+- check_table_contents(table_name)
+- main()
+
+---
+
+## tools\check_database_data.py
+
+### Functions:
+- find_database_file()
+- check_storage_table()
+- add_sample_data()
+- main()
+
+---
+
+## tools\check_project_structure.py
+
+### Functions:
+- get_project_root()
+- check_directory_structure()
+- check_module_imports()
+- check_database_config()
+- main()
+
+---
+
+## tools\debug_view.py
+
+### Functions:
+- check_database_connectivity()
+- check_view_loading()
+- main()
+
+---
+
+## tools\enable_all_tabs.py
+
+### Functions:
+- create_recipe_view()
+- create_order_view()
+- create_shopping_list_view()
+- enable_tabs_in_main_window()
+- main()
+
+---
+
+## tools\fix_application.py
+
+### Functions:
+- fix_application()
+
+---
+
+## tools\fix_base_view.py
+
+### Functions:
+- fix_base_view()
+
+---
+
+## tools\fix_database_structure.py
+
+### Functions:
+- find_database_file()
+- check_storage_table_structure()
+- fix_storage_table()
+- add_sample_data()
+- backup_database()
+- main()
+
+---
+
+## tools\fix_imports.py
+
+### Functions:
+- scan_for_problematic_imports()
+- fix_imports(file_paths, dry_run)
+- create_standalone_viewer()
+- main()
+
+---
+
+## tools\fix_main_window.py
+
+### Functions:
+- fix_main_window()
+
+---
+
+## tools\fix_main_window_tabs.py
+
+### Functions:
+- fix_main_window()
+
+---
+
+## tools\fix_standalone_viewer.py
+
+### Functions:
+- fix_viewer()
+
+---
+
+## tools\rename_project_files.py
+
+### Classes:
+
+#### ProjectRenamer
+
+Methods:
+- __init__(self, project_root)
+- _find_files(self, pattern)
+- rename_files(self)
+- update_file_contents(self)
+- run(self)
+
+### Functions:
+- main()
+
+---
+
 ## tools\run_migration.py
 
 ### Functions:
 - setup_logging()
 - run_migrations(db_url, drop_existing)
+- main()
+
+---
+
+## tools\standalone_storage_viewer.py
+
+### Classes:
+
+#### StorageViewer
+
+Methods:
+- __init__(self, root)
+- setup_ui(self)
+- load_data(self)
+- show_error(self, title, message)
+
+### Functions:
+- find_database_file()
 - main()
 
 ---
@@ -557,9 +980,9 @@ Methods:
 ### Functions:
 - setup_logging(log_level, log_dir, log_filename)
 - get_logger(name)
-- log_error(error, context)
-- log_info(message)
-- log_debug(message)
+- log_error(error, context, logger_name)
+- log_info(message, logger_name)
+- log_debug(message, logger_name)
 
 ---
 
@@ -791,6 +1214,30 @@ Methods:
 
 ---
 
+## services\implementations\hardware_service.py
+
+### Classes:
+
+#### HardwareService
+Inherits from: IHardwareService
+
+Methods:
+- __init__(self, hardware_repository)
+- create_hardware(self, hardware_data)
+- _validate_hardware_data(self, hardware_data)
+- _check_duplicate_hardware(self, hardware_data)
+- _post_hardware_creation_tasks(self, hardware)
+- get_hardware(self, hardware_id)
+- update_hardware(self, hardware_id, update_data)
+- _validate_hardware_update(self, update_data)
+- delete_hardware(self, hardware_id)
+- get_low_stock_hardware(self, include_zero_stock)
+- generate_hardware_performance_report(self)
+- find_compatible_hardware(self, project_component, hardware_type)
+- analyze_hardware_usage(self, project_id)
+
+---
+
 ## services\implementations\inventory_service.py
 
 ### Classes:
@@ -809,21 +1256,71 @@ Methods:
 
 ---
 
+## services\implementations\material_service.py
+
+### Classes:
+
+#### MaterialService
+Inherits from: IMaterialService
+
+Methods:
+- __init__(self, material_repository)
+- _validate_material_data(self, material_data)
+- create_material(self, material_data)
+- get_material(self, material_id)
+- update_material(self, material_id, material_data)
+- delete_material(self, material_id)
+- get_low_stock_materials(self, include_zero_stock)
+- track_material_usage(self, material_id, quantity_used)
+- search_materials(self, search_params)
+- generate_sustainability_report(self)
+- calculate_material_efficiency(self, material_id, period_days)
+
+---
+
 ## services\implementations\order_service.py
 
 ### Classes:
 
 #### OrderService
-Inherits from: Service, IOrderService
+Inherits from: IOrderService
 
 Methods:
 - __init__(self, container)
 - get_all_orders(self)
 - get_order_by_id(self, order_id)
+- get_order_by_number(self, order_number)
 - create_order(self, order_data)
-- update_order(self, order_data)
+- update_order(self, order_id, order_data)
 - delete_order(self, order_id)
-- _to_dict(self, order)
+- process_order_payment(self, order_id, payment_amount)
+- get_orders_by_status(self, status)
+- get_orders_by_customer(self, customer_name)
+- get_order_statistics(self)
+- _generate_order_number(self)
+- cleanup(self)
+
+---
+
+## services\implementations\project_service.py
+
+### Classes:
+
+#### ProjectService
+Inherits from: IProjectService
+
+Methods:
+- __init__(self, project_repository)
+- _validate_project_data(self, project_data)
+- create_project(self, project_data)
+- get_project(self, project_id, include_components)
+- update_project(self, project_id, project_data)
+- delete_project(self, project_id)
+- search_projects(self, search_params)
+- get_complex_projects(self, complexity_threshold)
+- analyze_project_material_usage(self, project_id)
+- generate_project_complexity_report(self)
+- update_project_status(self, project_id, new_status)
 
 ---
 
@@ -832,17 +1329,22 @@ Methods:
 ### Classes:
 
 #### RecipeService
-Inherits from: Service, IRecipeService
+Inherits from: IRecipeService
 
 Methods:
 - __init__(self, container)
 - get_all_recipes(self)
 - get_recipe_by_id(self, recipe_id)
-- create_recipe(self, recipe_data, items)
-- update_recipe(self, recipe_id, recipe_data, items)
-- delete_recipe(self, recipe_id)
+- create_project(self, recipe_data)
+- update_project(self, recipe_id, recipe_data)
+- delete_project(self, recipe_id)
 - check_materials_availability(self, recipe_id, quantity)
-- _to_dict(self, recipe)
+- calculate_production_cost(self, recipe_id, quantity)
+- get_recipes_by_category(self, category)
+- search_recipes(self, search_term)
+- _calculate_materials_cost(self, recipe)
+- _calculate_labor_cost(self, recipe)
+- cleanup(self)
 
 ---
 
@@ -855,13 +1357,23 @@ Inherits from: Service, IShoppingListService
 
 Methods:
 - __init__(self, container)
-- create_shopping_list(self, list_data, items)
+- get_all_shopping_lists(self)
+- get_shopping_list_by_id(self, list_id)
+- create_shopping_list(self, list_data)
+- update_shopping_list(self, list_id, list_data)
+- delete_shopping_list(self, list_id)
 - add_item_to_list(self, list_id, item_data)
-- mark_item_purchased(self, item_id, purchase_data)
-- get_pending_items_by_supplier(self)
-- _get_shopping_list_with_items(self, list_id)
-- _shopping_list_to_dict(self, shopping_list)
-- _shopping_list_item_to_dict(self, item)
+- _add_item_to_list(self, item_data)
+- _remove_all_list_items(self, list_id)
+- remove_item_from_list(self, list_id, item_id)
+- mark_item_purchased(self, list_id, item_id, quantity)
+- get_active_lists(self)
+- get_lists_by_status(self, status)
+- search_shopping_lists(self, search_term)
+- get_pending_items(self)
+- get_shopping_list_summary(self, list_id)
+- merge_shopping_lists(self, source_ids, target_id)
+- cleanup(self)
 
 ---
 
@@ -916,6 +1428,23 @@ Inherits from: ABC
 
 ---
 
+## services\interfaces\hardware_service.py
+
+### Classes:
+
+#### IHardwareService
+Inherits from: ABC
+
+Methods:
+- create_hardware(self, hardware_data)
+- get_hardware(self, hardware_id)
+- update_hardware(self, hardware_id, update_data)
+- delete_hardware(self, hardware_id)
+- get_low_stock_hardware(self, include_zero_stock)
+- generate_hardware_performance_report(self)
+
+---
+
 ## services\interfaces\inventory_service.py
 
 ### Classes:
@@ -931,19 +1460,74 @@ Methods:
 
 ---
 
+## services\interfaces\material_service.py
+
+### Classes:
+
+#### MaterialType
+Inherits from: Enum
+
+#### IMaterialService
+Inherits from: ABC
+
+Methods:
+- create_material(self, material_data)
+- get_material(self, material_id)
+- update_material(self, material_id, material_data)
+- delete_material(self, material_id)
+- get_low_stock_materials(self, include_zero_stock)
+- track_material_usage(self, material_id, quantity_used)
+- search_materials(self, search_params)
+- generate_sustainability_report(self)
+- calculate_material_efficiency(self, material_id, period_days)
+
+---
+
 ## services\interfaces\order_service.py
 
 ### Classes:
 
 #### IOrderService
-Inherits from: IBaseService
+Inherits from: ABC
 
 Methods:
 - get_all_orders(self)
 - get_order_by_id(self, order_id)
+- get_order_by_number(self, order_number)
 - create_order(self, order_data)
-- update_order(self, order_data)
+- update_order(self, order_id, order_data)
 - delete_order(self, order_id)
+- process_order_payment(self, order_id, payment_amount)
+- get_orders_by_status(self, status)
+- get_orders_by_customer(self, customer_name)
+- get_order_statistics(self)
+- cleanup(self)
+
+---
+
+## services\interfaces\project_service.py
+
+### Classes:
+
+#### ProjectType
+Inherits from: Enum
+
+#### SkillLevel
+Inherits from: Enum
+
+#### IProjectService
+Inherits from: ABC
+
+Methods:
+- create_project(self, project_data)
+- get_project(self, project_id, include_components)
+- update_project(self, project_id, project_data)
+- delete_project(self, project_id)
+- search_projects(self, search_params)
+- get_complex_projects(self, complexity_threshold)
+- analyze_project_material_usage(self, project_id)
+- generate_project_complexity_report(self)
+- update_project_status(self, project_id, new_status)
 
 ---
 
@@ -952,15 +1536,19 @@ Methods:
 ### Classes:
 
 #### IRecipeService
-Inherits from: IBaseService
+Inherits from: ABC
 
 Methods:
 - get_all_recipes(self)
 - get_recipe_by_id(self, recipe_id)
-- create_recipe(self, recipe_data, items)
-- update_recipe(self, recipe_id, recipe_data, items)
-- delete_recipe(self, recipe_id)
+- create_project(self, recipe_data)
+- update_project(self, recipe_id, recipe_data)
+- delete_project(self, recipe_id)
 - check_materials_availability(self, recipe_id, quantity)
+- calculate_production_cost(self, recipe_id, quantity)
+- get_recipes_by_category(self, category)
+- search_recipes(self, search_term)
+- cleanup(self)
 
 ---
 
@@ -969,18 +1557,22 @@ Methods:
 ### Classes:
 
 #### IShoppingListService
-Inherits from: IBaseService
+Inherits from: ABC
 
 Methods:
 - get_all_shopping_lists(self)
 - get_shopping_list_by_id(self, list_id)
-- create_shopping_list(self, list_data, items)
-- update_shopping_list(self, list_id, list_data, items)
+- create_shopping_list(self, list_data)
+- update_shopping_list(self, list_id, list_data)
 - delete_shopping_list(self, list_id)
 - add_item_to_list(self, list_id, item_data)
 - remove_item_from_list(self, list_id, item_id)
-- mark_item_purchased(self, item_id, purchase_data)
+- mark_item_purchased(self, list_id, item_id, quantity)
+- get_active_lists(self)
+- get_lists_by_status(self, status)
 - search_shopping_lists(self, search_term)
+- get_pending_items(self)
+- cleanup(self)
 
 ---
 
@@ -1007,7 +1599,7 @@ Methods:
 ### Classes:
 
 #### ISupplierService
-Inherits from: IBaseService
+Inherits from: ABC
 
 Methods:
 - get_all_suppliers(self)
@@ -1015,6 +1607,22 @@ Methods:
 - create_supplier(self, supplier_data)
 - update_supplier(self, supplier_id, supplier_data)
 - delete_supplier(self, supplier_id)
+- get_supplier_performance(self, supplier_id, start_date, end_date)
+- generate_supplier_report(self)
+
+#### SupplierService
+Inherits from: ISupplierService
+
+Methods:
+- __init__(self, container)
+- _validate_supplier_data(self, supplier_data)
+- get_all_suppliers(self)
+- get_supplier_by_id(self, supplier_id)
+- create_supplier(self, supplier_data)
+- update_supplier(self, supplier_id, supplier_data)
+- delete_supplier(self, supplier_id)
+- get_supplier_performance(self, supplier_id, start_date, end_date)
+- generate_supplier_report(self)
 
 ---
 
@@ -1114,6 +1722,359 @@ Methods:
 
 ---
 
+## gui\leatherworking\advanced_pattern_library.py
+
+### Classes:
+
+#### AdvancedPatternLibrary
+Inherits from: BaseView
+
+Methods:
+- __init__(self, parent, app)
+- setup_ui(self)
+- setup_pattern_library(self)
+- setup_pattern_list(self)
+- setup_pattern_details(self)
+- setup_toolbar(self)
+- setup_test_suite(self)
+- load_data(self)
+- update_pattern_list(self)
+- on_pattern_select(self, event)
+- display_pattern_details(self, pattern_id)
+- add_pattern(self)
+- edit_pattern(self)
+- delete_pattern(self)
+- clear_pattern_details(self)
+- import_patterns(self)
+- export_patterns(self)
+- run_tests(self)
+
+#### PatternDialog
+Inherits from: tk.Toplevel
+
+Methods:
+- __init__(self, parent, title, pattern)
+- setup_ui(self)
+- setup_materials_ui(self)
+- add_material(self)
+- remove_material(self)
+- select_image(self)
+- save(self)
+- cancel(self)
+
+---
+
+## gui\leatherworking\cost_analyzer.py
+
+### Classes:
+
+#### ProjectCostAnalyzer
+Inherits from: BaseView
+
+Methods:
+- __init__(self, parent, app)
+- setup_ui(self)
+- create_toolbar(self)
+- create_project_section(self)
+- create_cost_section(self)
+- create_cost_breakdown(self, parent)
+- create_profitability_analysis(self, parent)
+- create_pricing_recommendations(self, parent)
+- load_projects(self)
+- calculate_materials_cost(self, project)
+- calculate_component_cost(self, component)
+- calculate_total_cost(self, project)
+- update_cost_breakdown(self)
+- on_project_select(self, event)
+- cleanup(self)
+- load_settings(self)
+- save_settings(self)
+- update_labor_rate(self)
+- update_profitability(self)
+
+---
+
+## gui\leatherworking\cost_estimator.py
+
+### Classes:
+
+#### CostEstimator
+Inherits from: tk.Frame
+
+Methods:
+- __init__(self, parent, controller)
+- _setup_layout(self)
+- _create_cost_input(self)
+- _create_cost_breakdown(self)
+- _create_cost_visualization(self)
+- _create_cost_summary(self)
+- add_cost_item(self)
+- recalculate_costs(self)
+- _update_cost_distribution_chart(self)
+- delete_selected_cost_item(self)
+- show_context_menu(self, event)
+- export_cost_report(self)
+- load_initial_costs(self)
+
+### Functions:
+- main()
+
+---
+
+## gui\leatherworking\cutting_layout.py
+
+### Classes:
+
+#### LeatherPiece
+
+#### LeatherCuttingView
+Inherits from: BaseView
+
+Methods:
+- __init__(self, parent, app)
+- setup_ui(self)
+- create_toolbar(self)
+- load_data(self)
+- refresh_canvas(self)
+- draw_grid(self)
+- draw_piece(self, piece)
+- _get_color_for_priority(self, priority)
+- on_canvas_click(self, event)
+- on_drag(self, event)
+- on_zoom(self, event)
+- adjust_zoom(self, factor)
+- update_grid(self, event)
+- add_piece(self)
+- clear_layout(self)
+- export_layout(self)
+
+#### MockApp
+
+Methods:
+- get_service(self, service_type)
+
+### Functions:
+- main()
+
+---
+
+## gui\leatherworking\leather_dialog.py
+
+### Classes:
+
+#### LeatherDetailsDialog
+Inherits from: tk.Toplevel
+
+Methods:
+- __init__(self, parent, callback, initial_data)
+- _create_main_frame(self)
+- _create_input_fields(self)
+- _create_buttons(self)
+- _load_initial_data(self)
+- _validate_input(self)
+- _on_save(self)
+
+### Functions:
+- main()
+
+---
+
+## gui\leatherworking\leather_inventory.py
+
+### Classes:
+
+#### LeatherInventoryView
+Inherits from: tk.Frame
+
+Methods:
+- __init__(self, parent, app)
+- _setup_layout(self)
+- _create_inventory_list(self)
+- _create_analytics_section(self)
+- _create_action_buttons(self)
+- _add_leather_dialog(self)
+- _add_leather(self, leather_data)
+- _update_leather_dialog(self)
+- _update_leather(self, updated_data)
+- _delete_leather(self)
+- _validate_leather_data(self, leather_data)
+- _update_inventory_tree(self)
+- _update_analytics(self)
+- _show_leather_details(self, event)
+- _show_context_menu(self, event)
+- _generate_leather_report(self)
+- _load_initial_leather_data(self)
+
+### Functions:
+- main()
+
+---
+
+## gui\leatherworking\material_calculator.py
+
+### Classes:
+
+#### MaterialCalculator
+Inherits from: tk.Frame
+
+Methods:
+- __init__(self, parent, controller)
+- _setup_layout(self)
+- _create_material_input(self)
+- _create_material_list(self)
+- _create_calculation_summary(self)
+- add_material(self)
+- delete_selected_material(self)
+- show_context_menu(self, event)
+- recalculate_summary(self)
+- export_material_report(self)
+- load_initial_materials(self)
+
+### Functions:
+- main()
+
+---
+
+## gui\leatherworking\material_tracker.py
+
+### Classes:
+
+#### MaterialUsageTracker
+Inherits from: BaseView
+
+Methods:
+- __init__(self, parent, app)
+- setup_ui(self)
+- create_toolbar(self)
+- create_material_list(self)
+- create_analytics_section(self)
+- create_visualization(self)
+- load_data(self)
+- on_material_select(self, event)
+- load_material_data(self, material_id)
+- update_metrics(self)
+- calculate_cost_per_unit(self)
+- calculate_projected_usage(self)
+- update_trend_analysis(self)
+- calculate_period_efficiency(self, start_days, end_days)
+- update_visualization(self)
+- group_data_by_periods(self)
+- draw_axes(self, margin, width, height)
+- draw_usage_line(self, periods, margin, x_scale, y_scale, height)
+- draw_efficiency_line(self, periods, margin, x_scale, y_scale, height)
+- draw_period_labels(self, periods, margin, x_scale, height)
+- get_days_for_range(self)
+- export_data(self)
+
+---
+
+## gui\leatherworking\pattern_library.py
+
+### Classes:
+
+#### PatternLibrary
+Inherits from: tk.Frame
+
+Methods:
+- __init__(self, parent, controller)
+- _setup_layout(self)
+- _create_pattern_input(self)
+- browse_image(self)
+- _create_pattern_list(self)
+- _create_pattern_details(self)
+- add_pattern(self)
+- _update_pattern_tree(self)
+- show_pattern_details(self, event)
+- show_context_menu(self, event)
+- edit_pattern(self)
+- delete_pattern(self)
+- load_initial_patterns(self)
+
+### Functions:
+- main()
+
+---
+
+## gui\leatherworking\project_dashboard.py
+
+### Classes:
+
+#### ProjectDashboard
+Inherits from: tk.Frame
+
+Methods:
+- __init__(self, parent, controller)
+- _setup_layout(self)
+- _create_overview_section(self)
+- _create_project_list(self)
+- _create_quick_actions(self)
+- load_data(self, projects)
+- new_project(self)
+- import_project(self)
+- generate_report(self)
+
+### Functions:
+- main()
+
+---
+
+## gui\leatherworking\project_view.py
+
+### Classes:
+
+#### LeatherworkingProjectView
+Inherits from: BaseView
+
+Methods:
+- __init__(self, parent, app)
+- setup_ui(self)
+- create_toolbar(self)
+- create_project_list(self)
+- create_project_details(self)
+- create_material_tracking(self)
+- load_data(self)
+- on_project_select(self, event)
+- update_project_details(self, project)
+- update_materials_list(self, project)
+- show_new_project_dialog(self)
+- show_add_material_dialog(self)
+- remove_selected_material(self)
+- delete_selected_project(self)
+- export_project_report(self)
+- filter_projects(self)
+- show_error(self, title, message)
+- cleanup(self)
+
+---
+
+## gui\leatherworking\timeline_viewer.py
+
+### Classes:
+
+#### TimelineViewer
+Inherits from: tk.Frame
+
+Methods:
+- __init__(self, parent, controller)
+- _setup_layout(self)
+- _create_project_input(self)
+- _create_timeline_chart(self)
+- _create_project_list(self)
+- add_project(self)
+- update_timeline_chart(self)
+- delete_selected_project(self)
+- show_context_menu(self, event)
+- load_initial_projects(self)
+
+### Functions:
+- main()
+
+---
+
+## gui\leatherworking\__init__.py
+
+---
+
 ## gui\order\incoming_goods_view.py
 
 ### Classes:
@@ -1164,22 +2125,16 @@ Inherits from: BaseView
 Methods:
 - __init__(self, parent, app)
 - setup_ui(self)
-- create_toolbar(self)
-- create_order_list(self)
-- create_order_details(self)
+- _get_columns(self)
+- _setup_treeview(self)
 - load_data(self)
-- show_add_order_dialog(self)
-- _save_new_order(self, order_data)
-- _on_order_select(self, event)
-- _load_order_details(self, order_id)
-- _edit_order(self)
-- _save_edited_order(self, order_data)
-- delete_order(self)
-- _show_search_dialog(self)
-- save(self)
-- undo(self)
-- redo(self)
-- cleanup(self)
+- show_add_dialog(self)
+- delete_selected(self, event)
+- on_double_click(self, event)
+- _sort_column(self, col)
+- _get_dialog_fields(self)
+- show_search_dialog(self)
+- _search_orders(self, search_term, columns)
 
 ---
 
@@ -1234,7 +2189,7 @@ Methods:
 
 ---
 
-## gui\product\recipe_view.py
+## gui\product\project_view.py
 
 ### Classes:
 
@@ -1290,7 +2245,7 @@ Methods:
 
 ---
 
-## gui\recipe\recipe_view.py
+## gui\recipe\project_view.py
 
 ### Classes:
 
@@ -1299,19 +2254,15 @@ Inherits from: BaseView
 
 Methods:
 - __init__(self, parent, app)
+- _find_database_file(self)
 - setup_ui(self)
 - create_toolbar(self)
-- create_recipes_treeview(self)
-- create_details_view(self)
-- create_info_view(self)
-- create_items_view(self)
-- on_recipe_select(self, event)
-- load_recipe_details(self, recipe_id)
-- show_add_recipe_dialog(self)
-- edit_recipe(self)
-- delete_recipe(self)
+- create_treeview(self)
 - load_data(self)
-- cleanup(self)
+- show_add_dialog(self)
+- on_double_click(self, event)
+- delete_selected(self, event)
+- show_search_dialog(self)
 
 ---
 
@@ -1336,29 +2287,28 @@ Inherits from: BaseView
 
 Methods:
 - __init__(self, parent, app)
+- _find_database_file(self)
 - setup_ui(self)
 - create_toolbar(self)
-- create_lists_treeview(self)
-- create_details_view(self)
-- create_info_view(self)
-- create_items_view(self)
+- create_treeview(self)
 - load_data(self)
-- on_list_select(self, event)
-- load_list_details(self, list_id)
-- show_add_list_dialog(self)
-- show_add_item_dialog(self)
-- show_mark_purchased_dialog(self)
-- remove_item(self)
-- delete_list(self)
+- show_add_dialog(self)
+- on_double_click(self, event)
+- delete_selected(self, event)
 - show_search_dialog(self)
-- save(self)
-- undo(self)
-- redo(self)
-- cleanup(self)
 
 ---
 
 ## gui\shopping_list\__init__.py
+
+---
+
+## gui\storage\fix_storage_view.py
+
+### Functions:
+- find_database_file()
+- patch_storage_view(override)
+- main()
 
 ---
 
@@ -1395,13 +2345,13 @@ Inherits from: BaseView
 
 Methods:
 - __init__(self, parent, app)
+- _find_database_file(self)
 - setup_ui(self)
 - create_toolbar(self)
 - create_treeview(self)
 - load_data(self)
 - show_add_dialog(self)
 - on_double_click(self, event)
-- start_cell_edit(self, item, column)
 - delete_selected(self, event)
 - show_search_dialog(self)
 
@@ -1446,24 +2396,89 @@ Methods:
 
 ---
 
+## database\models\base_transaction.py
+
+### Classes:
+
+#### BaseTransaction
+Inherits from: BaseModel
+
+Methods:
+- __init__(self, transaction_type, notes)
+- __repr__(self)
+- to_dict(self)
+
+---
+
 ## database\models\enums.py
 
 ### Classes:
 
+#### OrderStatus
+Inherits from: Enum
+
+#### MaterialType
+Inherits from: Enum
+
+#### LeatherType
+Inherits from: Enum
+
+#### MaterialQualityGrade
+Inherits from: Enum
+
 #### InventoryStatus
 Inherits from: Enum
 
-#### ProductionStatus
+#### ProjectType
+Inherits from: Enum
+
+#### SkillLevel
+Inherits from: Enum
+
+#### ProjectStatus
+Inherits from: Enum
+
+#### SupplierStatus
+Inherits from: Enum
+
+#### StorageLocationType
+Inherits from: Enum
+
+#### MeasurementUnit
+Inherits from: Enum
+
+#### Priority
 Inherits from: Enum
 
 #### TransactionType
 Inherits from: Enum
 
-#### OrderStatus
+#### QualityCheckStatus
 Inherits from: Enum
 
 #### PaymentStatus
 Inherits from: Enum
+
+---
+
+## database\models\hardware.py
+
+### Classes:
+
+#### HardwareType
+Inherits from: Enum
+
+#### HardwareMaterial
+Inherits from: Enum
+
+#### Hardware
+Inherits from: BaseModel
+
+Methods:
+- __repr__(self)
+- is_low_stock(self)
+- update_stock(self, quantity_change)
+- to_dict(self)
 
 ---
 
@@ -1475,9 +2490,89 @@ Inherits from: Enum
 Inherits from: BaseModel
 
 Methods:
+- __init__(self, name, leather_type, quality_grade, area, minimum_area)
 - __repr__(self)
-- usage_percentage(self)
-- can_fulfill_requirement(self, required_area)
+- to_dict(self)
+- needs_reorder(self)
+
+---
+
+## database\models\material.py
+
+### Classes:
+
+#### MaterialType
+Inherits from: Enum
+
+#### LeatherType
+Inherits from: Enum
+
+#### MaterialQualityGrade
+Inherits from: Enum
+
+#### Material
+Inherits from: BaseModel
+
+Methods:
+- __repr__(self)
+- calculate_sustainability_impact(self)
+- is_low_stock(self)
+- update_stock(self, quantity_change)
+- _trigger_reorder(self)
+
+---
+
+## database\models\metrics.py
+
+### Classes:
+
+#### MetricType
+Inherits from: enum.Enum
+
+#### TimeFrame
+Inherits from: enum.Enum
+
+#### MetricSnapshot
+Inherits from: BaseModel
+
+Methods:
+- __repr__(self)
+
+#### MaterialUsageLog
+Inherits from: BaseModel
+
+Methods:
+- calculate_efficiency(self)
+
+#### MetricsRepository
+
+Methods:
+- __init__(self, session)
+- create_metric_snapshot(self, snapshot_data)
+- get_latest_metrics(self, metric_type)
+- get_metrics_history(self, metric_type, time_frame, start_date, end_date)
+- log_material_usage(self, usage_data)
+- get_material_usage_history(self, material_id, start_date, end_date)
+- get_material_efficiency_stats(self, material_id, days)
+- cleanup_old_metrics(self, days_to_keep)
+
+#### DashboardService
+Inherits from: IBaseService
+
+Methods:
+- __init__(self, container)
+- get_dashboard_metrics(self)
+- capture_metrics(self, time_frame)
+- _get_inventory_metrics(self)
+- _get_project_metrics(self)
+- _get_material_usage(self)
+- _get_supplier_metrics(self)
+- _calculate_stock_percentage(self, items)
+- _calculate_completion_rate(self, projects)
+- _get_default_inventory_metrics(self)
+- _get_default_project_metrics(self)
+- _get_default_material_metrics(self)
+- _get_default_supplier_metrics(self)
 
 ---
 
@@ -1485,26 +2580,23 @@ Methods:
 
 ### Classes:
 
-#### OrderStatus
-Inherits from: PyEnum
-
-#### PaymentStatus
-Inherits from: PyEnum
-
 #### Order
 Inherits from: BaseModel
 
 Methods:
-- __repr__(self)
-- calculate_total_amount(self)
-- update_total_amount(self)
+- __init__(self)
+- update_total(self)
+- add_item(self, item)
+- remove_item(self, item)
+- to_dict(self)
 
 #### OrderItem
 Inherits from: BaseModel
 
 Methods:
-- __repr__(self)
+- __init__(self)
 - update_total_price(self)
+- to_dict(self)
 
 ---
 
@@ -1514,11 +2606,6 @@ Methods:
 
 #### Part
 Inherits from: BaseModel
-
-Methods:
-- __repr__(self)
-- total_value(self)
-- needs_reorder(self)
 
 ---
 
@@ -1537,11 +2624,50 @@ Methods:
 
 ---
 
+## database\models\project.py
+
+### Classes:
+
+#### ProjectType
+Inherits from: Enum
+
+#### SkillLevel
+Inherits from: Enum
+
+#### ProductionStatus
+Inherits from: Enum
+
+#### Project
+Inherits from: BaseModel
+
+Methods:
+- __repr__(self)
+- calculate_complexity(self)
+- update_quality_metrics(self, quality_rating, customer_satisfaction)
+
+---
+
+## database\models\project_component.py
+
+### Classes:
+
+#### ComponentType
+Inherits from: Enum
+
+#### ProjectComponent
+Inherits from: BaseModel
+
+Methods:
+- __repr__(self)
+- calculate_material_efficiency(self, actual_material_used, planned_material)
+
+---
+
 ## database\models\recipe.py
 
 ### Classes:
 
-#### Recipe
+#### Project
 Inherits from: BaseModel
 
 Methods:
@@ -1549,7 +2675,7 @@ Methods:
 - calculate_total_cost(self)
 - check_ingredient_availability(self)
 
-#### RecipeItem
+#### ProjectComponent
 Inherits from: BaseModel
 
 Methods:
@@ -1593,12 +2719,9 @@ Methods:
 Inherits from: BaseModel
 
 Methods:
+- __init__(self, name, notes, rating)
 - __repr__(self)
-- total_parts(self)
-- total_products(self)
-- total_leather_materials(self)
-- total_orders(self)
-- get_performance_metrics(self)
+- to_dict(self)
 
 ---
 
@@ -1606,25 +2729,51 @@ Methods:
 
 ### Classes:
 
-#### TransactionType
-Inherits from: Enum
+#### BaseTransaction
+Inherits from: BaseModel
+
+Methods:
+- __init__(self, transaction_type, notes)
+- __repr__(self)
+- to_dict(self)
 
 #### InventoryTransaction
-Inherits from: BaseModel
+Inherits from: BaseTransaction
 
 Methods:
-- __repr__(self)
+- __init__(self, part_id, quantity_change, transaction_type, notes)
+- to_dict(self)
 
 #### LeatherTransaction
-Inherits from: BaseModel
+Inherits from: BaseTransaction
 
 Methods:
-- __repr__(self)
+- __init__(self, leather_id, area_change, transaction_type, notes, wastage)
+- to_dict(self)
 - net_area_change(self)
 
 ---
 
 ## database\models\__init__.py
+
+---
+
+## database\repositories\hardware_repository.py
+
+### Classes:
+
+#### HardwareRepository
+
+Methods:
+- __init__(self, session)
+- create_hardware(self, hardware_data)
+- get_hardware_by_id(self, hardware_id)
+- search_hardware(self, hardware_type, material, finish, min_stock, max_stock, min_load_capacity, max_load_capacity)
+- update_hardware(self, hardware_id, update_data)
+- delete_hardware(self, hardware_id)
+- get_low_stock_hardware(self, include_zero_stock)
+- get_hardware_by_supplier(self, supplier_id)
+- generate_hardware_performance_report(self)
 
 ---
 
@@ -1642,18 +2791,60 @@ Methods:
 
 ---
 
+## database\repositories\material_repository.py
+
+### Classes:
+
+#### MaterialRepository
+
+Methods:
+- __init__(self, session)
+- create_material(self, material_data)
+- get_material_by_id(self, material_id)
+- search_materials(self, material_type, leather_type, quality_grade, min_stock, max_stock)
+- update_material(self, material_id, update_data)
+- delete_material(self, material_id)
+- get_low_stock_materials(self, include_zero_stock)
+- get_materials_by_supplier(self, supplier_id)
+- generate_sustainability_report(self)
+
+---
+
+## database\repositories\metrics_repository.py
+
+### Classes:
+
+#### MetricsRepository
+
+Methods:
+- __init__(self, session)
+- create_metric_snapshot(self, snapshot_data)
+- get_latest_metrics(self, metric_type)
+- get_metrics_history(self, metric_type, time_frame, start_date, end_date)
+- log_material_usage(self, usage_data)
+- get_material_usage_history(self, material_id, start_date, end_date)
+- get_material_efficiency_stats(self, material_id, days)
+- cleanup_old_metrics(self, days_to_keep)
+
+---
+
 ## database\repositories\order_repository.py
 
 ### Classes:
 
 #### OrderRepository
+Inherits from: BaseRepository
 
 Methods:
 - __init__(self, session)
 - get_with_items(self, order_id)
 - get_by_status(self, status)
-- get_by_date_range(self, start_date, end_date)
 - get_by_supplier(self, supplier_id)
+- get_by_date_range(self, start_date, end_date)
+- search(self, search_term, fields, limit)
+- create(self, order)
+- update(self, order_id, order)
+- delete(self, order_id)
 
 ---
 
@@ -1681,6 +2872,24 @@ Methods:
 - __init__(self, session)
 - get_by_storage(self, storage_id)
 - search_by_name(self, name)
+
+---
+
+## database\repositories\project_repository.py
+
+### Classes:
+
+#### ProjectRepository
+Inherits from: BaseRepository
+
+Methods:
+- __init__(self, session)
+- get_project_with_details(self, project_id)
+- search_projects(self, search_params, limit)
+- get_project_material_usage(self, project_id)
+- generate_project_complexity_report(self)
+- create(self, project)
+- update(self, project_id, project)
 
 ---
 
@@ -1735,11 +2944,16 @@ Methods:
 ### Classes:
 
 #### SupplierRepository
+Inherits from: BaseRepository
 
 Methods:
 - __init__(self, session)
-- get_with_products(self, supplier_id)
-- search(self, term)
+- search(self, search_term, fields, limit)
+- get_supplier_orders(self, supplier_id, start_date, end_date)
+- get_top_suppliers(self, limit, performance_metric)
+- create(self, data)
+- update(self, supplier_id, data)
+- delete(self, supplier_id)
 
 ---
 
@@ -1778,37 +2992,23 @@ Methods:
 
 Methods:
 - __init__(self, model_class, session_factory)
-- session_scope(self)
+- _get_session(self)
 - create(self, data)
 - get(self, id)
 - get_all(self, order_by, limit)
 - update(self, id, data)
 - delete(self, id)
-- exists(self, id)
-- count(self)
-- filter_by(self)
-- search(self, term, fields)
-- bulk_create(self, items)
-- bulk_update(self, items)
+
+### Functions:
+- create_base_manager(model_class, session_factory)
 
 ---
 
 ## database\sqlalchemy\config.py
 
-### Classes:
-
-#### DatabaseConfig
-
-Methods:
-- __new__(cls)
-- _initialize(self)
-- get_engine(self)
-- get_session(self)
-- close_session(self, session)
-- test_connection(self)
-
 ### Functions:
-- get_database_url(config)
+- get_database_url()
+- _find_project_root()
 
 ---
 
@@ -1845,11 +3045,17 @@ Methods:
 
 ## database\sqlalchemy\manager_factory.py
 
+### Classes:
+
+#### ManagerFactory
+
+Methods:
+- register_specialized_manager(cls, model_class, manager_class)
+- get_manager(cls, model_class, session_factory, mixins, force_new)
+- clear_manager_cache(cls)
+
 ### Functions:
 - register_specialized_manager(model_class, manager_class)
-- get_manager(model_class, session_factory, mixins, force_new)
-- _create_manager(model_class, session_factory, mixins)
-- clear_manager_cache()
 
 ---
 
@@ -1870,7 +3076,7 @@ Methods:
 
 ---
 
-## database\sqlalchemy\models.py
+## database\sqlalchemy\models_file.py
 
 ---
 
@@ -1884,9 +3090,9 @@ Methods:
 ## database\sqlalchemy\session.py
 
 ### Functions:
-- init_database(db_url)
+- init_database()
 - get_db_session()
-- close_all_sessions()
+- close_db_session()
 
 ---
 
@@ -2055,7 +3261,7 @@ Methods:
 
 Methods:
 - __init__(self, session_factory)
-- create_recipe(self, recipe_data, items)
+- create_project(self, recipe_data, items)
 - get_recipe_with_items(self, recipe_id)
 - update_recipe_items(self, recipe_id, items)
 - add_recipe_item(self, recipe_id, item_data)
@@ -2391,6 +3597,22 @@ Methods:
 
 ---
 
+## database\sqlalchemy\migrations\versions\20240222_add_metrics_tables.py
+
+### Functions:
+- upgrade()
+- downgrade()
+
+---
+
+## database\sqlalchemy\migrations\versions\20240222_leatherworking_model_transformation.py
+
+### Functions:
+- upgrade()
+- downgrade()
+
+---
+
 ## database\sqlalchemy\migrations\versions\463698485_comprehensive_model_relationships.py
 
 ### Functions:
@@ -2470,7 +3692,7 @@ Methods:
 
 Methods:
 - get_recipe_with_items(self, recipe_id)
-- create_recipe(self, recipe_data, items)
+- create_project(self, recipe_data, items)
 - update_recipe_items(self, recipe_id, items)
 - add_recipe_item(self, recipe_id, item_data)
 - check_materials_availability(self, recipe_id, quantity)
@@ -2482,11 +3704,12 @@ Methods:
 ### Classes:
 
 #### ShoppingListManager
+Inherits from: BaseManager
 
 Methods:
+- __init__(self, session_factory)
 - get_shopping_list_with_items(self, list_id)
 - create_shopping_list(self, data, items)
-- add_shopping_list_item(self, list_id, item_data)
 - mark_item_purchased(self, item_id, purchase_data)
 - get_pending_items(self)
 - get_items_by_supplier(self, supplier_id)

@@ -142,7 +142,7 @@ class MainWindow:
             recipes_frame = ttk.Frame(self.notebook)
             recipe_view = RecipeView(recipes_frame, self.app)
             self.notebook.add(recipes_frame, text="Recipes")
-            logger.info("Recipe view created and added to notebook")
+            logger.info("Project view created and added to notebook")
         except Exception as e:
             logger.error(f"Error creating recipe view: {str(e)}", exc_info=True)
             messagebox.showerror("Error", f"Failed to create Recipes view: {str(e)}")

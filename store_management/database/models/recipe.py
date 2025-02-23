@@ -5,7 +5,7 @@ from sqlalchemy.sql import func
 from .base import BaseModel
 
 
-class Recipe(BaseModel):
+class Project(BaseModel):
     """
     Represents a recipe in the inventory management system.
 
@@ -37,11 +37,11 @@ class Recipe(BaseModel):
 
     # Relationships
     product = relationship('Product', back_populates='recipes')
-    items = relationship('RecipeItem', back_populates='recipe',
+    items = relationship('ProjectComponent', back_populates='recipe',
                          cascade='all, delete-orphan')
 
     def __repr__(self):
-        return f"<Recipe(id={self.id}, name='{self.name}', batch_size={self.batch_size})>"
+        return f"<Project(id={self.id}, name='{self.name}', batch_size={self.batch_size})>"
 
     def calculate_total_cost(self):
         """
@@ -62,7 +62,7 @@ class Recipe(BaseModel):
         return all(item.is_available() for item in self.items)
 
 
-class RecipeItem(BaseModel):
+class ProjectComponent(BaseModel):
     """
     Represents an individual item/ingredient in a recipe.
 
@@ -90,12 +90,12 @@ class RecipeItem(BaseModel):
     is_optional = Column(Integer, default=0)  # 0 for False, 1 for True
 
     # Relationships
-    recipe = relationship('Recipe', back_populates='items')
+    recipe = relationship('Project', back_populates='items')
     part = relationship('Part')
     leather = relationship('Leather')
 
     def __repr__(self):
-        return f"<RecipeItem(id={self.id}, recipe_id={self.recipe_id}, quantity={self.quantity})>"
+        return f"<ProjectComponent(id={self.id}, recipe_id={self.recipe_id}, quantity={self.quantity})>"
 
     def calculate_item_cost(self):
         """

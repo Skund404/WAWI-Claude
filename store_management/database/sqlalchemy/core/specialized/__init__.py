@@ -24,5 +24,5 @@ __all__ = [
     "LeatherManager",
     "RecipeManager",
     "OrderManager",
-    "ShoppingListManager",
+    "ShoppingListManager"
 ]

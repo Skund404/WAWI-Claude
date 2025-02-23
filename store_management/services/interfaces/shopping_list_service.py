@@ -1,128 +1,175 @@
-# Path: store_management/services/interfaces/shopping_list_service.py
+# services/interfaces/shopping_list_service.py
+
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional
+from database.models.shopping_list import ShoppingList
 
-from services.interfaces.base_service import IBaseService
 
-
-class IShoppingListService(IBaseService):
+class IShoppingListService(ABC):
     """
-    Interface for shopping list management operations.
+    Interface defining the contract for shopping list management services.
 
-    Defines the contract for services handling shopping list-related functionality.
+    Specifies all operations that must be supported by shopping list service implementations.
     """
 
     @abstractmethod
-    def get_all_shopping_lists(self) -> List[Dict[str, Any]]:
+    def get_all_shopping_lists(self) -> List[ShoppingList]:
         """
-        Retrieve all shopping lists.
+        Get all shopping lists in the system.
 
         Returns:
-            List of shopping list dictionaries
+            List of ShoppingList objects
+
+        Raises:
+            Exception: If retrieval fails
         """
         pass
 
     @abstractmethod
-    def get_shopping_list_by_id(self, list_id: int) -> Optional[Dict[str, Any]]:
+    def get_shopping_list_by_id(self, list_id: int) -> Optional[ShoppingList]:
         """
-        Get shopping list details by ID.
+        Get a shopping list by its ID.
 
         Args:
-            list_id: Shopping list ID
+            list_id: ID of the shopping list to retrieve
 
         Returns:
-            Shopping list details or None if not found
+            ShoppingList object if found, None otherwise
+
+        Raises:
+            Exception: If retrieval fails
         """
         pass
 
     @abstractmethod
-    def create_shopping_list(self, list_data: Dict[str, Any], items: Optional[List[Dict[str, Any]]] = None) -> Optional[
-        Dict[str, Any]]:
+    def create_shopping_list(self, list_data: Dict[str, Any]) -> ShoppingList:
         """
-        Create a new shopping list with optional items.
+        Create a new shopping list.
 
         Args:
-            list_data: Shopping list data
-            items: Optional list of item data
+            list_data: Dictionary containing list data and items
 
         Returns:
-            Created shopping list or None
+            Created ShoppingList object
+
+        Raises:
+            Exception: If creation fails
         """
         pass
 
     @abstractmethod
-    def update_shopping_list(self, list_id: int, list_data: Dict[str, Any],
-                             items: Optional[List[Dict[str, Any]]] = None) -> Optional[Dict[str, Any]]:
+    def update_shopping_list(self, list_id: int, list_data: Dict[str, Any]) -> ShoppingList:
         """
         Update an existing shopping list.
 
         Args:
-            list_id: ID of the shopping list to update
-            list_data: Updated shopping list data
-            items: Optional list of updated items
+            list_id: ID of the list to update
+            list_data: Dictionary containing updated list data
 
         Returns:
-            Updated shopping list or None
+            Updated ShoppingList object
+
+        Raises:
+            Exception: If update fails
         """
         pass
 
     @abstractmethod
-    def delete_shopping_list(self, list_id: int) -> bool:
+    def delete_shopping_list(self, list_id: int) -> None:
         """
         Delete a shopping list.
 
         Args:
-            list_id: ID of the shopping list to delete
+            list_id: ID of the list to delete
 
-        Returns:
-            True if deletion successful, False otherwise
+        Raises:
+            Exception: If deletion fails
         """
         pass
 
     @abstractmethod
-    def add_item_to_list(self, list_id: int, item_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def add_item_to_list(self, list_id: int, item_data: Dict[str, Any]) -> ShoppingList:
         """
         Add an item to a shopping list.
 
         Args:
-            list_id: Shopping list ID
-            item_data: Item data to add
+            list_id: ID of the list to add to
+            item_data: Dictionary containing item data
 
         Returns:
-            Added item or None
+            Updated ShoppingList object
+
+        Raises:
+            Exception: If addition fails
         """
         pass
 
     @abstractmethod
-    def remove_item_from_list(self, list_id: int, item_id: int) -> bool:
+    def remove_item_from_list(self, list_id: int, item_id: int) -> ShoppingList:
         """
         Remove an item from a shopping list.
 
         Args:
-            list_id: Shopping list ID
-            item_id: Item ID to remove
+            list_id: ID of the list
+            item_id: ID of the item to remove
 
         Returns:
-            True if removal successful, False otherwise
+            Updated ShoppingList object
+
+        Raises:
+            Exception: If removal fails
         """
         pass
 
     @abstractmethod
-    def mark_item_purchased(self, item_id: int, purchase_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def mark_item_purchased(self, list_id: int, item_id: int, quantity: float) -> ShoppingList:
         """
-        Mark a shopping list item as purchased.
+        Mark an item as purchased.
 
         Args:
-            item_id: Shopping list item ID
-            purchase_data: Purchase details
+            list_id: ID of the list
+            item_id: ID of the item
+            quantity: Quantity purchased
 
         Returns:
-            Updated item or None
+            Updated ShoppingList object
+
+        Raises:
+            Exception: If update fails
         """
         pass
 
     @abstractmethod
-    def search_shopping_lists(self, search_term: str) -> List[Dict[str, Any]]:
+    def get_active_lists(self) -> List[ShoppingList]:
+        """
+        Get all active shopping lists.
+
+        Returns:
+            List of active ShoppingList objects
+
+        Raises:
+            Exception: If retrieval fails
+        """
+        pass
+
+    @abstractmethod
+    def get_lists_by_status(self, status: str) -> List[ShoppingList]:
+        """
+        Get all shopping lists with a specific status.
+
+        Args:
+            status: Status to filter by
+
+        Returns:
+            List of matching ShoppingList objects
+
+        Raises:
+            Exception: If retrieval fails
+        """
+        pass
+
+    @abstractmethod
+    def search_shopping_lists(self, search_term: str) -> List[ShoppingList]:
         """
         Search shopping lists by name or description.
 
@@ -130,6 +177,27 @@ class IShoppingListService(IBaseService):
             search_term: Term to search for
 
         Returns:
-            List of matching shopping lists
+            List of matching ShoppingList objects
+
+        Raises:
+            Exception: If search fails
         """
+        pass
+
+    @abstractmethod
+    def get_pending_items(self) -> List[Dict[str, Any]]:
+        """
+        Get all unpurchased items across all active lists.
+
+        Returns:
+            List of dictionaries containing pending item details
+
+        Raises:
+            Exception: If retrieval fails
+        """
+        pass
+
+    @abstractmethod
+    def cleanup(self) -> None:
+        """Clean up resources used by the service."""
         pass

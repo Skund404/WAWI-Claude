@@ -2,7 +2,7 @@
 from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from .base import BaseModel
+from database.base import BaseModel
 
 
 class Product(BaseModel):
@@ -43,7 +43,7 @@ class Product(BaseModel):
     # Relationships
     storage = relationship('Storage', back_populates='products')
     supplier = relationship('Supplier', back_populates='products')
-    recipes = relationship('Recipe', back_populates='product')
+    recipes = relationship('Project', back_populates='product')
 
     def __repr__(self):
         return f"<Product(id={self.id}, name='{self.name}', sku='{self.sku}', quantity={self.quantity})>"
@@ -63,7 +63,7 @@ class Product(BaseModel):
         Get the primary (first) recipe for this product.
 
         Returns:
-            Recipe or None: The first recipe for the product, or None if no recipes exist
+            Project or None: The first recipe for the product, or None if no recipes exist
         """
         return self.recipes[0] if self.recipes else None
 

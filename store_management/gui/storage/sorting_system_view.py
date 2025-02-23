@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
 from database.sqlalchemy.session import SessionLocal
-from database.sqlalchemy.models import Storage, Product
+from database.sqlalchemy.models_file import Storage, Product
 from gui.dialogs.add_dialog import AddDialog
 from gui.dialogs.search_dialog import SearchDialog
 from gui.dialogs.filter_dialog import FilterDialog

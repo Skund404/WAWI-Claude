@@ -1,117 +1,101 @@
-# database/initialize.py
-"""
-Database initialization script that creates all tables and adds initial data
-"""
+# database/__init__.py
+"""Database package initialization."""
 
 import logging
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-import importlib
+from typing import Optional
+from sqlalchemy.exc import SQLAlchemyError
+from .models.base import Base, BaseModel
+from .models.transaction import TransactionType
+from .models.transaction import InventoryTransaction, LeatherTransaction
+from .models.supplier import Supplier
+from .models.part import Part
+from .models.leather import Leather
+from .sqlalchemy.session import get_db_session, init_database, close_db_session
+from .models.leather import Leather #add this import
+from .models.part import Part #add this import
+from .models.project import Project #add this import
+from .models.project_component import ProjectComponent #add this import
+from .models.transaction import LeatherTransaction, InventoryTransaction, TransactionType #add this import
 
-from database.config import get_database_url
-from database.session import get_db_session
-
-# Import models explicitly to ensure they're registered
-# Import order is important for foreign key dependencies
-from database.models.base import Base, BaseModel
-from database.models.supplier import Supplier
-from database.models.leather import Leather
-from database.models.part import Part
-from database.models.storage import Storage
-from database.models.product import Product
-from database.models.recipe import Recipe, RecipeItem
-from database.models.order import Order, OrderItem, OrderStatus, PaymentStatus
-from database.models.shopping_list import ShoppingList, ShoppingListItem
-from database.models.transaction import InventoryTransaction, LeatherTransaction, TransactionType
+logger = logging.getLogger(__name__)
 
 
-def initialize_database(drop_existing=False):
+def initialize_database(drop_existing: bool = False) -> None:
     """
-    Initialize the database by creating all tables.
+    Initialize the database schema and add initial data.
 
     Args:
-        drop_existing (bool): If True, drop all existing tables before creating
+        drop_existing: If True, drops all existing tables before recreating
     """
     try:
-        db_url = get_database_url()
-        engine = create_engine(db_url)
+        logger.info("Creating database tables...")
 
-        logging.info("Creating database tables...")
+        # Initialize the database engine and session
+        engine = init_database()
+        if engine is None:
+            raise RuntimeError("Failed to initialize database engine")
 
         if drop_existing:
-            logging.warning("Dropping all existing tables!")
+            logger.info("Dropping existing tables...")
             Base.metadata.drop_all(engine)
-
-        # Ensure all models are imported and registered
-        # This is a safeguard to prevent missing tables
-        _ensure_all_models_loaded()
 
         # Create all tables
         Base.metadata.create_all(engine)
 
-        # Add initial data if needed
-        add_initial_data(engine)
-
-        logging.info("Database initialization completed successfully.")
-
-    except Exception as e:
-        logging.error(f"Database initialization failed: {str(e)}")
-        raise
-
-
-def _ensure_all_models_loaded():
-    """
-    Helper function to ensure all model modules are loaded.
-    This helps prevent issues with missing tables due to modules not being imported.
-    """
-    model_modules = [
-        'database.models.supplier',
-        'database.models.leather',
-        'database.models.part',
-        'database.models.storage',
-        'database.models.product',
-        'database.models.recipe',
-        'database.models.order',
-        'database.models.shopping_list',
-        'database.models.transaction'
-    ]
-
-    for module_name in model_modules:
         try:
-            importlib.import_module(module_name)
-        except ImportError as e:
-            logging.warning(f"Could not import model module {module_name}: {e}")
+            # Add initial data
+            _add_initial_data()
+        except Exception as e:
+            logger.error(f"Error adding initial data: {str(e)}")
+            raise
+
+        logger.info("Database initialization completed successfully.")
+
+    except SQLAlchemyError as e:
+        logger.error(f"Database initialization failed: {str(e)}")
+        raise
+    finally:
+        close_db_session()
 
 
-def add_initial_data(engine):
-    """
-    Add initial data to the database
-
-    Args:
-        engine: SQLAlchemy engine instance
-    """
-    Session = sessionmaker(bind=engine)
-    session = Session()
-
+def _add_initial_data() -> None:
+    """Add initial data to the database."""
+    session = get_db_session()
     try:
-        # Check if we have any suppliers, if not add a default one
-        if session.query(Supplier).count() == 0:
-            default_supplier = Supplier(
-                name="Default Supplier",
-                contact_name="Contact Person",
-                email="contact@supplier.com",
-                phone="123-456-7890",
-                address="123 Main St, Anytown, USA",
-                notes="Default supplier for system initialization",
-                is_active=True,
-                rating=3.0
-            )
-            session.add(default_supplier)
-            logging.info("Added default supplier")
+        # Check if we already have data
+        if session.query(Supplier).first() is not None:
+            logger.info("Initial data already exists, skipping...")
+            return
+
+        # Add initial supplier
+        initial_supplier = Supplier(
+            name="Default Supplier",
+            notes="Default system supplier"
+        )
+        session.add(initial_supplier)
+
+        # Add more initial data as needed
 
         session.commit()
+        logger.info("Initial data added successfully")
+
     except Exception as e:
         session.rollback()
-        logging.error(f"Error adding initial data: {str(e)}")
+        logger.error(f"Error adding initial data: {str(e)}")
+        raise
     finally:
         session.close()
+
+
+__all__ = [
+    'Base',
+    'BaseModel',
+    'InventoryTransaction',
+    'LeatherTransaction',
+    'Supplier',
+    'Part',
+    'Leather',
+    'initialize_database',
+    'get_db_session',
+    'close_db_session'
+]

@@ -5,6 +5,7 @@ Storage model for the database.
 import logging
 from sqlalchemy import Column, Integer, String, Float, Enum, Text
 from ..base import Base
+from database.base import BaseModel
 
 logger = logging.getLogger(__name__)
 

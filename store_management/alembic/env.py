@@ -22,7 +22,7 @@ from sqlalchemy import pool
 from alembic import context
 
 # Import your SQLAlchemy Base and all models.
-from database.sqlalchemy.models import Base
+from database.sqlalchemy.models_file import Base
 
 # Get the Alembic configuration object.
 config = context.config

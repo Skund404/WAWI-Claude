@@ -1,8 +1,8 @@
 from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
-from database.sqlalchemy.models.shopping_list import ShoppingList, ShoppingListItem
-from database.sqlalchemy.models.part import Part
-from database.sqlalchemy.models.leather import Leather
+from database.sqlalchemy.models_file.shopping_list import ShoppingList, ShoppingListItem
+from database.sqlalchemy.models_file.part import Part
+from database.sqlalchemy.models_file.leather import Leather
 from database.sqlalchemy.manager_factory import get_manager
 
 

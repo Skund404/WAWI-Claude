@@ -1,290 +1,186 @@
+# Path: store_management\database\sqlalchemy\base_manager.py
 """
-File: database/sqlalchemy/core/base_manager.py
-Base manager for database operations using SQLAlchemy.
-Provides common database operations and session management.
+Base Manager for creating specialized database managers with generic operations.
 """
-import logging
-from contextlib import contextmanager
-from typing import TypeVar, Generic, List, Optional, Type, Any, Dict, Callable, Iterator
-from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy import Column, asc, desc
 
-# Type variables for generic typing
+from typing import TypeVar, Generic, Type, List, Optional, Any
+from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError
+
 T = TypeVar('T')
-ModelType = TypeVar('ModelType')
 
-
-class BaseManager(Generic[ModelType]):
+class BaseManager(Generic[T]):
     """
-    Base manager class for database operations.
-    Provides common CRUD operations and session management.
+    A generic base manager for database operations.
+    
+    Provides common CRUD (Create, Read, Update, Delete) operations 
+    for different model types.
 
-    Generic over the model class type to provide type-safe operations.
+    Attributes:
+        _session_factory (callable): Factory function to create database sessions
+        _model_class (Type[T]): The SQLAlchemy model class managed by this manager
     """
 
-    def __init__(self, model_class: Type[ModelType], session_factory: Callable[[], Session]):
+    def __init__(
+        self, 
+        model_class: Type[T], 
+        session_factory: Any
+    ):
         """
-        Initialize the base manager with a model class and session factory.
+        Initialize the BaseManager.
 
         Args:
-            model_class: The SQLAlchemy model class to manage
-            session_factory: Factory function to create new database sessions
+            model_class (Type[T]): The SQLAlchemy model class to manage
+            session_factory (Any): A factory function to create database sessions
         """
-        self.model_class = model_class
-        self.session_factory = session_factory
-        self.logger = logging.getLogger(self.__class__.__name__)
+        self._model_class = model_class
+        self._session_factory = session_factory
 
-    @contextmanager
-    def session_scope(self) -> Iterator[Session]:
+    def _get_session(self) -> Session:
         """
-        Provide a transactional scope around a series of operations.
-        Handles session creation, commits, rollbacks, and cleanup.
+        Retrieve a database session.
 
-        Yields:
-            Session: SQLAlchemy session for database operations
-
-        Raises:
-            Exception: Re-raises any exceptions that occur during database operations
+        Returns:
+            Session: A database session
         """
-        session = self.session_factory()
+        return self._session_factory()
+
+    def create(self, data: dict) -> T:
+        """
+        Create a new record.
+
+        Args:
+            data (dict): Dictionary of attributes for the new record
+
+        Returns:
+            T: The created model instance
+        """
+        session = self._get_session()
         try:
-            yield session
+            model_instance = self._model_class(**data)
+            session.add(model_instance)
             session.commit()
-        except Exception as e:
+            return model_instance
+        except SQLAlchemyError as e:
             session.rollback()
-            self.logger.error(f"Database operation failed: {str(e)}")
-            raise
+            raise ValueError(f"Error creating {self._model_class.__name__}: {str(e)}")
         finally:
             session.close()
 
-    def create(self, data: Dict[str, Any]) -> ModelType:
+    def get(self, id: int) -> Optional[T]:
         """
-        Create a new record in the database.
+        Retrieve a record by its ID.
 
         Args:
-            data: Dictionary of field names and values for the new record
+            id (int): The unique identifier of the record
 
         Returns:
-            The created model instance
-
-        Raises:
-            Exception: If creation fails
+            Optional[T]: The retrieved model instance or None
         """
+        session = self._get_session()
         try:
-            with self.session_scope() as session:
-                instance = self.model_class(**data)
-                session.add(instance)
-                session.flush()  # Flush to get the ID
-                return instance
-        except Exception as e:
-            self.logger.error(f"Failed to create {self.model_class.__name__} - Details: {str(e)}")
-            raise
+            return session.query(self._model_class).get(id)
+        except SQLAlchemyError as e:
+            raise ValueError(f"Error retrieving {self._model_class.__name__}: {str(e)}")
+        finally:
+            session.close()
 
-    def get(self, id: Any) -> Optional[ModelType]:
+    def get_all(
+        self, 
+        order_by: Optional[str] = None, 
+        limit: Optional[int] = None
+    ) -> List[T]:
         """
-        Get a record by its ID.
+        Retrieve all records, with optional ordering and limiting.
 
         Args:
-            id: The ID of the record to retrieve
+            order_by (Optional[str], optional): Column to order by
+            limit (Optional[int], optional): Maximum number of records to return
 
         Returns:
-            The model instance or None if not found
+            List[T]: List of model instances
         """
+        session = self._get_session()
         try:
-            with self.session_scope() as session:
-                return session.query(self.model_class).get(id)
-        except Exception as e:
-            self.logger.error(f"Failed to get {self.model_class.__name__} with id {id} - Details: {str(e)}")
-            raise
+            query = session.query(self._model_class)
+            
+            if order_by:
+                query = query.order_by(getattr(self._model_class, order_by))
+            
+            if limit:
+                query = query.limit(limit)
+            
+            return query.all()
+        except SQLAlchemyError as e:
+            raise ValueError(f"Error retrieving {self._model_class.__name__} records: {str(e)}")
+        finally:
+            session.close()
 
-    def get_all(self, order_by: Optional[Column] = None, limit: Optional[int] = None) -> List[ModelType]:
+    def update(self, id: int, data: dict) -> Optional[T]:
         """
-        Get all records of the model type.
+        Update an existing record.
 
         Args:
-            order_by: Optional column to order results by
-            limit: Optional maximum number of results to return
+            id (int): The unique identifier of the record to update
+            data (dict): Dictionary of attributes to update
 
         Returns:
-            List of model instances
+            Optional[T]: The updated model instance
         """
+        session = self._get_session()
         try:
-            with self.session_scope() as session:
-                query = session.query(self.model_class)
-                if order_by:
-                    query = query.order_by(order_by)
-                if limit:
-                    query = query.limit(limit)
-                return query.all()
-        except Exception as e:
-            self.logger.error(f"Failed to retrieve all {self.model_class.__name__} records - Details: {str(e)}")
-            raise
-
-    def update(self, id: Any, data: Dict[str, Any]) -> Optional[ModelType]:
-        """
-        Update a record by its ID.
-
-        Args:
-            id: The ID of the record to update
-            data: Dictionary of field names and values to update
-
-        Returns:
-            The updated model instance or None if not found
-        """
-        try:
-            with self.session_scope() as session:
-                instance = session.query(self.model_class).get(id)
-                if instance:
-                    for key, value in data.items():
-                        setattr(instance, key, value)
-                    return instance
+            model_instance = session.query(self._model_class).get(id)
+            if not model_instance:
                 return None
-        except Exception as e:
-            self.logger.error(f"Failed to update {self.model_class.__name__} with id {id} - Details: {str(e)}")
-            raise
 
-    def delete(self, id: Any) -> bool:
+            for key, value in data.items():
+                setattr(model_instance, key, value)
+            
+            session.commit()
+            return model_instance
+        except SQLAlchemyError as e:
+            session.rollback()
+            raise ValueError(f"Error updating {self._model_class.__name__}: {str(e)}")
+        finally:
+            session.close()
+
+    def delete(self, id: int) -> bool:
         """
         Delete a record by its ID.
 
         Args:
-            id: The ID of the record to delete
+            id (int): The unique identifier of the record to delete
 
         Returns:
-            True if record was deleted, False if not found
+            bool: True if deletion was successful, False otherwise
         """
+        session = self._get_session()
         try:
-            with self.session_scope() as session:
-                instance = session.query(self.model_class).get(id)
-                if instance:
-                    session.delete(instance)
-                    return True
+            model_instance = session.query(self._model_class).get(id)
+            if not model_instance:
                 return False
-        except Exception as e:
-            self.logger.error(f"Failed to delete {self.model_class.__name__} with id {id} - Details: {str(e)}")
-            raise
 
-    def exists(self, id: Any) -> bool:
-        """
-        Check if a record with the given ID exists.
+            session.delete(model_instance)
+            session.commit()
+            return True
+        except SQLAlchemyError as e:
+            session.rollback()
+            raise ValueError(f"Error deleting {self._model_class.__name__}: {str(e)}")
+        finally:
+            session.close()
 
-        Args:
-            id: The ID to check
+def create_base_manager(
+    model_class: Type[T], 
+    session_factory: Any
+) -> BaseManager[T]:
+    """
+    Factory function to create a BaseManager for a specific model.
 
-        Returns:
-            True if the record exists, False otherwise
-        """
-        try:
-            with self.session_scope() as session:
-                return session.query(self.model_class.exists().where(self.model_class.id == id)).scalar()
-        except Exception as e:
-            self.logger.error(
-                f"Failed to check existence of {self.model_class.__name__} with id {id} - Details: {str(e)}")
-            raise
+    Args:
+        model_class (Type[T]): The SQLAlchemy model class
+        session_factory (Any): Factory function to create database sessions
 
-    def count(self) -> int:
-        """
-        Count all records of the model type.
-
-        Returns:
-            The count of records
-        """
-        try:
-            with self.session_scope() as session:
-                return session.query(self.model_class).count()
-        except Exception as e:
-            self.logger.error(f"Failed to count {self.model_class.__name__} records - Details: {str(e)}")
-            raise
-
-    def filter_by(self, **kwargs) -> List[ModelType]:
-        """
-        Filter records by attribute values.
-
-        Args:
-            **kwargs: Field names and values to filter by
-
-        Returns:
-            List of model instances matching the filter criteria
-        """
-        try:
-            with self.session_scope() as session:
-                return session.query(self.model_class).filter_by(**kwargs).all()
-        except Exception as e:
-            self.logger.error(f"Failed to filter {self.model_class.__name__} records - Details: {str(e)}")
-            raise
-
-    def search(self, term: str, fields: List[Column]) -> List[ModelType]:
-        """
-        Search records for a term across specified fields.
-
-        Args:
-            term: The search term
-            fields: List of columns to search in
-
-        Returns:
-            List of model instances matching the search criteria
-        """
-        try:
-            with self.session_scope() as session:
-                query = session.query(self.model_class)
-                if term and fields:
-                    conditions = []
-                    for field in fields:
-                        conditions.append(field.ilike(f"%{term}%"))
-                    from sqlalchemy import or_
-                    query = query.filter(or_(*conditions))
-                return query.all()
-        except Exception as e:
-            self.logger.error(f"Failed to search {self.model_class.__name__} records - Details: {str(e)}")
-            raise
-
-    def bulk_create(self, items: List[Dict[str, Any]]) -> List[ModelType]:
-        """
-        Create multiple records in the database.
-
-        Args:
-            items: List of dictionaries containing field names and values
-
-        Returns:
-            List of created model instances
-        """
-        try:
-            with self.session_scope() as session:
-                instances = [self.model_class(**item) for item in items]
-                session.add_all(instances)
-                session.flush()
-                return instances
-        except Exception as e:
-            self.logger.error(f"Failed to bulk create {self.model_class.__name__} records - Details: {str(e)}")
-            raise
-
-    def bulk_update(self, items: List[Dict[str, Any]]) -> List[ModelType]:
-        """
-        Update multiple records in the database.
-        Each dictionary in items must contain an 'id' field.
-
-        Args:
-            items: List of dictionaries containing field names and values
-
-        Returns:
-            List of updated model instances
-        """
-        try:
-            with self.session_scope() as session:
-                updated = []
-                for item in items:
-                    if 'id' not in item:
-                        raise ValueError("Each item must contain an 'id' field")
-
-                    id_value = item.pop('id')
-                    instance = session.query(self.model_class).get(id_value)
-
-                    if instance:
-                        for key, value in item.items():
-                            setattr(instance, key, value)
-                        updated.append(instance)
-
-                return updated
-        except Exception as e:
-            self.logger.error(f"Failed to bulk update {self.model_class.__name__} records - Details: {str(e)}")
-            raise
+    Returns:
+        BaseManager[T]: A BaseManager instance for the specified model
+    """
+    return BaseManager(model_class, session_factory)

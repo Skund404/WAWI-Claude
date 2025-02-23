@@ -1,69 +1,73 @@
-# Path: main.py
-"""
-Main entry point for the store management application.
-"""
-import os
-import sys
+# File: main.py
 import logging
-from typing import List, Optional
+import sys
+from pathlib import Path
 
+# Add the project root to Python path
+project_root = Path(__file__).parent
+sys.path.insert(0, str(project_root))
+
+from config.settings import get_log_path
+from utils.logger import setup_logging
 from application import Application
-import database.initialize as db_init
-from config.environment import EnvironmentManager
 
+def setup_exception_handler(root):
+    """
+    Set up a global exception handler.
 
-def setup_logging():
-    """Set up logging configuration."""
-    log_level = EnvironmentManager.get_log_level()
+    Args:
+        root: The root application object.
+    """
+    def global_exception_handler(exc_type, exc_value, exc_traceback):
+        """
+        Handle uncaught exceptions.
 
-    # Create logs directory if it doesn't exist
-    os.makedirs("logs", exist_ok=True)
+        Args:
+            exc_type (type): Exception type.
+            exc_value (Exception): Exception instance.
+            exc_traceback (traceback): Traceback object.
+        """
+        if issubclass(exc_type, KeyboardInterrupt):
+            sys.__excepthook__(exc_type, exc_value, exc_traceback)
+            return
 
-    # Configure logging
-    logging.basicConfig(
-        level=log_level,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.FileHandler("logs/application.log"),
-            logging.StreamHandler(sys.stdout)
-        ]
+        logging.error(
+            "Uncaught exception",
+            exc_info=(exc_type, exc_value, exc_traceback)
+        )
+        # Optional: Show error dialog or take specific action
+        # root.show_error_dialog(str(exc_value))
+
+    sys.excepthook = global_exception_handler
+
+def initialize_app():
+    """
+    Initialize the application.
+
+    Returns:
+        Application: Initialized application instance.
+    """
+    # Initialize logging
+    setup_logging(
+        log_level=logging.INFO,
+        log_dir=get_log_path()
     )
 
-    logger = logging.getLogger(__name__)
-    logger.info(f"Logging initialized at level {log_level}")
-    return logger
-
-
-def create_necessary_directories():
-    """Create necessary directories for the application."""
-    directories = ["logs", "data", "backups", "exports", "config"]
-    for directory in directories:
-        os.makedirs(directory, exist_ok=True)
-
+    # Create and return the application
+    app = Application()
+    setup_exception_handler(app)
+    return app
 
 def main():
-    """Main entry point for the application."""
-    # Set up logging
-    logger = setup_logging()
-
+    """
+    Main application entry point.
+    """
     try:
-        # Create necessary directories
-        create_necessary_directories()
-
-        # Initialize database
-        logger.info("Initializing database...")
-        db_init.initialize_database(drop_existing=False)
-
-        # Start the application
-        logger.info("Starting application...")
-        app = Application()
+        app = initialize_app()
         app.run()
-
-        return 0
     except Exception as e:
-        logger.error(f"Application error: {str(e)}", exc_info=True)
-        return 1
-
+        logging.error(f"Application initialization failed: {e}", exc_info=True)
+        sys.exit(1)
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()

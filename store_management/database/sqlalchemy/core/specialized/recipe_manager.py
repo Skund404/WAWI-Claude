@@ -1,7 +1,7 @@
 # database/sqlalchemy/core/specialized/recipe_manager.py
 """
 database/sqlalchemy/core/specialized/recipe_manager.py
-Specialized manager for Recipe models with additional capabilities.
+Specialized manager for Project models with additional capabilities.
 """
 
 from typing import List, Optional, Dict, Any, Tuple
@@ -9,42 +9,42 @@ from sqlalchemy import select, and_, or_, func
 from sqlalchemy.orm import joinedload
 
 from database.sqlalchemy.core.base_manager import BaseManager
-from database.sqlalchemy.models import Recipe, RecipeItem, Part, Leather
+from database.sqlalchemy.models_file import Project, ProjectComponent, Part, Leather
 from utils.error_handling import DatabaseError
 
 
-class RecipeManager(BaseManager[Recipe]):
+class RecipeManager(BaseManager[Project]):
     """
-    Specialized manager for Recipe model operations.
+    Specialized manager for Project model operations.
 
     Extends BaseManager with recipe-specific operations.
     """
 
-    def get_recipe_with_items(self, recipe_id: int) -> Optional[Recipe]:
+    def get_recipe_with_items(self, recipe_id: int) -> Optional[Project]:
         """
         Get recipe with all its items.
 
         Args:
-            recipe_id: Recipe ID
+            recipe_id: Project ID
 
         Returns:
-            Recipe with items loaded or None if not found
+            Project with items loaded or None if not found
 
         Raises:
             DatabaseError: If retrieval fails
         """
         try:
             with self.session_scope() as session:
-                query = select(Recipe).options(
-                    joinedload(Recipe.items)
-                ).where(Recipe.id == recipe_id)
+                query = select(Project).options(
+                    joinedload(Project.items)
+                ).where(Project.id == recipe_id)
 
                 result = session.execute(query)
                 return result.scalars().first()
         except Exception as e:
             raise DatabaseError(f"Failed to retrieve recipe with items", str(e))
 
-    def create_recipe(self, recipe_data: Dict[str, Any], items: List[Dict[str, Any]]) -> Optional[Recipe]:
+    def create_project(self, recipe_data: Dict[str, Any], items: List[Dict[str, Any]]) -> Optional[Project]:
         """
         Create a new recipe with items.
 
@@ -53,7 +53,7 @@ class RecipeManager(BaseManager[Recipe]):
             items: List of dictionaries containing recipe item data
 
         Returns:
-            Created Recipe instance
+            Created Project instance
 
         Raises:
             DatabaseError: If creation fails
@@ -61,14 +61,14 @@ class RecipeManager(BaseManager[Recipe]):
         try:
             with self.session_scope() as session:
                 # Create recipe
-                recipe = Recipe(**recipe_data)
+                recipe = Project(**recipe_data)
                 session.add(recipe)
                 session.flush()  # Get recipe ID
 
                 # Create recipe items
                 for item_data in items:
                     item_data['recipe_id'] = recipe.id
-                    recipe_item = RecipeItem(**item_data)
+                    recipe_item = ProjectComponent(**item_data)
                     session.add(recipe_item)
 
                 session.flush()
@@ -76,16 +76,16 @@ class RecipeManager(BaseManager[Recipe]):
         except Exception as e:
             raise DatabaseError(f"Failed to create recipe with items", str(e))
 
-    def update_recipe_items(self, recipe_id: int, items: List[Dict[str, Any]]) -> Optional[Recipe]:
+    def update_recipe_items(self, recipe_id: int, items: List[Dict[str, Any]]) -> Optional[Project]:
         """
         Update recipe items (replace existing items).
 
         Args:
-            recipe_id: Recipe ID
+            recipe_id: Project ID
             items: New list of recipe items
 
         Returns:
-            Updated Recipe instance
+            Updated Project instance
 
         Raises:
             DatabaseError: If update fails
@@ -93,20 +93,20 @@ class RecipeManager(BaseManager[Recipe]):
         try:
             with self.session_scope() as session:
                 # Get recipe
-                recipe = session.get(Recipe, recipe_id)
+                recipe = session.get(Project, recipe_id)
                 if not recipe:
                     return None
 
                 # Delete existing items
-                delete_query = RecipeItem.__table__.delete().where(
-                    RecipeItem.recipe_id == recipe_id
+                delete_query = ProjectComponent.__table__.delete().where(
+                    ProjectComponent.recipe_id == recipe_id
                 )
                 session.execute(delete_query)
 
                 # Create new items
                 for item_data in items:
                     item_data['recipe_id'] = recipe_id
-                    recipe_item = RecipeItem(**item_data)
+                    recipe_item = ProjectComponent(**item_data)
                     session.add(recipe_item)
 
                 session.flush()
@@ -116,16 +116,16 @@ class RecipeManager(BaseManager[Recipe]):
         except Exception as e:
             raise DatabaseError(f"Failed to update recipe items", str(e))
 
-    def add_recipe_item(self, recipe_id: int, item_data: Dict[str, Any]) -> Optional[RecipeItem]:
+    def add_recipe_item(self, recipe_id: int, item_data: Dict[str, Any]) -> Optional[ProjectComponent]:
         """
         Add a single item to a recipe.
 
         Args:
-            recipe_id: Recipe ID
+            recipe_id: Project ID
             item_data: Dictionary containing item data
 
         Returns:
-            Created RecipeItem instance
+            Created ProjectComponent instance
 
         Raises:
             DatabaseError: If creation fails
@@ -133,13 +133,13 @@ class RecipeManager(BaseManager[Recipe]):
         try:
             with self.session_scope() as session:
                 # Get recipe
-                recipe = session.get(Recipe, recipe_id)
+                recipe = session.get(Project, recipe_id)
                 if not recipe:
                     return None
 
                 # Create recipe item
                 item_data['recipe_id'] = recipe_id
-                recipe_item = RecipeItem(**item_data)
+                recipe_item = ProjectComponent(**item_data)
                 session.add(recipe_item)
 
                 session.flush()
@@ -152,7 +152,7 @@ class RecipeManager(BaseManager[Recipe]):
         Check if all materials for a recipe are available in sufficient quantity.
 
         Args:
-            recipe_id: Recipe ID
+            recipe_id: Project ID
             quantity: Number of items to produce
 
         Returns:
@@ -165,13 +165,13 @@ class RecipeManager(BaseManager[Recipe]):
             with self.session_scope() as session:
                 # Get recipe with items
                 recipe = session.execute(
-                    select(Recipe).options(
-                        joinedload(Recipe.items)
-                    ).where(Recipe.id == recipe_id)
+                    select(Project).options(
+                        joinedload(Project.items)
+                    ).where(Project.id == recipe_id)
                 ).scalars().first()
 
                 if not recipe:
-                    raise ValueError(f"Recipe not found with ID {recipe_id}")
+                    raise ValueError(f"Project not found with ID {recipe_id}")
 
                 missing_items = []
 

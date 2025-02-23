@@ -5,7 +5,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import SQLAlchemyError
 
 from database.sqlalchemy.base_manager import BaseManager
-from database.sqlalchemy.models import (
+from database.sqlalchemy.models_file import (
     Part, Leather, InventoryTransaction, LeatherTransaction,
     InventoryStatus, TransactionType
 )
