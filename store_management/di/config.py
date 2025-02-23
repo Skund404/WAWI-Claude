@@ -1,11 +1,11 @@
 # di/config.py
 
-from typing import Type, TypeVar, Any
+from typing import Type, TypeVar
 from .container import DependencyContainer
 
 # Service interfaces
 from services.interfaces.order_service import IOrderService
-from services.interfaces.recipe_service import IRecipeService
+from database.repositories.interfaces.pattern_service import IRecipeService
 from services.interfaces.shopping_list_service import IShoppingListService
 from services.interfaces.project_service import IProjectService
 from services.interfaces.storage_service import IStorageService
@@ -15,7 +15,7 @@ from services.interfaces.material_service import IMaterialService
 
 # Service implementations
 from services.implementations.order_service import OrderService
-from services.implementations.recipe_service import RecipeService
+from services.implementations.pattern_service import RecipeService
 from services.implementations.shopping_list_service import ShoppingListService
 from services.implementations.project_service import ProjectService
 from services.implementations.storage_service import StorageService

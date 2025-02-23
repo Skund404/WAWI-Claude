@@ -8,7 +8,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from database.models.base import Base
 from database.models.order import Order, OrderItem
-from database.models.recipe import Project, ProjectComponent
+from database.models.pattern import Project, ProjectComponent
 from database.models.shopping_list import ShoppingList, ShoppingListItem
 from database.models.enums import OrderStatus, PaymentStatus
 from database.config import get_database_config

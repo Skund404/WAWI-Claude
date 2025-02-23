@@ -1,124 +1,106 @@
-# database\models\enums.py
-from enum import Enum
-from enum import auto
+# database/models/enums.py
 
-
-class OrderStatus(Enum):
-    """Enumeration of possible order statuses."""
-    PENDING = "Pending"
-    PROCESSING = "Processing"
-    SHIPPED = "Shipped"
-    DELIVERED = "Delivered"
-    COMPLETED = "Completed"
-    CANCELLED = "Cancelled"
-
-
-class MaterialType(Enum):
-    """Enumeration of material types used in leatherworking projects."""
-    LEATHER = "Leather"
-    HARDWARE = "Hardware"
-    THREAD = "Thread"
-    ADHESIVE = "Adhesive"
-    OTHER = "Other"
-
-
-class LeatherType(Enum):
-    """Enumeration of leather types."""
-    FULL_GRAIN = "Full Grain"
-    TOP_GRAIN = "Top Grain"
-    CORRECTED_GRAIN = "Corrected Grain"
-    SPLIT_GRAIN = "Split Grain"
-    BONDED_LEATHER = "Bonded Leather"
-
-
-class MaterialQualityGrade(Enum):
-    """Enumeration of material quality grades."""
-    A = "A"
-    B = "B"
-    C = "C"
-    D = "D"
-    E = "E"
-
-
-class InventoryStatus(Enum):
-    """Enumeration of inventory statuses."""
-    IN_STOCK = "In Stock"
-    LOW_STOCK = "Low Stock"
-    OUT_OF_STOCK = "Out of Stock"
-
+from enum import Enum, auto
 
 class ProjectType(Enum):
-    """Enumeration of project types in leatherworking."""
-    BAG = "Bag"
-    WALLET = "Wallet"
-    BELT = "Belt"
-    ACCESSORY = "Accessory"
-    OTHER = "Other"
-
-
-class SkillLevel(Enum):
-    """Enumeration of skill levels for projects."""
-    BEGINNER = "Beginner"
-    INTERMEDIATE = "Intermediate"
-    ADVANCED = "Advanced"
-    EXPERT = "Expert"
-
+    """Types of projects that can be created."""
+    BASIC = auto()
+    INTERMEDIATE = auto()
+    ADVANCED = auto()
+    CUSTOM = auto()
 
 class ProjectStatus(Enum):
-    """Enumeration of project statuses."""
-    PLANNING = "Planning"
-    IN_PROGRESS = "In Progress"
-    ON_HOLD = "On Hold"
-    COMPLETED = "Completed"
-    CANCELLED = "Cancelled"
+    """Status states for projects."""
+    PLANNED = auto()
+    IN_PROGRESS = auto()
+    ON_HOLD = auto()
+    COMPLETED = auto()
+    CANCELLED = auto()
 
+class SkillLevel(Enum):
+    """Required skill levels for projects."""
+    BEGINNER = 1
+    INTERMEDIATE = 2
+    ADVANCED = 3
+    EXPERT = 4
 
-class SupplierStatus(Enum):
-    """Enumeration of supplier statuses."""
-    ACTIVE = "Active"
-    INACTIVE = "Inactive"
-    PENDING = "Pending"
+class MaterialType(Enum):
+    """Types of materials used in projects."""
+    LEATHER = auto()
+    HARDWARE = auto()
+    THREAD = auto()
+    ADHESIVE = auto()
+    FINISH = auto()
+    OTHER = auto()
 
-
-class StorageLocationType(Enum):
-    """Enumeration of storage location types."""
-    SHELF = "Shelf"
-    CONTAINER = "Container"
-    RACK = "Rack"
-    WAREHOUSE = "Warehouse"
-
-
-class MeasurementUnit(Enum):
-    """Enumeration of measurement units."""
-    INCH = "Inch"
-    CENTIMETER = "Centimeter"
-    FOOT = "Foot"
-    METER = "Meter"
-
-
-class Priority(Enum):
-    """Enumeration of priority levels for tasks."""
-    LOW = "Low"
-    MEDIUM = "Medium"
-    HIGH = "High"
-    CRITICAL = "Critical"
+class InventoryStatus(Enum):
+    """Status of inventory items."""
+    IN_STOCK = auto()
+    LOW_STOCK = auto()
+    OUT_OF_STOCK = auto()
+    DISCONTINUED = auto()
 
 class TransactionType(Enum):
-    PURCHASE = "purchase"
-    SALE = "sale"
-    ADJUSTMENT = "adjustment"
-    WASTE = "waste"
+    """Types of inventory transactions."""
+    PURCHASE = auto()
+    USAGE = auto()
+    ADJUSTMENT = auto()
+    WASTE = auto()
+    RETURN = auto()
 
+class MeasurementUnit(Enum):
+    """Units of measurement."""
+    PIECE = auto()
+    SQUARE_FOOT = auto()
+    SQUARE_METER = auto()
+    LINEAR_FOOT = auto()
+    LINEAR_METER = auto()
+    GRAM = auto()
+    KILOGRAM = auto()
+    OUNCE = auto()
+    POUND = auto()
 
-class QualityCheckStatus(Enum):
-    """Represents the status of a quality check performed on a produced item."""
-    PASSED = "PASSED"
-    FAILED = "FAILED"
-    PENDING = "PENDING"
+class StitchType(Enum):
+    """Types of stitches used in leatherworking."""
+    SADDLE = auto()
+    RUNNING = auto()
+    CROSS = auto()
+    BOX = auto()
+    BACKSTITCH = auto()
 
-class PaymentStatus(Enum):
-    """Payment status for orders"""
-    PENDING = "PENDING"
-    PARTIALLY_PAID = "PARTIALLY_PAID"
-    PAID = "PAID"
-    REFUNDED = "REFUNDED"
+class EdgeFinishType(Enum):
+    """Types of edge finishing techniques."""
+    BURNISHED = auto()
+    PAINTED = auto()
+    CREASED = auto()
+    WAX_FINISHED = auto()
+    RAW = auto()
+
+class ComponentType(Enum):
+    """Types of components in a leather pattern."""
+    LEATHER = auto()        # Main leather pieces
+    LINING = auto()         # Leather or fabric lining
+    REINFORCEMENT = auto()  # Hidden reinforcement pieces
+    GUSSET = auto()        # Expandable sections
+    POCKET = auto()        # Interior or exterior pockets
+    STRAP = auto()         # Straps or handles
+    HARDWARE_MOUNT = auto() # Areas for hardware attachment
+    DECORATIVE = auto()    # Decorative elements
+
+class LeatherType(Enum):
+    """Types of leather materials."""
+    FULL_GRAIN = auto()
+    TOP_GRAIN = auto()
+    CORRECTED_GRAIN = auto()
+    SPLIT = auto()
+    SUEDE = auto()
+    NUBUCK = auto()
+    PATENT = auto()
+    EXOTIC = auto()
+
+class MaterialQualityGrade(Enum):
+    """Quality grades for leather materials."""
+    GRADE_A = auto()  # Premium, minimal defects
+    GRADE_B = auto()  # Good quality, minor defects
+    GRADE_C = auto()  # Usable, visible defects
+    SECONDS = auto()  # Significant defects, usable for non-visible parts

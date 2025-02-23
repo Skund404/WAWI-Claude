@@ -1,4 +1,4 @@
-# services/implementations/recipe_service.py
+# services/implementations/pattern_service.py
 
 import logging
 from typing import List, Dict, Any, Optional
@@ -6,8 +6,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import or_
 
-from services.interfaces.recipe_service import IRecipeService
-from database.models.recipe import Project, ProjectComponent
+from database.repositories.interfaces.pattern_service import IRecipeService
+from database.models.pattern import Project, ProjectComponent
 from database.session import get_db_session
 
 

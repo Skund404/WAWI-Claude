@@ -22,7 +22,7 @@ def scan_for_problematic_imports():
 
     problematic_files = []
 
-    for root, _, files in os.walk("."):
+    for root, _, files in os.walk(""):
         for file in files:
             if file.endswith('.py'):
                 file_path = os.path.join(root, file)

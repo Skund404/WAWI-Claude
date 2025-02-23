@@ -35,7 +35,7 @@ class ProjectRenamer:
         self.project_root = os.path.abspath(project_root)
         self.renames: Dict[str, str] = {
             # File renames
-            'recipe_service.py': 'project_service.py',
+            'pattern_service.py': 'project_service.py',
             'recipe_repository.py': 'project_repository.py',
             'recipe_view.py': 'project_view.py',
 

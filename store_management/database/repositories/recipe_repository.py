@@ -3,7 +3,7 @@
 from typing import List, Optional, Tuple
 from sqlalchemy.orm import Session, joinedload
 from ..interfaces.base_repository import BaseRepository
-from ..models.recipe import Project, ProjectComponent
+from ..models.pattern import Project, ProjectComponent
 
 
 class RecipeRepository(BaseRepository[Project]):

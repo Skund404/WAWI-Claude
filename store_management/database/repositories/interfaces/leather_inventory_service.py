@@ -1,0 +1,30 @@
+# database/services/interfaces/leather_inventory_service.py
+
+from abc import abstractmethod
+from typing import List, Dict
+from database.repositories.interfaces.base_service import IBaseService
+from ...models.leather import Leather
+
+
+class ILeatherInventoryService(IBaseService[Leather]):
+    """Interface for leather inventory management."""
+
+    @abstractmethod
+    def update_stock(self, leather_id: int, area_change: float, notes: str) -> bool:
+        """Update leather stock levels."""
+        pass
+
+    @abstractmethod
+    def get_low_stock_items(self) -> List[Leather]:
+        """Get items with low stock."""
+        pass
+
+    @abstractmethod
+    def track_wastage(self, leather_id: int, area_wasted: float, reason: str) -> bool:
+        """Track leather wastage."""
+        pass
+
+    @abstractmethod
+    def get_usage_statistics(self, leather_id: int) -> Dict[str, float]:
+        """Get usage statistics for leather."""
+        pass

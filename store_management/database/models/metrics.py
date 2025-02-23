@@ -3,7 +3,6 @@ from datetime import datetime
 from sqlalchemy import Column, Integer, Float, String, DateTime, ForeignKey, Enum as SQLAEnum
 from sqlalchemy.orm import relationship
 from database.base import BaseModel
-from typing import Optional
 import enum
 from database.base import Base
 
@@ -86,7 +85,7 @@ class MaterialUsageLog(BaseModel):
 
 # database/repositories/metrics_repository.py
 from typing import List, Optional, Dict
-from datetime import datetime, timedelta
+from datetime import datetime
 from sqlalchemy import func, and_
 from sqlalchemy.orm import Session
 
@@ -193,12 +192,12 @@ class MetricsRepository:
 
 
 # services/dashboard_service.py
-from typing import Dict, List, Optional
+from typing import Dict, List
 from datetime import datetime, timedelta
 import logging
 
 from database.models.metrics import MetricType, TimeFrame
-from services.interfaces.base_service import IBaseService
+from database.repositories.interfaces.base_service import IBaseService
 
 
 class DashboardService(IBaseService):

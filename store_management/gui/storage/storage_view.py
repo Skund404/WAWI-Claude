@@ -52,7 +52,7 @@ class StorageView(BaseView):
 
         # If not found in the predefined locations, search for it
         logger.info("Searching for database file...")
-        for root, _, files in os.walk("."):
+        for root, _, files in os.walk(""):
             for file in files:
                 if file.endswith('.db'):
                     path = os.path.join(root, file)
