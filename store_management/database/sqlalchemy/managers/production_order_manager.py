@@ -21,7 +21,7 @@ from utils.logger import logger
 
 
 class ProductionOrderManager(BaseManager[ProductionOrder]):
-    """Enhanced manager for production orders with recipe relationships."""
+    """Enhanced manager for production orders with pattern relationships."""
 
     def __init__(self, session_factory):
         """Initialize ProductionOrderManager with session factory."""
@@ -34,7 +34,7 @@ class ProductionOrderManager(BaseManager[ProductionOrder]):
             start_date: Optional[datetime] = None,
             notes: Optional[str] = None
     ) -> ProductionOrder:
-        """Create a new production order with recipe validation.
+        """Create a new production order with pattern validation.
 
         Args:
             recipe_id: Project ID to produce
@@ -46,18 +46,18 @@ class ProductionOrderManager(BaseManager[ProductionOrder]):
             Created ProductionOrder instance
 
         Raises:
-            DatabaseError: If recipe not found or validation fails
+            DatabaseError: If pattern not found or validation fails
         """
         try:
             with self.session_scope() as session:
-                # Verify recipe exists and is active
-                recipe = session.query(Project).filter(
+                # Verify pattern exists and is active
+                pattern = session.query(Project).filter(
                     and_(Project.id == recipe_id, Project.is_active == True)
                 ).first()
 
-                if not recipe:
+                if not pattern:
                     raise DatabaseError(
-                        f"Active recipe with ID {recipe_id} not found"
+                        f"Active pattern with ID {recipe_id} not found"
                     )
 
                 # Create production order
@@ -98,7 +98,7 @@ class ProductionOrderManager(BaseManager[ProductionOrder]):
                 order = (
                     session.query(ProductionOrder)
                     .options(
-                        joinedload(ProductionOrder.recipe)
+                        joinedload(ProductionOrder.pattern)
                         .joinedload(Project.items)
                     )
                     .filter(ProductionOrder.id == order_id)
@@ -142,9 +142,9 @@ class ProductionOrderManager(BaseManager[ProductionOrder]):
 
         Args:
             session: Database session
-            order: ProductionOrder instance with loaded recipe
+            order: ProductionOrder instance with loaded pattern
         """
-        for recipe_item in order.recipe.items:
+        for recipe_item in order.pattern.items:
             if recipe_item.part_id:
                 transaction = InventoryTransaction(
                     part_id=recipe_item.part_id,
@@ -291,7 +291,7 @@ class ProductionOrderManager(BaseManager[ProductionOrder]):
             raise DatabaseError(f"Failed to get production status: {str(e)}")
 
     def get_active_orders(self) -> List[ProductionOrder]:
-        """Get all active production orders with their recipes.
+        """Get all active production orders with their patterns.
 
         Returns:
             List of ProductionOrder instances with loaded relationships
@@ -301,7 +301,7 @@ class ProductionOrderManager(BaseManager[ProductionOrder]):
                 query = (
                     select(ProductionOrder)
                     .options(
-                        joinedload(ProductionOrder.recipe),
+                        joinedload(ProductionOrder.pattern),
                         joinedload(ProductionOrder.produced_items)
                     )
                     .where(ProductionOrder.status == ProductionStatus.IN_PROGRESS)

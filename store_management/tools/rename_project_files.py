@@ -3,7 +3,7 @@
 Path: tools/rename_project_files.py
 
 Script to systematically rename files and update references in a leatherworking project,
-replacing generic 'recipe' terminology with more specific project-related terms.
+replacing generic 'pattern' terminology with more specific project-related terms.
 """
 
 import os

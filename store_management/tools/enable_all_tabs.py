@@ -13,8 +13,8 @@ logger = logging.getLogger("tab_enabler")
 
 
 def create_recipe_view():
-    """Create a basic recipe view."""
-    recipe_view_dir = os.path.join('gui', 'recipe')
+    """Create a basic pattern view."""
+    recipe_view_dir = os.path.join('gui', 'pattern')
     recipe_view_path = os.path.join(recipe_view_dir, 'recipe_view.py')
 
     # Create directory if it doesn't exist
@@ -22,9 +22,9 @@ def create_recipe_view():
 
     # Project view content
     recipe_view_content = '''
-# Path: gui/recipe/recipe_view.py
+# Path: gui/pattern/recipe_view.py
 """
-Project view implementation that displays recipes.
+Project view implementation that displays patterns.
 """
 import tkinter as tk
 from tkinter import ttk
@@ -42,12 +42,12 @@ logger = logging.getLogger(__name__)
 
 class RecipeView(BaseView):
     """
-    View for displaying and managing recipes.
+    View for displaying and managing patterns.
     """
 
     def __init__(self, parent, app):
         """
-        Initialize the recipe view.
+        Initialize the pattern view.
 
         Args:
             parent: Parent widget
@@ -103,7 +103,7 @@ class RecipeView(BaseView):
         logger.debug("Toolbar created")
 
     def create_treeview(self):
-        """Create the treeview for displaying recipes."""
+        """Create the treeview for displaying patterns."""
         # Create a frame to hold the treeview and scrollbar
         frame = ttk.Frame(self)
         frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
@@ -146,9 +146,9 @@ class RecipeView(BaseView):
         logger.debug("Treeview created")
 
     def load_data(self):
-        """Load recipes from the database and display them."""
+        """Load patterns from the database and display them."""
         try:
-            logger.info("Loading recipe data")
+            logger.info("Loading pattern data")
 
             # Clear existing items
             for item in self.tree.get_children():
@@ -163,10 +163,10 @@ class RecipeView(BaseView):
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
 
-            # Check if recipe table exists
+            # Check if pattern table exists
             cursor.execute("""
                 SELECT name FROM sqlite_master 
-                WHERE type='table' AND name='recipe';
+                WHERE type='table' AND name='pattern';
             """)
 
             if not cursor.fetchone():
@@ -175,7 +175,7 @@ class RecipeView(BaseView):
 
                 # Add sample data since table doesn't exist
                 sample_data = [
-                    (1, "Basic Bread", "Baking", "Simple bread recipe", "Flour, Water, Yeast, Salt", 4),
+                    (1, "Basic Bread", "Baking", "Simple bread pattern", "Flour, Water, Yeast, Salt", 4),
                     (2, "Chocolate Cake", "Dessert", "Rich chocolate cake", "Flour, Sugar, Cocoa, Eggs, Butter", 8),
                     (3, "Vegetable Soup", "Soup", "Healthy vegetable soup", "Carrot, Potato, Onion, Celery, Broth", 6),
                     (4, "Caesar Salad", "Salad", "Classic caesar salad", "Romaine Lettuce, Croutons, Parmesan, Caesar Dressing", 2),
@@ -183,46 +183,46 @@ class RecipeView(BaseView):
                 ]
 
                 # Add to treeview
-                for recipe in sample_data:
-                    self.tree.insert("", tk.END, values=recipe)
+                for pattern in sample_data:
+                    self.tree.insert("", tk.END, values=pattern)
 
                 return
 
-            # Get recipe data
-            cursor.execute("SELECT id, name, type, description, ingredients, servings FROM recipe;")
+            # Get pattern data
+            cursor.execute("SELECT id, name, type, description, ingredients, servings FROM pattern;")
             rows = cursor.fetchall()
 
             # Add to treeview
             for row in rows:
                 self.tree.insert("", tk.END, values=row)
 
-            self.set_status(f"Loaded {len(rows)} recipes")
-            logger.info(f"Loaded {len(rows)} recipes")
+            self.set_status(f"Loaded {len(rows)} patterns")
+            logger.info(f"Loaded {len(rows)} patterns")
 
         except Exception as e:
-            logger.error(f"Error loading recipe data: {str(e)}", exc_info=True)
-            self.show_error("Data Load Error", f"Failed to load recipe data: {str(e)}")
+            logger.error(f"Error loading pattern data: {str(e)}", exc_info=True)
+            self.show_error("Data Load Error", f"Failed to load pattern data: {str(e)}")
         finally:
             if 'conn' in locals():
                 conn.close()
 
     def show_add_dialog(self):
-        """Show dialog to add a new recipe."""
+        """Show dialog to add a new pattern."""
         # Implementation would go here
         logger.debug("Add dialog requested but not implemented")
-        self.show_info("Not Implemented", "Add recipe functionality is not yet implemented.")
+        self.show_info("Not Implemented", "Add pattern functionality is not yet implemented.")
 
     def on_double_click(self, event):
-        """Handle double-click on a recipe item."""
+        """Handle double-click on a pattern item."""
         # Implementation would go here
         logger.debug("Double-click event received but not implemented")
-        self.show_info("Not Implemented", "Edit recipe functionality is not yet implemented.")
+        self.show_info("Not Implemented", "Edit pattern functionality is not yet implemented.")
 
     def delete_selected(self, event):
-        """Delete the selected recipe."""
+        """Delete the selected pattern."""
         # Implementation would go here
         logger.debug("Delete requested but not implemented")
-        self.show_info("Not Implemented", "Delete recipe functionality is not yet implemented.")
+        self.show_info("Not Implemented", "Delete pattern functionality is not yet implemented.")
 
     def show_search_dialog(self):
         """Show search dialog."""
@@ -233,7 +233,7 @@ class RecipeView(BaseView):
 
     with open(recipe_view_path, 'w') as f:
         f.write(recipe_view_content.strip())
-    logger.info(f"Created recipe view at {recipe_view_path}")
+    logger.info(f"Created pattern view at {recipe_view_path}")
     return True
 
 
@@ -709,8 +709,8 @@ def enable_tabs_in_main_window():
 
     # Uncomment the import statements
     content = content.replace(
-        "# from gui.recipe.recipe_view import RecipeView\n# from gui.order.order_view import OrderView\n# from gui.shopping_list.shopping_list_view import ShoppingListView",
-        "from gui.recipe.recipe_view import RecipeView\nfrom gui.order.order_view import OrderView\nfrom gui.shopping_list.shopping_list_view import ShoppingListView"
+        "# from gui.pattern.recipe_view import PatternView\n# from gui.order.order_view import OrderView\n# from gui.shopping_list.shopping_list_view import ShoppingListView",
+        "from gui.pattern.recipe_view import PatternView\nfrom gui.order.order_view import OrderView\nfrom gui.shopping_list.shopping_list_view import ShoppingListView"
     )
 
     # Uncomment the tab creation calls
@@ -734,7 +734,7 @@ def main():
     if create_recipe_view():
         logger.info("Project view created successfully")
     else:
-        logger.error("Failed to create recipe view")
+        logger.error("Failed to create pattern view")
 
     if create_order_view():
         logger.info("Order view created successfully")

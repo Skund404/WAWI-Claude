@@ -12,7 +12,7 @@ from .supplier_manager import SupplierManager
 from .product_manager import ProductManager
 from .part_manager import PartManager
 from .leather_manager import LeatherManager
-from .recipe_manager import RecipeManager
+from .recipe_manager import PatternManager
 from .order_manager import OrderManager
 from .shopping_list_manager import ShoppingListManager
 

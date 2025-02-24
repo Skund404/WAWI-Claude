@@ -1,182 +1,292 @@
 # database/models/pattern.py
+"""
+Pattern models for leatherworking project management.
 
-from sqlalchemy import Column, Integer, String, Float, Boolean, Enum, JSON
-from sqlalchemy.orm import relationship
-from typing import Dict, List, Optional
+Defines the data model for patterns used in creating
+leatherworking projects and tracking design specifications.
+"""
+
 from datetime import datetime
-from .base import BaseModel
-from .mixins import TimestampMixin, ValidationMixin, CostingMixin
-from .enums import (
-    LeatherType, MaterialQualityGrade, ProjectType, SkillLevel,
-    ComponentType
-)
+from typing import List, Optional, Dict, Any
+import sqlalchemy as sa
+from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, Enum, JSON
+from sqlalchemy.orm import relationship
+from sqlalchemy.orm import DeclarativeBase
+
+from .base import BaseModel, Base
+from .enums import ProjectType, SkillLevel, StitchType, EdgeFinishType
+from .components import ProjectComponent
 
 
-class Pattern(BaseModel, TimestampMixin, ValidationMixin, CostingMixin):
+class Pattern(Base):
     """
-    Represents a leather working pattern.
+    Represents a leatherworking pattern with comprehensive design specifications.
 
-    Contains all information needed to create a leather item, including:
-    - Pattern pieces and their dimensions
-    - Required leather specifications
-    - Hardware and tool requirements
-    - Construction steps
+    A pattern serves as a detailed blueprint for creating leather items,
+    including technical specifications, material requirements, and
+    construction details.
+
+    Attributes:
+        id (int): Unique identifier for the pattern
+        name (str): Name of the pattern
+        description (str, optional): Detailed description of the pattern
+        skill_level (SkillLevel): Skill level required for the pattern
+        project_type (ProjectType): Type of leatherworking project
+        stitch_type (StitchType): Primary stitching technique
+        edge_finish_type (EdgeFinishType): Edge finishing method
+        pattern_pieces (JSON): Detailed information about pattern pieces
+        leather_specifications (JSON): Leather type and quality requirements
+        hardware_requirements (JSON): Required hardware and fixtures
+        estimated_labor_hours (float): Estimated time to complete
+        is_template (bool): Whether this pattern can be used as a template
+        version (str): Version of the pattern design
+        complexity_score (float): Calculated complexity of the pattern
+        pattern_files (relationship): Associated pattern file references
+        components (relationship): Components associated with this pattern
     """
     __tablename__ = 'patterns'
 
+    # Timestamp columns
+    created_at = Column(DateTime, default=sa.func.now(), nullable=False)
+    updated_at = Column(DateTime, default=sa.func.now(), onupdate=sa.func.now(), nullable=False)
+
+    # Primary key
     id = Column(Integer, primary_key=True)
-    name = Column(String(100), nullable=False)
-    description = Column(String(500))
+
+    # Basic pattern information
+    name = Column(String, nullable=False)
+    description = Column(String)
+
+    # Categorization and skill attributes
     skill_level = Column(Enum(SkillLevel), nullable=False)
     project_type = Column(Enum(ProjectType), nullable=False)
+    stitch_type = Column(Enum(StitchType), nullable=True)
+    edge_finish_type = Column(Enum(EdgeFinishType), nullable=True)
 
-    # Leather specifications
-    leather_type = Column(Enum(LeatherType), nullable=False)
-    leather_thickness_min = Column(Float)  # in mm
-    leather_thickness_max = Column(Float)  # in mm
-    leather_grade = Column(Enum(MaterialQualityGrade))
-    leather_area_required = Column(Float)  # in square feet/meters
+    # Detailed specifications (using JSON for flexible storage)
+    pattern_pieces = Column(JSON)
+    leather_specifications = Column(JSON)
+    hardware_requirements = Column(JSON)
 
-    # Pattern specifications
-    pattern_pieces = Column(JSON)  # List of pieces with dimensions
-    grain_direction_critical = Column(Boolean, default=False)
-    hardware_requirements = Column(JSON)  # Dict of required hardware
-    tool_requirements = Column(JSON)  # List of required tools
-
-    # Construction details
-    construction_steps = Column(JSON)  # Ordered list of construction steps
-    edge_finishing = Column(JSON)  # Edge finishing specifications
-    stitching_specifications = Column(JSON)  # Stitching details
-
-    # Additional metadata
-    estimated_time = Column(Float)  # in hours
-    difficulty_notes = Column(String(500))
-    version = Column(String(20))
+    # Project attributes
+    estimated_labor_hours = Column(Float, default=0.0)
+    is_template = Column(Boolean, default=False)
+    version = Column(String, default='1.0')
+    complexity_score = Column(Float, default=0.0)
 
     # Relationships
-    components = relationship("PatternComponent", back_populates="pattern")
-    projects = relationship("Project", back_populates="pattern")
+    pattern_files = relationship(
+        "PatternFile",
+        back_populates="pattern",
+        cascade="all, delete-orphan"
+    )
+    components = relationship(
+        "ProjectComponent",
+        back_populates="pattern",
+        cascade="all, delete-orphan"
+    )
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.pattern_pieces = self.pattern_pieces or []
-        self.hardware_requirements = self.hardware_requirements or {}
-        self.tool_requirements = self.tool_requirements or []
-        self.construction_steps = self.construction_steps or []
-        self.edge_finishing = self.edge_finishing or {}
-        self.stitching_specifications = self.stitching_specifications or {}
+    def __repr__(self) -> str:
+        """
+        String representation of the pattern.
 
-    def calculate_total_leather_area(self) -> float:
-        """Calculate total leather area needed including waste factor."""
-        base_area = sum(
-            piece.get('length', 0) * piece.get('width', 0)
-            for piece in self.pattern_pieces
-        )
+        Returns:
+            str: Readable representation of the pattern
+        """
+        return (f"<Pattern(id={self.id}, name='{self.name}', "
+                f"type={self.project_type}, skill_level={self.skill_level})>")
 
-        # Add waste factor based on complexity and grain requirements
-        waste_factor = 1.15  # Base 15% waste
-        if self.grain_direction_critical:
-            waste_factor += 0.1  # Additional 10% for grain matching
+    def calculate_complexity(self) -> float:
+        """
+        Calculate the complexity of the pattern.
 
-        return base_area * waste_factor
+        Considers multiple factors to determine overall complexity.
 
-    def calculate_thread_requirements(self) -> Dict[str, float]:
-        """Calculate thread requirements based on stitching specifications."""
-        total_stitch_length = 0
-        for spec in self.stitching_specifications.get('stitch_lines', []):
-            length = spec.get('length', 0)
-            rows = spec.get('rows', 1)
-            total_stitch_length += length * rows
+        Returns:
+            float: Calculated complexity score
+        """
+        # Base complexity calculation
+        complexity = 0.0
 
-        # Calculate thread length (typically 3.5x stitch length for saddle stitch)
-        thread_length = total_stitch_length * 3.5
+        # Component complexity
+        complexity += len(self.components) * 0.5
 
-        return {
-            'total_stitch_length': total_stitch_length,
-            'thread_length_needed': thread_length,
-            'recommended_length': thread_length * 1.2  # 20% extra for safety
+        # Skill level impact
+        skill_level_multipliers = {
+            SkillLevel.BEGINNER: 1.0,
+            SkillLevel.INTERMEDIATE: 1.5,
+            SkillLevel.ADVANCED: 2.0,
+            SkillLevel.EXPERT: 2.5
         }
+        complexity *= skill_level_multipliers.get(self.skill_level, 1.0)
 
-    def validate_pattern(self) -> List[str]:
-        """Validate the pattern for completeness and correctness."""
-        issues = []
+        # Stitch and edge finish complexity
+        if self.stitch_type:
+            complexity += 0.5
+        if self.edge_finish_type:
+            complexity += 0.5
 
-        # Check required fields
-        required_fields = ['name', 'leather_type', 'skill_level', 'project_type']
+        # Labor hours impact
+        complexity += self.estimated_labor_hours * 0.1
+
+        # Ensure a reasonable complexity range
+        return max(0.1, min(complexity, 10.0))
+
+    def validate_pattern(self) -> bool:
+        """
+        Validate the pattern's data integrity.
+
+        Returns:
+            bool: True if pattern data is valid, False otherwise
+        """
+        # Validate required fields
+        required_fields = ['name', 'skill_level', 'project_type']
         for field in required_fields:
             if not getattr(self, field):
-                issues.append(f"Missing required field: {field}")
+                return False
 
-        # Validate leather specifications
-        if self.leather_thickness_min and self.leather_thickness_max:
-            if self.leather_thickness_min > self.leather_thickness_max:
-                issues.append("Invalid leather thickness range")
+        # Validate numeric fields
+        try:
+            if (self.estimated_labor_hours < 0 or
+                    self.complexity_score < 0 or
+                    self.complexity_score > 10):
+                return False
+        except (TypeError, ValueError):
+            return False
 
-        # Validate pattern pieces
-        if not self.pattern_pieces:
-            issues.append("No pattern pieces defined")
-        else:
-            for i, piece in enumerate(self.pattern_pieces):
-                if 'name' not in piece:
-                    issues.append(f"Piece {i} missing name")
-                if 'length' not in piece or 'width' not in piece:
-                    issues.append(f"Piece {piece.get('name', i)} missing dimensions")
+        # Validate components if present
+        if self.components:
+            for component in self.components:
+                try:
+                    if not component.validate_component():
+                        return False
+                except Exception:
+                    return False
 
-        # Validate construction steps
-        if not self.construction_steps:
-            issues.append("No construction steps defined")
+        return True
 
-        return issues
+    def to_dict(self, exclude_fields: Optional[List[str]] = None) -> Dict[str, Any]:
+        """
+        Convert the pattern to a comprehensive dictionary representation.
 
-    def get_required_tools(self) -> List[str]:
-        """Get list of required tools with optional alternatives."""
-        base_tools = [
-            "Cutting mat",
-            "Rotary cutter or sharp knife",
-            "Steel ruler",
-            "Mallet"
-        ]
-        return base_tools + self.tool_requirements
+        Args:
+            exclude_fields (Optional[List[str]], optional): Fields to exclude
 
-    def estimate_completion_time(self, skill_level: SkillLevel) -> float:
-        """Estimate completion time based on skill level."""
-        base_time = self.estimated_time
+        Returns:
+            Dict[str, Any]: Dictionary representation of the pattern
+        """
+        exclude_fields = exclude_fields or []
 
-        # Adjust time based on skill level
-        skill_multipliers = {
-            SkillLevel.BEGINNER: 2.0,
-            SkillLevel.INTERMEDIATE: 1.5,
-            SkillLevel.ADVANCED: 1.0,
-            SkillLevel.EXPERT: 0.8
-        }
-
-        return base_time * skill_multipliers.get(skill_level, 1.0)
-
-    def to_dict(self) -> Dict:
-        """Convert pattern to dictionary with all relevant information."""
-        return {
+        # Prepare base dictionary
+        pattern_dict = {
             'id': self.id,
             'name': self.name,
             'description': self.description,
             'skill_level': self.skill_level.name if self.skill_level else None,
             'project_type': self.project_type.name if self.project_type else None,
-            'leather_specifications': {
-                'type': self.leather_type.name if self.leather_type else None,
-                'thickness_range': {
-                    'min': self.leather_thickness_min,
-                    'max': self.leather_thickness_max
-                },
-                'grade': self.leather_grade.name if self.leather_grade else None,
-                'area_required': self.leather_area_required
-            },
+            'stitch_type': self.stitch_type.name if self.stitch_type else None,
+            'edge_finish_type': self.edge_finish_type.name if self.edge_finish_type else None,
             'pattern_pieces': self.pattern_pieces,
-            'grain_direction_critical': self.grain_direction_critical,
+            'leather_specifications': self.leather_specifications,
             'hardware_requirements': self.hardware_requirements,
-            'tool_requirements': self.get_required_tools(),
-            'construction_steps': self.construction_steps,
-            'edge_finishing': self.edge_finishing,
-            'stitching_specifications': self.stitching_specifications,
-            'estimated_time': self.estimated_time,
-            'difficulty_notes': self.difficulty_notes,
-            'version': self.version
+            'estimated_labor_hours': self.estimated_labor_hours,
+            'is_template': self.is_template,
+            'version': self.version,
+            'complexity_score': self.calculate_complexity(),
+            'components': [component.to_dict() for component in self.components],
+            'pattern_files': [pf.to_dict() for pf in self.pattern_files]
+        }
+
+        # Remove any excluded fields
+        for field in exclude_fields:
+            pattern_dict.pop(field, None)
+
+        return pattern_dict
+
+    @classmethod
+    def create_template(
+            cls,
+            name: str,
+            project_type: ProjectType,
+            skill_level: SkillLevel,
+            estimated_labor_hours: float = 0.0,
+            description: Optional[str] = None,
+            stitch_type: Optional[StitchType] = None,
+            edge_finish_type: Optional[EdgeFinishType] = None
+    ) -> 'Pattern':
+        """
+        Create a pattern template with comprehensive specifications.
+
+        Args:
+            name (str): Name of the pattern template
+            project_type (ProjectType): Type of leatherworking project
+            skill_level (SkillLevel): Required skill level
+            estimated_labor_hours (float, optional): Estimated labor hours
+            description (Optional[str], optional): Description of the template
+            stitch_type (Optional[StitchType], optional): Stitching technique
+            edge_finish_type (Optional[EdgeFinishType], optional): Edge finishing method
+
+        Returns:
+            Pattern: Created pattern template
+        """
+        return cls(
+            name=name,
+            project_type=project_type,
+            skill_level=skill_level,
+            estimated_labor_hours=estimated_labor_hours,
+            description=description,
+            is_template=True,
+            stitch_type=stitch_type,
+            edge_finish_type=edge_finish_type,
+            pattern_pieces={},
+            leather_specifications={},
+            hardware_requirements={}
+        )
+
+
+class PatternFile(Base):
+    """
+    Represents files associated with a specific pattern.
+
+    Allows tracking of design files, sketches, and other
+    pattern-related documents.
+
+    Attributes:
+        id (int): Unique identifier for the pattern file
+        pattern_id (int): Foreign key to the associated pattern
+        pattern (Pattern): Relationship to the parent pattern
+        filename (str): Name of the file
+        file_path (str): Path to the file
+        file_type (str): Type of file (e.g., 'sketch', 'design', 'technical_drawing')
+        description (str, optional): Description of the file
+    """
+    __tablename__ = 'pattern_files'
+
+    # Timestamp columns
+    created_at = Column(DateTime, default=sa.func.now(), nullable=False)
+    updated_at = Column(DateTime, default=sa.func.now(), onupdate=sa.func.now(), nullable=False)
+
+    id = Column(Integer, primary_key=True)
+    pattern_id = Column(Integer, sa.ForeignKey('patterns.id'), nullable=False)
+    pattern = relationship("Pattern", back_populates="pattern_files")
+
+    filename = Column(String, nullable=False)
+    file_path = Column(String, nullable=False)
+    file_type = Column(String)
+    description = Column(String)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Convert the pattern file to a dictionary representation.
+
+        Returns:
+            Dict[str, Any]: Dictionary of pattern file attributes
+        """
+        return {
+            'id': self.id,
+            'pattern_id': self.pattern_id,
+            'filename': self.filename,
+            'file_path': self.file_path,
+            'file_type': self.file_type,
+            'description': self.description
         }

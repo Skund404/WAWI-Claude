@@ -51,7 +51,7 @@ from services.interfaces.supplier_service import ISupplierService
 from services.implementations.storage_service import StorageService
 from services.implementations.inventory_service import InventoryService
 from services.implementations.order_service import OrderService
-from services.implementations.recipe_service import RecipeService
+from services.implementations.recipe_service import PatternService
 from services.implementations.shopping_list_service import ShoppingListService
 from services.implementations.supplier_service import SupplierService
 

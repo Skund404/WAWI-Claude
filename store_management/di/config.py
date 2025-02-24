@@ -15,7 +15,7 @@ from services.interfaces.material_service import IMaterialService
 
 # Service implementations
 from services.implementations.order_service import OrderService
-from services.implementations.pattern_service import RecipeService
+from services.implementations.pattern_service import PatternService
 from services.implementations.shopping_list_service import ShoppingListService
 from services.implementations.project_service import ProjectService
 from services.implementations.storage_service import StorageService
@@ -60,7 +60,7 @@ class ApplicationConfig:
             singleton=True
         )
 
-        # Register Recipe service
+        # Register Pattern service
         container.register(
             IRecipeService,
             lambda c: RecipeService(c),

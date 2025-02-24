@@ -20,7 +20,7 @@ depends_on = None
 
 def upgrade():
     # Drop existing tables
-    op.drop_table('recipes')
+    op.drop_table('patterns')
     op.drop_table('recipe_items')
 
     # Create new project-related tables

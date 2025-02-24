@@ -40,7 +40,7 @@ from tkinter import ttk, messagebox, filedialog
 import logging
 
 from gui.storage.storage_view import StorageView
-from gui.recipe.recipe_view import RecipeView
+from gui.pattern.recipe_view import PatternView
 from gui.order.order_view import OrderView
 from gui.shopping_list.shopping_list_view import ShoppingListView
 
@@ -136,16 +136,16 @@ class MainWindow:
             messagebox.showerror("Error", f"Failed to create Storage view: {str(e)}")
 
     def _add_recipes_tab(self):
-        """Add the recipes tab to the notebook."""
+        """Add the patterns tab to the notebook."""
         try:
-            logger.info("Creating recipe view")
+            logger.info("Creating pattern view")
             recipes_frame = ttk.Frame(self.notebook)
             recipe_view = RecipeView(recipes_frame, self.app)
-            self.notebook.add(recipes_frame, text="Recipes")
+            self.notebook.add(recipes_frame, text="Patterns")
             logger.info("Project view created and added to notebook")
         except Exception as e:
-            logger.error(f"Error creating recipe view: {str(e)}", exc_info=True)
-            messagebox.showerror("Error", f"Failed to create Recipes view: {str(e)}")
+            logger.error(f"Error creating pattern view: {str(e)}", exc_info=True)
+            messagebox.showerror("Error", f"Failed to create Patterns view: {str(e)}")
 
     def _add_orders_tab(self):
         """Add the orders tab to the notebook."""

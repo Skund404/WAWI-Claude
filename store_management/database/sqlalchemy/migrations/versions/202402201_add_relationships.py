@@ -54,7 +54,7 @@ def upgrade():
         batch_op.add_column(sa.Column('completion_date', sa.DateTime(), nullable=True))
 
         batch_op.create_foreign_key(
-            'fk_production_recipe', 'recipes',
+            'fk_production_recipe', 'patterns',
             ['recipe_id'], ['id'],
             ondelete='RESTRICT'
         )
@@ -76,7 +76,7 @@ def upgrade():
         batch_op.add_column(sa.Column('quality_check_passed', sa.Boolean(), nullable=True))
 
         batch_op.create_foreign_key(
-            'fk_produced_recipe', 'recipes',
+            'fk_produced_recipe', 'patterns',
             ['recipe_id'], ['id'],
             ondelete='RESTRICT'
         )
@@ -85,14 +85,14 @@ def upgrade():
         batch_op.create_index('idx_produced_serial', ['serial_number'])
 
     # Update Project table
-    with op.batch_alter_table('recipes') as batch_op:
+    with op.batch_alter_table('patterns') as batch_op:
         batch_op.add_column(sa.Column('version', sa.String(20), nullable=True))
         batch_op.add_column(sa.Column('is_active', sa.Boolean(), nullable=True))
         batch_op.add_column(sa.Column('category', sa.String(50), nullable=True))
 
         # Set default values
-        op.execute("UPDATE recipes SET is_active = TRUE WHERE is_active IS NULL")
-        op.execute("UPDATE recipes SET version = '1.0' WHERE version IS NULL")
+        op.execute("UPDATE patterns SET is_active = TRUE WHERE is_active IS NULL")
+        op.execute("UPDATE patterns SET version = '1.0' WHERE version IS NULL")
 
         batch_op.create_unique_constraint('uq_recipe_name_version', ['name', 'version'])
         batch_op.create_index('idx_recipe_category', ['category'])
@@ -140,7 +140,7 @@ def downgrade():
         batch_op.drop_column('serial_number')
         batch_op.drop_column('quality_check_passed')
 
-    with op.batch_alter_table('recipes') as batch_op:
+    with op.batch_alter_table('patterns') as batch_op:
         batch_op.drop_index('idx_recipe_category')
         batch_op.drop_constraint('uq_recipe_name_version')
         batch_op.drop_column('version')

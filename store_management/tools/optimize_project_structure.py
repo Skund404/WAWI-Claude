@@ -1,15 +1,14 @@
-#!/usr/bin/env python3
-"""
-/tools/optimize_project_structure.py
+# /tools/fix_project_structure.py
 
-A comprehensive script to analyze and fix various structural issues in the store_management project.
+"""
+A comprehensive script to fix various structural issues in the store_management project.
 This script handles:
-1. Service consolidation
-2. Repository standardization
-3. Error handling improvement
-4. Configuration centralization
-5. Type hint addition
-6. Logging standardization
+1. Code cleanup and consolidation
+2. Directory structure optimization
+3. Backup management
+4. Log centralization
+5. Service deduplication
+6. Configuration standardization
 
 Author: Project Optimization Team
 Date: 2024-02-24
@@ -17,287 +16,340 @@ Date: 2024-02-24
 
 import os
 import sys
-import ast
-import logging
 import shutil
+import logging
 from pathlib import Path
-from typing import Dict, List, Set, Optional, Any, Tuple
-from dataclasses import dataclass
+from typing import Set, List, Dict, Any, Optional
 import re
+import time
+from datetime import datetime
+import ast
+import json
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('project_fixes.log'),
+        logging.StreamHandler(sys.stdout)
+    ]
 )
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class ServiceInfo:
-    """Information about a service implementation."""
-    name: str
-    path: Path
-    methods: Set[str]
-    dependencies: Set[str]
-    interface_path: Optional[Path] = None
-
-
-@dataclass
-class RepositoryInfo:
-    """Information about a repository implementation."""
-    name: str
-    path: Path
-    entity_type: str
-    methods: Set[str]
-
-
-class ProjectOptimizer:
-    """Handles project-wide optimization and fixes."""
+class ProjectFixer:
+    """Implements fixes for identified project issues."""
 
     def __init__(self, project_root: Path):
-        """
-        Initialize the project optimizer.
+        self.project_root = Path(project_root)
+        self.backup_path = None
+        self.centralized_logs_dir = self.project_root / 'logs'
+        self.centralized_backups_dir = self.project_root / 'backups'
 
-        Args:
-            project_root: Path to the project root directory
-        """
-        self.project_root = project_root
-        self.services: Dict[str, ServiceInfo] = {}
-        self.repositories: Dict[str, RepositoryInfo] = {}
-        self.config_files: List[Path] = []
-        self.type_hint_needed: List[Path] = []
-
-    def analyze_project(self) -> None:
-        """Perform complete project analysis."""
-        logger.info("Starting project analysis...")
-
+    def fix_all(self) -> None:
+        """Execute all fixes in the correct order."""
         try:
-            self._find_services()
-            self._find_repositories()
-            self._analyze_configurations()
-            self._check_type_hints()
-            logger.info("Project analysis completed successfully")
-        except Exception as e:
-            logger.error(f"Error during project analysis: {e}")
-            raise
-
-    def _find_services(self) -> None:
-        """Locate and analyze all service implementations."""
-        service_dir = self.project_root / "services"
-        impl_dir = service_dir / "implementations"
-
-        for service_file in impl_dir.glob("**/*.py"):
-            try:
-                with open(service_file, 'r') as f:
-                    tree = ast.parse(f.read())
-
-                for node in ast.walk(tree):
-                    if isinstance(node, ast.ClassDef):
-                        if node.name.endswith('Service'):
-                            methods = {
-                                n.name for n in node.body
-                                if isinstance(n, ast.FunctionDef)
-                            }
-                            self.services[node.name] = ServiceInfo(
-                                name=node.name,
-                                path=service_file,
-                                methods=methods,
-                                dependencies=self._extract_dependencies(node)
-                            )
-            except Exception as e:
-                logger.error(f"Error analyzing service file {service_file}: {e}")
-
-    def _find_repositories(self) -> None:
-        """Locate and analyze all repository implementations."""
-        repo_dir = self.project_root / "database" / "repositories"
-
-        for repo_file in repo_dir.glob("**/*.py"):
-            try:
-                with open(repo_file, 'r') as f:
-                    tree = ast.parse(f.read())
-
-                for node in ast.walk(tree):
-                    if isinstance(node, ast.ClassDef):
-                        if node.name.endswith('Repository'):
-                            self.repositories[node.name] = RepositoryInfo(
-                                name=node.name,
-                                path=repo_file,
-                                entity_type=self._extract_entity_type(node),
-                                methods=self._extract_methods(node)
-                            )
-            except Exception as e:
-                logger.error(f"Error analyzing repository file {repo_file}: {e}")
-
-    def optimize_services(self) -> None:
-        """Consolidate and optimize service implementations."""
-        logger.info("Optimizing service layer...")
-
-        # Group services by functionality
-        service_groups = self._group_similar_services()
-
-        for group in service_groups:
-            try:
-                self._consolidate_service_group(group)
-            except Exception as e:
-                logger.error(f"Error consolidating service group: {e}")
-
-    def standardize_repositories(self) -> None:
-        """Standardize repository implementations."""
-        logger.info("Standardizing repositories...")
-
-        base_repo_template = self._create_base_repository_template()
-
-        for repo in self.repositories.values():
-            try:
-                self._update_repository(repo, base_repo_template)
-            except Exception as e:
-                logger.error(f"Error standardizing repository {repo.name}: {e}")
-
-    def centralize_configuration(self) -> None:
-        """Centralize configuration management."""
-        logger.info("Centralizing configuration...")
-
-        config_dir = self.project_root / "config"
-        new_config = config_dir / "configuration.py"
-
-        try:
-            self._merge_configurations(new_config)
-            self._update_config_imports()
-        except Exception as e:
-            logger.error(f"Error centralizing configuration: {e}")
-
-    def add_type_hints(self) -> None:
-        """Add type hints to files that need them."""
-        logger.info("Adding type hints...")
-
-        for file_path in self.type_hint_needed:
-            try:
-                self._add_file_type_hints(file_path)
-            except Exception as e:
-                logger.error(f"Error adding type hints to {file_path}: {e}")
-
-    def standardize_error_handling(self) -> None:
-        """Implement consistent error handling."""
-        logger.info("Standardizing error handling...")
-
-        error_handler = self._create_error_handler()
-
-        try:
-            self._implement_error_handling(error_handler)
-        except Exception as e:
-            logger.error(f"Error standardizing error handling: {e}")
-
-    def _extract_dependencies(self, node: ast.ClassDef) -> Set[str]:
-        """Extract service dependencies from class definition."""
-        dependencies = set()
-
-        for n in ast.walk(node):
-            if isinstance(n, ast.Call) and isinstance(n.func, ast.Name):
-                if n.func.id.endswith('Service'):
-                    dependencies.add(n.func.id)
-
-        return dependencies
-
-    def _extract_entity_type(self, node: ast.ClassDef) -> str:
-        """Extract the entity type handled by a repository."""
-        for base in node.bases:
-            if isinstance(base, ast.Name) and base.id.endswith('Repository'):
-                return base.id.replace('Repository', '')
-        return 'Unknown'
-
-    def _extract_methods(self, node: ast.ClassDef) -> Set[str]:
-        """Extract method names from a class definition."""
-        return {
-            n.name for n in node.body
-            if isinstance(n, ast.FunctionDef)
-        }
-
-    def _group_similar_services(self) -> List[List[ServiceInfo]]:
-        """Group services with similar functionality."""
-        groups = []
-        processed = set()
-
-        for service_name, service_info in self.services.items():
-            if service_name in processed:
-                continue
-
-            similar_services = [service_info]
-            processed.add(service_name)
-
-            for other_name, other_info in self.services.items():
-                if other_name not in processed:
-                    if self._are_services_similar(service_info, other_info):
-                        similar_services.append(other_info)
-                        processed.add(other_name)
-
-            groups.append(similar_services)
-
-        return groups
-
-    def _are_services_similar(self, service1: ServiceInfo, service2: ServiceInfo) -> bool:
-        """Determine if two services have similar functionality."""
-        # Check method name similarity
-        method_similarity = len(service1.methods & service2.methods) / \
-                            len(service1.methods | service2.methods)
-
-        # Check dependency similarity
-        dep_similarity = len(service1.dependencies & service2.dependencies) / \
-                         len(service1.dependencies | service2.dependencies) \
-            if service1.dependencies or service2.dependencies else 1.0
-
-        return method_similarity > 0.7 and dep_similarity > 0.6
-
-    def run(self) -> None:
-        """Execute all optimization steps."""
-        try:
-            logger.info("Starting project optimization...")
+            logger.info("Starting project fixes...")
 
             # Create backup
             self._create_backup()
 
-            # Run optimization steps
-            self.analyze_project()
-            self.optimize_services()
-            self.standardize_repositories()
-            self.centralize_configuration()
-            self.add_type_hints()
-            self.standardize_error_handling()
+            # Execute fixes in order
+            self.centralize_logs()
+            self.consolidate_backups()
+            self.clean_duplicate_files()
+            self.remove_redundant_paths()
+            self.fix_syntax_errors()
+            self.consolidate_services()
+            self.standardize_configs()
 
-            logger.info("Project optimization completed successfully")
+            logger.info("Project fixes completed successfully")
 
         except Exception as e:
-            logger.error(f"Error during optimization: {e}")
+            logger.error(f"Error during fixes: {e}")
             self._restore_backup()
             raise
 
+    def centralize_logs(self) -> None:
+        """Centralize all log files into a single directory."""
+        logger.info("Centralizing log files...")
+
+        # Ensure centralized logs directory exists
+        self.centralized_logs_dir.mkdir(exist_ok=True)
+
+        # Find all log files
+        log_files = list(self.project_root.rglob("*.log"))
+
+        for log_file in log_files:
+            if self.centralized_logs_dir in log_file.parents:
+                continue
+
+            # Create new log name with directory prefix
+            new_name = f"{log_file.parent.name}_{log_file.name}"
+            new_path = self.centralized_logs_dir / new_name
+
+            try:
+                # Move log file
+                if log_file.exists():
+                    shutil.move(str(log_file), str(new_path))
+                    logger.info(f"Moved {log_file} to {new_path}")
+            except Exception as e:
+                logger.error(f"Error moving log file {log_file}: {e}")
+
+    def consolidate_backups(self) -> None:
+        """Consolidate all backup files into a single directory."""
+        logger.info("Consolidating backup files...")
+
+        # Ensure centralized backups directory exists
+        self.centralized_backups_dir.mkdir(exist_ok=True)
+
+        # Find all backup files
+        backup_files = []
+        backup_files.extend(self.project_root.rglob("*.bak"))
+        backup_files.extend(self.project_root.rglob("*.backup"))
+        backup_files.extend(self.project_root.rglob("*_backup_*"))
+
+        for backup_file in backup_files:
+            if self.centralized_backups_dir in backup_file.parents:
+                continue
+
+            # Create new backup name with timestamp
+            timestamp = datetime.fromtimestamp(backup_file.stat().st_mtime).strftime("%Y%m%d_%H%M%S")
+            new_name = f"{backup_file.parent.name}_{backup_file.stem}_{timestamp}{backup_file.suffix}"
+            new_path = self.centralized_backups_dir / new_name
+
+            try:
+                # Move backup file
+                if backup_file.exists():
+                    shutil.move(str(backup_file), str(new_path))
+                    logger.info(f"Moved {backup_file} to {new_path}")
+            except Exception as e:
+                logger.error(f"Error moving backup file {backup_file}: {e}")
+
+    def clean_duplicate_files(self) -> None:
+        """Remove duplicate implementations and consolidate code."""
+        logger.info("Cleaning duplicate files...")
+
+        # Check for duplicate service implementations
+        service_files = list((self.project_root / 'services').rglob("*.py"))
+        implementation_map: Dict[str, List[Path]] = {}
+
+        for service_file in service_files:
+            if service_file.name == "__init__.py":
+                continue
+
+            # Group by base name (without _service suffix)
+            base_name = service_file.stem.replace('_service', '')
+            if base_name not in implementation_map:
+                implementation_map[base_name] = []
+            implementation_map[base_name].append(service_file)
+
+        # Consolidate duplicates
+        for base_name, implementations in implementation_map.items():
+            if len(implementations) > 1:
+                logger.info(f"Found duplicate implementations for {base_name}")
+                self._consolidate_implementations(base_name, implementations)
+
+    def remove_redundant_paths(self) -> None:
+        """Remove redundant path structures."""
+        logger.info("Removing redundant paths...")
+
+        redundant_paths = [
+            self.project_root / "path",
+            self.project_root / "database/sqlalchemy/path"
+        ]
+
+        for path in redundant_paths:
+            if path.exists():
+                try:
+                    shutil.rmtree(path)
+                    logger.info(f"Removed redundant path: {path}")
+                except Exception as e:
+                    logger.error(f"Error removing path {path}: {e}")
+
+    def fix_syntax_errors(self) -> None:
+        """Fix identified syntax errors in Python files."""
+        logger.info("Fixing syntax errors...")
+
+        files_to_fix = {
+            self.project_root / "pyproject.toml.py": self._fix_pyproject_toml,
+            self.project_root / "database/sqlalchemy/mixins/validation_mixing.py": self._fix_validation_mixing
+        }
+
+        for file_path, fix_func in files_to_fix.items():
+            if file_path.exists():
+                try:
+                    fix_func(file_path)
+                    logger.info(f"Fixed syntax in {file_path}")
+                except Exception as e:
+                    logger.error(f"Error fixing {file_path}: {e}")
+
+    def consolidate_services(self) -> None:
+        """Consolidate service implementations using best practices."""
+        logger.info("Consolidating services...")
+
+        services_dir = self.project_root / "services"
+        implementations_dir = services_dir / "implementations"
+        interfaces_dir = services_dir / "interfaces"
+
+        # Ensure directory structure
+        implementations_dir.mkdir(exist_ok=True)
+        interfaces_dir.mkdir(exist_ok=True)
+
+        # Move and consolidate service implementations
+        service_files = list(services_dir.glob("*.py"))
+        for service_file in service_files:
+            if service_file.name == "__init__.py":
+                continue
+
+            if "_service" in service_file.name.lower():
+                try:
+                    # Move to implementations if not already there
+                    if service_file.parent == services_dir:
+                        new_path = implementations_dir / service_file.name
+                        shutil.move(str(service_file), str(new_path))
+                        logger.info(f"Moved {service_file} to implementations directory")
+                except Exception as e:
+                    logger.error(f"Error moving service file {service_file}: {e}")
+
+    def standardize_configs(self) -> None:
+        """Standardize configuration management."""
+        logger.info("Standardizing configurations...")
+
+        config_dir = self.project_root / "config"
+        config_files = list(config_dir.glob("*.py"))
+
+        # Collect all config settings
+        all_configs = {}
+        for config_file in config_files:
+            if config_file.name == "__init__.py":
+                continue
+
+            try:
+                with open(config_file, 'r', encoding='utf-8') as f:
+                    tree = ast.parse(f.read())
+
+                # Extract configuration variables
+                for node in ast.walk(tree):
+                    if isinstance(node, ast.Assign):
+                        for target in node.targets:
+                            if isinstance(target, ast.Name):
+                                all_configs[target.id] = {
+                                    'file': config_file.name,
+                                    'value': self._get_value_from_node(node.value)
+                                }
+            except Exception as e:
+                logger.error(f"Error analyzing config file {config_file}: {e}")
+
+        # Create centralized configuration
+        self._create_centralized_config(all_configs)
+
+    def _fix_pyproject_toml(self, file_path: Path) -> None:
+        """Fix syntax in pyproject.toml.py."""
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        # Fix common syntax error in pyproject.toml.py
+        fixed_content = content.replace(" = ", " == ")
+
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(fixed_content)
+
+    def _fix_validation_mixing(self, file_path: Path) -> None:
+        """Fix syntax in validation_mixing.py."""
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        # Fix missing parentheses
+        fixed_content = re.sub(r'class (\w+):', r'class \1():', content)
+
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(fixed_content)
+
+    def _consolidate_implementations(self, base_name: str, implementations: List[Path]) -> None:
+        """Consolidate multiple implementations into a single best version."""
+        # Sort by modification time to keep the most recent
+        implementations.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+
+        # Keep the most recent implementation
+        keeper = implementations[0]
+
+        # Move others to backup
+        for impl in implementations[1:]:
+            backup_path = self.centralized_backups_dir / f"{impl.stem}_deprecated_{time.strftime('%Y%m%d_%H%M%S')}{impl.suffix}"
+            shutil.move(str(impl), str(backup_path))
+            logger.info(f"Moved duplicate implementation {impl} to {backup_path}")
+
+    def _create_centralized_config(self, configs: Dict[str, Any]) -> None:
+        """Create a centralized configuration file."""
+        config_path = self.project_root / "config" / "configuration.py"
+
+        with open(config_path, 'w', encoding='utf-8') as f:
+            f.write('"""Centralized configuration management."""\n\n')
+
+            # Write imports
+            f.write('import os\n')
+            f.write('from pathlib import Path\n\n')
+
+            # Write configuration class
+            f.write('class Configuration:\n')
+            f.write('    """Central configuration management class."""\n\n')
+
+            # Write config values
+            for name, details in configs.items():
+                value = details['value']
+                f.write(f'    {name} = {value!r}  # from {details["file"]}\n')
+
     def _create_backup(self) -> None:
         """Create a backup of the project."""
-        backup_dir = self.project_root.parent / f"{self.project_root.name}_backup"
-        shutil.copytree(self.project_root, backup_dir)
-        logger.info(f"Created backup at {backup_dir}")
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        self.backup_path = self.project_root.parent / f"{self.project_root.name}_backup_{timestamp}"
+        shutil.copytree(self.project_root, self.backup_path)
+        logger.info(f"Created backup at {self.backup_path}")
 
     def _restore_backup(self) -> None:
-        """Restore project from backup if optimization fails."""
-        backup_dir = self.project_root.parent / f"{self.project_root.name}_backup"
-        if backup_dir.exists():
+        """Restore from backup if available."""
+        if self.backup_path and self.backup_path.exists():
             shutil.rmtree(self.project_root)
-            shutil.move(backup_dir, self.project_root)
-            logger.info("Restored project from backup")
+            shutil.copytree(self.backup_path, self.project_root)
+            logger.info("Restored from backup")
+
+    def _get_value_from_node(self, node: ast.AST) -> Any:
+        """Convert AST node to Python value."""
+        if isinstance(node, ast.Str):
+            return node.s
+        elif isinstance(node, ast.Num):
+            return node.n
+        elif isinstance(node, ast.NameConstant):
+            return node.value
+        elif isinstance(node, ast.Dict):
+            return {
+                self._get_value_from_node(k): self._get_value_from_node(v)
+                for k, v in zip(node.keys, node.values)
+            }
+        return str(ast.dump(node))
 
 
 def main() -> None:
-    """Main entry point for the optimization script."""
+    """Main entry point for the script."""
     try:
-        # Get project root
-        project_root = Path(__file__).resolve().parent.parent
+        # Get project root from command line or use default
+        if len(sys.argv) > 1:
+            project_root = Path(sys.argv[1])
+        else:
+            project_root = Path(__file__).resolve().parent.parent
 
-        # Create and run optimizer
-        optimizer = ProjectOptimizer(project_root)
-        optimizer.run()
+        # Validate project root
+        if not project_root.exists():
+            raise FileNotFoundError(f"Project root not found: {project_root}")
+
+        # Create and run fixer
+        fixer = ProjectFixer(project_root)
+        fixer.fix_all()
 
     except Exception as e:
-        logger.error(f"Optimization failed: {e}")
+        logger.error(f"Project fixes failed: {e}")
         sys.exit(1)
 
 

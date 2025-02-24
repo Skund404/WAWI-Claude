@@ -9,7 +9,7 @@ from .interfaces import IComponent, IProject, IRecipe
 from .mixins import TimestampMixin, NoteMixin, CostingMixin, ValidationMixin
 from .components import Component, ProjectComponent, RecipeComponent
 from .project import Project
-from .pattern import Recipe
+from .pattern import Pattern
 from .factories import ProjectFactory, RecipeFactory
 from .config import ModelConfiguration, MaterialConfig, ComponentConfig
 
@@ -27,7 +27,7 @@ __all__ = [
 
     # Models
     'Component', 'ProjectComponent', 'RecipeComponent',
-    'Project', 'Recipe',
+    'Project', 'Pattern',
 
     # Factories
     'ProjectFactory', 'RecipeFactory',

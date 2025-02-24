@@ -105,10 +105,10 @@ class StorageView(ttk.Frame):
         """Load storage data using SQLAlchemy"""
         try:
             with self.db.session_scope() as session:
-                # Query all storage items with products and recipes
+                # Query all storage items with products and patterns
                 storage_items = session.query(Storage) \
                     .join(Storage.product) \
-                    .join(Product.recipe) \
+                    .join(Product.pattern) \
                     .order_by(Storage.bin) \
                     .all()
 
@@ -121,9 +121,9 @@ class StorageView(ttk.Frame):
                     values = [
                         storage.product.unique_id,
                         storage.product.name,
-                        storage.product.recipe.type,
-                        storage.product.recipe.collection,
-                        storage.product.recipe.color,
+                        storage.product.pattern.type,
+                        storage.product.pattern.collection,
+                        storage.product.pattern.color,
                         storage.amount,
                         storage.bin,
                         storage.notes
@@ -148,9 +148,9 @@ class StorageView(ttk.Frame):
         main_frame = ttk.Frame(dialog, padding="10")
         main_frame.pack(fill=tk.BOTH, expand=True)
 
-        # Get recipes for dropdown
+        # Get patterns for dropdown
         with self.db.session_scope() as session:
-            recipes = session.query(Project.unique_id, Project.name).all()
+            patterns = session.query(Project.unique_id, Project.name).all()
 
         # Create fields
         ttk.Label(main_frame, text="Project:").grid(row=0, column=0, sticky='w')
@@ -158,7 +158,7 @@ class StorageView(ttk.Frame):
         recipe_combo = ttk.Combobox(
             main_frame,
             textvariable=recipe_var,
-            values=[f"{r[1]} ({r[0]})" for r in recipes]
+            values=[f"{r[1]} ({r[0]})" for r in patterns]
         )
         recipe_combo.grid(row=0, column=1, sticky='ew')
 
@@ -193,10 +193,10 @@ class StorageView(ttk.Frame):
             try:
                 recipe_text = recipe_var.get()
                 if not recipe_text:
-                    messagebox.showerror("Error", "Please select a recipe")
+                    messagebox.showerror("Error", "Please select a pattern")
                     return
 
-                # Get recipe ID from selection
+                # Get pattern ID from selection
                 recipe_id = recipe_text.split('(')[1].strip(')')
 
                 # Validate numeric inputs
@@ -211,18 +211,18 @@ class StorageView(ttk.Frame):
 
                 with self.db.session_scope() as session:
                     # Get or create product
-                    recipe = session.query(Project) \
+                    pattern = session.query(Project) \
                         .filter(Project.unique_id == recipe_id) \
                         .first()
 
-                    if not recipe:
+                    if not pattern:
                         messagebox.showerror("Error", "Project not found")
                         return
 
                     product = Product(
                         unique_id=f"P{str(uuid.uuid4())[:8]}",
-                        name=recipe.name,
-                        recipe_id=recipe.id
+                        name=pattern.name,
+                        recipe_id=pattern.id
                     )
                     session.add(product)
                     session.flush()  # Get product ID
@@ -319,7 +319,7 @@ class StorageView(ttk.Frame):
                 with self.db.session_scope() as session:
                     query = session.query(Storage) \
                         .join(Storage.product) \
-                        .join(Product.recipe)
+                        .join(Product.pattern)
 
                     # Build search conditions
                     if target_var.get() == "all":
@@ -347,9 +347,9 @@ class StorageView(ttk.Frame):
                         values = [
                             storage.product.unique_id,
                             storage.product.name,
-                            storage.product.recipe.type,
-                            storage.product.recipe.collection,
-                            storage.product.recipe.color,
+                            storage.product.pattern.type,
+                            storage.product.pattern.collection,
+                            storage.product.pattern.color,
                             storage.amount,
                             storage.bin,
                             storage.notes
@@ -449,7 +449,7 @@ class StorageView(ttk.Frame):
                     # Start with base query
                     query = session.query(Storage) \
                         .join(Storage.product) \
-                        .join(Product.recipe)
+                        .join(Product.pattern)
 
                     # Apply type filter
                     if type_var.get() != 'All':
@@ -486,9 +486,9 @@ class StorageView(ttk.Frame):
                         values = [
                             storage.product.unique_id,
                             storage.product.name,
-                            storage.product.recipe.type,
-                            storage.product.recipe.collection,
-                            storage.product.recipe.color,
+                            storage.product.pattern.type,
+                            storage.product.pattern.collection,
+                            storage.product.pattern.color,
                             storage.amount,
                             storage.bin,
                             storage.notes

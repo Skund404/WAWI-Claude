@@ -50,7 +50,7 @@ class ReportManager(BaseManager):
         return pd.DataFrame([dict(row) for row in result])
 
     def generate_products_report(self, filters: Optional[Dict[str, Any]] = None) -> pd.DataFrame:
-        """Generate products report with recipe relationships."""
+        """Generate products report with pattern relationships."""
         query = self.session.query(
             Product.id,
             Product.unique_id,
@@ -89,7 +89,7 @@ class ReportManager(BaseManager):
         return pd.DataFrame([dict(row) for row in result])
 
     def generate_recipe_usage_report(self, filters: Optional[Dict[str, Any]] = None) -> pd.DataFrame:
-        """Generate report showing recipe usage in products."""
+        """Generate report showing pattern usage in products."""
         query = self.session.query(
             Project.id,
             Project.name.label('recipe_name'),

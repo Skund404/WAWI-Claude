@@ -1,17 +1,29 @@
 # services/implementations/storage_service.py
+"""
+Concrete implementation of the IStorageService interface.
+
+This module provides a comprehensive implementation of storage-related
+operations using the dependency injection pattern and repository pattern.
+"""
+
+import logging
 from typing import Dict, List, Optional, Any
+
+from di.service import Service
 from services.interfaces.storage_service import IStorageService
 from database.repositories.storage_repository import StorageRepository
-from di.service import Service
-from utils.logger import get_logger
+from utils.error_handler import ApplicationError, ValidationError
 
 
 class StorageService(Service, IStorageService):
     """
     Concrete implementation of the IStorageService interface.
 
-    This service provides methods for managing storage locations
-    with dependency injection and error handling.
+    This service provides methods for managing storage locations with
+    dependency injection, error handling, and validation.
+
+    Attributes:
+        _storage_repository (StorageRepository): Repository for storage-related database operations
     """
 
     def __init__(self, container):
@@ -21,76 +33,91 @@ class StorageService(Service, IStorageService):
         Args:
             container: Dependency injection container
         """
-        self.container = container
-        self.logger = get_logger(self.__class__.__name__)
+        super().__init__(container)
+        # Retrieve the storage repository from the container
+        self._storage_repository = self.get_dependency(StorageRepository)
+        self._logger = logging.getLogger(__name__)
 
     def get_all_storage_locations(self) -> List[Dict[str, Any]]:
         """
-        Retrieve all storage locations.
+        Retrieve all storage locations from the system.
 
         Returns:
-            List of storage locations as dictionaries.
+            List[Dict[str, Any]]: A list of storage locations with their details.
 
         Raises:
-            Exception: If there's an error retrieving storage locations.
+            ApplicationError: If retrieval fails due to database or system errors.
         """
         try:
-            repository: StorageRepository = self.container.resolve(StorageRepository)
-            storage_locations = repository.get_all()
-            return [self._to_dict(storage) for storage in storage_locations]
+            # Use the storage repository to get all storage locations
+            storage_locations = self._storage_repository.get_all()
+
+            # Convert storage locations to dictionaries
+            return [self._to_dict(location) for location in storage_locations]
         except Exception as e:
-            self.logger.error(f"Error retrieving storage locations: {e}")
-            raise
+            self._logger.error(f"Error retrieving storage locations: {str(e)}")
+            raise ApplicationError("Failed to retrieve storage locations") from e
 
     def get_storage_by_id(self, storage_id: int) -> Optional[Dict[str, Any]]:
         """
-        Retrieve a specific storage location by its ID.
+        Retrieve a specific storage location by its unique identifier.
 
         Args:
-            storage_id (int): Unique identifier for the storage location.
+            storage_id (int): The unique identifier of the storage location.
 
         Returns:
-            Dictionary representation of the storage location or None if not found.
+            Optional[Dict[str, Any]]: Details of the storage location if found,
+                                      None otherwise.
 
         Raises:
-            ValueError: If storage_id is invalid.
+            ValidationError: If the storage_id is invalid.
+            ApplicationError: If retrieval fails due to database or system errors.
         """
-        if not isinstance(storage_id, int) or storage_id <= 0:
-            raise ValueError("Invalid storage ID")
-
         try:
-            repository: StorageRepository = self.container.resolve(StorageRepository)
-            storage = repository.get(storage_id)
+            # Validate storage_id
+            if not isinstance(storage_id, int) or storage_id <= 0:
+                raise ValidationError("Invalid storage ID")
+
+            # Retrieve storage location
+            storage = self._storage_repository.get(storage_id)
+
             return self._to_dict(storage) if storage else None
-        except Exception as e:
-            self.logger.error(f"Error retrieving storage location {storage_id}: {e}")
+        except ValidationError:
             raise
+        except Exception as e:
+            self._logger.error(f"Error retrieving storage location {storage_id}: {str(e)}")
+            raise ApplicationError(f"Failed to retrieve storage location {storage_id}") from e
 
     def create_storage_location(self, storage_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Create a new storage location.
+        Create a new storage location in the system.
 
         Args:
-            storage_data (dict): Data for the new storage location.
+            storage_data (Dict[str, Any]): Data for the new storage location.
 
         Returns:
-            Dictionary of the newly created storage location.
+            Dict[str, Any]: Details of the created storage location.
 
         Raises:
-            ValueError: If storage_data is invalid.
+            ValidationError: If the provided storage data is invalid.
+            ApplicationError: If creation fails due to database or system errors.
         """
-        if not storage_data:
-            raise ValueError("Storage data cannot be empty")
-
         try:
-            repository: StorageRepository = self.container.resolve(StorageRepository)
-            new_storage = repository.create(storage_data)
-            created_storage = self._to_dict(new_storage)
-            self.logger.info(f"Created new storage location: {created_storage}")
-            return created_storage
-        except Exception as e:
-            self.logger.error(f"Error creating storage location: {e}")
+            # Validate storage data
+            self._validate_storage_data(storage_data)
+
+            # Create storage location
+            new_storage = self._storage_repository.create(storage_data)
+
+            # Log the creation
+            self._logger.info(f"Created new storage location: {new_storage.id}")
+
+            return self._to_dict(new_storage)
+        except ValidationError:
             raise
+        except Exception as e:
+            self._logger.error(f"Error creating storage location: {str(e)}")
+            raise ApplicationError("Failed to create storage location") from e
 
     def update_storage_location(self, storage_id: int, storage_data: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -98,135 +125,183 @@ class StorageService(Service, IStorageService):
 
         Args:
             storage_id (int): Unique identifier of the storage location to update.
-            storage_data (dict): Updated data for the storage location.
+            storage_data (Dict[str, Any]): Updated data for the storage location.
 
         Returns:
-            Dictionary of the updated storage location.
+            Dict[str, Any]: Updated details of the storage location.
 
         Raises:
-            ValueError: If storage_id is invalid or storage_data is empty.
+            ValidationError: If the storage_id is invalid or storage data is incomplete.
+            ApplicationError: If update fails due to database or system errors.
         """
-        if not isinstance(storage_id, int) or storage_id <= 0:
-            raise ValueError("Invalid storage ID")
-        if not storage_data:
-            raise ValueError("Storage update data cannot be empty")
-
         try:
-            repository: StorageRepository = self.container.resolve(StorageRepository)
-            updated_storage = repository.update(storage_id, storage_data)
-            updated_dict = self._to_dict(updated_storage)
-            self.logger.info(f"Updated storage location {storage_id}: {updated_dict}")
-            return updated_dict
-        except Exception as e:
-            self.logger.error(f"Error updating storage location {storage_id}: {e}")
-            raise
+            # Validate inputs
+            if not isinstance(storage_id, int) or storage_id <= 0:
+                raise ValidationError("Invalid storage ID")
 
-    def delete_storage_location(self, storage_id: int) -> None:
+            self._validate_storage_data(storage_data, is_update=True)
+
+            # Update storage location
+            updated_storage = self._storage_repository.update(storage_id, storage_data)
+
+            if not updated_storage:
+                raise ApplicationError(f"Storage location {storage_id} not found")
+
+            # Log the update
+            self._logger.info(f"Updated storage location: {storage_id}")
+
+            return self._to_dict(updated_storage)
+        except ValidationError:
+            raise
+        except Exception as e:
+            self._logger.error(f"Error updating storage location {storage_id}: {str(e)}")
+            raise ApplicationError(f"Failed to update storage location {storage_id}") from e
+
+    def delete_storage_location(self, storage_id: int) -> bool:
         """
-        Delete a storage location.
+        Delete a storage location from the system.
 
         Args:
             storage_id (int): Unique identifier of the storage location to delete.
 
-        Raises:
-            ValueError: If storage_id is invalid.
-        """
-        if not isinstance(storage_id, int) or storage_id <= 0:
-            raise ValueError("Invalid storage ID")
+        Returns:
+            bool: True if deletion was successful, False otherwise.
 
+        Raises:
+            ValidationError: If the storage_id is invalid.
+            ApplicationError: If deletion fails due to existing dependencies or system errors.
+        """
         try:
-            repository: StorageRepository = self.container.resolve(StorageRepository)
-            repository.delete(storage_id)
-            self.logger.info(f"Deleted storage location {storage_id}")
+            # Validate storage_id
+            if not isinstance(storage_id, int) or storage_id <= 0:
+                raise ValidationError("Invalid storage ID")
+
+            # Attempt to delete
+            deletion_result = self._storage_repository.delete(storage_id)
+
+            # Log the deletion
+            if deletion_result:
+                self._logger.info(f"Deleted storage location: {storage_id}")
+            else:
+                self._logger.warning(f"Storage location {storage_id} not found for deletion")
+
+            return deletion_result
         except Exception as e:
-            self.logger.error(f"Error deleting storage location {storage_id}: {e}")
-            raise
+            self._logger.error(f"Error deleting storage location {storage_id}: {str(e)}")
+            raise ApplicationError(f"Failed to delete storage location {storage_id}") from e
 
     def search_storage_locations(self, search_term: str) -> List[Dict[str, Any]]:
         """
-        Search storage locations based on a search term.
+        Search for storage locations based on a search term.
 
         Args:
             search_term (str): Term to search for in storage locations.
 
         Returns:
-            List of matching storage locations as dictionaries.
+            List[Dict[str, Any]]: List of storage locations matching the search term.
 
         Raises:
-            ValueError: If search term is empty.
+            ValidationError: If the search term is empty or invalid.
+            ApplicationError: If search fails due to database or system errors.
         """
-        if not search_term or not isinstance(search_term, str):
-            raise ValueError("Search term must be a non-empty string")
-
         try:
-            repository: StorageRepository = self.container.resolve(StorageRepository)
-            storage_locations = repository.search_storage(search_term)
-            return [self._to_dict(storage) for storage in storage_locations]
-        except Exception as e:
-            self.logger.error(f"Error searching storage locations: {e}")
+            # Validate search term
+            if not search_term or not isinstance(search_term, str):
+                raise ValidationError("Invalid search term")
+
+            # Perform search
+            search_results = self._storage_repository.search_storage(search_term)
+
+            return [self._to_dict(result) for result in search_results]
+        except ValidationError:
             raise
+        except Exception as e:
+            self._logger.error(f"Error searching storage locations: {str(e)}")
+            raise ApplicationError("Failed to search storage locations") from e
 
     def get_storage_status(self, storage_id: int) -> Optional[Dict[str, Any]]:
         """
-        Get the status of a specific storage location.
+        Get the current status of a specific storage location.
 
         Args:
             storage_id (int): Unique identifier of the storage location.
 
         Returns:
-            Dictionary with storage status information or None if not found.
+            Optional[Dict[str, Any]]: Dictionary with storage status information
+                                      or None if not found.
 
         Raises:
-            ValueError: If storage_id is invalid.
+            ValidationError: If the storage_id is invalid.
+            ApplicationError: If status retrieval fails due to database or system errors.
         """
-        if not isinstance(storage_id, int) or storage_id <= 0:
-            raise ValueError("Invalid storage ID")
-
         try:
-            repository: StorageRepository = self.container.resolve(StorageRepository)
-            storage = repository.get(storage_id)
+            # Validate storage_id
+            if not isinstance(storage_id, int) or storage_id <= 0:
+                raise ValidationError("Invalid storage ID")
 
-            if not storage:
+            # Get storage status details
+            storage_status = self._storage_repository.get_storage_with_details(storage_id)
+
+            if not storage_status:
                 return None
 
-            return {
-                'storage_id': storage_id,
-                'name': storage.name,
-                'location': storage.location,
-                'type': storage.type,
-                'status': storage.status,
-                'occupancy_percentage': storage.occupancy_percentage(),
-                'total_capacity': storage.capacity,
-                'current_usage': storage.current_occupancy
-            }
-        except Exception as e:
-            self.logger.error(f"Error retrieving storage status for {storage_id}: {e}")
+            return self._to_dict(storage_status)
+        except ValidationError:
             raise
+        except Exception as e:
+            self._logger.error(f"Error retrieving storage status for {storage_id}: {str(e)}")
+            raise ApplicationError(f"Failed to retrieve storage status for {storage_id}") from e
 
-    def _to_dict(self, storage: Any) -> Dict[str, Any]:
+    def _to_dict(self, storage) -> Dict[str, Any]:
         """
-        Convert a storage model to a dictionary.
+        Convert a storage model instance to a dictionary.
 
         Args:
-            storage: Storage model instance.
+            storage: Storage model instance
 
         Returns:
-            Dictionary representation of the storage.
+            Dict[str, Any]: Dictionary representation of the storage
         """
-        try:
-            return {
-                'id': storage.id,
-                'name': storage.name,
-                'description': storage.description or '',
-                'capacity': storage.capacity,
-                'current_occupancy': storage.current_occupancy,
-                'location': storage.location,
-                'type': storage.type,
-                'status': storage.status,
-                'created_at': storage.created_at,
-                'updated_at': storage.updated_at,
-                'occupancy_percentage': storage.occupancy_percentage()
-            }
-        except Exception as e:
-            self.logger.error(f"Error converting storage to dict: {e}")
-            raise
+        return {
+            'id': storage.id,
+            'name': storage.name,
+            'location': storage.location,
+            'capacity': storage.capacity,
+            'current_occupancy': storage.current_occupancy,
+            'type': storage.type,
+            'description': storage.description,
+            'status': storage.status
+        }
+
+    def _validate_storage_data(self, storage_data: Dict[str, Any], is_update: bool = False):
+        """
+        Validate storage location data before creation or update.
+
+        Args:
+            storage_data (Dict[str, Any]): Storage location data to validate
+            is_update (bool, optional): Whether this is an update operation. Defaults to False.
+
+        Raises:
+            ValidationError: If the storage data is invalid
+        """
+        # Check for required fields (adjust as needed based on your Storage model)
+        required_fields = ['name', 'location', 'capacity']
+
+        # During updates, these fields are optional
+        if not is_update:
+            for field in required_fields:
+                if field not in storage_data or not storage_data[field]:
+                    raise ValidationError(f"Missing required field: {field}")
+
+        # Additional validations
+        if 'capacity' in storage_data:
+            try:
+                capacity = float(storage_data['capacity'])
+                if capacity < 0:
+                    raise ValidationError("Capacity must be a non-negative number")
+            except (TypeError, ValueError):
+                raise ValidationError("Capacity must be a valid number")
+
+        # Optional: Add more specific validations as needed
+        if 'type' in storage_data and not storage_data['type']:
+            raise ValidationError("Storage type cannot be empty")

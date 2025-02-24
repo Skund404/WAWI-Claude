@@ -68,16 +68,16 @@ class ProjectComponent(Component):
 
 
 class RecipeComponent(Component):
-    """Component specifically for recipes."""
+    """Component specifically for patterns."""
     __tablename__ = 'recipe_components'
 
     id = Column(Integer, ForeignKey('components.id'), primary_key=True)
-    recipe_id = Column(Integer, ForeignKey('recipes.id'))
+    recipe_id = Column(Integer, ForeignKey('patterns.id'))
     minimum_quantity = Column(Float, default=0.0)
     substitutable = Column(Boolean, default=False)
 
     # Relationships
-    recipe = relationship("Recipe", back_populates="components")
+    pattern = relationship("Pattern", back_populates="components")
 
     __mapper_args__ = {
         'polymorphic_identity': 'recipe_component',

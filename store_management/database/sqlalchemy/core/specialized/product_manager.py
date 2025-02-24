@@ -22,13 +22,13 @@ class ProductManager(BaseManager[Product]):
 
     def get_product_with_recipe(self, product_id: int) -> Optional[Product]:
         """
-        Get product with its recipe.
+        Get product with its pattern.
 
         Args:
             product_id: Product ID
 
         Returns:
-            Product with recipe loaded or None if not found
+            Product with pattern loaded or None if not found
 
         Raises:
             DatabaseError: If retrieval fails
@@ -36,13 +36,13 @@ class ProductManager(BaseManager[Product]):
         try:
             with self.session_scope() as session:
                 query = select(Product).options(
-                    joinedload(Product.recipe)
+                    joinedload(Product.pattern)
                 ).where(Product.id == product_id)
 
                 result = session.execute(query)
                 return result.scalars().first()
         except Exception as e:
-            raise DatabaseError(f"Failed to retrieve product with recipe", str(e))
+            raise DatabaseError(f"Failed to retrieve product with pattern", str(e))
 
     def get_by_storage(self, storage_id: int) -> List[Product]:
         """

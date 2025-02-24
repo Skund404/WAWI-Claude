@@ -1,220 +1,237 @@
-# store_management/services/implementations/inventory_service.py
-from typing import List, Optional, Dict, Any, Tuple, Type, cast
+# services/inventory_service.py
+
+from typing import List, Dict, Any, Optional
+import logging
 from datetime import datetime
 
 from di.service import Service
-from di.container import DependencyContainer
-from services.interfaces.inventory_service import IInventoryService
-from database.sqlalchemy.base_manager import BaseManager
-from database.models.part import Part
-from database.models.leather import Leather
 from database.models.enums import InventoryStatus, TransactionType
+from services.interfaces.inventory_service import IInventoryService
+
+logger = logging.getLogger(__name__)
 
 
 class InventoryService(Service, IInventoryService):
-    """Service for inventory management operations."""
+    """
+    Service for managing inventory items, tracking stock levels,
+    and handling inventory transactions.
+    """
 
-    def __init__(self, container: DependencyContainer):
-        """Initialize service with appropriate managers."""
-        super().__init__(container)
-        self._part_manager = self.get_dependency(BaseManager[Part])
-        self._leather_manager = self.get_dependency(BaseManager[Leather])
-
-    def update_part_stock(self, part_id: int, quantity_change: int,
-                          transaction_type: str, notes: Optional[str] = None) -> Tuple[bool, str]:
+    def __init__(self, container) -> None:
         """
-        Update part stock with transaction tracking.
+        Initialize the inventory service.
 
         Args:
-            part_id: Part ID
-            quantity_change: Change in quantity (positive or negative)
-            transaction_type: Type of transaction
-            notes: Optional notes
+            container: Dependency injection container
+        """
+        super().__init__(container)
+        self.part_repository = self.get_dependency('PartRepository')
+        self.leather_repository = self.get_dependency('LeatherRepository')
+        self.transaction_repository = self.get_dependency('TransactionRepository')
 
-        Returns:
-            Tuple of (success, message)
+    def update_part_stock(self, part_id: int, quantity_change: float,
+                          transaction_type: TransactionType, notes: str) -> None:
+        """
+        Update the stock level for a part and record the transaction.
+
+        Args:
+            part_id: ID of the part to update
+            quantity_change: Amount to change stock by (positive or negative)
+            transaction_type: Type of transaction
+            notes: Transaction notes
+
+        Raises:
+            ValueError: If resulting quantity would be negative
         """
         try:
-            # Get the part
-            part = self._part_manager.get(part_id)
+            # Get current part and validate
+            part = self.part_repository.get_with_transactions(part_id)
             if not part:
-                return False, f"Part with ID {part_id} not found"
+                raise ValueError(f"Part not found with ID: {part_id}")
 
-            # Check if quantity would go negative
-            if part.quantity + quantity_change < 0:
-                return False, "Cannot reduce stock below zero"
+            # Calculate new quantity
+            new_quantity = part.quantity + quantity_change
+            if new_quantity < 0:
+                raise ValueError(f"Cannot reduce stock below zero. Current stock: {part.quantity}")
 
-            # Update the part quantity
-            part.quantity += quantity_change
+            # Update part stock
+            part.quantity = new_quantity
 
-            # Update status based on new quantity
-            if part.quantity <= 0:
-                part.status = InventoryStatus.OUT_OF_STOCK
-            elif part.quantity <= part.minimum_stock:
-                part.status = InventoryStatus.LOW_STOCK
-            else:
-                part.status = InventoryStatus.IN_STOCK
+            # Record transaction
+            self.transaction_repository.create_part_transaction(
+                part_id=part_id,
+                quantity_change=quantity_change,
+                transaction_type=transaction_type,
+                notes=notes
+            )
 
-            # Create transaction record
-            transaction_data = {
-                "part_id": part_id,
-                "quantity_change": quantity_change,
-                "type": transaction_type,
-                "notes": notes or "",
-                "timestamp": datetime.now()
-            }
+            # Update part status
+            self._update_part_status(part)
 
-            # In a real implementation, we'd have a transaction manager
-            # For now, we'll just update the part
-            self._part_manager.update(part_id, {
-                "quantity": part.quantity,
-                "status": part.status
-            })
-
-            return True, f"Updated part stock, new quantity: {part.quantity}"
+            logger.info(f"Updated stock for part {part_id} by {quantity_change}")
 
         except Exception as e:
-            return False, f"Error updating part stock: {str(e)}"
+            logger.error(f"Error updating part stock: {str(e)}")
+            raise
 
     def update_leather_area(self, leather_id: int, area_change: float,
-                            transaction_type: str, notes: Optional[str] = None,
-                            wastage: Optional[float] = None) -> Tuple[bool, str]:
+                            transaction_type: TransactionType, notes: str,
+                            wastage: Optional[float] = None) -> None:
         """
-        Update leather area with transaction tracking.
+        Update the available area for a leather piece and record the transaction.
 
         Args:
-            leather_id: Leather ID
-            area_change: Change in area (positive or negative)
+            leather_id: ID of the leather to update
+            area_change: Amount to change area by (positive or negative)
             transaction_type: Type of transaction
-            notes: Optional notes
-            wastage: Optional wastage area
+            notes: Transaction notes
+            wastage: Optional wastage amount
 
-        Returns:
-            Tuple of (success, message)
+        Raises:
+            ValueError: If resulting area would be negative
         """
         try:
-            # Get the leather
-            leather = self._leather_manager.get(leather_id)
+            # Get current leather and validate
+            leather = self.leather_repository.get_with_transactions(leather_id)
             if not leather:
-                return False, f"Leather with ID {leather_id} not found"
+                raise ValueError(f"Leather not found with ID: {leather_id}")
 
-            # Check if area would go negative
-            if leather.area + area_change < 0:
-                return False, "Cannot reduce area below zero"
+            # Calculate new area
+            new_area = leather.area + area_change
+            if new_area < 0:
+                raise ValueError(f"Cannot reduce area below zero. Current area: {leather.area}")
 
-            # Update the leather area
-            leather.area += area_change
+            # Update leather area
+            leather.area = new_area
 
-            # Update status based on new area
-            if leather.area <= 0:
-                leather.status = InventoryStatus.OUT_OF_STOCK
-            elif leather.area <= leather.minimum_area:
-                leather.status = InventoryStatus.LOW_STOCK
-            else:
-                leather.status = InventoryStatus.IN_STOCK
+            # Record transaction
+            self.transaction_repository.create_leather_transaction(
+                leather_id=leather_id,
+                area_change=area_change,
+                transaction_type=transaction_type,
+                notes=notes,
+                wastage=wastage
+            )
 
-            # Create transaction record
-            transaction_data = {
-                "leather_id": leather_id,
-                "area_change": area_change,
-                "type": transaction_type,
-                "notes": notes or "",
-                "wastage": wastage or 0.0,
-                "timestamp": datetime.now()
-            }
+            # Update leather status
+            self._update_leather_status(leather)
 
-            # In a real implementation, we'd have a transaction manager
-            # For now, we'll just update the leather
-            self._leather_manager.update(leather_id, {
-                "area": leather.area,
-                "status": leather.status
-            })
-
-            return True, f"Updated leather area, new area: {leather.area}"
+            logger.info(f"Updated area for leather {leather_id} by {area_change}")
 
         except Exception as e:
-            return False, f"Error updating leather area: {str(e)}"
+            logger.error(f"Error updating leather area: {str(e)}")
+            raise
 
-    def get_low_stock_parts(self, include_out_of_stock: bool = True) -> List[Dict[str, Any]]:
+    def get_low_stock_parts(self, include_out_of_stock: bool = False) -> List[Dict[str, Any]]:
         """
-        Get parts with low stock levels.
+        Get list of parts with low stock levels.
 
         Args:
             include_out_of_stock: Whether to include out of stock items
 
         Returns:
-            List of parts with low stock
+            List[Dict[str, Any]]: List of parts with low stock
         """
         try:
-            # In a real implementation, we'd use a specialized query
-            # For simplicity, we'll filter all parts
-            all_parts = self._part_manager.get_all()
-            low_stock_parts = []
+            parts = self.part_repository.get_low_stock()
 
-            for part in all_parts:
-                if part.status == InventoryStatus.LOW_STOCK or \
-                        (include_out_of_stock and part.status == InventoryStatus.OUT_OF_STOCK):
-                    low_stock_parts.append(self._part_to_dict(part))
+            if not include_out_of_stock:
+                parts = [p for p in parts if p.quantity > 0]
 
-            return low_stock_parts
+            return [self._part_to_dict(p) for p in parts]
 
         except Exception as e:
-            # Log the error
-            print(f"Error getting low stock parts: {str(e)}")
+            logger.error(f"Error getting low stock parts: {str(e)}")
             return []
 
-    def get_low_stock_leather(self, include_out_of_stock: bool = True) -> List[Dict[str, Any]]:
+    def get_low_stock_leather(self, include_out_of_stock: bool = False) -> List[Dict[str, Any]]:
         """
-        Get leather with low stock levels.
+        Get list of leather pieces with low area remaining.
 
         Args:
             include_out_of_stock: Whether to include out of stock items
 
         Returns:
-            List of leather with low stock
+            List[Dict[str, Any]]: List of leather pieces with low stock
         """
         try:
-            # In a real implementation, we'd use a specialized query
-            # For simplicity, we'll filter all leather
-            all_leather = self._leather_manager.get_all()
-            low_stock_leather = []
+            leather = self.leather_repository.get_low_stock()
 
-            for leather in all_leather:
-                if leather.status == InventoryStatus.LOW_STOCK or \
-                        (include_out_of_stock and leather.status == InventoryStatus.OUT_OF_STOCK):
-                    low_stock_leather.append(self._leather_to_dict(leather))
+            if not include_out_of_stock:
+                leather = [l for l in leather if l.area > 0]
 
-            return low_stock_leather
+            return [self._leather_to_dict(l) for l in leather]
 
         except Exception as e:
-            # Log the error
-            print(f"Error getting low stock leather: {str(e)}")
+            logger.error(f"Error getting low stock leather: {str(e)}")
             return []
 
-    def _part_to_dict(self, part: Part) -> Dict[str, Any]:
-        """Convert Part model to dictionary."""
+    def _update_part_status(self, part: Any) -> None:
+        """
+        Update the status of a part based on its current stock level.
+
+        Args:
+            part: Part to update
+        """
+        if part.quantity <= 0:
+            part.status = InventoryStatus.OUT_OF_STOCK
+        elif part.quantity <= part.reorder_point:
+            part.status = InventoryStatus.LOW_STOCK
+        else:
+            part.status = InventoryStatus.IN_STOCK
+
+    def _update_leather_status(self, leather: Any) -> None:
+        """
+        Update the status of a leather piece based on its current area.
+
+        Args:
+            leather: Leather piece to update
+        """
+        if leather.area <= 0:
+            leather.status = InventoryStatus.OUT_OF_STOCK
+        elif leather.area <= leather.minimum_area:
+            leather.status = InventoryStatus.LOW_STOCK
+        else:
+            leather.status = InventoryStatus.IN_STOCK
+
+    def _part_to_dict(self, part: Any) -> Dict[str, Any]:
+        """
+        Convert a part to a dictionary representation.
+
+        Args:
+            part: Part to convert
+
+        Returns:
+            Dict[str, Any]: Dictionary representation of the part
+        """
         return {
-            "id": part.id,
-            "name": part.name,
-            "description": part.description,
-            "quantity": part.quantity,
-            "minimum_stock": part.minimum_stock,
-            "status": part.status.name if hasattr(part.status, 'name') else str(part.status),
-            "supplier_id": part.supplier_id,
-            "unit_price": part.unit_price
+            'id': part.id,
+            'name': part.name,
+            'quantity': part.quantity,
+            'reorder_point': part.reorder_point,
+            'status': part.status.value,
+            'location': part.location,
+            'supplier': part.supplier.name if part.supplier else None
         }
 
-    def _leather_to_dict(self, leather: Leather) -> Dict[str, Any]:
-        """Convert Leather model to dictionary."""
+    def _leather_to_dict(self, leather: Any) -> Dict[str, Any]:
+        """
+        Convert a leather piece to a dictionary representation.
+
+        Args:
+            leather: Leather piece to convert
+
+        Returns:
+            Dict[str, Any]: Dictionary representation of the leather piece
+        """
         return {
-            "id": leather.id,
-            "name": leather.name,
-            "description": leather.description,
-            "area": leather.area,
-            "minimum_area": leather.minimum_area,
-            "status": leather.status.name if hasattr(leather.status, 'name') else str(leather.status),
-            "supplier_id": leather.supplier_id,
-            "unit_price": leather.unit_price,
-            "color": leather.color,
-            "thickness": leather.thickness
+            'id': leather.id,
+            'name': leather.name,
+            'area': leather.area,
+            'minimum_area': leather.minimum_area,
+            'leather_type': leather.leather_type.value,
+            'quality_grade': leather.quality_grade.value,
+            'status': leather.status.value,
+            'location': leather.location,
+            'supplier': leather.supplier.name if leather.supplier else None
         }

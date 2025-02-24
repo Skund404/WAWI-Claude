@@ -24,7 +24,7 @@ class Product(BaseModel):
 
         storage (relationship): Storage location of the product
         supplier (relationship): Supplier of the product
-        recipes (relationship): Recipes for creating this product
+        patterns (relationship): Patterns for creating this product
     """
     __tablename__ = 'products'
 
@@ -43,7 +43,7 @@ class Product(BaseModel):
     # Relationships
     storage = relationship('Storage', back_populates='products')
     supplier = relationship('Supplier', back_populates='products')
-    recipes = relationship('Project', back_populates='product')
+    patterns = relationship('Project', back_populates='product')
 
     def __repr__(self):
         return f"<Product(id={self.id}, name='{self.name}', sku='{self.sku}', quantity={self.quantity})>"
@@ -60,19 +60,19 @@ class Product(BaseModel):
 
     def get_primary_recipe(self):
         """
-        Get the primary (first) recipe for this product.
+        Get the primary (first) pattern for this product.
 
         Returns:
-            Project or None: The first recipe for the product, or None if no recipes exist
+            Project or None: The first pattern for the product, or None if no patterns exist
         """
-        return self.recipes[0] if self.recipes else None
+        return self.patterns[0] if self.patterns else None
 
     def calculate_production_cost(self):
         """
-        Calculate the total production cost based on the first recipe.
+        Calculate the total production cost based on the first pattern.
 
         Returns:
-            float: Total production cost, or 0 if no recipe exists
+            float: Total production cost, or 0 if no pattern exists
         """
         primary_recipe = self.get_primary_recipe()
         return primary_recipe.calculate_total_cost() if primary_recipe else 0

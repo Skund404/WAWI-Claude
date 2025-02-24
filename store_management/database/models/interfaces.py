@@ -49,11 +49,11 @@ class IProject(ABC):
 
 
 class IRecipe(ABC):
-    """Base interface for recipes."""
+    """Base interface for patterns."""
 
     @abstractmethod
     def calculate_total_cost(self) -> float:
-        """Calculate the total cost of the recipe."""
+        """Calculate the total cost of the pattern."""
         pass
 
     @abstractmethod

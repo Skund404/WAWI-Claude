@@ -57,8 +57,8 @@ def upgrade():
                     sa.PrimaryKeyConstraint('id')
                     )
 
-    # Recipes table
-    op.create_table('recipes',
+    # Patterns table
+    op.create_table('patterns',
                     sa.Column('id', sa.Integer(), nullable=False),
                     sa.Column('name', sa.String(length=100), nullable=False),
                     sa.Column('description', sa.Text(), nullable=True),
@@ -76,7 +76,7 @@ def upgrade():
                     sa.Column('leather_id', sa.Integer(), nullable=True),
                     sa.Column('created_at', sa.DateTime(), nullable=True),
                     sa.Column('modified_at', sa.DateTime(), nullable=True),
-                    sa.ForeignKeyConstraint(['recipe_id'], ['recipes.id'], ondelete='CASCADE'),
+                    sa.ForeignKeyConstraint(['recipe_id'], ['patterns.id'], ondelete='CASCADE'),
                     sa.ForeignKeyConstraint(['part_id'], ['parts.id'], ondelete='RESTRICT'),
                     sa.ForeignKeyConstraint(['leather_id'], ['leathers.id'], ondelete='RESTRICT'),
                     sa.PrimaryKeyConstraint('id')
@@ -90,7 +90,7 @@ def upgrade():
                     sa.Column('recipe_id', sa.Integer(), nullable=False),
                     sa.Column('created_at', sa.DateTime(), nullable=True),
                     sa.Column('modified_at', sa.DateTime(), nullable=True),
-                    sa.ForeignKeyConstraint(['recipe_id'], ['recipes.id'], ondelete='RESTRICT'),
+                    sa.ForeignKeyConstraint(['recipe_id'], ['patterns.id'], ondelete='RESTRICT'),
                     sa.PrimaryKeyConstraint('id')
                     )
 
@@ -103,7 +103,7 @@ def upgrade():
                     sa.Column('created_at', sa.DateTime(), nullable=True),
                     sa.Column('modified_at', sa.DateTime(), nullable=True),
                     sa.ForeignKeyConstraint(['production_order_id'], ['production_orders.id'], ondelete='CASCADE'),
-                    sa.ForeignKeyConstraint(['recipe_id'], ['recipes.id'], ondelete='RESTRICT'),
+                    sa.ForeignKeyConstraint(['recipe_id'], ['patterns.id'], ondelete='RESTRICT'),
                     sa.PrimaryKeyConstraint('id'),
                     sa.UniqueConstraint('serial_number')
                     )
@@ -204,7 +204,7 @@ def downgrade():
     op.drop_table('produced_items')
     op.drop_table('production_orders')
     op.drop_table('recipe_items')
-    op.drop_table('recipes')
+    op.drop_table('patterns')
     op.drop_table('leathers')
     op.drop_table('parts')
     op.drop_table('suppliers')

@@ -57,7 +57,7 @@ def add_sample_data(session: Session) -> None:
         session.add(order)
 
         # Sample Project
-        recipe = Project(
+        pattern = Project(
             name="Basic Leather Wallet",
             description="Simple bifold wallet design",
             total_cost=20.00,
@@ -68,8 +68,8 @@ def add_sample_data(session: Session) -> None:
             quantity=2.5,
             unit="sqft"
         )
-        recipe.items.append(recipe_item)
-        session.add(recipe)
+        pattern.items.append(recipe_item)
+        session.add(pattern)
 
         # Sample Shopping List
         shopping_list = ShoppingList(

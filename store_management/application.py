@@ -8,7 +8,7 @@ from typing import Optional, Dict, Type
 from gui.main_window import MainWindow
 from gui.storage.storage_view import StorageView
 from gui.order.order_view import OrderView
-from gui.recipe.project_view import RecipeView
+from gui.pattern.project_view import PatternView
 from gui.shopping_list.shopping_list_view import ShoppingListView
 from gui.leatherworking.project_view import LeatherworkingProjectView
 
@@ -76,10 +76,10 @@ class Application:
             logger.error(f"Failed to register view Orders: {str(e)}")
 
         try:
-            self._main_window.add_view("Recipes", RecipeView(self._main_window, self))
-            logger.debug("Registered view: Recipes")
+            self._main_window.add_view("Patterns", RecipeView(self._main_window, self))
+            logger.debug("Registered view: Patterns")
         except Exception as e:
-            logger.error(f"Failed to register view Recipes: {str(e)}")
+            logger.error(f"Failed to register view Patterns: {str(e)}")
 
         try:
             self._main_window.add_view("Shopping Lists", ShoppingListView(self._main_window, self))

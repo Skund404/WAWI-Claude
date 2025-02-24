@@ -14,7 +14,7 @@ from database.sqlalchemy.core.specialized.product_manager import ProductManager
 from database.sqlalchemy.core.specialized.supplier_manager import SupplierManager
 from database.sqlalchemy.core.specialized.part_manager import PartManager
 from database.sqlalchemy.core.specialized.leather_manager import LeatherManager
-from database.sqlalchemy.core.specialized.recipe_manager import RecipeManager
+from database.sqlalchemy.core.specialized.recipe_manager import PatternManager
 from database.sqlalchemy.core.specialized.order_manager import OrderManager
 from database.sqlalchemy.core.specialized.shopping_list_manager import ShoppingListManager
 
