@@ -1,248 +1,225 @@
 # services/implementations/pattern_service.py
 
+from typing import List, Optional, Dict, Any
+from datetime import datetime
 import logging
-from typing import List, Dict, Any, Optional
-from sqlalchemy.orm import Session
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy import or_
 
-from database.repositories.interfaces.pattern_service import IRecipeService
-from database.models.pattern import Project, ProjectComponent
-from database.session import get_db_session
+from database.models import Pattern, PatternComponent
+from services.interfaces.pattern_service import IPatternService
+from utils.error_handler import ApplicationError, ValidationError
+
+logger = logging.getLogger(__name__)
 
 
-class RecipeService(IRecipeService):
-    """
-    Service implementation for managing patterns.
+class PatternService(IPatternService):
+    """Implementation of pattern management service."""
 
-    Handles:
-    - Project CRUD operations
-    - Material requirements checking
-    - Cost calculations
-    - Project search and categorization
-    """
-
-    def __init__(self, container: Any) -> None:
+    def __init__(self, session_factory):
         """
-        Initialize the pattern service.
+        Initialize service with database session factory.
 
         Args:
-            container: Dependency injection container
+            session_factory: SQLAlchemy session factory
         """
-        self.logger = logging.getLogger(__name__)
-        self.session: Session = get_db_session()
+        self.session_factory = session_factory
 
-    def get_all_recipes(self) -> List[Project]:
-        """Get all patterns from the database."""
+    def get_all_patterns(self) -> List[Pattern]:
+        """Get all patterns."""
         try:
-            return self.session.query(Project).order_by(Project.name).all()
-        except SQLAlchemyError as e:
-            self.logger.error(f"Error retrieving patterns: {str(e)}")
-            raise Exception("Failed to retrieve patterns") from e
+            with self.session_factory() as session:
+                return session.query(Pattern).all()
+        except Exception as e:
+            logger.error(f"Failed to get patterns: {str(e)}")
+            raise ApplicationError("Failed to retrieve patterns", str(e))
 
-    def get_recipe_by_id(self, recipe_id: int) -> Optional[Project]:
-        """Get a specific pattern by ID."""
+    def get_pattern_by_id(self, pattern_id: int) -> Optional[Pattern]:
+        """Get pattern by ID."""
         try:
-            return self.session.query(Project).filter(Project.id == recipe_id).first()
-        except SQLAlchemyError as e:
-            self.logger.error(f"Error retrieving pattern {recipe_id}: {str(e)}")
-            raise Exception(f"Failed to retrieve pattern {recipe_id}") from e
+            with self.session_factory() as session:
+                return session.query(Pattern).filter(Pattern.id == pattern_id).first()
+        except Exception as e:
+            logger.error(f"Failed to get pattern {pattern_id}: {str(e)}")
+            raise ApplicationError(f"Failed to retrieve pattern {pattern_id}", str(e))
 
-    def create_project(self, recipe_data: Dict[str, Any]) -> Project:
-        """Create a new pattern with its items."""
+    def create_pattern(self, pattern_data: Dict[str, Any]) -> Pattern:
+        """Create new pattern."""
         try:
-            # Create pattern
-            pattern = Project(
-                name=recipe_data['name'],
-                description=recipe_data.get('description', ''),
-                preparation_time=recipe_data.get('preparation_time', 0)
-            )
+            with self.session_factory() as session:
+                # Validate data
+                self._validate_pattern_data(pattern_data)
 
-            # Add items
-            if 'items' in recipe_data:
-                for item_data in recipe_data['items']:
-                    item = ProjectComponent(
-                        material_name=item_data['material_name'],
-                        quantity=item_data['quantity'],
-                        unit=item_data['unit']
-                    )
-                    pattern.items.append(item)
+                # Create pattern
+                pattern = Pattern()
+                for key, value in pattern_data.items():
+                    setattr(pattern, key, value)
 
-            # Calculate initial cost
-            pattern.total_cost = self._calculate_materials_cost(pattern)
+                pattern.created_at = datetime.now()
+                pattern.updated_at = datetime.now()
 
-            self.session.add(pattern)
-            self.session.commit()
+                session.add(pattern)
+                session.commit()
+                return pattern
 
-            self.logger.info(f"Created pattern: {pattern.name}")
-            return pattern
+        except ValidationError:
+            raise
+        except Exception as e:
+            logger.error(f"Failed to create pattern: {str(e)}")
+            raise ApplicationError("Failed to create pattern", str(e))
 
-        except SQLAlchemyError as e:
-            self.session.rollback()
-            self.logger.error(f"Error creating pattern: {str(e)}")
-            raise Exception("Failed to create pattern") from e
-
-    def update_project(self, recipe_id: int, recipe_data: Dict[str, Any]) -> Project:
-        """Update an existing pattern."""
+    def update_pattern(self, pattern_id: int, pattern_data: Dict[str, Any]) -> Optional[Pattern]:
+        """Update existing pattern."""
         try:
-            pattern = self.get_recipe_by_id(recipe_id)
-            if not pattern:
-                raise Exception(f"Project {recipe_id} not found")
+            with self.session_factory() as session:
+                pattern = session.query(Pattern).filter(Pattern.id == pattern_id).first()
+                if not pattern:
+                    return None
 
-            # Update basic fields
-            pattern.name = recipe_data.get('name', pattern.name)
-            pattern.description = recipe_data.get('description', pattern.description)
-            pattern.preparation_time = recipe_data.get('preparation_time', pattern.preparation_time)
+                # Validate data
+                self._validate_pattern_data(pattern_data)
 
-            # Update items if provided
-            if 'items' in recipe_data:
-                # Clear existing items
-                pattern.items.clear()
+                # Update pattern
+                for key, value in pattern_data.items():
+                    setattr(pattern, key, value)
 
-                # Add new items
-                for item_data in recipe_data['items']:
-                    item = ProjectComponent(
-                        material_name=item_data['material_name'],
-                        quantity=item_data['quantity'],
-                        unit=item_data['unit']
-                    )
-                    pattern.items.append(item)
+                pattern.updated_at = datetime.now()
 
-                # Recalculate cost
-                pattern.total_cost = self._calculate_materials_cost(pattern)
+                session.commit()
+                return pattern
 
-            self.session.commit()
-            self.logger.info(f"Updated pattern: {pattern.name}")
-            return pattern
+        except ValidationError:
+            raise
+        except Exception as e:
+            logger.error(f"Failed to update pattern {pattern_id}: {str(e)}")
+            raise ApplicationError(f"Failed to update pattern {pattern_id}", str(e))
 
-        except SQLAlchemyError as e:
-            self.session.rollback()
-            self.logger.error(f"Error updating pattern {recipe_id}: {str(e)}")
-            raise Exception(f"Failed to update pattern {recipe_id}") from e
-
-    def delete_project(self, recipe_id: int) -> None:
-        """Delete a pattern and its items."""
+    def delete_pattern(self, pattern_id: int) -> bool:
+        """Delete pattern by ID."""
         try:
-            pattern = self.get_recipe_by_id(recipe_id)
-            if not pattern:
-                raise Exception(f"Project {recipe_id} not found")
+            with self.session_factory() as session:
+                pattern = session.query(Pattern).filter(Pattern.id == pattern_id).first()
+                if not pattern:
+                    return False
 
-            self.session.delete(pattern)
-            self.session.commit()
-            self.logger.info(f"Deleted pattern: {pattern.name}")
-
-        except SQLAlchemyError as e:
-            self.session.rollback()
-            self.logger.error(f"Error deleting pattern {recipe_id}: {str(e)}")
-            raise Exception(f"Failed to delete pattern {recipe_id}") from e
-
-    def check_materials_availability(self, recipe_id: int, quantity: int = 1) -> Dict[str, Any]:
-        """Check if all materials are available for producing a pattern."""
-        try:
-            pattern = self.get_recipe_by_id(recipe_id)
-            if not pattern:
-                raise Exception(f"Project {recipe_id} not found")
-
-            missing_materials = []
-            available_materials = []
-
-            for item in pattern.items:
-                # TODO: Integrate with inventory service
-                # For now, we'll mock the availability check
-                available = True  # This should check actual inventory
-                required_quantity = item.quantity * quantity
-
-                if available:
-                    available_materials.append({
-                        'material_name': item.material_name,
-                        'required_quantity': required_quantity,
-                        'unit': item.unit
-                    })
-                else:
-                    missing_materials.append({
-                        'material_name': item.material_name,
-                        'required_quantity': required_quantity,
-                        'unit': item.unit
-                    })
-
-            return {
-                'recipe_id': recipe_id,
-                'recipe_name': pattern.name,
-                'quantity': quantity,
-                'can_produce': len(missing_materials) == 0,
-                'missing_materials': missing_materials,
-                'available_materials': available_materials
-            }
+                session.delete(pattern)
+                session.commit()
+                return True
 
         except Exception as e:
-            self.logger.error(f"Error checking materials for pattern {recipe_id}: {str(e)}")
-            raise Exception(f"Failed to check materials for pattern {recipe_id}") from e
+            logger.error(f"Failed to delete pattern {pattern_id}: {str(e)}")
+            raise ApplicationError(f"Failed to delete pattern {pattern_id}", str(e))
 
-    def calculate_production_cost(self, recipe_id: int, quantity: int = 1) -> Dict[str, float]:
-        """Calculate the total cost of producing a pattern."""
+    def search_patterns(self, search_term: str, search_fields: List[str]) -> List[Pattern]:
+        """Search patterns."""
         try:
-            pattern = self.get_recipe_by_id(recipe_id)
-            if not pattern:
-                raise Exception(f"Project {recipe_id} not found")
+            with self.session_factory() as session:
+                query = session.query(Pattern)
 
-            material_cost = self._calculate_materials_cost(pattern) * quantity
-            labor_cost = self._calculate_labor_cost(pattern) * quantity
-            total_cost = material_cost + labor_cost
+                # Build search criteria
+                criteria = []
+                for field in search_fields:
+                    if hasattr(Pattern, field):
+                        criteria.append(getattr(Pattern, field).ilike(f"%{search_term}%"))
 
-            return {
-                'material_cost': material_cost,
-                'labor_cost': labor_cost,
-                'total_cost': total_cost
-            }
+                if criteria:
+                    query = query.filter(or_(*criteria))
+
+                return query.all()
 
         except Exception as e:
-            self.logger.error(f"Error calculating costs for pattern {recipe_id}: {str(e)}")
-            raise Exception(f"Failed to calculate costs for pattern {recipe_id}") from e
+            logger.error(f"Failed to search patterns: {str(e)}")
+            raise ApplicationError("Failed to search patterns", str(e))
 
-    def get_recipes_by_category(self, category: str) -> List[Project]:
-        """Get all patterns in a specific category."""
+    def calculate_material_requirements(self, pattern_id: int, quantity: int = 1) -> Dict[str, float]:
+        """Calculate material requirements."""
         try:
-            return (self.session.query(Project)
-                    .filter(Project.category == category)
-                    .order_by(Project.name)
-                    .all())
-        except SQLAlchemyError as e:
-            self.logger.error(f"Error retrieving patterns for category {category}: {str(e)}")
-            raise Exception(f"Failed to retrieve patterns for category {category}") from e
+            with self.session_factory() as session:
+                pattern = session.query(Pattern).filter(Pattern.id == pattern_id).first()
+                if not pattern:
+                    raise ValidationError(f"Pattern {pattern_id} not found")
 
-    def search_recipes(self, search_term: str) -> List[Project]:
-        """Search patterns by name or description."""
+                requirements = {}
+                for component in pattern.components:
+                    material_type = component.material_type.name
+                    required_quantity = component.quantity * quantity
+
+                    if material_type in requirements:
+                        requirements[material_type] += required_quantity
+                    else:
+                        requirements[material_type] = required_quantity
+
+                return requirements
+
+        except ValidationError:
+            raise
+        except Exception as e:
+            logger.error(f"Failed to calculate requirements for pattern {pattern_id}: {str(e)}")
+            raise ApplicationError(f"Failed to calculate pattern requirements", str(e))
+
+    def validate_pattern(self, pattern_id: int) -> Dict[str, Any]:
+        """Validate pattern data."""
         try:
-            return (self.session.query(Project)
-                    .filter(or_(
-                Project.name.ilike(f"%{search_term}%"),
-                Project.description.ilike(f"%{search_term}%")
-            ))
-                    .order_by(Project.name)
-                    .all())
-        except SQLAlchemyError as e:
-            self.logger.error(f"Error searching patterns: {str(e)}")
-            raise Exception("Failed to search patterns") from e
+            with self.session_factory() as session:
+                pattern = session.query(Pattern).filter(Pattern.id == pattern_id).first()
+                if not pattern:
+                    raise ValidationError(f"Pattern {pattern_id} not found")
 
-    def _calculate_materials_cost(self, pattern: Project) -> float:
-        """Calculate the total cost of materials for a pattern."""
-        total_cost = 0.0
-        for item in pattern.items:
-            # TODO: Get actual material costs from inventory/pricing service
-            # For now, we'll use a mock cost
-            unit_cost = 1.0  # This should get the actual material cost
-            total_cost += item.quantity * unit_cost
-        return total_cost
+                validation_results = {
+                    'is_valid': True,
+                    'errors': [],
+                    'warnings': []
+                }
 
-    def _calculate_labor_cost(self, pattern: Project) -> float:
-        """Calculate the labor cost for a pattern."""
-        # TODO: Implement proper labor cost calculation
-        # For now, use a simple time-based calculation
-        hourly_rate = 20.0  # This should be configurable
-        hours = pattern.preparation_time / 60.0  # Convert minutes to hours
-        return hours * hourly_rate
+                # Validate basic data
+                if not pattern.name:
+                    validation_results['is_valid'] = False
+                    validation_results['errors'].append("Pattern name is required")
 
-    def cleanup(self) -> None:
-        """Clean up service resources."""
-        if self.session:
-            self.session.close()
+                if not pattern.components:
+                    validation_results['is_valid'] = False
+                    validation_results['errors'].append("Pattern must have at least one component")
+
+                # Validate components
+                for component in pattern.components:
+                    if component.quantity <= 0:
+                        validation_results['errors'].append(
+                            f"Invalid quantity for component {component.name}")
+                        validation_results['is_valid'] = False
+
+                    if component.unit_cost < 0:
+                        validation_results['errors'].append(
+                            f"Invalid unit cost for component {component.name}")
+                        validation_results['is_valid'] = False
+
+                return validation_results
+
+        except ValidationError:
+            raise
+        except Exception as e:
+            logger.error(f"Failed to validate pattern {pattern_id}: {str(e)}")
+            raise ApplicationError(f"Failed to validate pattern", str(e))
+
+    def _validate_pattern_data(self, pattern_data: Dict[str, Any]) -> None:
+        """
+        Validate pattern data before creation/update.
+
+        Args:
+            pattern_data: Pattern data to validate
+
+        Raises:
+            ValidationError: If validation fails
+        """
+        errors = []
+
+        if 'name' not in pattern_data or not pattern_data['name']:
+            errors.append("Pattern name is required")
+
+        if 'base_labor_hours' in pattern_data:
+            try:
+                hours = float(pattern_data['base_labor_hours'])
+                if hours < 0:
+                    errors.append("Base labor hours must be positive")
+            except ValueError:
+                errors.append("Invalid base labor hours value")
+
+        if errors:
+            raise ValidationError("Pattern validation failed", errors)

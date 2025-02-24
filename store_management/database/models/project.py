@@ -1,112 +1,219 @@
-# database/models/project.py
+# Path: database/models/project.py
+"""
+Comprehensive Project model with robust metaclass handling.
+"""
 
-from __future__ import annotations
-from datetime import datetime
-from enum import Enum
-from typing import Optional, List
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Enum as SQLEnum
-from sqlalchemy.orm import relationship
-from database.base import BaseModel
-from database.models.base import Base
+from sqlalchemy import Column, String, Float, Enum as SQLAEnum
+from sqlalchemy.orm import relationship, Mapped, mapped_column
+from typing import List, Optional, Any
 
-
-
-class ProjectType(Enum):
-    """Enumeration of possible project types."""
-    LEATHER_BAG = "leather_bag"
-    WALLET = "wallet"
-    BELT = "belt"
-    CUSTOM = "custom"
-    OTHER = "other"
+from .model_metaclass import BaseModel
+from .enums import ProjectStatus, ProjectType, SkillLevel
+from .mixins import TimestampMixin, ValidationMixin, CostingMixin
+from .interfaces import IProject
 
 
-class SkillLevel(Enum):
-    """Enumeration of required skill levels for projects."""
-    BEGINNER = "beginner"
-    INTERMEDIATE = "intermediate"
-    ADVANCED = "advanced"
-    EXPERT = "expert"
-
-
-class ProductionStatus(Enum):
-    """Enumeration of possible production statuses."""
-    PLANNED = "planned"
-    IN_PROGRESS = "in_progress"
-    ON_HOLD = "on_hold"
-    COMPLETED = "completed"
-    CANCELLED = "cancelled"
-
-
-class Project(BaseModel):
+class Project(BaseModel, IProject):
     """
-    Project model representing a leatherworking project with all its attributes
-    and relationships.
+    Comprehensive Project model representing a project in the system.
+
+    Combines multiple mixins and implements project-specific functionality.
     """
     __tablename__ = 'projects'
 
-    id = Column(Integer, primary_key=True)
-    name = Column(String(100), nullable=False)
-    description = Column(String(500))
-    project_type = Column(SQLEnum(ProjectType), nullable=False)
-    skill_level = Column(SQLEnum(SkillLevel), nullable=False)
-    status = Column(SQLEnum(ProductionStatus), nullable=False, default=ProductionStatus.PLANNED)
-
-    # Timeline
-    start_date = Column(DateTime, default=datetime.utcnow)
-    target_completion_date = Column(DateTime)
-    actual_completion_date = Column(DateTime)
-
-    # Complexity and time tracking
-    estimated_hours = Column(Float)
-    actual_hours = Column(Float, default=0.0)
-    complexity_score = Column(Float)
-
-    # Quality metrics
-    quality_rating = Column(Integer)
-    customer_satisfaction = Column(Integer)
+    # Model-specific columns
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    project_type: Mapped[ProjectType] = mapped_column(SQLAEnum(ProjectType))
+    skill_level: Mapped[SkillLevel] = mapped_column(SQLAEnum(SkillLevel))
+    status: Mapped[ProjectStatus] = mapped_column(
+        SQLAEnum(ProjectStatus),
+        default=ProjectStatus.PLANNING
+    )
+    estimated_hours: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    material_budget: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
 
     # Relationships
-    components = relationship("ProjectComponent", back_populates="project", cascade="all, delete-orphan")
+    components: Mapped[List['ProjectComponent']] = relationship(
+        "ProjectComponent",
+        back_populates="project",
+        cascade="all, delete-orphan"
+    )
+    tasks: Mapped[List['ProjectTask']] = relationship(
+        "ProjectTask",
+        back_populates="project",
+        cascade="all, delete-orphan"
+    )
 
-    def __repr__(self) -> str:
-        """String representation of the Project."""
-        return f"<Project(id={self.id}, name='{self.name}', type={self.project_type}, status={self.status})>"
+    # Mixin methods (explicitly add to ensure compatibility)
+    def update_timestamp(self):
+        """Update timestamp for the project."""
+        from datetime import datetime
+        self.updated_at = datetime.utcnow()
+
+    def validate_required_fields(self, data, required_fields):
+        """
+        Validate required fields.
+
+        Args:
+            data (dict): Data to validate
+            required_fields (list): Fields that must be present
+
+        Returns:
+            bool: True if all required fields are present
+        """
+        return all(field in data and data[field] is not None for field in required_fields)
+
+    def calculate_labor_cost(self, hours, rate=50.0):
+        """
+        Calculate labor cost.
+
+        Args:
+            hours (float): Number of labor hours
+            rate (float, optional): Hourly rate. Defaults to 50.0.
+
+        Returns:
+            float: Total labor cost
+        """
+        return hours * rate
+
+    def __init__(self,
+                 name: str,
+                 project_type: ProjectType,
+                 skill_level: SkillLevel,
+                 description: Optional[str] = None,
+                 estimated_hours: float = 0.0,
+                 material_budget: float = 0.0):
+        """
+        Initialize a Project instance.
+
+        Args:
+            name (str): Name of the project.
+            project_type (ProjectType): Type of the project.
+            skill_level (SkillLevel): Skill level required.
+            description (Optional[str], optional): Project description.
+            estimated_hours (float, optional): Estimated project duration.
+            material_budget (float, optional): Budget for materials.
+
+        Raises:
+            ValueError: If material budget is negative.
+        """
+        self.name = name
+        self.project_type = project_type
+        self.skill_level = skill_level
+        self.description = description
+        self.estimated_hours = estimated_hours
+        self.material_budget = material_budget
+        self.status = ProjectStatus.PLANNING
+        self.components = []
+        self.tasks = []
+
+        # Validate initialization
+        if material_budget < 0:
+            raise ValueError("Material budget cannot be negative")
 
     def calculate_complexity(self) -> float:
         """
-        Calculate the project complexity score based on components and requirements.
+        Calculate project complexity based on various factors.
 
         Returns:
-            float: Calculated complexity score
+            float: Complexity score of the project.
         """
-        base_score = {
+        complexity = 0
+        complexity += len(self.components) * 0.5
+        complexity += len(self.tasks) * 0.3
+
+        # Adjust complexity based on skill level
+        skill_multipliers = {
             SkillLevel.BEGINNER: 1.0,
-            SkillLevel.INTERMEDIATE: 2.0,
-            SkillLevel.ADVANCED: 3.0,
-            SkillLevel.EXPERT: 4.0
-        }[self.skill_level]
+            SkillLevel.INTERMEDIATE: 1.5,
+            SkillLevel.ADVANCED: 2.0,
+            SkillLevel.EXPERT: 2.5
+        }
+        complexity *= skill_multipliers.get(self.skill_level, 1.0)
 
-        # Add component complexity
-        component_score = sum(component.complexity_factor for component in self.components)
+        return round(complexity, 2)
 
-        # Calculate final score
-        self.complexity_score = base_score * (1 + component_score)
-        return self.complexity_score
-
-    def update_quality_metrics(self, quality_rating: int, customer_satisfaction: Optional[int] = None) -> None:
+    def calculate_total_cost(self) -> float:
         """
-        Update the project's quality metrics.
+        Calculate the total cost of the project.
+
+        Returns:
+            float: Total project cost.
+        """
+        # Calculate material costs from components
+        material_cost = sum(component.calculate_cost() for component in self.components)
+
+        # Add labor cost
+        labor_cost = self.estimated_hours * 50  # Assuming $50 per hour
+
+        return material_cost + labor_cost
+
+    def update_status(self, new_status: ProjectStatus) -> None:
+        """
+        Update the project status.
 
         Args:
-            quality_rating (int): Internal quality assessment (1-10)
-            customer_satisfaction (int, optional): Customer satisfaction rating (1-10)
+            new_status (ProjectStatus): New status to set for the project.
         """
-        if not 1 <= quality_rating <= 10:
-            raise ValueError("Quality rating must be between 1 and 10")
+        self.status = new_status
 
-        if customer_satisfaction is not None and not 1 <= customer_satisfaction <= 10:
-            raise ValueError("Customer satisfaction must be between 1 and 10")
+    def validate(self) -> bool:
+        """
+        Validate project attributes.
 
-        self.quality_rating = quality_rating
-        if customer_satisfaction is not None:
-            self.customer_satisfaction = customer_satisfaction
+        Returns:
+            bool: True if project is valid, False otherwise.
+        """
+        # Comprehensive validation
+        if not self.name or len(self.name) > 100:
+            return False
+        if self.estimated_hours < 0:
+            return False
+        if self.material_budget < 0:
+            return False
+        return True
+
+    def to_dict(self, exclude_fields: Optional[list[str]] = None) -> dict:
+        """
+        Convert Project to dictionary representation.
+
+        Args:
+            exclude_fields (Optional[list[str]], optional): Fields to exclude.
+
+        Returns:
+            dict: Dictionary of project attributes.
+        """
+        exclude_fields = exclude_fields or []
+
+        # Base dictionary
+        project_dict = {
+            'id': getattr(self, 'id', None),
+            'name': self.name,
+            'description': self.description,
+            'project_type': self.project_type.value if self.project_type else None,
+            'skill_level': self.skill_level.value if self.skill_level else None,
+            'status': self.status.value if self.status else None,
+            'estimated_hours': self.estimated_hours,
+            'material_budget': self.material_budget,
+        }
+
+        # Add computed fields if not excluded
+        if 'complexity' not in exclude_fields:
+            project_dict['complexity'] = self.calculate_complexity()
+
+        if 'total_cost' not in exclude_fields:
+            project_dict['total_cost'] = self.calculate_total_cost()
+
+        # Optional: Add relationships
+        if 'components' not in exclude_fields and hasattr(self, 'components'):
+            project_dict['components'] = [
+                component.to_dict() for component in self.components
+            ]
+
+        if 'tasks' not in exclude_fields and hasattr(self, 'tasks'):
+            project_dict['tasks'] = [
+                task.to_dict() for task in self.tasks
+            ]
+
+        return project_dict

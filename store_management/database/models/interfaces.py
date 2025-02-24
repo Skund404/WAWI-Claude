@@ -1,129 +1,68 @@
-# database/models/interfaces.py
+# Path: database/models/interfaces.py
+"""
+Interface definitions for database models.
+"""
 
 from abc import ABC, abstractmethod
-from typing import List, Optional, Dict, Any
-from datetime import datetime
+from typing import Optional, Any
 
+class IModel(ABC):
+    """
+    Base interface for all database models.
+    """
+    @abstractmethod
+    def to_dict(self, exclude_fields: Optional[list[str]] = None) -> dict:
+        """
+        Convert model to a dictionary representation.
 
-class IComponent(ABC):
-    """Base interface for all components."""
+        Args:
+            exclude_fields (Optional[list[str]], optional): Fields to exclude. Defaults to None.
+
+        Returns:
+            dict: Dictionary representation of the model.
+        """
+        pass
+
+class IProject(IModel):
+    """
+    Interface for Project-related models.
+    """
+    @abstractmethod
+    def calculate_complexity(self) -> float:
+        """
+        Calculate the complexity of the project.
+
+        Returns:
+            float: Complexity score.
+        """
+        pass
 
     @abstractmethod
-    def calculate_cost(self) -> float:
-        """Calculate the cost of this component."""
+    def calculate_total_cost(self) -> float:
+        """
+        Calculate the total cost of the project.
+
+        Returns:
+            float: Total project cost.
+        """
+        pass
+
+    @abstractmethod
+    def update_status(self, new_status: Any) -> None:
+        """
+        Update the status of the project.
+
+        Args:
+            new_status (Any): New status to set.
+        """
         pass
 
     @abstractmethod
     def validate(self) -> bool:
-        """Validate the component's data."""
+        """
+        Validate the project model.
+
+        Returns:
+            bool: True if valid, False otherwise.
+        """
         pass
-
-    @abstractmethod
-    def get_material_requirements(self) -> Dict[str, float]:
-        """Get the material requirements for this component."""
-        pass
-
-
-class IProject(ABC):
-    """Base interface for projects."""
-
-    @abstractmethod
-    def calculate_complexity(self) -> float:
-        """Calculate the complexity score of the project."""
-        pass
-
-    @abstractmethod
-    def calculate_total_cost(self) -> float:
-        """Calculate the total cost of the project."""
-        pass
-
-    @abstractmethod
-    def get_status(self) -> str:
-        """Get the current status of the project."""
-        pass
-
-    @abstractmethod
-    def update_status(self, new_status: str) -> None:
-        """Update the project status."""
-        pass
-
-
-class IRecipe(ABC):
-    """Base interface for patterns."""
-
-    @abstractmethod
-    def calculate_total_cost(self) -> float:
-        """Calculate the total cost of the pattern."""
-        pass
-
-    @abstractmethod
-    def check_material_availability(self) -> bool:
-        """Check if all required materials are available."""
-        pass
-
-    @abstractmethod
-    def generate_material_list(self) -> Dict[str, float]:
-        """Generate a list of required materials."""
-        pass
-
-
-# database/models/mixins.py
-
-from datetime import datetime
-from typing import Optional, Dict, Any
-from sqlalchemy import Column, DateTime, String
-
-
-class TimestampMixin:
-    """Mixin to add timestamp functionality to models."""
-
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    def update_timestamp(self) -> None:
-        """Update the updated_at timestamp."""
-        self.updated_at = datetime.utcnow()
-
-
-class NoteMixin:
-    """Mixin to add notes functionality to models."""
-
-    notes = Column(String(1000))
-
-    def add_note(self, note: str) -> None:
-        """Add a note to the existing notes."""
-        if self.notes:
-            self.notes = f"{self.notes}\n{note}"
-        else:
-            self.notes = note
-
-
-class CostingMixin:
-    """Mixin to add costing functionality to models."""
-
-    def calculate_labor_cost(self, hours: float, rate: float) -> float:
-        """Calculate labor cost."""
-        return hours * rate
-
-    def calculate_overhead_cost(self, base_cost: float, overhead_rate: float) -> float:
-        """Calculate overhead cost."""
-        return base_cost * overhead_rate
-
-    def calculate_total_cost(self, material_cost: float, labor_cost: float, overhead_rate: float = 0.1) -> float:
-        """Calculate total cost including overhead."""
-        base_cost = material_cost + labor_cost
-        overhead_cost = self.calculate_overhead_cost(base_cost, overhead_rate)
-        return base_cost + overhead_cost
-
-
-class ValidationMixin:
-    """Mixin to add validation functionality to models."""
-
-    def validate_required_fields(self, required_fields: List[str]) -> bool:
-        """Validate that all required fields have values."""
-        return all(hasattr(self, field) and getattr(self, field) is not None
-                   for field in required_fields)
-
-    def validate_numeric_range(self, value: float, min_val: float, max_val: float) -> bool:
-        """Validate that a numeric value is within the specified range."""
-        return min_val <= value <= max_val

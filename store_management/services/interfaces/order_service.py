@@ -1,173 +1,130 @@
-# services/interfaces/order_service.py
+# Path: services/interfaces/order_service.py
 
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional
-from database.models.order import Order
-from database.models.enums import OrderStatus
+from typing import List, Optional, Dict, Any
+from datetime import datetime
+
+from database.models.order import OrderStatus
 
 
 class IOrderService(ABC):
     """
-    Interface defining the contract for order management services.
-
-    This interface specifies all operations that must be supported by
-    any order service implementation.
+    Abstract base class defining the interface for Order Service operations.
     """
 
     @abstractmethod
-    def get_all_orders(self) -> List[Order]:
+    def get_all_orders(self) -> List[Dict[str, Any]]:
         """
-        Get all orders in the system.
+        Retrieve all orders.
 
         Returns:
-            List of Order objects
-
-        Raises:
-            Exception: If retrieval fails
+            List[Dict[str, Any]]: List of order dictionaries
         """
         pass
 
     @abstractmethod
-    def get_order_by_id(self, order_id: int) -> Optional[Order]:
+    def get_order_by_id(self, order_id: int) -> Optional[Dict[str, Any]]:
         """
-        Get an order by its ID.
+        Retrieve a specific order by ID.
 
         Args:
-            order_id: ID of the order to retrieve
+            order_id (int): Unique identifier for the order
 
         Returns:
-            Order object if found, None otherwise
-
-        Raises:
-            Exception: If retrieval fails
+            Optional[Dict[str, Any]]: Order details
         """
         pass
 
     @abstractmethod
-    def get_order_by_number(self, order_number: str) -> Optional[Order]:
-        """
-        Get an order by its order number.
-
-        Args:
-            order_number: Order number to search for
-
-        Returns:
-            Order object if found, None otherwise
-
-        Raises:
-            Exception: If retrieval fails
-        """
-        pass
-
-    @abstractmethod
-    def create_order(self, order_data: Dict[str, Any]) -> Order:
+    def create_order(self, order_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Create a new order.
 
         Args:
-            order_data: Dictionary containing order data
+            order_data (Dict[str, Any]): Data for creating a new order
 
         Returns:
-            Created Order object
-
-        Raises:
-            Exception: If creation fails
+            Dict[str, Any]: Created order details
         """
         pass
 
     @abstractmethod
-    def update_order(self, order_id: int, order_data: Dict[str, Any]) -> Order:
+    def update_order(self, order_id: int, order_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Update an existing order.
 
         Args:
-            order_id: ID of the order to update
-            order_data: Dictionary containing updated order data
+            order_id (int): Unique identifier for the order
+            order_data (Dict[str, Any]): Updated order information
 
         Returns:
-            Updated Order object
-
-        Raises:
-            Exception: If update fails
+            Dict[str, Any]: Updated order details
         """
         pass
 
     @abstractmethod
-    def delete_order(self, order_id: int) -> None:
+    def delete_order(self, order_id: int) -> bool:
         """
         Delete an order.
 
         Args:
-            order_id: ID of the order to delete
+            order_id (int): Unique identifier for the order
 
-        Raises:
-            Exception: If deletion fails
+        Returns:
+            bool: True if deletion was successful
         """
         pass
 
     @abstractmethod
-    def process_order_payment(self, order_id: int, payment_amount: float) -> Order:
+    def get_orders_by_status(self, status: OrderStatus) -> List[Dict[str, Any]]:
         """
-        Process a payment for an order.
+        Retrieve orders by their status.
 
         Args:
-            order_id: ID of the order
-            payment_amount: Amount being paid
+            status (OrderStatus): Status to filter orders by
 
         Returns:
-            Updated Order object
-
-        Raises:
-            Exception: If payment processing fails
+            List[Dict[str, Any]]: List of orders with the specified status
         """
         pass
 
     @abstractmethod
-    def get_orders_by_status(self, status: OrderStatus) -> List[Order]:
+    def get_orders_by_date_range(self, start_date: datetime, end_date: datetime) -> List[Dict[str, Any]]:
         """
-        Get all orders with a specific status.
+        Retrieve orders within a specific date range.
 
         Args:
-            status: Status to filter by
+            start_date (datetime): Start of the date range
+            end_date (datetime): End of the date range
 
         Returns:
-            List of matching Order objects
-
-        Raises:
-            Exception: If retrieval fails
+            List[Dict[str, Any]]: List of orders within the date range
         """
         pass
 
     @abstractmethod
-    def get_orders_by_customer(self, customer_name: str) -> List[Order]:
+    def get_supplier_orders(self, supplier_id: int) -> List[Dict[str, Any]]:
         """
-        Get all orders for a specific customer.
+        Retrieve all orders for a specific supplier.
 
         Args:
-            customer_name: Name of the customer
+            supplier_id (int): Unique identifier for the supplier
 
         Returns:
-            List of matching Order objects
-
-        Raises:
-            Exception: If retrieval fails
+            List[Dict[str, Any]]: List of orders for the specified supplier
         """
         pass
 
     @abstractmethod
-    def get_order_statistics(self) -> Dict[str, Any]:
+    def generate_order_report(self, start_date: datetime, end_date: datetime) -> Dict[str, Any]:
         """
-        Get statistics about orders.
+        Generate a comprehensive order report for a given period.
+
+        Args:
+            start_date (datetime): Start of the reporting period
+            end_date (datetime): End of the reporting period
 
         Returns:
-            Dictionary containing order statistics
-
-        Raises:
-            Exception: If retrieval fails
+            Dict[str, Any]: Detailed order report
         """
-        pass
-
-    @abstractmethod
-    def cleanup(self) -> None:
-        """Clean up resources used by the service."""
         pass

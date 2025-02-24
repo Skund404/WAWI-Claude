@@ -3,115 +3,92 @@
 import tkinter as tk
 from tkinter import ttk
 import logging
-from typing import Optional, Dict, Type
-
-from gui.main_window import MainWindow
-from gui.storage.storage_view import StorageView
-from gui.order.order_view import OrderView
-from gui.pattern.project_view import PatternView
-from gui.shopping_list.shopping_list_view import ShoppingListView
-from gui.leatherworking.project_view import LeatherworkingProjectView
-
-from di.container import DependencyContainer
+from typing import Optional, Type, TypeVar
 from di.config import ApplicationConfig
+from gui.main_window import MainWindow
+from utils.error_handler import setup_exception_handler
 
-logger = logging.getLogger('application')
+T = TypeVar('T')
 
 
 class Application:
-    """
-    Main application class that handles window management and view initialization.
-    """
+    """Main application class that sets up and manages the GUI application."""
 
-    def __init__(self) -> None:
-        """Initialize the application components."""
-        self.root: Optional[tk.Tk] = None
-        self.main_window: Optional[MainWindow] = None
-        self.container = DependencyContainer()
+    def __init__(self):
+        """Initialize the application."""
+        self.logger = logging.getLogger(__name__)
         self._setup_application()
 
     def _setup_application(self) -> None:
-        """Setup the application components and register services."""
-        logger.info("Initializing application...")
+        """Set up the application components."""
+        try:
+            self.logger.info("Setting up application")
 
-        # Create and configure root window
-        self.root = tk.Tk()
-        self.root.withdraw()  # Hide root window initially
+            # Initialize the root window
+            self.root = tk.Tk()
+            self.root.title("Store Management System")
 
-        # Register services
-        self._register_services()
-        logger.info("Services registered successfully")
+            # Configure exception handling
+            setup_exception_handler(self.root)
 
-        # Create main window
-        self.main_window = MainWindow(self.root, self)
+            # Configure dependency injection
+            self._register_services()
 
-        # Register views
-        self._register_views()
+            # Create main window
+            self.main_window = MainWindow(self.root, self)
 
-        # Show the main window
-        self.root.deiconify()
-        logger.info("Application initialized successfully")
+            # Configure window size and position
+            self.root.geometry("1024x768")
+            self.root.minsize(800, 600)
+
+            self.logger.info("Application setup completed")
+
+        except Exception as e:
+            self.logger.error(f"Error during application setup: {e}")
+            raise
 
     def _register_services(self) -> None:
-        """Register all required services in the dependency container."""
-        ApplicationConfig.configure_container()
-        self.container = ApplicationConfig.get_container()
-
-    def _register_views(self) -> None:
-        """Register and initialize all application views."""
-        if not self.main_window:
-            logger.error("Main window not initialized")
-            return
-
+        """Register application services."""
         try:
-            self._main_window.add_view("Storage", StorageView(self._main_window, self))
-            logger.debug("Registered view: Storage")
+            self.logger.info("Registering services")
+            ApplicationConfig.configure_container()
+            self.logger.info("Services registered successfully")
         except Exception as e:
-            logger.error(f"Failed to register view Storage: {str(e)}")
+            self.logger.error(f"Error registering services: {e}")
+            raise
 
-        try:
-            self._main_window.add_view("Orders", OrderView(self._main_window, self))
-            logger.debug("Registered view: Orders")
-        except Exception as e:
-            logger.error(f"Failed to register view Orders: {str(e)}")
-
-        try:
-            self._main_window.add_view("Patterns", RecipeView(self._main_window, self))
-            logger.debug("Registered view: Patterns")
-        except Exception as e:
-            logger.error(f"Failed to register view Patterns: {str(e)}")
-
-        try:
-            self._main_window.add_view("Shopping Lists", ShoppingListView(self._main_window, self))
-            logger.debug("Registered view: Shopping Lists")
-        except Exception as e:
-            logger.error(f"Failed to register view Shopping Lists: {str(e)}")
-
-        try:
-            self._main_window.add_view("Leatherworking", LeatherworkingProjectView(self._main_window, self))
-            logger.debug("Registered view: Leatherworking")
-        except Exception as e:
-            logger.error(f"Failed to register view Leatherworking: {str(e)}")
-
-    def get_service(self, service_type: Type) -> any:
+    def get_service(self, service_type: Type[T]) -> T:
         """
-        Get a service instance from the dependency container.
+        Get a service instance by type.
 
         Args:
             service_type: Type of service to retrieve
 
         Returns:
-            Service instance
+            Instance of requested service type
         """
-        return self.container.resolve(service_type)
+        try:
+            return ApplicationConfig.get_service(service_type)
+        except Exception as e:
+            self.logger.error(f"Error getting service {service_type.__name__}: {e}")
+            raise
 
     def run(self) -> None:
-        """Start the application main loop."""
-        if self.root:
-            logger.info("Application started")
+        """Run the application main loop."""
+        try:
+            self.logger.info("Starting application main loop")
             self.root.mainloop()
+        except Exception as e:
+            self.logger.error(f"Error in application main loop: {e}")
+            raise
+        finally:
+            self.logger.info("Application shut down")
 
     def quit(self) -> None:
-        """Clean up and shut down the application."""
-        if self.root:
+        """Quit the application."""
+        try:
+            self.logger.info("Shutting down application")
             self.root.quit()
+        except Exception as e:
+            self.logger.error(f"Error during shutdown: {e}")
+            raise

@@ -15,8 +15,7 @@ from sqlalchemy.orm import DeclarativeBase
 
 from .base import BaseModel, Base
 from .enums import ProjectType, SkillLevel, StitchType, EdgeFinishType
-from .components import ProjectComponent
-
+from .components import PatternComponent
 
 class Pattern(Base):
     """

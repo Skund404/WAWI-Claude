@@ -1,30 +1,48 @@
-# database/base.py
+# Path: database/models/base.py
+"""
+Base model definitions for the application's database models.
+"""
 
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import DeclarativeMeta
-from typing import Dict, Any
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy import Integer
+from typing import Any, Dict
 
-# Create the declarative base
-Base = declarative_base()
-
-
-class BaseModel(Base):
+class Base(DeclarativeBase):
     """
-    Base model class that all model classes should inherit from.
-    Provides common functionality for all models.
+    Base declarative class for SQLAlchemy models.
+    Provides common functionality for all database models.
     """
-    __abstract__ = True
+    pass
 
-    def __repr__(self) -> str:
-        """Return a string representation of the model."""
-        return f"<{self.__class__.__name__}(id={getattr(self, 'id', None)})>"
+class BaseModel:
+    """
+    Mixin class providing common model functionality.
+    """
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self, exclude_fields: list[str] = None) -> Dict[str, Any]:
         """
-        Convert the model instance to a dictionary.
+        Convert model instance to a dictionary.
+
+        Args:
+            exclude_fields (list[str], optional): Fields to exclude from the dictionary.
 
         Returns:
-            Dict[str, Any]: Dictionary representation of the model
+            Dict[str, Any]: Dictionary representation of the model.
         """
-        return {column.name: getattr(self, column.name)
-                for column in self.__table__.columns}
+        exclude_fields = exclude_fields or []
+        return {
+            column.name: getattr(self, column.name)
+            for column in self.__table__.columns
+            if column.name not in exclude_fields
+        }
+
+    def __repr__(self) -> str:
+        """
+        Provide a string representation of the model.
+
+        Returns:
+            str: String representation including class name and primary key.
+        """
+        pk_value = getattr(self, 'id', None)
+        return f"<{self.__class__.__name__}(id={pk_value})>"

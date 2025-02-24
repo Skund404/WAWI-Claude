@@ -1,73 +1,76 @@
-# File: main.py
-import logging
+# main.py
+
 import sys
+import logging
 from pathlib import Path
-
-# Add the project root to Python path
-project_root = Path(__file__).parent
-sys.path.insert(0, str(project_root))
-
-from config.settings import get_log_path
-from utils.logger import setup_logging
+from typing import Optional
+import tkinter as tk
 from application import Application
+from utils.logger import setup_logging
+from database import initialize_database
 
-def setup_exception_handler(root):
+
+def setup_exception_handler(root: tk.Tk) -> None:
     """
-    Set up a global exception handler.
+    Set up global exception handler for the application.
 
     Args:
-        root: The root application object.
+        root: Root tkinter window
     """
-    def global_exception_handler(exc_type, exc_value, exc_traceback):
-        """
-        Handle uncaught exceptions.
 
-        Args:
-            exc_type (type): Exception type.
-            exc_value (Exception): Exception instance.
-            exc_traceback (traceback): Traceback object.
-        """
-        if issubclass(exc_type, KeyboardInterrupt):
-            sys.__excepthook__(exc_type, exc_value, exc_traceback)
-            return
-
+    def handle_exception(exc_type, exc_value, exc_traceback):
+        """Handle uncaught exceptions by logging them."""
         logging.error(
             "Uncaught exception",
             exc_info=(exc_type, exc_value, exc_traceback)
         )
-        # Optional: Show error dialog or take specific action
-        # root.show_error_dialog(str(exc_value))
+        root.quit()
 
-    sys.excepthook = global_exception_handler
+    sys.excepthook = handle_exception
 
-def initialize_app():
+
+def initialize_app() -> Optional[Application]:
     """
-    Initialize the application.
+    Initialize the application and its dependencies.
 
     Returns:
-        Application: Initialized application instance.
-    """
-    # Initialize logging
-    setup_logging(
-        log_level=logging.INFO,
-        log_dir=get_log_path()
-    )
-
-    # Create and return the application
-    app = Application()
-    setup_exception_handler(app)
-    return app
-
-def main():
-    """
-    Main application entry point.
+        Optional[Application]: Initialized application instance if successful, None otherwise
     """
     try:
-        app = initialize_app()
-        app.run()
+        # Set up logging
+        setup_logging()
+        logging.info("GUI initialization started")
+
+        # Initialize database
+        initialize_database(drop_existing=False)
+
+        # Create and configure application
+        app = Application()
+        return app
+
     except Exception as e:
-        logging.error(f"Application initialization failed: {e}", exc_info=True)
+        logging.error(f"Failed to initialize application: {e}")
+        return None
+
+
+def main():
+    """Main application entry point."""
+    try:
+        # Initialize application
+        app = initialize_app()
+        if not app:
+            logging.error("Application initialization failed")
+            sys.exit(1)
+
+        # Run the application
+        app.run()
+
+    except Exception as e:
+        logging.error(f"Critical error in main: {e}")
         sys.exit(1)
+    finally:
+        logging.info("Application shutdown complete")
+
 
 if __name__ == "__main__":
     main()

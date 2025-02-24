@@ -1,78 +1,155 @@
 # Path: database/models/product.py
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey
+"""
+Product model definition with support for order items.
+"""
+
+from sqlalchemy import Column, Integer, String, Float, Enum, DateTime
 from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
-from database.base import BaseModel
+from datetime import datetime
+from .base import BaseModel
+from .enums import MaterialType
 
 
 class Product(BaseModel):
     """
-    Represents a product in the inventory management system.
+    Represents a product in the inventory system.
 
     Attributes:
-        id (int): Unique identifier for the product
-        name (str): Name of the product
-        description (str): Detailed description of the product
-        sku (str): Stock Keeping Unit identifier
-        quantity (float): Current quantity in stock
-        unit (str): Unit of measurement
-        storage_id (int): Foreign key to the storage location
-        supplier_id (int): Foreign key to the supplier of the product
-        cost_price (float): Cost price of the product
-        selling_price (float): Selling price of the product
-        created_at (DateTime): Timestamp of product creation
-
-        storage (relationship): Storage location of the product
-        supplier (relationship): Supplier of the product
-        patterns (relationship): Patterns for creating this product
+        id (int): Primary key for the product.
+        name (str): Name of the product.
+        price (float): Selling price of the product.
+        cost_price (float): Cost price of the product.
+        description (str): Product description.
+        sku (str): Stock Keeping Unit identifier.
+        material_type (MaterialType): Type of material used in the product.
+        stock_quantity (float): Current stock quantity.
+        minimum_stock_level (float): Minimum stock level before reordering.
+        created_at (datetime): Timestamp of product creation.
+        updated_at (datetime): Timestamp of last product update.
+        order_items (list): List of order items associated with this product.
     """
     __tablename__ = 'products'
 
     id = Column(Integer, primary_key=True)
     name = Column(String(100), nullable=False)
-    description = Column(String(255), nullable=True)
-    sku = Column(String(50), unique=True, nullable=True)
-    quantity = Column(Float, default=0.0)
-    unit = Column(String(20), nullable=True)
-    storage_id = Column(Integer, ForeignKey('storage.id'), nullable=True)
-    supplier_id = Column(Integer, ForeignKey('suppliers.id'), nullable=True)
-    cost_price = Column(Float, nullable=True)
-    selling_price = Column(Float, nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    price = Column(Float, nullable=False)
+    cost_price = Column(Float, nullable=False)
+    description = Column(String(255))
+    sku = Column(String(50), unique=True)
+    material_type = Column(Enum(MaterialType))
+    stock_quantity = Column(Float, default=0)
+    minimum_stock_level = Column(Float, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    # Relationships
-    storage = relationship('Storage', back_populates='products')
-    supplier = relationship('Supplier', back_populates='products')
-    patterns = relationship('Project', back_populates='product')
+    # Relationship with OrderItem
+    order_items = relationship("OrderItem", back_populates="product",
+                               cascade="all, delete-orphan",
+                               lazy='subquery')
 
-    def __repr__(self):
-        return f"<Product(id={self.id}, name='{self.name}', sku='{self.sku}', quantity={self.quantity})>"
-
-    @property
-    def total_value(self):
+    def __init__(self, name: str, price: float, cost_price: float,
+                 description: str = None, sku: str = None,
+                 material_type: MaterialType = None):
         """
-        Calculate the total value of the product in stock.
+        Initialize a Product.
+
+        Args:
+            name (str): Name of the product.
+            price (float): Selling price of the product.
+            cost_price (float): Cost price of the product.
+            description (str, optional): Product description. Defaults to None.
+            sku (str, optional): Stock Keeping Unit identifier. Defaults to None.
+            material_type (MaterialType, optional): Type of material. Defaults to None.
+        """
+        self.name = name
+        self.price = price
+        self.cost_price = cost_price
+        self.description = description
+        self.sku = sku
+        self.material_type = material_type
+
+    def __repr__(self) -> str:
+        """
+        String representation of the Product.
 
         Returns:
-            float: Total value of the product (quantity * cost price)
+            str: Formatted string describing the product.
         """
-        return self.quantity * (self.cost_price or 0)
+        return (f"<Product(id={self.id}, "
+                f"name='{self.name}', "
+                f"price={self.price}, "
+                f"stock_quantity={self.stock_quantity})>")
 
-    def get_primary_recipe(self):
+    def update_stock(self, quantity_change: float, transaction_type: str = None) -> None:
         """
-        Get the primary (first) pattern for this product.
+        Update the stock quantity of the product.
+
+        Args:
+            quantity_change (float): Amount to change stock by (positive or negative).
+            transaction_type (str, optional): Type of stock transaction. Defaults to None.
+        """
+        self.stock_quantity += quantity_change
+
+    def is_low_stock(self) -> bool:
+        """
+        Check if the product is below its minimum stock level.
 
         Returns:
-            Project or None: The first pattern for the product, or None if no patterns exist
+            bool: True if stock is low, False otherwise.
         """
-        return self.patterns[0] if self.patterns else None
+        return self.stock_quantity <= self.minimum_stock_level
 
-    def calculate_production_cost(self):
+    def calculate_profit_margin(self) -> float:
         """
-        Calculate the total production cost based on the first pattern.
+        Calculate the profit margin of the product.
 
         Returns:
-            float: Total production cost, or 0 if no pattern exists
+            float: Profit margin percentage.
         """
-        primary_recipe = self.get_primary_recipe()
-        return primary_recipe.calculate_total_cost() if primary_recipe else 0
+        return ((self.price - self.cost_price) / self.price) * 100 if self.price > 0 else 0
+
+    def activate(self) -> None:
+        """
+        Activate the product (placeholder for potential future implementation).
+        """
+        # Future implementation might include setting an active flag
+        pass
+
+    def deactivate(self) -> None:
+        """
+        Deactivate the product (placeholder for potential future implementation).
+        """
+        # Future implementation might include setting an inactive flag
+        pass
+
+    def to_dict(self, include_details: bool = False) -> dict:
+        """
+        Convert Product to dictionary representation.
+
+        Args:
+            include_details (bool, optional): Whether to include additional details. Defaults to False.
+
+        Returns:
+            dict: Dictionary containing Product attributes.
+        """
+        product_dict = {
+            'id': self.id,
+            'name': self.name,
+            'price': self.price,
+            'cost_price': self.cost_price,
+            'description': self.description,
+            'sku': self.sku,
+            'material_type': self.material_type.value if self.material_type else None,
+            'stock_quantity': self.stock_quantity,
+            'minimum_stock_level': self.minimum_stock_level,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+        if include_details:
+            product_dict.update({
+                'profit_margin': self.calculate_profit_margin(),
+                'is_low_stock': self.is_low_stock()
+            })
+
+        return product_dict

@@ -1,143 +1,162 @@
-# di/config.py
+# Path: store_management/di/config.py
 
-from typing import Type, TypeVar
+import importlib
+import logging
+from typing import Any, Dict, Type, Optional
 from .container import DependencyContainer
 
-# Service interfaces
-from services.interfaces.order_service import IOrderService
-from database.repositories.interfaces.pattern_service import IRecipeService
-from services.interfaces.shopping_list_service import IShoppingListService
-from services.interfaces.project_service import IProjectService
-from services.interfaces.storage_service import IStorageService
-from services.interfaces.supplier_service import ISupplierService
-from services.interfaces.hardware_service import IHardwareService
-from services.interfaces.material_service import IMaterialService
-
-# Service implementations
-from services.implementations.order_service import OrderService
-from services.implementations.pattern_service import PatternService
-from services.implementations.shopping_list_service import ShoppingListService
-from services.implementations.project_service import ProjectService
-from services.implementations.storage_service import StorageService
-from services.implementations.supplier_service import SupplierService
-from services.implementations.hardware_service import HardwareService
-from services.implementations.material_service import MaterialService
-
-T = TypeVar('T')
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 
-class ApplicationConfig:
+class ServiceContainer:
     """
-    Configuration class for dependency injection and service registration.
+    A singleton class for managing service dependencies and configurations.
 
-    Handles:
-    - Service registration
-    - Container configuration
-    - Service resolution
+    This class provides a centralized way to register and resolve service
+    implementations across the application.
     """
+    _instance = None
+    _services: Dict[str, Any] = {}
 
-    _container: DependencyContainer = None
-
-    @classmethod
-    def configure_container(cls) -> None:
-        """Configure the dependency injection container with all required services."""
-        container = DependencyContainer()
-        cls._register_services(container)
-        ApplicationConfig._container = container
-
-    @classmethod
-    def _register_services(cls, container: DependencyContainer) -> None:
+    def __new__(cls):
         """
-        Register all application services.
-
-        Args:
-            container: Dependency container to register services with
-        """
-        # Register Order service
-        container.register(
-            IOrderService,
-            lambda c: OrderService(c),
-            singleton=True
-        )
-
-        # Register Pattern service
-        container.register(
-            IRecipeService,
-            lambda c: RecipeService(c),
-            singleton=True
-        )
-
-        # Register Shopping List service
-        container.register(
-            IShoppingListService,
-            lambda c: ShoppingListService(c),
-            singleton=True
-        )
-
-        # Register Project service
-        container.register(
-            IProjectService,
-            lambda c: ProjectService(c),
-            singleton=True
-        )
-
-        # Register Storage service
-        container.register(
-            IStorageService,
-            lambda c: StorageService(c),
-            singleton=True
-        )
-
-        # Register Supplier service
-        container.register(
-            ISupplierService,
-            lambda c: SupplierService(c),
-            singleton=True
-        )
-
-        # Register Hardware service
-        container.register(
-            IHardwareService,
-            lambda c: HardwareService(c),
-            singleton=True
-        )
-
-        # Register Material service
-        container.register(
-            IMaterialService,
-            lambda c: MaterialService(c),
-            singleton=True
-        )
-
-    @classmethod
-    def get_container(cls) -> DependencyContainer:
-        """
-        Get the configured dependency container.
+        Ensure only one instance of ServiceContainer is created.
 
         Returns:
-            DependencyContainer: Configured container instance
-
-        Raises:
-            RuntimeError: If container is not configured
+            ServiceContainer: The singleton instance of the service container.
         """
-        if cls._container is None:
-            raise RuntimeError("Container not configured. Call configure_container() first.")
-        return cls._container
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._services = {}
+        return cls._instance
 
     @classmethod
-    def get_service(cls, service_type: Type[T]) -> T:
+    def register_service(
+            cls,
+            interface: str,
+            implementation: str,
+            singleton: bool = True
+    ) -> None:
         """
-        Get a service instance of the specified type.
+        Register a service implementation for a given interface.
 
         Args:
-            service_type: Type of service to retrieve
+            interface (str): The full import path of the interface
+            implementation (str): The full import path of the implementation
+            singleton (bool, optional): Whether to create a singleton. Defaults to True.
+        """
+        try:
+            cls._services[interface] = {
+                'implementation': implementation,
+                'singleton': singleton
+            }
+            logger.info(f"Registered service: {interface} -> {implementation}")
+        except Exception as e:
+            logger.error(f"Error registering service {interface}: {e}")
+            raise
+
+    @classmethod
+    def resolve(cls, interface: str) -> Any:
+        """
+        Resolve and instantiate a service implementation for a given interface.
+
+        Args:
+            interface (str): The full import path of the interface
 
         Returns:
-            Service instance
+            Any: An instance of the service implementation
 
         Raises:
-            RuntimeError: If container is not configured
-            Exception: If service resolution fails
+            ValueError: If no implementation is registered for the interface
         """
-        container = cls.get_container()
-        return container.resolve(service_type)
+        try:
+            if interface not in cls._services:
+                raise ValueError(f"No implementation registered for {interface}")
+
+            service_info = cls._services[interface]
+            implementation_path = service_info['implementation']
+
+            # Split the implementation path into module and class
+            try:
+                module_path, class_name = implementation_path.rsplit('.', 1)
+            except ValueError:
+                raise ValueError(f"Invalid implementation path: {implementation_path}")
+
+            # Import the module and get the class
+            module = importlib.import_module(module_path)
+            implementation_class = getattr(module, class_name)
+
+            # Instantiate or return singleton
+            if service_info.get('singleton', True):
+                if not hasattr(cls, f'_{class_name}_instance'):
+                    setattr(cls, f'_{class_name}_instance', implementation_class())
+                return getattr(cls, f'_{class_name}_instance')
+
+            return implementation_class()
+
+        except (ImportError, AttributeError) as e:
+            logger.error(f"Error resolving service {interface}: {e}")
+            raise ValueError(f"Could not resolve service {interface}: {e}")
+
+    @classmethod
+    def clear(cls) -> None:
+        """
+        Clear all registered services.
+        """
+        cls._services.clear()
+        logger.info("All services cleared")
+
+
+def import_interface(module_path: str, interface_name: str) -> Type:
+    """
+    Dynamically import an interface class.
+
+    Args:
+        module_path (str): The module path containing the interface
+        interface_name (str): The name of the interface class
+
+    Returns:
+        Type: The imported interface class
+
+    Raises:
+        ImportError: If the interface cannot be imported
+    """
+    try:
+        module = importlib.import_module(module_path)
+        return getattr(module, interface_name)
+    except (ImportError, AttributeError) as e:
+        logger.error(f"Error importing interface {interface_name}: {e}")
+        raise
+
+
+def configure_application_services() -> None:
+    """
+    Configure and register application services.
+
+    This function should be expanded with actual service registrations.
+    """
+    try:
+        # Example service registrations
+        # These should be replaced with actual service mappings
+        services_to_register = [
+            ('services.interfaces.material_service.IMaterialService',
+             'services.implementations.material_service.MaterialService'),
+            ('services.interfaces.project_service.IProjectService',
+             'services.implementations.project_service.ProjectService'),
+            # Add more service registrations as needed
+        ]
+
+        for interface, implementation in services_to_register:
+            ServiceContainer.register_service(interface, implementation)
+
+        logger.info("Application services configured successfully")
+
+    except Exception as e:
+        logger.error(f"Error configuring application services: {e}")
+        raise
+
+
+# Automatically configure services when module is imported
+configure_application_services()

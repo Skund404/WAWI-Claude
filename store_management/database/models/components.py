@@ -1,205 +1,143 @@
 # database/models/components.py
-"""
-Component models for the store management system.
 
-This module defines base and specialized component classes
-for projects and patterns in the leatherworking management system.
-"""
-
-from typing import Optional, Dict, Any
-import sqlalchemy as sa
-from sqlalchemy import Column, Integer, String, Float, Enum, ForeignKey
-from sqlalchemy.orm import relationship, declared_attr
-from sqlalchemy.ext.declarative import declared_attr
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, Enum, Boolean
+from sqlalchemy.orm import relationship
+from typing import Dict, Any, Optional
 
 from .base import Base, BaseModel
-from .enums import ComponentType, MaterialType
-from .mixins import TimestampMixin, ValidationMixin, CostingMixin
+from .enums import (
+    MaterialType,
+    ComponentType,
+    StitchType,
+    EdgeFinishType
+)
+from .mixins import (
+    TimestampMixin,
+    ValidationMixin,
+    CostingMixin
+)
 
 
-class Component(Base, TimestampMixin, ValidationMixin, CostingMixin):
-    """
-    Base component class for all project and pattern components.
-
-    Provides common attributes and methods for components
-    used in leatherworking projects and patterns.
-
-    Attributes:
-        id (int): Unique identifier for the component
-        name (str): Name of the component
-        description (str, optional): Detailed description of the component
-        component_type (ComponentType): Type of the component
-        material_type (MaterialType): Type of material used
-        quantity (float): Quantity of the component
-        unit_cost (float): Cost per unit of the component
-    """
+class Component(BaseModel, TimestampMixin, ValidationMixin, CostingMixin):
+    """Base class for all component types."""
     __tablename__ = 'components'
-    __mapper_args__ = {
-        'polymorphic_identity': 'component',
-        'polymorphic_on': 'type'
-    }
 
     id = Column(Integer, primary_key=True)
-    type = Column(String(50))
-    name = Column(String, nullable=False)
-    description = Column(String)
-    component_type = Column(Enum(ComponentType), nullable=False)
+    name = Column(String(100), nullable=False)
+    description = Column(String(500))
     material_type = Column(Enum(MaterialType), nullable=False)
-    quantity = Column(Float, nullable=False, default=1.0)
+    component_type = Column(Enum(ComponentType), nullable=False)
+    quantity = Column(Float, nullable=False, default=0.0)
     unit_cost = Column(Float, nullable=False, default=0.0)
+    # Add the discriminator column
+    component_type_discriminator = Column(String(50), nullable=False)
+
+    __mapper_args__ = {
+        'polymorphic_identity': 'base_component',
+        'polymorphic_on': component_type_discriminator
+    }
 
     def __repr__(self) -> str:
-        """
-        String representation of the component.
-
-        Returns:
-            str: Readable representation of the component
-        """
-        return (f"<Component(id={self.id}, name='{self.name}', "
-                f"type={self.component_type}, material={self.material_type})>")
+        return f"<Component {self.name}>"
 
     def calculate_total_cost(self) -> float:
-        """
-        Calculate the total cost of the component.
-
-        Returns:
-            float: Total cost (quantity * unit cost)
-        """
+        """Calculate the total cost for this component."""
         return self.quantity * self.unit_cost
 
-    def validate_component(self) -> bool:
-        """
-        Validate the component's data integrity.
+    def validate_component(self) -> None:
+        """Validate component data."""
+        self.validate_required_fields([
+            'name',
+            'material_type',
+            'component_type',
+            'quantity',
+            'unit_cost'
+        ])
 
-        Returns:
-            bool: True if component data is valid, False otherwise
-        """
-        # Validate required fields
-        if not self.validate_required_fields(['name', 'component_type', 'material_type']):
-            return False
-
-        # Validate numeric fields
-        if not all([
-            self.validate_numeric_range(self.quantity, min_val=0),
-            self.validate_numeric_range(self.unit_cost, min_val=0)
-        ]):
-            return False
-
-        return True
+    def to_dict(self, exclude_fields: Optional[list] = None) -> Dict[str, Any]:
+        """Base to_dict implementation."""
+        exclude_fields = exclude_fields or []
+        return {
+            'id': self.id,
+            'name': self.name,
+            'description': self.description,
+            'material_type': self.material_type.name if self.material_type else None,
+            'component_type': self.component_type.name if self.component_type else None,
+            'quantity': self.quantity,
+            'unit_cost': self.unit_cost,
+            'total_cost': self.calculate_total_cost()
+        }
 
 
 class ProjectComponent(Component):
-    """
-    Specialized component class for project-specific components.
-
-    Extends the base Component class with project-specific attributes
-    and methods.
-
-    Attributes:
-        project_id (int): Foreign key to the associated project
-        project (Project): Relationship to the parent project
-        efficiency (float, optional): Material usage efficiency
-    """
-    __mapper_args__ = {
-        'polymorphic_identity': 'project_component'
-    }
+    """Component within a specific project."""
     __tablename__ = 'project_components'
+    __table_args__ = {'extend_existing': True}
 
-    # Use the base class's primary key as foreign key
     id = Column(Integer, ForeignKey('components.id'), primary_key=True)
+    project_id = Column(Integer, ForeignKey('projects.id'), nullable=False)
+    actual_quantity_used = Column(Float)
+    wastage = Column(Float, default=0.0)
 
-    # Use an optional relationship to project, which can be defined in the Project model
-    project_id = Column(Integer, ForeignKey('projects.id'), nullable=True)
-    efficiency = Column(Float)
+    # Relationships
+    project = relationship("Project", back_populates="components")
 
-    def calculate_material_efficiency(
-            self,
-            actual_material_used: float,
-            planned_material: float
-    ) -> float:
-        """
-        Calculate material efficiency for the project component.
+    __mapper_args__ = {
+        'polymorphic_identity': 'project_component',
+    }
 
-        Args:
-            actual_material_used (float): Amount of material actually used
-            planned_material (float): Amount of material originally planned
-
-        Returns:
-            float: Material efficiency percentage
-        """
+    def calculate_material_efficiency(self, actual_material_used: float, planned_material: float) -> float:
+        """Calculate material usage efficiency."""
         if planned_material <= 0:
             return 0.0
+        return (1 - abs(actual_material_used - planned_material) / planned_material) * 100
 
-        efficiency = (planned_material - actual_material_used) / planned_material * 100
-        return max(0.0, min(efficiency, 100.0))
-
-    def to_dict(self) -> Dict[str, Any]:
-        """
-        Convert the project component to a dictionary representation.
-
-        Returns:
-            Dict[str, Any]: Dictionary of component attributes
-        """
-        base_dict = super().to_dict() if hasattr(super(), 'to_dict') else {}
+    def to_dict(self, exclude_fields: Optional[list] = None) -> Dict[str, Any]:
+        """Convert to dictionary with additional project component fields."""
+        base_dict = super().to_dict(exclude_fields)
         base_dict.update({
             'project_id': self.project_id,
-            'efficiency': self.efficiency
+            'actual_quantity_used': self.actual_quantity_used,
+            'wastage': self.wastage,
+            'efficiency': self.calculate_material_efficiency(
+                self.actual_quantity_used or 0.0,
+                self.quantity
+            ) if self.actual_quantity_used is not None else None
         })
         return base_dict
 
 
-class RecipeComponent(Component):
-    """
-    Specialized component class for pattern-specific components.
+class PatternComponent(Component):
+    """Component template used in patterns."""
+    __tablename__ = 'pattern_components'
+    __table_args__ = {'extend_existing': True}
 
-    Extends the base Component class with pattern-specific attributes
-    and methods.
-
-    Attributes:
-        recipe_id (int): Foreign key to the associated pattern
-        pattern (Project): Relationship to the parent pattern
-        minimum_quantity (float, optional): Minimum required quantity
-        substitutable (bool, optional): Whether the component can be substituted
-    """
-    __mapper_args__ = {
-        'polymorphic_identity': 'recipe_component'
-    }
-    __tablename__ = 'recipe_components'
-
-    # Use the base class's primary key as foreign key
     id = Column(Integer, ForeignKey('components.id'), primary_key=True)
+    pattern_id = Column(Integer, ForeignKey('patterns.id'), nullable=False)
+    minimum_quantity = Column(Float, default=0.0)
+    substitutable = Column(Boolean, default=False)
+    stitch_type = Column(Enum(StitchType))
+    edge_finish_type = Column(Enum(EdgeFinishType))
 
-    # Use an optional relationship to pattern, which can be defined in the Project model
-    recipe_id = Column(Integer, ForeignKey('projects.id'), nullable=True)
-    minimum_quantity = Column(Float)
-    substitutable = Column(sa.Boolean, default=False)
+    # Relationships
+    pattern = relationship("Pattern", back_populates="components")
+
+    __mapper_args__ = {
+        'polymorphic_identity': 'pattern_component',
+    }
 
     def can_substitute(self, alternate_material_type: MaterialType) -> bool:
-        """
-        Check if this component can be substituted with another material type.
+        """Check if material can be substituted."""
+        return self.substitutable and alternate_material_type != self.material_type
 
-        Args:
-            alternate_material_type (MaterialType): Material type to check for substitution
-
-        Returns:
-            bool: True if substitution is possible, False otherwise
-        """
-        return (
-                self.substitutable and
-                alternate_material_type != self.material_type
-        )
-
-    def to_dict(self) -> Dict[str, Any]:
-        """
-        Convert the pattern component to a dictionary representation.
-
-        Returns:
-            Dict[str, Any]: Dictionary of component attributes
-        """
-        base_dict = super().to_dict() if hasattr(super(), 'to_dict') else {}
+    def to_dict(self, exclude_fields: Optional[list] = None) -> Dict[str, Any]:
+        """Convert to dictionary with additional pattern component fields."""
+        base_dict = super().to_dict(exclude_fields)
         base_dict.update({
-            'recipe_id': self.recipe_id,
+            'pattern_id': self.pattern_id,
             'minimum_quantity': self.minimum_quantity,
-            'substitutable': self.substitutable
+            'substitutable': self.substitutable,
+            'stitch_type': self.stitch_type.name if self.stitch_type else None,
+            'edge_finish_type': self.edge_finish_type.name if self.edge_finish_type else None
         })
         return base_dict

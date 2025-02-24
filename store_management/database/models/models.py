@@ -1,90 +1,128 @@
-# database/models/components.py
+# Path: store_management/database/models/material.py
 
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, Enum
+from enum import Enum
+from sqlalchemy import Column, Integer, String, Float, DateTime, Enum as SQLAEnum
 from sqlalchemy.orm import relationship
-from typing import Dict, Optional
-from .base import BaseModel
-from .interfaces import IComponent
-from .enums import ComponentType, MaterialType
-from .mixins import TimestampMixin, ValidationMixin, CostingMixin
+from sqlalchemy.sql import func
+from database.models.base import BaseModel, Base
 
 
-class Component(BaseModel, IComponent, TimestampMixin, ValidationMixin, CostingMixin):
-    """Base class for all components."""
-    __tablename__ = 'components'
+class MaterialType(Enum):
+    """
+    Enumeration of material types.
+    """
+    LEATHER = "leather"
+    THREAD = "thread"
+    HARDWARE = "hardware"
+    FABRIC = "fabric"
+    OTHER = "other"
+
+
+class MaterialQualityGrade(Enum):
+    """
+    Enumeration of material quality grades.
+    """
+    PREMIUM = "premium"
+    STANDARD = "standard"
+    ECONOMY = "economy"
+
+
+class Material(BaseModel, Base):
+    """
+    Represents a material in the inventory system.
+
+    Attributes:
+        id (int): Unique identifier for the material
+        name (str): Name of the material
+        material_type (MaterialType): Type of material
+        quality_grade (MaterialQualityGrade): Quality grade of the material
+        stock (float): Current stock quantity
+        minimum_stock (float): Minimum stock threshold
+        unit_price (float): Price per unit
+        supplier_id (int): ID of the supplier
+        description (str): Optional description of the material
+        created_at (DateTime): Timestamp of record creation
+        updated_at (DateTime): Timestamp of last update
+    """
+    __tablename__ = 'materials'
 
     id = Column(Integer, primary_key=True)
-    name = Column(String(100), nullable=False)
-    description = Column(String(500))
-    component_type = Column(Enum(ComponentType))
-    material_type = Column(Enum(MaterialType))
-    quantity = Column(Float, default=0.0)
-    unit_cost = Column(Float, default=0.0)
+    name = Column(String(255), nullable=False)
+    material_type = Column(SQLAEnum(MaterialType), nullable=False)
+    quality_grade = Column(SQLAEnum(MaterialQualityGrade), nullable=False)
+    stock = Column(Float, default=0.0, nullable=False)
+    minimum_stock = Column(Float, default=0.0, nullable=False)
+    unit_price = Column(Float, default=0.0, nullable=False)
+    supplier_id = Column(Integer, nullable=True)
+    description = Column(String(500), nullable=True)
 
-    __mapper_args__ = {
-        'polymorphic_identity': 'component',
-        'polymorphic_on': component_type
-    }
+    # Timestamp columns
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    def calculate_cost(self) -> float:
-        """Calculate the total cost of this component."""
-        return self.quantity * self.unit_cost
+    def __repr__(self):
+        """
+        String representation of the Material instance.
 
-    def validate(self) -> bool:
-        """Validate component data."""
-        required_fields = ['name', 'component_type', 'material_type', 'quantity']
-        return (self.validate_required_fields(required_fields) and
-                self.validate_numeric_range(self.quantity, 0, float('inf')))
+        Returns:
+            str: Formatted string with material details
+        """
+        return (
+            f"<Material(id={self.id}, name='{self.name}', "
+            f"type={self.material_type}, stock={self.stock})>"
+        )
 
-    def get_material_requirements(self) -> Dict[str, float]:
-        """Get the material requirements for this component."""
-        return {
-            'material_type': self.material_type.name,
-            'quantity': self.quantity
+    def update_stock(self, quantity_change: float) -> None:
+        """
+        Update the stock quantity.
+
+        Args:
+            quantity_change (float): Quantity to add or subtract
+
+        Raises:
+            ValueError: If stock would become negative
+        """
+        new_stock = self.stock + quantity_change
+        if new_stock < 0:
+            raise ValueError(f"Insufficient stock. Cannot reduce stock below 0.")
+        self.stock = new_stock
+
+    def is_low_stock(self) -> bool:
+        """
+        Check if the material is below its minimum stock threshold.
+
+        Returns:
+            bool: True if stock is below minimum, False otherwise
+        """
+        return self.stock <= self.minimum_stock
+
+    def to_dict(self, exclude_fields=None):
+        """
+        Convert material to dictionary representation.
+
+        Args:
+            exclude_fields (list, optional): Fields to exclude from the dictionary
+
+        Returns:
+            dict: Dictionary representation of the material
+        """
+        exclude_fields = exclude_fields or []
+        material_dict = {
+            'id': self.id,
+            'name': self.name,
+            'material_type': self.material_type.value,
+            'quality_grade': self.quality_grade.value,
+            'stock': self.stock,
+            'minimum_stock': self.minimum_stock,
+            'unit_price': self.unit_price,
+            'supplier_id': self.supplier_id,
+            'description': self.description,
+            'created_at': self.created_at,
+            'updated_at': self.updated_at
         }
 
+        # Remove excluded fields
+        for field in exclude_fields:
+            material_dict.pop(field, None)
 
-class ProjectComponent(Component):
-    """Component specifically for projects."""
-    __tablename__ = 'project_components'
-
-    id = Column(Integer, ForeignKey('components.id'), primary_key=True)
-    project_id = Column(Integer, ForeignKey('projects.id'))
-    actual_quantity = Column(Float, default=0.0)
-    wastage = Column(Float, default=0.0)
-
-    # Relationships
-    project = relationship("Project", back_populates="components")
-
-    __mapper_args__ = {
-        'polymorphic_identity': 'project_component',
-    }
-
-    def calculate_efficiency(self) -> float:
-        """Calculate material usage efficiency."""
-        if self.quantity == 0:
-            return 0.0
-        return (self.actual_quantity - self.wastage) / self.quantity * 100
-
-
-class RecipeComponent(Component):
-    """Component specifically for patterns."""
-    __tablename__ = 'recipe_components'
-
-    id = Column(Integer, ForeignKey('components.id'), primary_key=True)
-    recipe_id = Column(Integer, ForeignKey('patterns.id'))
-    minimum_quantity = Column(Float, default=0.0)
-    substitutable = Column(Boolean, default=False)
-
-    # Relationships
-    pattern = relationship("Pattern", back_populates="components")
-
-    __mapper_args__ = {
-        'polymorphic_identity': 'recipe_component',
-    }
-
-    def can_substitute(self, alternate_material_type: MaterialType) -> bool:
-        """Check if this component can be substituted with another material."""
-        return self.substitutable
-
-
+        return material_dict
