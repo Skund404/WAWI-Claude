@@ -1,9 +1,9 @@
 from di.core import inject
 from services.interfaces import (
-    MaterialService,
-    ProjectService,
-    InventoryService,
-    OrderService,
+MaterialService,
+ProjectService,
+InventoryService,
+OrderService,
 )
 
 

@@ -8,377 +8,442 @@ T = TypeVar('T')
 
 
 class BaseManager(Generic[T]):
-    """
-    Comprehensive base manager for database operations.
+    pass
+"""
+Comprehensive base manager for database operations.
 
-    Provides a generic, type-safe implementation of common database operations
-    with extensive error handling and transaction management.
-    """
+Provides a generic, type-safe implementation of common database operations
+with extensive error handling and transaction management.
+"""
 
-    @inject(MaterialService)
-        def __init__(self, model_class: Type[T], session_factory: Callable[[],
-                                                                       Session]):
-        """
-        Initialize the base manager with a model class and session factory.
+@inject(MaterialService)
+def __init__(self, model_class: Type[T], session_factory: Callable[[],
+Session]):
+    pass
+"""
+Initialize the base manager with a model class and session factory.
 
-        Args:
-            model_class: The SQLAlchemy model class this manager operates on
-            session_factory: A callable that returns a database session
-        """
-        self.model_class = model_class
-        self.session_factory = session_factory
-        self.logger = logging.getLogger(f'{self.__class__.__name__}')
+Args:
+model_class: The SQLAlchemy model class this manager operates on
+session_factory: A callable that returns a database session
+"""
+self.model_class = model_class
+self.session_factory = session_factory
+self.logger = logging.getLogger(f'{self.__class__.__name__}')
 
-        @contextmanager
-    @inject(MaterialService)
-        def session_scope(self):
-        """
-        Provide a transactional scope around a series of operations.
+@contextmanager
+@inject(MaterialService)
+def session_scope(self):
+    pass
+"""
+Provide a transactional scope around a series of operations.
 
-        Yields:
-            Session: Active database session
+Yields:
+Session: Active database session
 
-        Raises:
-            DatabaseError: If session management fails
-        """
-        session = self.session_factory()
-        try:
-            yield session
-            session.commit()
-        except SQLAlchemyError as e:
-            session.rollback()
-            self.logger.error(f'Database error: {str(e)}', exc_info=True)
-            raise DatabaseError(f'Database operation failed: {str(e)}', str(e))
-        except Exception as e:
-            session.rollback()
-            self.logger.error(f'Unexpected error: {str(e)}', exc_info=True)
-            raise e
-        finally:
-            session.close()
+Raises:
+DatabaseError: If session management fails
+"""
+session = self.session_factory()
+try:
+    pass
+yield session
+session.commit()
+except SQLAlchemyError as e:
+    pass
+session.rollback()
+self.logger.error(f'Database error: {str(e)}', exc_info=True)
+raise DatabaseError(f'Database operation failed: {str(e)}', str(e))
+except Exception as e:
+    pass
+session.rollback()
+self.logger.error(f'Unexpected error: {str(e)}', exc_info=True)
+raise e
+finally:
+session.close()
 
-        @inject(MaterialService)
-            def create(self, data: Dict[str, Any]) -> T:
-        """
-        Create a new record in the database.
+@inject(MaterialService)
+def create(self, data: Dict[str, Any]) -> T:
+"""
+Create a new record in the database.
 
-        Args:
-            data: Dictionary of attributes for the new record
+Args:
+data: Dictionary of attributes for the new record
 
-        Returns:
-            The created record
+Returns:
+The created record
 
-        Raises:
-            DatabaseError: If creation fails
-        """
-        try:
-            with self.session_scope() as session:
-                instance = self.model_class(**data)
-                session.add(instance)
-                session.flush()
-                session.refresh(instance)
-                return instance
-        except Exception as e:
-            raise DatabaseError(
-                f'Failed to create {self.model_class.__name__}', str(e))
+Raises:
+DatabaseError: If creation fails
+"""
+try:
+    pass
+with self.session_scope() as session:
+    pass
+instance = self.model_class(**data)
+session.add(instance)
+session.flush()
+session.refresh(instance)
+return instance
+except Exception as e:
+    pass
+raise DatabaseError(
+f'Failed to create {self.model_class.__name__}', str(e))
 
-        @inject(MaterialService)
-            def get(self, id: Any) -> Optional[T]:
-        """
-        Retrieve a record by its primary key.
+@inject(MaterialService)
+def get(self, id: Any) -> Optional[T]:
+"""
+Retrieve a record by its primary key.
 
-        Args:
-            id: Primary key value
+Args:
+id: Primary key value
 
-        Returns:
-            The record if found, None otherwise
+Returns:
+The record if found, None otherwise
 
-        Raises:
-            DatabaseError: If retrieval fails
-        """
-        try:
-            with self.session_scope() as session:
-                return session.get(self.model_class, id)
-        except Exception as e:
-            raise DatabaseError(
-                f'Failed to retrieve {self.model_class.__name__} with id {id}',
-                str(e))
+Raises:
+DatabaseError: If retrieval fails
+"""
+try:
+    pass
+with self.session_scope() as session:
+    pass
+return session.get(self.model_class, id)
+except Exception as e:
+    pass
+raise DatabaseError(
+f'Failed to retrieve {self.model_class.__name__} with id {id}',
+str(e))
 
-        @inject(MaterialService)
-            def get_all(self, order_by: Optional[str] = None, limit: Optional[int] = None
-                    ) -> List[T]:
-        """
-        Retrieve all records, with optional ordering and limit.
+@inject(MaterialService)
+def get_all(self, order_by: Optional[str] = None, limit: Optional[int] = None
+) -> List[T]:
+"""
+Retrieve all records, with optional ordering and limit.
 
-        Args:
-            order_by: Optional column to order by
-            limit: Optional maximum number of records to return
+Args:
+order_by: Optional column to order by
+limit: Optional maximum number of records to return
 
-        Returns:
-            List of records
+Returns:
+List of records
 
-        Raises:
-            DatabaseError: If retrieval fails
-        """
-        try:
-            with self.session_scope() as session:
-                query = select(self.model_class)
-                if order_by:
-                    if hasattr(self.model_class, order_by):
-                        column = getattr(self.model_class, order_by)
-                        query = query.order_by(column)
-                if limit:
-                    query = query.limit(limit)
-                result = session.execute(query)
-                return list(result.scalars().all())
-        except Exception as e:
-            raise DatabaseError(
-                f'Failed to retrieve all {self.model_class.__name__} records',
-                str(e))
+Raises:
+DatabaseError: If retrieval fails
+"""
+try:
+    pass
+with self.session_scope() as session:
+    pass
+query = select(self.model_class)
+if order_by:
+    pass
+if hasattr(self.model_class, order_by):
+    pass
+column = getattr(self.model_class, order_by)
+query = query.order_by(column)
+if limit:
+    pass
+query = query.limit(limit)
+result = session.execute(query)
+return list(result.scalars().all())
+except Exception as e:
+    pass
+raise DatabaseError(
+f'Failed to retrieve all {self.model_class.__name__} records',
+str(e))
 
-        @inject(MaterialService)
-            def update(self, id: Any, data: Dict[str, Any]) -> Optional[T]:
-        """
-        Update an existing record.
+@inject(MaterialService)
+def update(self, id: Any, data: Dict[str, Any]) -> Optional[T]:
+"""
+Update an existing record.
 
-        Args:
-            id: Primary key of the record to update
-            data: Dictionary of attributes to update
+Args:
+id: Primary key of the record to update
+data: Dictionary of attributes to update
 
-        Returns:
-            The updated record, or None if not found
+Returns:
+The updated record, or None if not found
 
-        Raises:
-            DatabaseError: If update fails
-        """
-        try:
-            with self.session_scope() as session:
-                instance = session.get(self.model_class, id)
-                if not instance:
-                    return None
-                for key, value in data.items():
-                    if hasattr(instance, key):
-                        setattr(instance, key, value)
-                session.flush()
-                return instance
-        except Exception as e:
-            raise DatabaseError(
-                f'Failed to update {self.model_class.__name__} with id {id}',
-                str(e))
+Raises:
+DatabaseError: If update fails
+"""
+try:
+    pass
+with self.session_scope() as session:
+    pass
+instance = session.get(self.model_class, id)
+if not instance:
+    pass
+return None
+for key, value in data.items():
+    pass
+if hasattr(instance, key):
+    pass
+setattr(instance, key, value)
+session.flush()
+return instance
+except Exception as e:
+    pass
+raise DatabaseError(
+f'Failed to update {self.model_class.__name__} with id {id}',
+str(e))
 
-        @inject(MaterialService)
-            def delete(self, id: Any) -> bool:
-        """
-        Delete a record by its primary key.
+@inject(MaterialService)
+def delete(self, id: Any) -> bool:
+"""
+Delete a record by its primary key.
 
-        Args:
-            id: Primary key of the record to delete
+Args:
+id: Primary key of the record to delete
 
-        Returns:
-            True if deletion was successful, False if record not found
+Returns:
+True if deletion was successful, False if record not found
 
-        Raises:
-            DatabaseError: If deletion fails
-        """
-        try:
-            with self.session_scope() as session:
-                instance = session.get(self.model_class, id)
-                if not instance:
-                    return False
-                session.delete(instance)
-                return True
-        except Exception as e:
-            raise DatabaseError(
-                f'Failed to delete {self.model_class.__name__} with id {id}',
-                str(e))
+Raises:
+DatabaseError: If deletion fails
+"""
+try:
+    pass
+with self.session_scope() as session:
+    pass
+instance = session.get(self.model_class, id)
+if not instance:
+    pass
+return False
+session.delete(instance)
+return True
+except Exception as e:
+    pass
+raise DatabaseError(
+f'Failed to delete {self.model_class.__name__} with id {id}',
+str(e))
 
-        @inject(MaterialService)
-            def exists(self, **kwargs) -> bool:
-        """
-        Check if a record exists with the given criteria.
+@inject(MaterialService)
+def exists(self, **kwargs) -> bool:
+"""
+Check if a record exists with the given criteria.
 
-        Args:
-            **kwargs: Filter criteria
+Args:
+**kwargs: Filter criteria
 
-        Returns:
-            True if a matching record exists, False otherwise
+Returns:
+True if a matching record exists, False otherwise
 
-        Raises:
-            DatabaseError: If check fails
-        """
-        try:
-            with self.session_scope() as session:
-                query = select(self.model_class)
-                conditions = []
-                for key, value in kwargs.items():
-                    if hasattr(self.model_class, key):
-                        column = getattr(self.model_class, key)
-                        conditions.append(column == value)
-                if conditions:
-                    query = query.where(and_(*conditions))
-                result = session.execute(query.exists().select())
-                return result.scalar()
-        except Exception as e:
-            raise DatabaseError(
-                f'Failed to check existence of {self.model_class.__name__}',
-                str(e))
+Raises:
+DatabaseError: If check fails
+"""
+try:
+    pass
+with self.session_scope() as session:
+    pass
+query = select(self.model_class)
+conditions = []
+for key, value in kwargs.items():
+    pass
+if hasattr(self.model_class, key):
+    pass
+column = getattr(self.model_class, key)
+conditions.append(column == value)
+if conditions:
+    pass
+query = query.where(and_(*conditions))
+result = session.execute(query.exists().select())
+return result.scalar()
+except Exception as e:
+    pass
+raise DatabaseError(
+f'Failed to check existence of {self.model_class.__name__}',
+str(e))
 
-        @inject(MaterialService)
-            def count(self, **kwargs) -> int:
-        """
-        Count records matching the given criteria.
+@inject(MaterialService)
+def count(self, **kwargs) -> int:
+"""
+Count records matching the given criteria.
 
-        Args:
-            **kwargs: Filter criteria
+Args:
+**kwargs: Filter criteria
 
-        Returns:
-            Count of matching records
+Returns:
+Count of matching records
 
-        Raises:
-            DatabaseError: If count fails
-        """
-        try:
-            with self.session_scope() as session:
-                query = select(func.count()).select_from(self.model_class)
-                conditions = []
-                for key, value in kwargs.items():
-                    if hasattr(self.model_class, key):
-                        column = getattr(self.model_class, key)
-                        conditions.append(column == value)
-                if conditions:
-                    query = query.where(and_(*conditions))
-                result = session.execute(query)
-                return result.scalar()
-        except Exception as e:
-            raise DatabaseError(
-                f'Failed to count {self.model_class.__name__} records', str(e))
+Raises:
+DatabaseError: If count fails
+"""
+try:
+    pass
+with self.session_scope() as session:
+    pass
+query = select(func.count()).select_from(self.model_class)
+conditions = []
+for key, value in kwargs.items():
+    pass
+if hasattr(self.model_class, key):
+    pass
+column = getattr(self.model_class, key)
+conditions.append(column == value)
+if conditions:
+    pass
+query = query.where(and_(*conditions))
+result = session.execute(query)
+return result.scalar()
+except Exception as e:
+    pass
+raise DatabaseError(
+f'Failed to count {self.model_class.__name__} records', str(e))
 
-        @inject(MaterialService)
-            def filter_by(self, **kwargs) -> List[T]:
-        """
-        Retrieve records matching the given criteria.
+@inject(MaterialService)
+def filter_by(self, **kwargs) -> List[T]:
+"""
+Retrieve records matching the given criteria.
 
-        Args:
-            **kwargs: Filter criteria
+Args:
+**kwargs: Filter criteria
 
-        Returns:
-            List of matching records
+Returns:
+List of matching records
 
-        Raises:
-            DatabaseError: If filtering fails
-        """
-        try:
-            with self.session_scope() as session:
-                query = select(self.model_class)
-                conditions = []
-                for key, value in kwargs.items():
-                    if hasattr(self.model_class, key):
-                        column = getattr(self.model_class, key)
-                        conditions.append(column == value)
-                if conditions:
-                    query = query.where(and_(*conditions))
-                result = session.execute(query)
-                return list(result.scalars().all())
-        except Exception as e:
-            raise DatabaseError(
-                f'Failed to filter {self.model_class.__name__} records', str(e)
-            )
+Raises:
+DatabaseError: If filtering fails
+"""
+try:
+    pass
+with self.session_scope() as session:
+    pass
+query = select(self.model_class)
+conditions = []
+for key, value in kwargs.items():
+    pass
+if hasattr(self.model_class, key):
+    pass
+column = getattr(self.model_class, key)
+conditions.append(column == value)
+if conditions:
+    pass
+query = query.where(and_(*conditions))
+result = session.execute(query)
+return list(result.scalars().all())
+except Exception as e:
+    pass
+raise DatabaseError(
+f'Failed to filter {self.model_class.__name__} records', str(e)
+)
 
-        @inject(MaterialService)
-            def search(self, term: str, fields: Optional[List[str]] = None) -> List[T]:
-        """
-        Search for records where any of the specified fields contain the search term.
+@inject(MaterialService)
+def search(self, term: str, fields: Optional[List[str]] = None) -> List[T]:
+"""
+Search for records where any of the specified fields contain the search term.
 
-        Args:
-            term: Search term
-            fields: List of fields to search in (if None, searches all string fields)
+Args:
+term: Search term
+fields: List of fields to search in (if None, searches all string fields)
 
-        Returns:
-            List of matching records
+Returns:
+List of matching records
 
-        Raises:
-            DatabaseError: If search fails
-        """
-        try:
-            with self.session_scope() as session:
-                if not fields:
-                    mapper = inspect(self.model_class)
-                    fields = [column.key for column in mapper.columns if
-                              column.type.python_type == str]
-                query = select(self.model_class)
-                conditions = []
-                for field in fields:
-                    if hasattr(self.model_class, field):
-                        column = getattr(self.model_class, field)
-                        conditions.append(column.ilike(f'%{term}%'))
-                if conditions:
-                    query = query.where(or_(*conditions))
-                result = session.execute(query)
-                return list(result.scalars().all())
-        except Exception as e:
-            raise DatabaseError(
-                f'Failed to search {self.model_class.__name__} records', str(e)
-            )
+Raises:
+DatabaseError: If search fails
+"""
+try:
+    pass
+with self.session_scope() as session:
+    pass
+if not fields:
+    pass
+mapper = inspect(self.model_class)
+fields = [column.key for column in mapper.columns if
+column.type.python_type == str]
+query = select(self.model_class)
+conditions = []
+for field in fields:
+    pass
+if hasattr(self.model_class, field):
+    pass
+column = getattr(self.model_class, field)
+conditions.append(column.ilike(f'%{term}%'))
+if conditions:
+    pass
+query = query.where(or_(*conditions))
+result = session.execute(query)
+return list(result.scalars().all())
+except Exception as e:
+    pass
+raise DatabaseError(
+f'Failed to search {self.model_class.__name__} records', str(e)
+)
 
-        @inject(MaterialService)
-            def bulk_create(self, items: List[Dict[str, Any]]) -> List[T]:
-        """
-        Create multiple records in a single transaction.
+@inject(MaterialService)
+def bulk_create(self, items: List[Dict[str, Any]]) -> List[T]:
+"""
+Create multiple records in a single transaction.
 
-        Args:
-            items: List of dictionaries with record data
+Args:
+items: List of dictionaries with record data
 
-        Returns:
-            List of created records
+Returns:
+List of created records
 
-        Raises:
-            DatabaseError: If bulk creation fails
-        """
-        try:
-            with self.session_scope() as session:
-                instances = []
-                for data in items:
-                    instance = self.model_class(**data)
-                    session.add(instance)
-                    instances.append(instance)
-                session.flush()
-                return instances
-        except Exception as e:
-            raise DatabaseError(
-                f'Failed to bulk create {self.model_class.__name__} records',
-                str(e))
+Raises:
+DatabaseError: If bulk creation fails
+"""
+try:
+    pass
+with self.session_scope() as session:
+    pass
+instances = []
+for data in items:
+    pass
+instance = self.model_class(**data)
+session.add(instance)
+instances.append(instance)
+session.flush()
+return instances
+except Exception as e:
+    pass
+raise DatabaseError(
+f'Failed to bulk create {self.model_class.__name__} records',
+str(e))
 
-        @inject(MaterialService)
-            def bulk_update(self, items: List[Dict[str, Any]]) -> List[T]:
-        """
-        Update multiple records in a single transaction.
+@inject(MaterialService)
+def bulk_update(self, items: List[Dict[str, Any]]) -> List[T]:
+"""
+Update multiple records in a single transaction.
 
-        Args:
-            items: List of dictionaries with record data including ID
+Args:
+items: List of dictionaries with record data including ID
 
-        Returns:
-            List of updated records
+Returns:
+List of updated records
 
-        Raises:
-            DatabaseError: If bulk update fails
-        """
-        try:
-            with self.session_scope() as session:
-                updated_instances = []
-                for data in items:
-                    id_attr = inspect(self.model_class).primary_key[0].name
-                    id_value = data.get(id_attr)
-                    if id_value is None:
-                        continue
-                    instance = session.get(self.model_class, id_value)
-                    if not instance:
-                        continue
-                    for key, value in data.items():
-                        if key != id_attr and hasattr(instance, key):
-                            setattr(instance, key, value)
-                    updated_instances.append(instance)
-                session.flush()
-                return updated_instances
-        except Exception as e:
-            raise DatabaseError(
-                f'Failed to bulk update {self.model_class.__name__} records',
-                str(e))
+Raises:
+DatabaseError: If bulk update fails
+"""
+try:
+    pass
+with self.session_scope() as session:
+    pass
+updated_instances = []
+for data in items:
+    pass
+id_attr = inspect(self.model_class).primary_key[0].name
+id_value = data.get(id_attr)
+if id_value is None:
+    pass
+continue
+instance = session.get(self.model_class, id_value)
+if not instance:
+    pass
+continue
+for key, value in data.items():
+    pass
+if key != id_attr and hasattr(instance, key):
+    pass
+setattr(instance, key, value)
+updated_instances.append(instance)
+session.flush()
+return updated_instances
+except Exception as e:
+    pass
+raise DatabaseError(
+f'Failed to bulk update {self.model_class.__name__} records',
+str(e))

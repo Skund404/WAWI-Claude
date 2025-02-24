@@ -9,75 +9,77 @@ in the system. These interfaces define the methods that model classes must imple
 
 
 class IModel(ABC):
-    """
-    Interface for all model classes.
+    pass
+"""
+Interface for all model classes.
 
-    Defines common methods that all models should implement.
-    """
+Defines common methods that all models should implement.
+"""
 
-    @abstractmethod
-    @inject(MaterialService)
-        def to_dict(self, exclude_fields: Optional[List[str]] = None) -> Dict[str, Any
-                                                                          ]:
-        """
-        Convert the model to a dictionary.
+@abstractmethod
+@inject(MaterialService)
+def to_dict(self, exclude_fields: Optional[List[str]] = None) -> Dict[str, Any
+]:
+"""
+Convert the model to a dictionary.
 
-        Args:
-            exclude_fields: List of field names to exclude
+Args:
+exclude_fields: List of field names to exclude
 
-        Returns:
-            Dict[str, Any]: Dictionary representation of the model
-        """
-        pass
+Returns:
+Dict[str, Any]: Dictionary representation of the model
+"""
+pass
 
 
 class IProject(IModel):
-    """
-    Interface for project models.
+    pass
+"""
+Interface for project models.
 
-    Defines methods that project models should implement.
-    """
+Defines methods that project models should implement.
+"""
 
-    @abstractmethod
-    @inject(MaterialService)
-        def calculate_complexity(self) -> float:
-        """
-        Calculate the complexity score of the project.
+@abstractmethod
+@inject(MaterialService)
+def calculate_complexity(self) -> float:
+"""
+Calculate the complexity score of the project.
 
-        Returns:
-            float: The calculated complexity score
-        """
-        pass
+Returns:
+float: The calculated complexity score
+"""
+pass
 
-        @abstractmethod
-    @inject(MaterialService)
-        def calculate_total_cost(self) -> float:
-        """
-        Calculate the total cost of the project.
+@abstractmethod
+@inject(MaterialService)
+def calculate_total_cost(self) -> float:
+"""
+Calculate the total cost of the project.
 
-        Returns:
-            float: The total estimated cost
-        """
-        pass
+Returns:
+float: The total estimated cost
+"""
+pass
 
-        @abstractmethod
-    @inject(MaterialService)
-        def update_status(self, new_status) -> None:
-        """
-        Update the project status.
+@abstractmethod
+@inject(MaterialService)
+def update_status(self, new_status) -> None:
+"""
+Update the project status.
 
-        Args:
-            new_status: The new status to set for the project
-        """
-        pass
+Args:
+new_status: The new status to set for the project
+"""
+pass
 
-        @abstractmethod
-    @inject(MaterialService)
-        def validate(self) -> List[str]:
-        """
-        Validate the project data.
+@abstractmethod
+@inject(MaterialService)
+def validate(self) -> List[str]:
+"""
+Validate the project data.
 
-        Returns:
-            List[str]: List of validation error messages, empty if valid
-        """
-        pass
+Returns:
+List[str]: List of validation error messages, empty if valid
+"""
+pass

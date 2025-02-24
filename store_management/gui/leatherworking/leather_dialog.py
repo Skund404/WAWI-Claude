@@ -9,215 +9,239 @@ with validation and detailed input fields.
 
 
 class LeatherDetailsDialog(tk.Toplevel):
-    """
-    A dialog for capturing and editing detailed leather information.
+    pass
+"""
+A dialog for capturing and editing detailed leather information.
 
-    Supports:
-    - Adding new leather items
-    - Editing existing leather items
-    - Comprehensive input validation
-    """
+Supports:
+- Adding new leather items
+- Editing existing leather items
+- Comprehensive input validation
+"""
 
-    @inject(MaterialService)
-        def __init__(self, parent, callback: Optional[Callable[[Dict[str, Any]],
-                                                           None]] = None, initial_data: Optional[Dict[str, Any]] = None):
-        """
-        Initialize the Leather Details Dialog.
+@inject(MaterialService)
+def __init__(self, parent, callback: Optional[Callable[[Dict[str, Any]],
+None]] = None, initial_data: Optional[Dict[str, Any]] = None):
+    pass
+"""
+Initialize the Leather Details Dialog.
 
-        Args:
-            parent (tk.Widget): Parent widget
-            callback (Optional[Callable]): Function to call with leather data
-            initial_data (Optional[Dict]): Existing leather data for editing
-        """
-        super().__init__(parent)
-        self.title('Leather Details')
-        self.geometry('500x600')
-        self.resizable(False, False)
-        self.callback = callback
-        self.initial_data = initial_data or {}
-        self.validation_errors = []
-        self._create_main_frame()
-        self._create_input_fields()
-        self._create_buttons()
-        if initial_data:
-            self._load_initial_data()
+Args:
+parent (tk.Widget): Parent widget
+callback (Optional[Callable]): Function to call with leather data
+initial_data (Optional[Dict]): Existing leather data for editing
+"""
+super().__init__(parent)
+self.title('Leather Details')
+self.geometry('500x600')
+self.resizable(False, False)
+self.callback = callback
+self.initial_data = initial_data or {}
+self.validation_errors = []
+self._create_main_frame()
+self._create_input_fields()
+self._create_buttons()
+if initial_data:
+    pass
+self._load_initial_data()
 
-        @inject(MaterialService)
-            def _create_main_frame(self):
-        """
-        Create the main frame for the dialog.
-        """
-        self.main_frame = ttk.Frame(self, padding='20 10 20 10')
-        self.main_frame.pack(fill=tk.BOTH, expand=True)
-        self.main_frame.columnconfigure(1, weight=1)
+@inject(MaterialService)
+def _create_main_frame(self):
+    pass
+"""
+Create the main frame for the dialog.
+"""
+self.main_frame = ttk.Frame(self, padding='20 10 20 10')
+self.main_frame.pack(fill=tk.BOTH, expand=True)
+self.main_frame.columnconfigure(1, weight=1)
 
-        @inject(MaterialService)
-            def _create_input_fields(self):
-        """
-        Create comprehensive input fields for leather details.
-        """
-        ttk.Label(self.main_frame, text='Leather ID:').grid(row=0, column=0,
-                                                            sticky='w', pady=5)
-        self.id_var = tk.StringVar(value=self.initial_data.get('id', ''))
-        self.id_entry = ttk.Entry(self.main_frame, textvariable=self.id_var,
-                                  state='readonly')
-        self.id_entry.grid(row=0, column=1, sticky='ew', pady=5)
-        ttk.Label(self.main_frame, text='Leather Type:').grid(
-            row=1, column=0, sticky='w', pady=5)
-        self.type_var = tk.StringVar(value=self.initial_data.get('type', ''))
-        leather_types = ['Full Grain', 'Top Grain', 'Genuine Leather',
-                         'Suede', 'Nubuck', 'Other']
-        self.type_combo = ttk.Combobox(self.main_frame, textvariable=self.
-                                       type_var, values=leather_types)
-        self.type_combo.grid(row=1, column=1, sticky='ew', pady=5)
-        ttk.Label(self.main_frame, text='Color:').grid(row=2, column=0,
-                                                       sticky='w', pady=5)
-        self.color_var = tk.StringVar(value=self.initial_data.get('color', ''))
-        self.color_entry = ttk.Entry(self.main_frame, textvariable=self.
-                                     color_var)
-        self.color_entry.grid(row=2, column=1, sticky='ew', pady=5)
-        ttk.Label(self.main_frame, text='Area (sq units):').grid(row=3,
-                                                                 column=0, sticky='w', pady=5)
-        self.area_var = tk.StringVar(value=str(self.initial_data.get('area',
-                                                                     '')))
-        self.area_entry = ttk.Entry(self.main_frame, textvariable=self.area_var
-                                    )
-        self.area_entry.grid(row=3, column=1, sticky='ew', pady=5)
-        ttk.Label(self.main_frame, text='Quality Grade:').grid(row=4,
-                                                               column=0, sticky='w', pady=5)
-        self.quality_var = tk.StringVar(value=self.initial_data.get(
-            'quality', ''))
-        quality_grades = ['Premium', 'High', 'Standard', 'Low', 'Reject']
-        self.quality_combo = ttk.Combobox(
-            self.main_frame, textvariable=self.quality_var, values=quality_grades)
-        self.quality_combo.grid(row=4, column=1, sticky='ew', pady=5)
-        ttk.Label(self.main_frame, text='Status:').grid(row=5, column=0,
-                                                        sticky='w', pady=5)
-        self.status_var = tk.StringVar(value=self.initial_data.get('status',
-                                                                   'Available'))
-        status_options = ['Available', 'Reserved', 'In Use', 'Damaged']
-        self.status_combo = ttk.Combobox(self.main_frame, textvariable=self
-                                         .status_var, values=status_options)
-        self.status_combo.grid(row=5, column=1, sticky='ew', pady=5)
-        ttk.Label(self.main_frame, text='Supplier:').grid(row=6, column=0,
-                                                          sticky='w', pady=5)
-        self.supplier_var = tk.StringVar(value=self.initial_data.get(
-            'supplier', ''))
-        self.supplier_entry = ttk.Entry(self.main_frame, textvariable=self.
-                                        supplier_var)
-        self.supplier_entry.grid(row=6, column=1, sticky='ew', pady=5)
-        ttk.Label(self.main_frame, text='Notes:').grid(row=7, column=0,
-                                                       sticky='nw', pady=5)
-        self.notes_text = tk.Text(self.main_frame, height=4, width=40)
-        self.notes_text.grid(row=7, column=1, sticky='ew', pady=5)
-        self.notes_text.insert(tk.END, self.initial_data.get('notes', ''))
+@inject(MaterialService)
+def _create_input_fields(self):
+    pass
+"""
+Create comprehensive input fields for leather details.
+"""
+ttk.Label(self.main_frame, text='Leather ID:').grid(row=0, column=0,
+sticky='w', pady=5)
+self.id_var = tk.StringVar(value=self.initial_data.get('id', ''))
+self.id_entry = ttk.Entry(self.main_frame, textvariable=self.id_var,
+state='readonly')
+self.id_entry.grid(row=0, column=1, sticky='ew', pady=5)
+ttk.Label(self.main_frame, text='Leather Type:').grid(
+row=1, column=0, sticky='w', pady=5)
+self.type_var = tk.StringVar(value=self.initial_data.get('type', ''))
+leather_types = ['Full Grain', 'Top Grain', 'Genuine Leather',
+'Suede', 'Nubuck', 'Other']
+self.type_combo = ttk.Combobox(self.main_frame, textvariable=self.
+type_var, values=leather_types)
+self.type_combo.grid(row=1, column=1, sticky='ew', pady=5)
+ttk.Label(self.main_frame, text='Color:').grid(row=2, column=0,
+sticky='w', pady=5)
+self.color_var = tk.StringVar(value=self.initial_data.get('color', ''))
+self.color_entry = ttk.Entry(self.main_frame, textvariable=self.
+color_var)
+self.color_entry.grid(row=2, column=1, sticky='ew', pady=5)
+ttk.Label(self.main_frame, text='Area (sq units):').grid(row=3,
+column=0, sticky='w', pady=5)
+self.area_var = tk.StringVar(value=str(self.initial_data.get('area',
+'')))
+self.area_entry = ttk.Entry(self.main_frame, textvariable=self.area_var
+)
+self.area_entry.grid(row=3, column=1, sticky='ew', pady=5)
+ttk.Label(self.main_frame, text='Quality Grade:').grid(row=4,
+column=0, sticky='w', pady=5)
+self.quality_var = tk.StringVar(value=self.initial_data.get(
+'quality', ''))
+quality_grades = ['Premium', 'High', 'Standard', 'Low', 'Reject']
+self.quality_combo = ttk.Combobox(
+self.main_frame, textvariable=self.quality_var, values=quality_grades)
+self.quality_combo.grid(row=4, column=1, sticky='ew', pady=5)
+ttk.Label(self.main_frame, text='Status:').grid(row=5, column=0,
+sticky='w', pady=5)
+self.status_var = tk.StringVar(value=self.initial_data.get('status',
+'Available'))
+status_options = ['Available', 'Reserved', 'In Use', 'Damaged']
+self.status_combo = ttk.Combobox(self.main_frame, textvariable=self
+.status_var, values=status_options)
+self.status_combo.grid(row=5, column=1, sticky='ew', pady=5)
+ttk.Label(self.main_frame, text='Supplier:').grid(row=6, column=0,
+sticky='w', pady=5)
+self.supplier_var = tk.StringVar(value=self.initial_data.get(
+'supplier', ''))
+self.supplier_entry = ttk.Entry(self.main_frame, textvariable=self.
+supplier_var)
+self.supplier_entry.grid(row=6, column=1, sticky='ew', pady=5)
+ttk.Label(self.main_frame, text='Notes:').grid(row=7, column=0,
+sticky='nw', pady=5)
+self.notes_text = tk.Text(self.main_frame, height=4, width=40)
+self.notes_text.grid(row=7, column=1, sticky='ew', pady=5)
+self.notes_text.insert(tk.END, self.initial_data.get('notes', ''))
 
-        @inject(MaterialService)
-            def _create_buttons(self):
-        """
-        Create action buttons for the dialog.
-        """
-        button_frame = ttk.Frame(self.main_frame)
-        button_frame.grid(row=8, column=0, columnspan=2, pady=10)
-        save_btn = ttk.Button(button_frame, text='Save', command=self._on_save)
-        save_btn.pack(side=tk.LEFT, padx=5)
-        cancel_btn = ttk.Button(button_frame, text='Cancel', command=self.
-                                destroy)
-        cancel_btn.pack(side=tk.LEFT, padx=5)
+@inject(MaterialService)
+def _create_buttons(self):
+    pass
+"""
+Create action buttons for the dialog.
+"""
+button_frame = ttk.Frame(self.main_frame)
+button_frame.grid(row=8, column=0, columnspan=2, pady=10)
+save_btn = ttk.Button(button_frame, text='Save', command=self._on_save)
+save_btn.pack(side=tk.LEFT, padx=5)
+cancel_btn = ttk.Button(button_frame, text='Cancel', command=self.
+destroy)
+cancel_btn.pack(side=tk.LEFT, padx=5)
 
-        @inject(MaterialService)
-            def _load_initial_data(self):
-        """
-        Populate fields with existing leather data when editing.
-        """
-        if self.initial_data.get('id'):
-            self.id_entry.config(state='normal')
+@inject(MaterialService)
+def _load_initial_data(self):
+    pass
+"""
+Populate fields with existing leather data when editing.
+"""
+if self.initial_data.get('id'):
+    pass
+self.id_entry.config(state='normal')
 
-        @inject(MaterialService)
-            def _validate_input(self) -> bool:
-        """
-        Validate input fields.
+@inject(MaterialService)
+def _validate_input(self) -> bool:
+"""
+Validate input fields.
 
-        Returns:
-            bool: True if all inputs are valid, False otherwise
-        """
-        self.validation_errors = []
-        if not self.type_var.get():
-            self.validation_errors.append('Leather Type is required')
-        try:
-            area = float(self.area_var.get())
-            if area <= 0:
-                self.validation_errors.append('Area must be a positive number')
-        except ValueError:
-            self.validation_errors.append('Invalid area. Please enter a number'
-                                          )
-        if not self.color_var.get():
-            self.validation_errors.append('Color is required')
-        if not self.quality_var.get():
-            self.validation_errors.append('Quality Grade is required')
-        if self.validation_errors:
-            error_message = ('Please correct the following errors:\n' +
-                             '\n'.join(f'- {error}' for error in self.validation_errors))
-            messagebox.showerror('Validation Error', error_message)
-            return False
-        return True
+Returns:
+bool: True if all inputs are valid, False otherwise
+"""
+self.validation_errors = []
+if not self.type_var.get():
+    pass
+self.validation_errors.append('Leather Type is required')
+try:
+    pass
+area = float(self.area_var.get())
+if area <= 0:
+    pass
+self.validation_errors.append('Area must be a positive number')
+except ValueError:
+    pass
+self.validation_errors.append('Invalid area. Please enter a number'
+)
+if not self.color_var.get():
+    pass
+self.validation_errors.append('Color is required')
+if not self.quality_var.get():
+    pass
+self.validation_errors.append('Quality Grade is required')
+if self.validation_errors:
+    pass
+error_message = ('Please correct the following errors:\n' +
+'\n'.join(f'- {error}' for error in self.validation_errors))
+messagebox.showerror('Validation Error', error_message)
+return False
+return True
 
-        @inject(MaterialService)
-            def _on_save(self):
-        """
-        Handle save action, validate and return leather data.
-        """
-        if not self._validate_input():
-            return
-        leather_data = {'id': self.id_var.get() or
-                        f'LTH-{int(tk.datetime.now().timestamp())}', 'type': self.
-                        type_var.get(), 'color': self.color_var.get(), 'area': self.
-                        area_var.get(), 'quality': self.quality_var.get(), 'status':
-                        self.status_var.get(), 'supplier': self.supplier_var.get(),
-                        'notes': self.notes_text.get('1.0', tk.END).strip()}
-        if self.callback:
-            self.callback(leather_data)
-        self.destroy()
+@inject(MaterialService)
+def _on_save(self):
+    pass
+"""
+Handle save action, validate and return leather data.
+"""
+if not self._validate_input():
+    pass
+return
+leather_data = {'id': self.id_var.get() or
+f'LTH-{int(tk.datetime.now().timestamp())}', 'type': self.
+type_var.get(), 'color': self.color_var.get(), 'area': self.
+area_var.get(), 'quality': self.quality_var.get(), 'status':
+self.status_var.get(), 'supplier': self.supplier_var.get(),
+'notes': self.notes_text.get('1.0', tk.END).strip()}
+if self.callback:
+    pass
+self.callback(leather_data)
+self.destroy()
 
 
 def main():
-    """
-    Standalone test for LeatherDetailsDialog.
-    """
-    root = tk.Tk()
-    root.title('Leather Details Test')
+    pass
+"""
+Standalone test for LeatherDetailsDialog.
+"""
+root = tk.Tk()
+root.title('Leather Details Test')
 
-    def print_leather_data(data):
-        """
-        Print leather data for testing.
+def print_leather_data(data):
+    pass
+"""
+Print leather data for testing.
 
-        Args:
-            data (dict): Leather item details
-        """
-        print('Leather Data:')
-        for key, value in data.items():
-            print(f'{key}: {value}')
+Args:
+data (dict): Leather item details
+"""
+print('Leather Data:')
+for key, value in data.items():
+    pass
+print(f'{key}: {value}')
 
-    def open_new_leather_dialog():
-        """Open dialog for adding new leather."""
-        LeatherDetailsDialog(root, callback=print_leather_data)
+def open_new_leather_dialog():
+    pass
+"""Open dialog for adding new leather."""
+LeatherDetailsDialog(root, callback=print_leather_data)
 
-    def open_edit_leather_dialog():
-        """Open dialog for editing existing leather."""
-        existing_leather = {'id': 'LTH-001', 'type': 'Full Grain', 'color':
-                            'Brown', 'area': '5.5', 'quality': 'Premium', 'status':
-                            'Available', 'supplier': 'Local Tannery', 'notes':
-                            'High-quality leather for premium products'}
-        LeatherDetailsDialog(root, callback=print_leather_data,
-                             initial_data=existing_leather)
-    new_btn = ttk.Button(root, text='Add New Leather',
-                         command=open_new_leather_dialog)
-    new_btn.pack(pady=10)
-    edit_btn = ttk.Button(root, text='Edit Existing Leather',
-                          command=open_edit_leather_dialog)
-    edit_btn.pack(pady=10)
-    root.mainloop()
+def open_edit_leather_dialog():
+    pass
+"""Open dialog for editing existing leather."""
+existing_leather = {'id': 'LTH-001', 'type': 'Full Grain', 'color':
+'Brown', 'area': '5.5', 'quality': 'Premium', 'status':
+'Available', 'supplier': 'Local Tannery', 'notes':
+'High-quality leather for premium products'}
+LeatherDetailsDialog(root, callback=print_leather_data,
+initial_data=existing_leather)
+new_btn = ttk.Button(root, text='Add New Leather',
+command=open_new_leather_dialog)
+new_btn.pack(pady=10)
+edit_btn = ttk.Button(root, text='Edit Existing Leather',
+command=open_edit_leather_dialog)
+edit_btn.pack(pady=10)
+root.mainloop()
 
 
 if __name__ == '__main__':
-    main()
+    pass
+main()

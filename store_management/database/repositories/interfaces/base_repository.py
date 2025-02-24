@@ -9,135 +9,136 @@ T = TypeVar('T')
 
 
 class IBaseRepository(Generic[T], ABC):
-    """
-    Interface for repository implementations.
+    pass
+"""
+Interface for repository implementations.
 
-    This interface defines the methods that all repositories must implement.
-    """
+This interface defines the methods that all repositories must implement.
+"""
 
-    @abstractmethod
-    @inject(MaterialService)
-        def get_by_id(self, id: int) -> Optional[T]:
-        """
-        Get an entity by ID.
+@abstractmethod
+@inject(MaterialService)
+def get_by_id(self, id: int) -> Optional[T]:
+"""
+Get an entity by ID.
 
-        Args:
-            id: The ID of the entity.
+Args:
+id: The ID of the entity.
 
-        Returns:
-            The entity, or None if not found.
-        """
-        pass
+Returns:
+The entity, or None if not found.
+"""
+pass
 
-        @abstractmethod
-    @inject(MaterialService)
-        def get_all(self, limit: Optional[int] = None, offset: Optional[int] = None
-                ) -> List[T]:
-        """
-        Get all entities.
+@abstractmethod
+@inject(MaterialService)
+def get_all(self, limit: Optional[int] = None, offset: Optional[int] = None
+) -> List[T]:
+"""
+Get all entities.
 
-        Args:
-            limit: Maximum number of entities to return.
-            offset: Number of entities to skip.
+Args:
+limit: Maximum number of entities to return.
+offset: Number of entities to skip.
 
-        Returns:
-            List of entities.
-        """
-        pass
+Returns:
+List of entities.
+"""
+pass
 
-        @abstractmethod
-    @inject(MaterialService)
-        def create(self, data: Dict[str, Any]) -> Optional[T]:
-        """
-        Create a new entity.
+@abstractmethod
+@inject(MaterialService)
+def create(self, data: Dict[str, Any]) -> Optional[T]:
+"""
+Create a new entity.
 
-        Args:
-            data: Dictionary of entity data.
+Args:
+data: Dictionary of entity data.
 
-        Returns:
-            The created entity, or None if creation failed.
-        """
-        pass
+Returns:
+The created entity, or None if creation failed.
+"""
+pass
 
-        @abstractmethod
-    @inject(MaterialService)
-        def update(self, id: int, data: Dict[str, Any]) -> Optional[T]:
-        """
-        Update an entity.
+@abstractmethod
+@inject(MaterialService)
+def update(self, id: int, data: Dict[str, Any]) -> Optional[T]:
+"""
+Update an entity.
 
-        Args:
-            id: The ID of the entity.
-            data: Dictionary of entity data to update.
+Args:
+id: The ID of the entity.
+data: Dictionary of entity data to update.
 
-        Returns:
-            The updated entity, or None if update failed.
-        """
-        pass
+Returns:
+The updated entity, or None if update failed.
+"""
+pass
 
-        @abstractmethod
-    @inject(MaterialService)
-        def delete(self, id: int) -> bool:
-        """
-        Delete an entity.
+@abstractmethod
+@inject(MaterialService)
+def delete(self, id: int) -> bool:
+"""
+Delete an entity.
 
-        Args:
-            id: The ID of the entity.
+Args:
+id: The ID of the entity.
 
-        Returns:
-            True if deletion was successful, False otherwise.
-        """
-        pass
+Returns:
+True if deletion was successful, False otherwise.
+"""
+pass
 
-        @abstractmethod
-    @inject(MaterialService)
-        def exists(self, id: int) -> bool:
-        """
-        Check if an entity exists.
+@abstractmethod
+@inject(MaterialService)
+def exists(self, id: int) -> bool:
+"""
+Check if an entity exists.
 
-        Args:
-            id: The ID of the entity.
+Args:
+id: The ID of the entity.
 
-        Returns:
-            True if the entity exists, False otherwise.
-        """
-        pass
+Returns:
+True if the entity exists, False otherwise.
+"""
+pass
 
-        @abstractmethod
-    @inject(MaterialService)
-        def count(self) -> int:
-        """
-        Count the number of entities.
+@abstractmethod
+@inject(MaterialService)
+def count(self) -> int:
+"""
+Count the number of entities.
 
-        Returns:
-            The number of entities.
-        """
-        pass
+Returns:
+The number of entities.
+"""
+pass
 
-        @abstractmethod
-    @inject(MaterialService)
-        def filter_by(self, **kwargs) -> List[T]:
-        """
-        Filter entities by attribute values.
+@abstractmethod
+@inject(MaterialService)
+def filter_by(self, **kwargs) -> List[T]:
+"""
+Filter entities by attribute values.
 
-        Args:
-            **kwargs: Filter criteria as field=value pairs.
+Args:
+**kwargs: Filter criteria as field=value pairs.
 
-        Returns:
-            List of entities that match the criteria.
-        """
-        pass
+Returns:
+List of entities that match the criteria.
+"""
+pass
 
-        @abstractmethod
-    @inject(MaterialService)
-        def search(self, search_term: str, fields: List[str]) -> List[T]:
-        """
-        Search for entities by a search term in specified fields.
+@abstractmethod
+@inject(MaterialService)
+def search(self, search_term: str, fields: List[str]) -> List[T]:
+"""
+Search for entities by a search term in specified fields.
 
-        Args:
-            search_term: The search term.
-            fields: List of field names to search in.
+Args:
+search_term: The search term.
+fields: List of field names to search in.
 
-        Returns:
-            List of entities that match the search criteria.
-        """
-        pass
+Returns:
+List of entities that match the search criteria.
+"""
+pass

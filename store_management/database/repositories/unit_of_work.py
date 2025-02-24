@@ -5,55 +5,65 @@ from services.interfaces import MaterialService, ProjectService, InventoryServic
 
 
 class SQLAlchemyUnitOfWork(IUnitOfWork):
-    """SQLAlchemy implementation of Unit of Work."""
+    pass
+"""SQLAlchemy implementation of Unit of Work."""
 
-    @inject(MaterialService)
-        def __init__(self, session_factory):
-        self.session_factory = session_factory
-        self.session: Optional[Session] = None
+@inject(MaterialService)
+def __init__(self, session_factory):
+    pass
+self.session_factory = session_factory
+self.session: Optional[Session] = None
 
-        @inject(MaterialService)
-            def __enter__(self):
-            self.session = self.session_factory()
-            self.patterns = PatternRepository(self.session)
-            self.leather_inventory = LeatherRepository(self.session)
-            return self
+@inject(MaterialService)
+def __enter__(self):
+    pass
+self.session = self.session_factory()
+self.patterns = PatternRepository(self.session)
+self.leather_inventory = LeatherRepository(self.session)
+return self
 
-            @inject(MaterialService)
-                def __exit__(self, exc_type, exc_val, exc_tb):
-                if exc_type is not None:
-                    self.rollback()
-                    self.session.close()
+@inject(MaterialService)
+def __exit__(self, exc_type, exc_val, exc_tb):
+    pass
+if exc_type is not None:
+    pass
+self.rollback()
+self.session.close()
 
-                    @inject(MaterialService)
-                        def commit(self):
-                        self.session.commit()
+@inject(MaterialService)
+def commit(self):
+    pass
+self.session.commit()
 
-                        @inject(MaterialService)
-                            def rollback(self):
-                            self.session.rollback()
+@inject(MaterialService)
+def rollback(self):
+    pass
+self.session.rollback()
 
-                            """
-                            # Configure session factory
-                            from sqlalchemy.orm import sessionmaker
-                            from database.connection import engine
+"""
+# Configure session factory
+from sqlalchemy.orm import sessionmaker
+from database.connection import engine
 
-                            session_factory = sessionmaker(bind=engine)
+session_factory = sessionmaker(bind=engine)
 
-                            # Create UnitOfWork instance
-                            uow = SQLAlchemyUnitOfWork(session_factory)
+# Create UnitOfWork instance
+uow = SQLAlchemyUnitOfWork(session_factory)
 
-                            # Use in service
+# Use in service
 class PatternService:
-    @inject(MaterialService)
-        def __init__(self, uow: IUnitOfWork):
-        self.uow = uow
+    pass
+@inject(MaterialService)
+def __init__(self, uow: IUnitOfWork):
+    pass
+self.uow = uow
 
-        @inject(MaterialService)
-            def create_pattern(self, data: dict) -> Pattern:
-            with self.uow:
-                pattern = Pattern(**data)
-                self.uow.patterns.add(pattern)
-                self.uow.commit()
-                return pattern
-                """
+@inject(MaterialService)
+def create_pattern(self, data: dict) -> Pattern:
+with self.uow:
+    pass
+pattern = Pattern(**data)
+self.uow.patterns.add(pattern)
+self.uow.commit()
+return pattern
+"""

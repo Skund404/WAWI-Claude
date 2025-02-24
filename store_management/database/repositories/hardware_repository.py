@@ -5,188 +5,210 @@ from services.interfaces import MaterialService, ProjectService, InventoryServic
 
 
 class HardwareRepository:
-    """
-    Repository for managing hardware with advanced querying capabilities.
-    """
+    pass
+"""
+Repository for managing hardware with advanced querying capabilities.
+"""
 
-    @inject(MaterialService)
-        def __init__(self, session: Session):
-        self.session = session
+@inject(MaterialService)
+def __init__(self, session: Session):
+    pass
+self.session = session
 
-        @inject(MaterialService)
-            def create_hardware(self, hardware_data: Dict[str, Any]) -> Hardware:
-        """
-        Create a new hardware item with comprehensive validation.
+@inject(MaterialService)
+def create_hardware(self, hardware_data: Dict[str, Any]) -> Hardware:
+"""
+Create a new hardware item with comprehensive validation.
 
-        Args:
-            hardware_data (Dict[str, Any]): Hardware creation data
+Args:
+hardware_data (Dict[str, Any]): Hardware creation data
 
-        Returns:
-            Hardware: Created hardware instance
-        """
-        if 'hardware_type' in hardware_data:
-            hardware_data['hardware_type'] = HardwareType[hardware_data[
-                'hardware_type']]
-        if 'material' in hardware_data:
-            hardware_data['material'] = HardwareMaterial[hardware_data[
-                'material']]
-        if 'finish' in hardware_data:
-            hardware_data['finish'] = HardwareFinish[hardware_data['finish']]
-        hardware = Hardware(**hardware_data)
-        self.session.add(hardware)
-        self.session.commit()
-        return hardware
+Returns:
+Hardware: Created hardware instance
+"""
+if 'hardware_type' in hardware_data:
+    pass
+hardware_data['hardware_type'] = HardwareType[hardware_data[
+'hardware_type']]
+if 'material' in hardware_data:
+    pass
+hardware_data['material'] = HardwareMaterial[hardware_data[
+'material']]
+if 'finish' in hardware_data:
+    pass
+hardware_data['finish'] = HardwareFinish[hardware_data['finish']]
+hardware = Hardware(**hardware_data)
+self.session.add(hardware)
+self.session.commit()
+return hardware
 
-        @inject(MaterialService)
-            def get_hardware_by_id(self, hardware_id: int) -> Optional[Hardware]:
-        """
-        Retrieve a hardware item by its ID.
+@inject(MaterialService)
+def get_hardware_by_id(self, hardware_id: int) -> Optional[Hardware]:
+"""
+Retrieve a hardware item by its ID.
 
-        Args:
-            hardware_id (int): Hardware identifier
+Args:
+hardware_id (int): Hardware identifier
 
-        Returns:
-            Optional[Hardware]: Retrieved hardware or None
-        """
-        return self.session.query(Hardware).filter(Hardware.id == hardware_id
-                                                   ).first()
+Returns:
+Optional[Hardware]: Retrieved hardware or None
+"""
+return self.session.query(Hardware).filter(Hardware.id == hardware_id
+).first()
 
-        @inject(MaterialService)
-            def search_hardware(self, hardware_type: Optional[HardwareType] = None,
-                            material: Optional[HardwareMaterial] = None, finish: Optional[
-                HardwareFinish] = None, min_stock: Optional[int] = None, max_stock:
-                Optional[int] = None, min_load_capacity: Optional[float] = None,
-                max_load_capacity: Optional[float] = None) -> List[Hardware]:
-        """
-        Advanced search for hardware with multiple filtering options.
+@inject(MaterialService)
+def search_hardware(self, hardware_type: Optional[HardwareType] = None,
+material: Optional[HardwareMaterial] = None, finish: Optional[
+HardwareFinish] = None, min_stock: Optional[int] = None, max_stock:
+Optional[int] = None, min_load_capacity: Optional[float] = None,
+max_load_capacity: Optional[float] = None) -> List[Hardware]:
+"""
+Advanced search for hardware with multiple filtering options.
 
-        Args:
-            hardware_type (Optional[HardwareType]): Filter by hardware type
-            material (Optional[HardwareMaterial]): Filter by material
-            finish (Optional[HardwareFinish]): Filter by finish
-            min_stock (Optional[int]): Minimum current stock
-            max_stock (Optional[int]): Maximum current stock
-            min_load_capacity (Optional[float]): Minimum load capacity
-            max_load_capacity (Optional[float]): Maximum load capacity
+Args:
+hardware_type (Optional[HardwareType]): Filter by hardware type
+material (Optional[HardwareMaterial]): Filter by material
+finish (Optional[HardwareFinish]): Filter by finish
+min_stock (Optional[int]): Minimum current stock
+max_stock (Optional[int]): Maximum current stock
+min_load_capacity (Optional[float]): Minimum load capacity
+max_load_capacity (Optional[float]): Maximum load capacity
 
-        Returns:
-            List[Hardware]: Matching hardware items
-        """
-        query = self.session.query(Hardware)
-        if hardware_type:
-            query = query.filter(Hardware.hardware_type == hardware_type)
-        if material:
-            query = query.filter(Hardware.material == material)
-        if finish:
-            query = query.filter(Hardware.finish == finish)
-        if min_stock is not None:
-            query = query.filter(Hardware.current_stock >= min_stock)
-        if max_stock is not None:
-            query = query.filter(Hardware.current_stock <= max_stock)
-        if min_load_capacity is not None:
-            query = query.filter(Hardware.load_capacity >= min_load_capacity)
-        if max_load_capacity is not None:
-            query = query.filter(Hardware.load_capacity <= max_load_capacity)
-        return query.all()
+Returns:
+List[Hardware]: Matching hardware items
+"""
+query = self.session.query(Hardware)
+if hardware_type:
+    pass
+query = query.filter(Hardware.hardware_type == hardware_type)
+if material:
+    pass
+query = query.filter(Hardware.material == material)
+if finish:
+    pass
+query = query.filter(Hardware.finish == finish)
+if min_stock is not None:
+    pass
+query = query.filter(Hardware.current_stock >= min_stock)
+if max_stock is not None:
+    pass
+query = query.filter(Hardware.current_stock <= max_stock)
+if min_load_capacity is not None:
+    pass
+query = query.filter(Hardware.load_capacity >= min_load_capacity)
+if max_load_capacity is not None:
+    pass
+query = query.filter(Hardware.load_capacity <= max_load_capacity)
+return query.all()
 
-        @inject(MaterialService)
-            def update_hardware(self, hardware_id: int, update_data: Dict[str, Any]
-                            ) -> Optional[Hardware]:
-        """
-        Update an existing hardware item.
+@inject(MaterialService)
+def update_hardware(self, hardware_id: int, update_data: Dict[str, Any]
+) -> Optional[Hardware]:
+"""
+Update an existing hardware item.
 
-        Args:
-            hardware_id (int): Hardware identifier
-            update_data (Dict[str, Any]): Data to update
+Args:
+hardware_id (int): Hardware identifier
+update_data (Dict[str, Any]): Data to update
 
-        Returns:
-            Optional[Hardware]: Updated hardware or None
-        """
-        hardware = self.get_hardware_by_id(hardware_id)
-        if not hardware:
-            return None
-        if 'hardware_type' in update_data:
-            update_data['hardware_type'] = HardwareType[update_data[
-                'hardware_type']]
-        if 'material' in update_data:
-            update_data['material'] = HardwareMaterial[update_data['material']]
-        if 'finish' in update_data:
-            update_data['finish'] = HardwareFinish[update_data['finish']]
-        for key, value in update_data.items():
-            setattr(hardware, key, value)
-        self.session.commit()
-        return hardware
+Returns:
+Optional[Hardware]: Updated hardware or None
+"""
+hardware = self.get_hardware_by_id(hardware_id)
+if not hardware:
+    pass
+return None
+if 'hardware_type' in update_data:
+    pass
+update_data['hardware_type'] = HardwareType[update_data[
+'hardware_type']]
+if 'material' in update_data:
+    pass
+update_data['material'] = HardwareMaterial[update_data['material']]
+if 'finish' in update_data:
+    pass
+update_data['finish'] = HardwareFinish[update_data['finish']]
+for key, value in update_data.items():
+    pass
+setattr(hardware, key, value)
+self.session.commit()
+return hardware
 
-        @inject(MaterialService)
-            def delete_hardware(self, hardware_id: int) -> bool:
-        """
-        Delete a hardware item.
+@inject(MaterialService)
+def delete_hardware(self, hardware_id: int) -> bool:
+"""
+Delete a hardware item.
 
-        Args:
-            hardware_id (int): Hardware identifier
+Args:
+hardware_id (int): Hardware identifier
 
-        Returns:
-            bool: Success of deletion
-        """
-        hardware = self.get_hardware_by_id(hardware_id)
-        if not hardware:
-            return False
-        try:
-            self.session.delete(hardware)
-            self.session.commit()
-            return True
-        except Exception as e:
-            self.session.rollback()
-            print(f'Error deleting hardware: {e}')
-            return False
+Returns:
+bool: Success of deletion
+"""
+hardware = self.get_hardware_by_id(hardware_id)
+if not hardware:
+    pass
+return False
+try:
+    pass
+self.session.delete(hardware)
+self.session.commit()
+return True
+except Exception as e:
+    pass
+self.session.rollback()
+print(f'Error deleting hardware: {e}')
+return False
 
-        @inject(MaterialService)
-            def get_low_stock_hardware(self, include_zero_stock: bool = False) -> List[
-                Hardware]:
-        """
-        Retrieve hardware items with low stock.
+@inject(MaterialService)
+def get_low_stock_hardware(self, include_zero_stock: bool = False) -> List[
+Hardware]:
+"""
+Retrieve hardware items with low stock.
 
-        Args:
-            include_zero_stock (bool): Whether to include hardware with zero stock
+Args:
+include_zero_stock (bool): Whether to include hardware with zero stock
 
-        Returns:
-            List[Hardware]: Hardware items below minimum stock level
-        """
-        query = self.session.query(Hardware)
-        if not include_zero_stock:
-            query = query.filter(Hardware.current_stock > 0)
-        return query.filter(Hardware.current_stock <= Hardware.
-                            minimum_stock_level).all()
+Returns:
+List[Hardware]: Hardware items below minimum stock level
+"""
+query = self.session.query(Hardware)
+if not include_zero_stock:
+    pass
+query = query.filter(Hardware.current_stock > 0)
+return query.filter(Hardware.current_stock <= Hardware.
+minimum_stock_level).all()
 
-        @inject(MaterialService)
-            def get_hardware_by_supplier(self, supplier_id: int) -> List[Hardware]:
-        """
-        Retrieve hardware items from a specific supplier.
+@inject(MaterialService)
+def get_hardware_by_supplier(self, supplier_id: int) -> List[Hardware]:
+"""
+Retrieve hardware items from a specific supplier.
 
-        Args:
-            supplier_id (int): Supplier identifier
+Args:
+supplier_id (int): Supplier identifier
 
-        Returns:
-            List[Hardware]: Hardware items from the specified supplier
-        """
-        return self.session.query(Hardware).filter(Hardware.supplier_id ==
-                                                   supplier_id).all()
+Returns:
+List[Hardware]: Hardware items from the specified supplier
+"""
+return self.session.query(Hardware).filter(Hardware.supplier_id ==
+supplier_id).all()
 
-        @inject(MaterialService)
-            def generate_hardware_performance_report(self) -> List[Dict[str, Any]]:
-        """
-        Generate a performance report for hardware items.
+@inject(MaterialService)
+def generate_hardware_performance_report(self) -> List[Dict[str, Any]]:
+"""
+Generate a performance report for hardware items.
 
-        Returns:
-            List[Dict[str, Any]]: Performance metrics for hardware
-        """
-        hardware_report = []
-        for hardware in self.session.query(Hardware).all():
-            hardware_report.append({'hardware_id': hardware.id, 'name':
-                                    hardware.name, 'hardware_type': hardware.hardware_type.name,
-                                    'performance_score': hardware.
-                                    calculate_hardware_performance(), 'current_stock': hardware
-                                    .current_stock, 'load_capacity': hardware.load_capacity,
-                                    'corrosion_resistance': hardware.corrosion_resistance})
-        return sorted(hardware_report, key=lambda x: x['performance_score'],
-                      reverse=True)
+Returns:
+List[Dict[str, Any]]: Performance metrics for hardware
+"""
+hardware_report = []
+for hardware in self.session.query(Hardware).all():
+    pass
+hardware_report.append({'hardware_id': hardware.id, 'name':
+hardware.name, 'hardware_type': hardware.hardware_type.name,
+'performance_score': hardware.
+calculate_hardware_performance(), 'current_stock': hardware
+.current_stock, 'load_capacity': hardware.load_capacity,
+'corrosion_resistance': hardware.corrosion_resistance})
+return sorted(hardware_report, key=lambda x: x['performance_score'],
+reverse=True)

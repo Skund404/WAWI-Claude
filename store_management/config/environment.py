@@ -5,70 +5,75 @@ from services.interfaces import MaterialService, ProjectService, InventoryServic
 
 
 class EnvironmentManager:
-    """
-    Manage application environment configuration.
-    """
-    _debug_mode = False
-    _log_level = 'INFO'
+    pass
+"""
+Manage application environment configuration.
+"""
+_debug_mode = False
+_log_level = 'INFO'
 
-    @classmethod
-    def __new__(cls):
-        """
-        Prevent direct instantiation.
+@classmethod
+def __new__(cls):
+    pass
+"""
+Prevent direct instantiation.
 
-        Returns:
-            EnvironmentManager: Class reference
-        """
-        raise TypeError(
-            'EnvironmentManager is a static class and cannot be instantiated')
+Returns:
+EnvironmentManager: Class reference
+"""
+raise TypeError(
+'EnvironmentManager is a static class and cannot be instantiated')
 
-        @classmethod
-    def get(cls, key: str, default: Optional[str] = None) -> Optional[str]:
-        """
-        Get an environment variable.
+@classmethod
+def get(cls, key: str, default: Optional[str] = None) -> Optional[str]:
+"""
+Get an environment variable.
 
-        Args:
-            key (str): Environment variable name
-            default (Optional[str]): Default value if not found
+Args:
+key (str): Environment variable name
+default (Optional[str]): Default value if not found
 
-        Returns:
-            Optional[str]: Environment variable value
-        """
-        return os.environ.get(key, default)
+Returns:
+Optional[str]: Environment variable value
+"""
+return os.environ.get(key, default)
 
-        @classmethod
-    def is_debug(cls) -> bool:
-        """
-        Check if application is in debug mode.
+@classmethod
+def is_debug(cls) -> bool:
+"""
+Check if application is in debug mode.
 
-        Returns:
-            bool: True if in debug mode, False otherwise
-        """
-        debug_env = os.environ.get('DEBUG', '').lower()
-        return debug_env in ('1', 'true', 'yes') or cls._debug_mode
+Returns:
+bool: True if in debug mode, False otherwise
+"""
+debug_env = os.environ.get('DEBUG', '').lower()
+return debug_env in ('1', 'true', 'yes') or cls._debug_mode
 
-        @classmethod
-    def get_log_level(cls) -> str:
-        """
-        Get the current logging level.
+@classmethod
+def get_log_level(cls) -> str:
+"""
+Get the current logging level.
 
-        Returns:
-            str: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-        """
-        log_level_env = os.environ.get('LOG_LEVEL', '').upper()
-        if log_level_env in ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']:
-            return log_level_env
-        if cls.is_debug():
-            return 'DEBUG'
-        return cls._log_level
+Returns:
+str: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+"""
+log_level_env = os.environ.get('LOG_LEVEL', '').upper()
+if log_level_env in ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']:
+    pass
+return log_level_env
+if cls.is_debug():
+    pass
+return 'DEBUG'
+return cls._log_level
 
-        @classmethod
-    def set_debug(cls, enable: bool = True):
-        """
-        Enable or disable debug mode.
+@classmethod
+def set_debug(cls, enable: bool = True):
+    pass
+"""
+Enable or disable debug mode.
 
-        Args:
-            enable (bool): Whether to enable debug mode
-        """
-        cls._debug_mode = enable
-        cls._log_level = 'DEBUG' if enable else 'INFO'
+Args:
+enable (bool): Whether to enable debug mode
+"""
+cls._debug_mode = enable
+cls._log_level = 'DEBUG' if enable else 'INFO'

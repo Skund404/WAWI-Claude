@@ -1,9 +1,9 @@
 from di.core import inject
 from services.interfaces import (
-    MaterialService,
-    ProjectService,
-    InventoryService,
-    OrderService,
+MaterialService,
+ProjectService,
+InventoryService,
+OrderService,
 )
 
 [build - system]
@@ -16,10 +16,10 @@ description == "Inventory and Store Management Application"
 readme == "README.md"
 requires - python == ">=3.9"
 dependencies == [
-    "sqlalchemy>=2.0.19",
-    "alembic>=1.11.1",
-    "python-dotenv>=1.0.0",
-    "sqlalchemy-utils>=0.41.1",
+"sqlalchemy>=2.0.19",
+"alembic>=1.11.1",
+"python-dotenv>=1.0.0",
+"sqlalchemy-utils>=0.41.1",
 ]
 [project.optional - dependencies]
 dev == ["pytest>=7.3.1", "black>=23.3.0", "mypy>=1.4.1", "flake8>=6.0.0"]

@@ -7,82 +7,87 @@ Specialized manager for Product models with additional capabilities.
 
 
 class ProductManager(BaseManager[Product]):
-    """
-    Specialized manager for Product model operations.
+    pass
+"""
+Specialized manager for Product model operations.
 
-    Extends BaseManager with product-specific operations.
-    """
+Extends BaseManager with product-specific operations.
+"""
 
-    @inject(MaterialService)
-        def get_product_with_recipe(self, product_id: int) -> Optional[Product]:
-        """
-        Get product with its pattern.
+@inject(MaterialService)
+def get_product_with_recipe(self, product_id: int) -> Optional[Product]:
+"""
+Get product with its pattern.
 
-        Args:
-            product_id: Product ID
+Args:
+product_id: Product ID
 
-        Returns:
-            Product with pattern loaded or None if not found
+Returns:
+Product with pattern loaded or None if not found
 
-        Raises:
-            DatabaseError: If retrieval fails
-        """
-        try:
-            with self.session_scope() as session:
-                query = select(Product).options(joinedload(Product.pattern)
-                                                ).where(Product.id == product_id)
-                result = session.execute(query)
-                return result.scalars().first()
-        except Exception as e:
-            raise DatabaseError(f'Failed to retrieve product with pattern',
-                                str(e))
+Raises:
+DatabaseError: If retrieval fails
+"""
+try:
+    pass
+with self.session_scope() as session:
+    pass
+query = select(Product).options(joinedload(Product.pattern)
+).where(Product.id == product_id)
+result = session.execute(query)
+return result.scalars().first()
+except Exception as e:
+    pass
+raise DatabaseError(f'Failed to retrieve product with pattern',
+str(e))
 
-        @inject(MaterialService)
-            def get_by_storage(self, storage_id: int) -> List[Product]:
-        """
-        Get products by storage location.
+@inject(MaterialService)
+def get_by_storage(self, storage_id: int) -> List[Product]:
+"""
+Get products by storage location.
 
-        Args:
-            storage_id: Storage location ID
+Args:
+storage_id: Storage location ID
 
-        Returns:
-            List of products in the specified storage
+Returns:
+List of products in the specified storage
 
-        Raises:
-            DatabaseError: If retrieval fails
-        """
-        return self.filter_by(storage_id=storage_id)
+Raises:
+DatabaseError: If retrieval fails
+"""
+return self.filter_by(storage_id=storage_id)
 
-        @inject(MaterialService)
-            def assign_to_storage(self, product_id: int, storage_id: int) -> Optional[
-                Product]:
-        """
-        Assign a product to a storage location.
+@inject(MaterialService)
+def assign_to_storage(self, product_id: int, storage_id: int) -> Optional[
+Product]:
+"""
+Assign a product to a storage location.
 
-        Args:
-            product_id: Product ID
-            storage_id: Storage location ID
+Args:
+product_id: Product ID
+storage_id: Storage location ID
 
-        Returns:
-            Updated Product or None if not found
+Returns:
+Updated Product or None if not found
 
-        Raises:
-            DatabaseError: If update fails
-        """
-        return self.update(product_id, {'storage_id': storage_id})
+Raises:
+DatabaseError: If update fails
+"""
+return self.update(product_id, {'storage_id': storage_id})
 
-        @inject(MaterialService)
-            def search_by_name(self, name: str) -> List[Product]:
-        """
-        Search products by name.
+@inject(MaterialService)
+def search_by_name(self, name: str) -> List[Product]:
+"""
+Search products by name.
 
-        Args:
-            name: Product name to search for
+Args:
+name: Product name to search for
 
-        Returns:
-            List of matching products
+Returns:
+    pass
+List of matching products
 
-        Raises:
-            DatabaseError: If search fails
-        """
-        return self.search(name, fields=['name', 'sku'])
+Raises:
+DatabaseError: If search fails
+"""
+return self.search(name, fields=['name', 'sku'])
