@@ -1,138 +1,141 @@
-# services/interfaces/storage_service.py
-"""
-Interface definition for Storage Service in the Store Management System.
+# Relative path: store_management/services/interfaces/storage_service.py
 
-This module defines the contract for storage-related operations
-that must be implemented by concrete storage service classes.
+"""
+Storage Service Interface Module
+
+Defines the abstract base interface for storage-related operations.
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Any
+from typing import List, Optional, Union, Dict, Any
+
+from database.models import Part
 
 
 class IStorageService(ABC):
     """
-    Abstract base class defining the contract for storage services.
+    Abstract base class defining the interface for storage-related operations.
 
-    This interface outlines the core operations that can be performed
-    on storage locations in the application, ensuring a consistent
-    approach to storage management across different implementations.
+    This service provides methods for managing inventory storage, 
+    tracking, and manipulation of stored items.
     """
 
     @abstractmethod
-    def get_all_storage_locations(self) -> List[Dict[str, Any]]:
+    def add_to_storage(
+            self,
+            part: Part,
+            quantity: float,
+            storage_location: Optional[str] = None
+    ) -> bool:
         """
-        Retrieve all storage locations from the system.
+        Add a specified quantity of a part to storage.
+
+        Args:
+            part (Part): The part to be added to storage.
+            quantity (float): The quantity of the part to add.
+            storage_location (Optional[str], optional): Specific storage location. 
+                Defaults to None.
 
         Returns:
-            List[Dict[str, Any]]: A list of storage locations with their details.
-
-        Raises:
-            Exception: If retrieval fails due to database or system errors.
+            bool: True if the addition was successful, False otherwise.
         """
         pass
 
     @abstractmethod
-    def get_storage_by_id(self, storage_id: int) -> Optional[Dict[str, Any]]:
+    def remove_from_storage(
+            self,
+            part: Part,
+            quantity: float,
+            storage_location: Optional[str] = None
+    ) -> bool:
         """
-        Retrieve a specific storage location by its unique identifier.
+        Remove a specified quantity of a part from storage.
 
         Args:
-            storage_id (int): The unique identifier of the storage location.
+            part (Part): The part to be removed from storage.
+            quantity (float): The quantity of the part to remove.
+            storage_location (Optional[str], optional): Specific storage location. 
+                Defaults to None.
 
         Returns:
-            Optional[Dict[str, Any]]: Details of the storage location if found,
-                                      None otherwise.
-
-        Raises:
-            ValueError: If the storage_id is invalid.
-            Exception: If retrieval fails due to database or system errors.
+            bool: True if the removal was successful, False otherwise.
         """
         pass
 
     @abstractmethod
-    def create_storage_location(self, storage_data: Dict[str, Any]) -> Dict[str, Any]:
+    def get_storage_quantity(
+            self,
+            part: Part,
+            storage_location: Optional[str] = None
+    ) -> float:
         """
-        Create a new storage location in the system.
+        Get the current quantity of a part in storage.
 
         Args:
-            storage_data (Dict[str, Any]): Data for the new storage location.
+            part (Part): The part to check.
+            storage_location (Optional[str], optional): Specific storage location. 
+                Defaults to None.
 
         Returns:
-            Dict[str, Any]: Details of the created storage location.
-
-        Raises:
-            ValueError: If the provided storage data is invalid.
-            Exception: If creation fails due to database or system errors.
+            float: The current quantity of the part in storage.
         """
         pass
 
     @abstractmethod
-    def update_storage_location(self, storage_id: int, storage_data: Dict[str, Any]) -> Dict[str, Any]:
+    def list_storage_items(
+            self,
+            filter_criteria: Optional[Dict[str, Any]] = None
+    ) -> List[Dict[str, Any]]:
         """
-        Update an existing storage location.
+        List items currently in storage with optional filtering.
 
         Args:
-            storage_id (int): Unique identifier of the storage location to update.
-            storage_data (Dict[str, Any]): Updated data for the storage location.
+            filter_criteria (Optional[Dict[str, Any]], optional): 
+                Dictionary of filter parameters. Defaults to None.
 
         Returns:
-            Dict[str, Any]: Updated details of the storage location.
-
-        Raises:
-            ValueError: If the storage_id is invalid or storage data is incomplete.
-            Exception: If update fails due to database or system errors.
+            List[Dict[str, Any]]: A list of storage items matching the criteria.
         """
         pass
 
     @abstractmethod
-    def delete_storage_location(self, storage_id: int) -> bool:
+    def move_storage_item(
+            self,
+            part: Part,
+            quantity: float,
+            from_location: str,
+            to_location: str
+    ) -> bool:
         """
-        Delete a storage location from the system.
+        Move a specified quantity of a part between storage locations.
 
         Args:
-            storage_id (int): Unique identifier of the storage location to delete.
+            part (Part): The part to be moved.
+            quantity (float): The quantity of the part to move.
+            from_location (str): The source storage location.
+            to_location (str): The destination storage location.
 
         Returns:
-            bool: True if deletion was successful, False otherwise.
-
-        Raises:
-            ValueError: If the storage_id is invalid.
-            Exception: If deletion fails due to existing dependencies or system errors.
+            bool: True if the move was successful, False otherwise.
         """
         pass
 
     @abstractmethod
-    def search_storage_locations(self, search_term: str) -> List[Dict[str, Any]]:
+    def validate_storage_operation(
+            self,
+            part: Part,
+            quantity: float,
+            operation_type: str
+    ) -> bool:
         """
-        Search for storage locations based on a search term.
+        Validate a storage operation before execution.
 
         Args:
-            search_term (str): Term to search for in storage locations.
+            part (Part): The part involved in the operation.
+            quantity (float): The quantity involved in the operation.
+            operation_type (str): Type of operation (e.g., 'add', 'remove', 'move').
 
         Returns:
-            List[Dict[str, Any]]: List of storage locations matching the search term.
-
-        Raises:
-            ValueError: If the search term is empty or invalid.
-            Exception: If search fails due to database or system errors.
-        """
-        pass
-
-    @abstractmethod
-    def get_storage_status(self, storage_id: int) -> Optional[Dict[str, Any]]:
-        """
-        Get the current status of a specific storage location.
-
-        Args:
-            storage_id (int): Unique identifier of the storage location.
-
-        Returns:
-            Optional[Dict[str, Any]]: Dictionary with storage status information
-                                      or None if not found.
-
-        Raises:
-            ValueError: If the storage_id is invalid.
-            Exception: If status retrieval fails due to database or system errors.
+            bool: True if the operation would be valid, False otherwise.
         """
         pass

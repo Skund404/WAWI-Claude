@@ -1,94 +1,78 @@
-# application.py
-
-import tkinter as tk
-from tkinter import ttk
-import logging
-from typing import Optional, Type, TypeVar
-from di.config import ApplicationConfig
-from gui.main_window import MainWindow
-from utils.error_handler import setup_exception_handler
-
-T = TypeVar('T')
 
 
+from di.core import inject
+from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
 class Application:
-    """Main application class that sets up and manages the GUI application."""
+    """
+    Central application class managing core services and application state.
+    
+    This class provides a centralized way to access and manage application-wide 
+    services, configuration, and state.
+    """
 
-    def __init__(self):
-        """Initialize the application."""
-        self.logger = logging.getLogger(__name__)
-        self._setup_application()
-
-    def _setup_application(self) -> None:
-        """Set up the application components."""
-        try:
-            self.logger.info("Setting up application")
-
-            # Initialize the root window
-            self.root = tk.Tk()
-            self.root.title("Store Management System")
-
-            # Configure exception handling
-            setup_exception_handler(self.root)
-
-            # Configure dependency injection
-            self._register_services()
-
-            # Create main window
-            self.main_window = MainWindow(self.root, self)
-
-            # Configure window size and position
-            self.root.geometry("1024x768")
-            self.root.minsize(800, 600)
-
-            self.logger.info("Application setup completed")
-
-        except Exception as e:
-            self.logger.error(f"Error during application setup: {e}")
-            raise
-
-    def _register_services(self) -> None:
-        """Register application services."""
-        try:
-            self.logger.info("Registering services")
-            ApplicationConfig.configure_container()
-            self.logger.info("Services registered successfully")
-        except Exception as e:
-            self.logger.error(f"Error registering services: {e}")
-            raise
-
-    def get_service(self, service_type: Type[T]) -> T:
+        @inject(MaterialService)
+        def __init__(self):
         """
-        Get a service instance by type.
+        Initialize the application, setting up services and logging.
+        """
+        logging.info('Setting up application...')
+        self._services: Dict[Type, Any] = {}
+        self._register_services()
+        logging.info('Service registration completed')
+        logging.info('Application setup completed successfully')
 
+        @inject(MaterialService)
+        def _register_services(self):
+        """
+        Register application services using the ServiceContainer.
+        
+        This method ensures that key services are available throughout the application.
+        """
+        logging.info('Registering application services...')
+        try:
+            self._services[IMaterialService] = ServiceContainer.resolve(
+                IMaterialService)
+            self._services[IProjectService] = ServiceContainer.resolve(
+                IProjectService)
+            logging.info('Application services configured successfully')
+        except Exception as e:
+            logging.error(f'Failed to register services: {e}')
+            raise
+
+        @inject(MaterialService)
+        def get_service(self, service_type: Type):
+        """
+        Retrieve a registered service by its type.
+        
         Args:
-            service_type: Type of service to retrieve
-
+            service_type (Type): The type of service to retrieve
+        
         Returns:
-            Instance of requested service type
+            The requested service instance
+        
+        Raises:
+            KeyError: If the requested service is not registered
         """
-        try:
-            return ApplicationConfig.get_service(service_type)
-        except Exception as e:
-            self.logger.error(f"Error getting service {service_type.__name__}: {e}")
-            raise
+        if service_type not in self._services:
+            raise KeyError(f'Service of type {service_type} is not registered')
+        return self._services[service_type]
 
-    def run(self) -> None:
-        """Run the application main loop."""
-        try:
-            self.logger.info("Starting application main loop")
-            self.root.mainloop()
-        except Exception as e:
-            self.logger.error(f"Error in application main loop: {e}")
-            raise
-        finally:
-            self.logger.info("Application shut down")
+        @inject(MaterialService)
+        def run(self):
+        """
+        Start the application's main execution.
+        
+        This method can be used for any initialization or background tasks 
+        needed when the application starts.
+        """
+        logging.info('Application running')
 
-    def quit(self) -> None:
-        """Quit the application."""
-        try:
-            self.logger.info("Shutting down application")
-            self.root.quit()
-        except Exception as e:
-            self.logger.error(f"Error during shutdown: {e}")
-            raise
+        @inject(MaterialService)
+        def quit(self):
+        """
+        Perform cleanup and exit the application.
+        
+        This method should handle any necessary shutdown procedures, 
+        such as closing database connections, saving state, etc.
+        """
+        logging.info('Application shutting down')

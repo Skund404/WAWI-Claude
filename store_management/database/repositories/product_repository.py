@@ -1,260 +1,170 @@
-# Path: database/repositories/product_repository.py
+from di.core import inject
+from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+"""
+F:/WAWI Homebrew/WAWI Claude/store_management/database/repositories/product_repository.py
 
-from typing import List, Optional, Dict, Any
-from sqlalchemy import func
-from sqlalchemy.orm import Session
-from sqlalchemy.exc import SQLAlchemyError
-
-from database.models.product import Product
-from database.repositories.interfaces.base_repository import IBaseRepository
+Product repository for database access.
+"""
+logger = logging.getLogger(__name__)
 
 
-class ProductRepository(IBaseRepository):
+class ProductRepository(BaseRepository):
     """
-    Repository for managing Product-related database operations.
+    Repository for Product model database access.
+
+    This class provides specialized operations for the Product model.
     """
 
-    def __init__(self, session: Session):
+        @inject(MaterialService)
+        def __init__(self, session: Session):
         """
-        Initialize the Product Repository.
+        Initialize a new ProductRepository instance.
 
         Args:
-            session (Session): SQLAlchemy database session
+            session: SQLAlchemy session.
         """
-        self._session = session
+        super().__init__(session, Product)
 
-    def get_by_id(self, product_id: int) -> Optional[Product]:
+        @inject(MaterialService)
+        def get_by_id(self, product_id: int) ->Optional[Product]:
         """
-        Retrieve a product by its ID.
+        Get a product by ID.
 
         Args:
-            product_id (int): Unique identifier for the product
+            product_id: The ID of the product.
 
         Returns:
-            Optional[Product]: Product instance or None if not found
+            The product, or None if not found.
         """
         try:
-            return self._session.query(Product).get(product_id)
+            return self.session.query(Product).get(product_id)
         except SQLAlchemyError as e:
-            raise DatabaseError(f"Error retrieving product {product_id}", str(e))
+            logger.error(
+                f'Error retrieving product with ID {product_id}: {str(e)}')
+            return None
 
-    def get_all(self, limit: Optional[int] = None,
-                offset: Optional[int] = None) -> List[Product]:
+        @inject(MaterialService)
+        def get_all(self, limit: Optional[int]=None, offset: Optional[int]=None
+        ) ->List[Product]:
         """
-        Retrieve all products with optional pagination.
+        Get all products.
 
         Args:
-            limit (Optional[int]): Maximum number of products to return
-            offset (Optional[int]): Number of products to skip
+            limit: Maximum number of products to return.
+            offset: Number of products to skip.
 
         Returns:
-            List[Product]: List of product instances
+            List of products.
         """
         try:
-            query = self._session.query(Product)
-
-            if limit is not None:
-                query = query.limit(limit)
-
+            query = self.session.query(Product)
             if offset is not None:
                 query = query.offset(offset)
-
+            if limit is not None:
+                query = query.limit(limit)
             return query.all()
         except SQLAlchemyError as e:
-            raise DatabaseError("Error retrieving all products", str(e))
+            logger.error(f'Error retrieving products: {str(e)}')
+            return []
 
-    def add(self, product: Product) -> Product:
+        @inject(MaterialService)
+        def search_by_name(self, name: str) ->List[Product]:
         """
-        Add a new product to the database.
+        Search for products by name.
 
         Args:
-            product (Product): Product instance to add
+            name: The name to search for.
 
         Returns:
-            Product: Added product instance
+            List of products that match the name.
         """
         try:
-            self._session.add(product)
-            self._session.commit()
-            return product
+            return self.session.query(Product).filter(Product.name.ilike(
+                f'%{name}%')).all()
         except SQLAlchemyError as e:
-            self._session.rollback()
-            raise DatabaseError("Error adding product", str(e))
+            logger.error(f"Error searching products by name '{name}': {str(e)}"
+                )
+            return []
 
-    def update(self, product: Product) -> Product:
+        @inject(MaterialService)
+        def get_active_products(self) ->List[Product]:
         """
-        Update an existing product.
+        Get active products.
+
+        Returns:
+            List of active products.
+        """
+        try:
+            return self.session.query(Product).filter(Product.is_active == True
+                ).all()
+        except SQLAlchemyError as e:
+            logger.error(f'Error retrieving active products: {str(e)}')
+            return []
+
+        @inject(MaterialService)
+        def get_low_stock_products(self, include_zero_stock: bool=True) ->List[
+        Product]:
+        """
+        Get products with low stock.
 
         Args:
-            product (Product): Product instance to update
+            include_zero_stock: Whether to include products with zero stock.
 
         Returns:
-            Product: Updated product instance
+            List of products with low stock.
         """
         try:
-            updated_product = self._session.merge(product)
-            self._session.commit()
-            return updated_product
-        except SQLAlchemyError as e:
-            self._session.rollback()
-            raise DatabaseError(f"Error updating product {product.id}", str(e))
-
-    def delete(self, product_id: int) -> bool:
-        """
-        Delete a product by its ID.
-
-        Args:
-            product_id (int): Unique identifier for the product
-
-        Returns:
-            bool: True if deletion was successful
-        """
-        try:
-            product = self.get_by_id(product_id)
-            if product:
-                self._session.delete(product)
-                self._session.commit()
-                return True
-            return False
-        except SQLAlchemyError as e:
-            self._session.rollback()
-            raise DatabaseError(f"Error deleting product {product_id}", str(e))
-
-    def search_by_name(self, name: str) -> List[Product]:
-        """
-        Search products by name (case-insensitive, partial match).
-
-        Args:
-            name (str): Search term
-
-        Returns:
-            List[Product]: List of matching products
-        """
-        try:
-            return (
-                self._session.query(Product)
-                .filter(Product.name.ilike(f"%{name}%"))
-                .all()
-            )
-        except SQLAlchemyError as e:
-            raise DatabaseError(f"Error searching products by name: {name}", str(e))
-
-    def get_active_products(self) -> List[Product]:
-        """
-        Retrieve all active products.
-
-        Returns:
-            List[Product]: List of active product instances
-        """
-        try:
-            return (
-                self._session.query(Product)
-                .filter(Product.is_active == True)
-                .all()
-            )
-        except SQLAlchemyError as e:
-            raise DatabaseError("Error retrieving active products", str(e))
-
-    def get_low_stock_products(self, include_zero_stock: bool = False) -> List[Product]:
-        """
-        Retrieve products with low stock.
-
-        Args:
-            include_zero_stock (bool): Whether to include products with zero stock
-
-        Returns:
-            List[Product]: List of products with low stock
-        """
-        try:
-            query = self._session.query(Product).filter(
-                Product.current_stock <= Product.minimum_stock_level
-            )
-
+            query = self.session.query(Product).filter(Product.
+                stock_quantity <= Product.reorder_point)
             if not include_zero_stock:
-                query = query.filter(Product.current_stock > 0)
-
+                query = query.filter(Product.stock_quantity > 0)
             return query.all()
         except SQLAlchemyError as e:
-            raise DatabaseError("Error retrieving low stock products", str(e))
+            logger.error(f'Error retrieving low stock products: {str(e)}')
+            return []
 
-    def get_products_by_category(self, category: str) -> List[Product]:
+        @inject(MaterialService)
+        def get_products_by_category(self, category: str) ->List[Product]:
         """
-        Retrieve products by category.
+        Get products by material type (category).
 
         Args:
-            category (str): Product category
+            category: The material type/category.
 
         Returns:
-            List[Product]: List of products in the specified category
+            List of products in the category.
         """
         try:
-            return (
-                self._session.query(Product)
-                .filter(Product.category == category)
-                .all()
-            )
+            return self.session.query(Product).filter(Product.material_type ==
+                category).all()
         except SQLAlchemyError as e:
-            raise DatabaseError(f"Error retrieving products in category: {category}", str(e))
+            logger.error(
+                f"Error retrieving products by category '{category}': {str(e)}"
+                )
+            return []
 
-    def get_product_sales_summary(self) -> Dict[str, Any]:
+        @inject(MaterialService)
+        def get_product_sales_summary(self) ->Dict[str, Any]:
         """
-        Generate a summary of product sales.
+        Get a summary of product sales.
 
         Returns:
-            Dict[str, Any]: Product sales summary
+            Dictionary with product sales statistics.
         """
         try:
-            # Total number of products
-            total_products = self._session.query(Product).count()
-
-            # Total active products
-            active_products = (
-                self._session.query(Product)
-                .filter(Product.is_active == True)
-                .count()
-            )
-
-            # Products with low stock
-            low_stock_products = len(self.get_low_stock_products())
-
-            return {
-                'total_products': total_products,
-                'active_products': active_products,
-                'low_stock_products': low_stock_products
-            }
+            total_products = self.session.query(Product).count()
+            active_products = self.session.query(Product).filter(Product.
+                is_active == True).count()
+            low_stock_products = self.session.query(Product).filter(Product
+                .stock_quantity <= Product.reorder_point).count()
+            products = self.session.query(Product).all()
+            total_margin = sum(product.calculate_profit_margin() for
+                product in products) if products else 0
+            avg_margin = total_margin / len(products) if products else 0
+            return {'total_products': total_products, 'active_products':
+                active_products, 'low_stock_products': low_stock_products,
+                'average_profit_margin': round(avg_margin, 2)}
         except SQLAlchemyError as e:
-            raise DatabaseError("Error generating product sales summary", str(e))
-
-
-# Custom exception for database-related errors
-class DatabaseError(Exception):
-    """
-    Custom exception for database operation errors.
-
-    Attributes:
-        message (str): Error message
-        details (str): Detailed error description
-    """
-
-    def __init__(self, message: str, details: str = None):
-        """
-        Initialize DatabaseError.
-
-        Args:
-            message (str): Primary error message
-            details (str, optional): Additional error details
-        """
-        self.message = message
-        self.details = details
-        super().__init__(self.message)
-
-    def __str__(self) -> str:
-        """
-        String representation of the error.
-
-        Returns:
-            str: Formatted error message
-        """
-        if self.details:
-            return f"{self.message}: {self.details}"
-        return self.message
+            logger.error(f'Error generating product sales summary: {str(e)}')
+            return {'total_products': 0, 'active_products': 0,
+                'low_stock_products': 0, 'average_profit_margin': 0}

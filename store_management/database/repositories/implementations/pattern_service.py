@@ -1,22 +1,11 @@
-# database/repositories/implementations/pattern_repository.py
+from di.core import inject
+from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
 """
 Pattern Repository Implementation for Leatherworking Store Management System.
 
 This module provides concrete implementations for pattern-related database operations,
 with a focus on leather-specific pattern management and validation.
 """
-
-from typing import List, Dict, Optional, Any
-from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_
-
-from database.models.pattern import Pattern
-from database.models.enums import SkillLevel
-from database.repositories.interfaces.pattern_repository import IPatternRepository
-from database.repositories.interfaces.base_repository import IBaseRepository
-from utils.error_handler import ApplicationError, ValidationError
-from utils.logger import get_logger
-
 logger = get_logger(__name__)
 
 
@@ -27,7 +16,8 @@ class PatternRepository(IPatternRepository, IBaseRepository):
     Provides methods for CRUD operations and specialized pattern queries.
     """
 
-    def __init__(self, session: Session):
+        @inject(MaterialService)
+        def __init__(self, session: Session):
         """
         Initialize the Pattern Repository with a database session.
 
@@ -36,7 +26,8 @@ class PatternRepository(IPatternRepository, IBaseRepository):
         """
         self._session = session
 
-    def get_by_id(self, pattern_id: int) -> Pattern:
+        @inject(MaterialService)
+        def get_by_id(self, pattern_id: int) ->Pattern:
         """
         Retrieve a pattern by its unique identifier.
 
@@ -50,15 +41,18 @@ class PatternRepository(IPatternRepository, IBaseRepository):
             ApplicationError: If pattern is not found
         """
         try:
-            pattern = self._session.query(Pattern).filter(Pattern.id == pattern_id).first()
+            pattern = self._session.query(Pattern).filter(Pattern.id ==
+                pattern_id).first()
             if not pattern:
-                raise ApplicationError(f"Pattern with ID {pattern_id} not found")
+                raise ApplicationError(
+                    f'Pattern with ID {pattern_id} not found')
             return pattern
         except Exception as e:
-            logger.error(f"Error retrieving pattern: {e}")
-            raise ApplicationError(f"Could not retrieve pattern: {e}")
+            logger.error(f'Error retrieving pattern: {e}')
+            raise ApplicationError(f'Could not retrieve pattern: {e}')
 
-    def get_by_skill_level(self, skill_level: SkillLevel) -> List[Pattern]:
+        @inject(MaterialService)
+        def get_by_skill_level(self, skill_level: SkillLevel) ->List[Pattern]:
         """
         Retrieve patterns matching a specific skill level.
 
@@ -69,14 +63,14 @@ class PatternRepository(IPatternRepository, IBaseRepository):
             List[Pattern]: List of patterns matching the skill level
         """
         try:
-            return (self._session.query(Pattern)
-                    .filter(Pattern.skill_level == skill_level)
-                    .all())
+            return self._session.query(Pattern).filter(Pattern.skill_level ==
+                skill_level).all()
         except Exception as e:
-            logger.error(f"Error retrieving patterns by skill level: {e}")
+            logger.error(f'Error retrieving patterns by skill level: {e}')
             return []
 
-    def get_with_components(self, pattern_id: int) -> Pattern:
+        @inject(MaterialService)
+        def get_with_components(self, pattern_id: int) ->Pattern:
         """
         Retrieve a pattern with its associated components.
 
@@ -90,20 +84,19 @@ class PatternRepository(IPatternRepository, IBaseRepository):
             ApplicationError: If pattern is not found
         """
         try:
-            pattern = (self._session.query(Pattern)
-                       .filter(Pattern.id == pattern_id)
-                       .options(joinedload(Pattern.components))
-                       .first())
-
+            pattern = self._session.query(Pattern).filter(Pattern.id ==
+                pattern_id).options(joinedload(Pattern.components)).first()
             if not pattern:
-                raise ApplicationError(f"Pattern with ID {pattern_id} not found")
-
+                raise ApplicationError(
+                    f'Pattern with ID {pattern_id} not found')
             return pattern
         except Exception as e:
-            logger.error(f"Error retrieving pattern with components: {e}")
-            raise ApplicationError(f"Could not retrieve pattern components: {e}")
+            logger.error(f'Error retrieving pattern with components: {e}')
+            raise ApplicationError(
+                f'Could not retrieve pattern components: {e}')
 
-    def search_by_criteria(self, criteria: Dict[str, Any]) -> List[Pattern]:
+        @inject(MaterialService)
+        def search_by_criteria(self, criteria: Dict[str, Any]) ->List[Pattern]:
         """
         Search patterns using flexible criteria.
 
@@ -115,27 +108,24 @@ class PatternRepository(IPatternRepository, IBaseRepository):
         """
         try:
             query = self._session.query(Pattern)
-
-            # Build dynamic search conditions
             conditions = []
             if 'name' in criteria:
                 conditions.append(Pattern.name.ilike(f"%{criteria['name']}%"))
-
             if 'skill_level' in criteria:
-                conditions.append(Pattern.skill_level == criteria['skill_level'])
-
+                conditions.append(Pattern.skill_level == criteria[
+                    'skill_level'])
             if 'min_complexity' in criteria:
-                conditions.append(Pattern.complexity >= criteria['min_complexity'])
-
+                conditions.append(Pattern.complexity >= criteria[
+                    'min_complexity'])
             if conditions:
                 query = query.filter(and_(*conditions))
-
             return query.all()
         except Exception as e:
-            logger.error(f"Error searching patterns: {e}")
+            logger.error(f'Error searching patterns: {e}')
             return []
 
-    def add(self, pattern: Pattern) -> Pattern:
+        @inject(MaterialService)
+        def add(self, pattern: Pattern) ->Pattern:
         """
         Add a new pattern to the database.
 
@@ -154,14 +144,15 @@ class PatternRepository(IPatternRepository, IBaseRepository):
             self._session.commit()
             return pattern
         except ValidationError as ve:
-            logger.warning(f"Pattern validation failed: {ve}")
+            logger.warning(f'Pattern validation failed: {ve}')
             raise
         except Exception as e:
             self._session.rollback()
-            logger.error(f"Error adding pattern: {e}")
-            raise ApplicationError(f"Could not add pattern: {e}")
+            logger.error(f'Error adding pattern: {e}')
+            raise ApplicationError(f'Could not add pattern: {e}')
 
-    def update(self, pattern: Pattern) -> Pattern:
+        @inject(MaterialService)
+        def update(self, pattern: Pattern) ->Pattern:
         """
         Update an existing pattern.
 
@@ -177,23 +168,21 @@ class PatternRepository(IPatternRepository, IBaseRepository):
         try:
             existing_pattern = self.get_by_id(pattern.id)
             self._validate_pattern(pattern)
-
-            # Update individual attributes
             existing_pattern.name = pattern.name
             existing_pattern.skill_level = pattern.skill_level
             existing_pattern.complexity = pattern.complexity
-
             self._session.commit()
             return existing_pattern
         except ValidationError as ve:
-            logger.warning(f"Pattern validation failed: {ve}")
+            logger.warning(f'Pattern validation failed: {ve}')
             raise
         except Exception as e:
             self._session.rollback()
-            logger.error(f"Error updating pattern: {e}")
-            raise ApplicationError(f"Could not update pattern: {e}")
+            logger.error(f'Error updating pattern: {e}')
+            raise ApplicationError(f'Could not update pattern: {e}')
 
-    def delete(self, pattern_id: int) -> bool:
+        @inject(MaterialService)
+        def delete(self, pattern_id: int) ->bool:
         """
         Delete a pattern by its ID.
 
@@ -213,10 +202,11 @@ class PatternRepository(IPatternRepository, IBaseRepository):
             return True
         except Exception as e:
             self._session.rollback()
-            logger.error(f"Error deleting pattern: {e}")
-            raise ApplicationError(f"Could not delete pattern: {e}")
+            logger.error(f'Error deleting pattern: {e}')
+            raise ApplicationError(f'Could not delete pattern: {e}')
 
-    def _validate_pattern(self, pattern: Pattern) -> None:
+        @inject(MaterialService)
+        def _validate_pattern(self, pattern: Pattern) ->None:
         """
         Validate pattern data before database operations.
 
@@ -227,15 +217,11 @@ class PatternRepository(IPatternRepository, IBaseRepository):
             ValidationError: If validation fails
         """
         errors = []
-
         if not pattern.name or len(pattern.name) < 3:
-            errors.append("Pattern name must be at least 3 characters long")
-
+            errors.append('Pattern name must be at least 3 characters long')
         if pattern.complexity is None or pattern.complexity < 0:
-            errors.append("Pattern complexity must be a non-negative number")
-
+            errors.append('Pattern complexity must be a non-negative number')
         if pattern.skill_level is None:
-            errors.append("Skill level must be specified")
-
+            errors.append('Skill level must be specified')
         if errors:
-            raise ValidationError("\n".join(errors))
+            raise ValidationError('\n'.join(errors))

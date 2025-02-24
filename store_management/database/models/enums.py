@@ -1,111 +1,163 @@
-# Path: database/models/enums.py
-"""
-Enumeration definitions for various model statuses and types.
-"""
 
-from enum import Enum, auto
-from typing import Any
 
-class ProjectStatus(Enum):
-    """
-    Enum representing different statuses of a project.
-    """
-    PLANNING = "Planning"
-    IN_PROGRESS = "In Progress"
-    ON_HOLD = "On Hold"
-    COMPLETED = "Completed"
-    CANCELLED = "Cancelled"
+from di.core import inject
+from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+@unique
+class ProjectStatus(str, Enum):
+    """Represents the current status of a project."""
+    PLANNING = 'planning'
+    IN_PROGRESS = 'in_progress'
+    COMPLETED = 'completed'
+    ON_HOLD = 'on_hold'
+    CANCELLED = 'cancelled'
 
-class SkillLevel(Enum):
-    """
-    Enum representing skill levels for projects.
-    """
-    BEGINNER = "Beginner"
-    INTERMEDIATE = "Intermediate"
-    ADVANCED = "Advanced"
-    EXPERT = "Expert"
+        @inject(MaterialService)
+        def __str__(self):
+        return self.value
 
-class ProjectType(Enum):
-    """
-    Enum representing different types of projects.
-    """
-    LEATHERWORKING = "Leatherworking"
-    PROTOTYPING = "Prototyping"
-    CUSTOM_ORDER = "Custom Order"
-    RESEARCH_AND_DEVELOPMENT = "Research and Development"
 
-class ProductionStatus(Enum):
-    """
-    Enum representing production statuses.
-    """
-    PENDING = "Pending"
-    IN_PRODUCTION = "In Production"
-    QUALITY_CHECK = "Quality Check"
-    COMPLETED = "Completed"
-    CANCELLED = "Cancelled"
+@unique
+class SkillLevel(str, Enum):
+    """Represents the skill level required for a project or pattern."""
+    BEGINNER = 'beginner'
+    INTERMEDIATE = 'intermediate'
+    ADVANCED = 'advanced'
+    EXPERT = 'expert'
 
-class MaterialType(Enum):
-    """
-    Enum representing different types of materials.
-    """
-    LEATHER = "Leather"
-    THREAD = "Thread"
-    HARDWARE = "Hardware"
-    ADHESIVE = "Adhesive"
-    FABRIC = "Fabric"
+        @inject(MaterialService)
+        def __str__(self):
+        return self.value
 
-class TransactionType(Enum):
-    """
-    Enum representing types of inventory transactions.
-    """
-    PURCHASE = "Purchase"
-    SALE = "Sale"
-    RETURN = "Return"
-    ADJUSTMENT = "Adjustment"
-    TRANSFER = "Transfer"
 
-class OrderStatus(Enum):
-    """
-    Enum representing different order statuses.
-    """
-    PENDING = "Pending"
-    PROCESSING = "Processing"
-    SHIPPED = "Shipped"
-    DELIVERED = "Delivered"
-    CANCELLED = "Cancelled"
+@unique
+class ProjectType(str, Enum):
+    """Represents different types of projects."""
+    LEATHERWORKING = 'leatherworking'
+    CRAFTING = 'crafting'
+    DESIGN = 'design'
+    PROTOTYPE = 'prototype'
 
-class PaymentStatus(Enum):
-    """
-    Enum representing payment statuses.
-    """
-    UNPAID = "Unpaid"
-    PARTIALLY_PAID = "Partially Paid"
-    PAID = "Paid"
-    REFUNDED = "Refunded"
+        @inject(MaterialService)
+        def __str__(self):
+        return self.value
 
-class ShoppingListStatus(Enum):
-    """
-    Enum representing shopping list statuses.
-    """
-    ACTIVE = "Active"
-    COMPLETED = "Completed"
-    ARCHIVED = "Archived"
 
-class StitchType(Enum):
-    """
-    Enum representing different stitch types.
-    """
-    LOCK_STITCH = "Lock Stitch"
-    CHAIN_STITCH = "Chain Stitch"
-    SADDLE_STITCH = "Saddle Stitch"
-    WHIP_STITCH = "Whip Stitch"
+@unique
+class ProductionStatus(str, Enum):
+    """Represents the production status of an item."""
+    NOT_STARTED = 'not_started'
+    IN_PROGRESS = 'in_progress'
+    COMPLETED = 'completed'
+    QUALITY_CHECK = 'quality_check'
+    REJECTED = 'rejected'
 
-class EdgeFinishType(Enum):
-    """
-    Enum representing different edge finishing techniques.
-    """
-    BURNISHED = "Burnished"
-    PAINTED = "Painted"
-    FOLDED = "Folded"
-    RAW = "Raw"
-    SEALED = "Sealed"
+        @inject(MaterialService)
+        def __str__(self):
+        return self.value
+
+
+@unique
+class MaterialType(str, Enum):
+    """Represents different types of materials."""
+    LEATHER = 'leather'
+    FABRIC = 'fabric'
+    METAL = 'metal'
+    WOOD = 'wood'
+    SYNTHETIC = 'synthetic'
+
+        @inject(MaterialService)
+        def __str__(self):
+        return self.value
+
+
+@unique
+class TransactionType(str, Enum):
+    """Represents types of inventory transactions."""
+    PURCHASE = 'purchase'
+    SALE = 'sale'
+    TRANSFER = 'transfer'
+    ADJUSTMENT = 'adjustment'
+    RETURN = 'return'
+
+        @inject(MaterialService)
+        def __str__(self):
+        return self.value
+
+
+@unique
+class OrderStatus(str, Enum):
+    """Represents the status of an order."""
+    PENDING = 'pending'
+    PROCESSING = 'processing'
+    SHIPPED = 'shipped'
+    DELIVERED = 'delivered'
+    CANCELLED = 'cancelled'
+
+        @inject(MaterialService)
+        def __str__(self):
+        return self.value
+
+
+@unique
+class PaymentStatus(str, Enum):
+    """Represents the payment status."""
+    UNPAID = 'unpaid'
+    PARTIAL = 'partial'
+    PAID = 'paid'
+    REFUNDED = 'refunded'
+
+        @inject(MaterialService)
+        def __str__(self):
+        return self.value
+
+
+@unique
+class ShoppingListStatus(str, Enum):
+    """Represents the status of a shopping list."""
+    ACTIVE = 'active'
+    COMPLETED = 'completed'
+    ARCHIVED = 'archived'
+
+        @inject(MaterialService)
+        def __str__(self):
+        return self.value
+
+
+@unique
+class StitchType(str, Enum):
+    """Represents different types of stitching."""
+    HAND_STITCH = 'hand_stitch'
+    MACHINE_STITCH = 'machine_stitch'
+    SADDLE_STITCH = 'saddle_stitch'
+    LOCK_STITCH = 'lock_stitch'
+
+        @inject(MaterialService)
+        def __str__(self):
+        return self.value
+
+
+@unique
+class EdgeFinishType(str, Enum):
+    """Represents different types of edge finishing."""
+    BURNISHED = 'burnished'
+    PAINTED = 'painted'
+    SEALED = 'sealed'
+    RAW = 'raw'
+
+        @inject(MaterialService)
+        def __str__(self):
+        return self.value
+
+
+@unique
+class ComponentType(str, Enum):
+    """Represents different types of components."""
+    HARDWARE = 'hardware'
+    MATERIAL = 'material'
+    ACCESSORY = 'accessory'
+    STRUCTURAL = 'structural'
+    DECORATIVE = 'decorative'
+
+        @inject(MaterialService)
+        def __str__(self):
+        return self.value

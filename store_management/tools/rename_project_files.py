@@ -1,22 +1,13 @@
-#!/usr/bin/env python3
+from di.core import inject
+from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
 """
 Path: tools/rename_project_files.py
 
 Script to systematically rename files and update references in a leatherworking project,
 replacing generic 'pattern' terminology with more specific project-related terms.
 """
-
-import os
-import re
-import sys
-import logging
-from typing import List, Dict, Tuple
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s: %(message)s'
-)
+logging.basicConfig(level=logging.INFO, format=
+    '%(asctime)s - %(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)
 
 
@@ -25,7 +16,8 @@ class ProjectRenamer:
     A comprehensive renaming utility for leatherworking project files and references.
     """
 
-    def __init__(self, project_root: str):
+        @inject(MaterialService)
+        def __init__(self, project_root: str):
         """
         Initialize the renaming utility with the project's root directory.
 
@@ -33,29 +25,19 @@ class ProjectRenamer:
             project_root (str): Root directory of the project
         """
         self.project_root = os.path.abspath(project_root)
-        self.renames: Dict[str, str] = {
-            # File renames
-            'pattern_service.py': 'project_service.py',
-            'recipe_repository.py': 'project_repository.py',
-            'recipe_view.py': 'project_view.py',
+        self.renames: Dict[str, str] = {'pattern_service.py':
+            'project_service.py', 'recipe_repository.py':
+            'project_repository.py', 'recipe_view.py': 'project_view.py',
+            'Project': 'Project', 'ProjectComponent': 'ProjectComponent'}
+        self.replacements: List[Tuple[str, str]] = [('\\bRecipe\\b',
+            'Project'), ('\\bRecipeItem\\b', 'ProjectComponent'), (
+            '\\brecipe_\\b', 'project_'), ('\\bget_recipe\\b',
+            'get_project'), ('\\bcreate_recipe\\b', 'create_project'), (
+            '\\bupdate_recipe\\b', 'update_project'), (
+            '\\bdelete_recipe\\b', 'delete_project')]
 
-            # Model class renames
-            'Project': 'Project',
-            'ProjectComponent': 'ProjectComponent',
-        }
-
-        # Search and replace patterns
-        self.replacements: List[Tuple[str, str]] = [
-            (r'\bRecipe\b', 'Project'),
-            (r'\bRecipeItem\b', 'ProjectComponent'),
-            (r'\brecipe_\b', 'project_'),
-            (r'\bget_recipe\b', 'get_project'),
-            (r'\bcreate_recipe\b', 'create_project'),
-            (r'\bupdate_recipe\b', 'update_project'),
-            (r'\bdelete_recipe\b', 'delete_project'),
-        ]
-
-    def _find_files(self, pattern: str = r'.*\.py$') -> List[str]:
+        @inject(MaterialService)
+        def _find_files(self, pattern: str='.*\\.py$') ->List[str]:
         """
         Find all Python files in the project recursively.
 
@@ -73,7 +55,8 @@ class ProjectRenamer:
                     matches.append(filepath)
         return matches
 
-    def rename_files(self):
+        @inject(MaterialService)
+        def rename_files(self):
         """
         Rename files according to the predefined mapping.
         """
@@ -89,33 +72,31 @@ class ProjectRenamer:
                     except Exception as e:
                         logger.error(f'Error renaming {old_path}: {e}')
 
-    def update_file_contents(self):
+        @inject(MaterialService)
+        def update_file_contents(self):
         """
         Update file contents by replacing specific terms and references.
         """
         python_files = self._find_files()
-
         for filepath in python_files:
             try:
                 with open(filepath, 'r', encoding='utf-8') as f:
                     content = f.read()
-
                 modified = False
                 for pattern, replacement in self.replacements:
                     new_content = re.sub(pattern, replacement, content)
                     if new_content != content:
                         content = new_content
                         modified = True
-
                 if modified:
                     with open(filepath, 'w', encoding='utf-8') as f:
                         f.write(content)
                     logger.info(f'Updated: {filepath}')
-
             except Exception as e:
                 logger.error(f'Error processing {filepath}: {e}')
 
-    def run(self):
+        @inject(MaterialService)
+        def run(self):
         """
         Execute the full renaming process.
         """
@@ -129,9 +110,7 @@ def main():
     """
     Main execution point for the renaming script.
     """
-    # Determine project root (assumes script is run from project root or tools directory)
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
     renamer = ProjectRenamer(project_root)
     renamer.run()
 

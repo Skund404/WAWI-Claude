@@ -1,16 +1,9 @@
-# database/sqlalchemy/core/specialized/product_manager.py
+from di.core import inject
+from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
 """
 database/sqlalchemy/core/specialized/product_manager.py
 Specialized manager for Product models with additional capabilities.
 """
-
-from typing import List, Optional, Dict, Any
-from sqlalchemy import select, and_, or_, func
-from sqlalchemy.orm import joinedload
-
-from database.sqlalchemy.core.base_manager import BaseManager
-from database.models import Product, Storage, Project
-from utils.error_handling import DatabaseError
 
 
 class ProductManager(BaseManager[Product]):
@@ -20,7 +13,8 @@ class ProductManager(BaseManager[Product]):
     Extends BaseManager with product-specific operations.
     """
 
-    def get_product_with_recipe(self, product_id: int) -> Optional[Product]:
+        @inject(MaterialService)
+        def get_product_with_recipe(self, product_id: int) ->Optional[Product]:
         """
         Get product with its pattern.
 
@@ -35,16 +29,16 @@ class ProductManager(BaseManager[Product]):
         """
         try:
             with self.session_scope() as session:
-                query = select(Product).options(
-                    joinedload(Product.pattern)
-                ).where(Product.id == product_id)
-
+                query = select(Product).options(joinedload(Product.pattern)
+                    ).where(Product.id == product_id)
                 result = session.execute(query)
                 return result.scalars().first()
         except Exception as e:
-            raise DatabaseError(f"Failed to retrieve product with pattern", str(e))
+            raise DatabaseError(f'Failed to retrieve product with pattern',
+                str(e))
 
-    def get_by_storage(self, storage_id: int) -> List[Product]:
+        @inject(MaterialService)
+        def get_by_storage(self, storage_id: int) ->List[Product]:
         """
         Get products by storage location.
 
@@ -59,7 +53,9 @@ class ProductManager(BaseManager[Product]):
         """
         return self.filter_by(storage_id=storage_id)
 
-    def assign_to_storage(self, product_id: int, storage_id: int) -> Optional[Product]:
+        @inject(MaterialService)
+        def assign_to_storage(self, product_id: int, storage_id: int) ->Optional[
+        Product]:
         """
         Assign a product to a storage location.
 
@@ -75,7 +71,8 @@ class ProductManager(BaseManager[Product]):
         """
         return self.update(product_id, {'storage_id': storage_id})
 
-    def search_by_name(self, name: str) -> List[Product]:
+        @inject(MaterialService)
+        def search_by_name(self, name: str) ->List[Product]:
         """
         Search products by name.
 

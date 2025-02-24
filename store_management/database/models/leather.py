@@ -1,17 +1,8 @@
-# database/models/leather.py
-
+from di.core import inject
+from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
 """
 Leather model definition.
 """
-
-import logging
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, Enum as SQLEnum
-from sqlalchemy.orm import relationship
-from typing import Optional, List, Dict, Any
-from database.base import BaseModel
-from .base import BaseModel
-from .enums import LeatherType, MaterialQualityGrade
-
 logger = logging.getLogger(__name__)
 
 
@@ -30,9 +21,7 @@ class Leather(BaseModel):
         transactions (List[LeatherTransaction]): Related transactions
         supplier (Supplier): Related supplier
     """
-
     __tablename__ = 'leather'
-
     id = Column(Integer, primary_key=True)
     name = Column(String(100), nullable=False)
     leather_type = Column(SQLEnum(LeatherType), nullable=False)
@@ -40,15 +29,13 @@ class Leather(BaseModel):
     area = Column(Float, default=0)
     minimum_area = Column(Float, default=0)
     supplier_id = Column(Integer, ForeignKey('suppliers.id'))
+    transactions = relationship('LeatherTransaction', back_populates=
+        'leather', cascade='all, delete-orphan')
+    supplier = relationship('Supplier', back_populates='leathers')
 
-    # Relationships
-    transactions = relationship("LeatherTransaction", back_populates="leather",
-                                cascade="all, delete-orphan")
-    supplier = relationship("Supplier", back_populates="leathers")
-
-    def __init__(self, name: str, leather_type: LeatherType,
-                 quality_grade: MaterialQualityGrade, area: float = 0,
-                 minimum_area: float = 0):
+        @inject(MaterialService)
+        def __init__(self, name: str, leather_type: LeatherType, quality_grade:
+        MaterialQualityGrade, area: float=0, minimum_area: float=0):
         """
         Initialize a new leather instance.
 
@@ -65,29 +52,28 @@ class Leather(BaseModel):
         self.area = area
         self.minimum_area = minimum_area
 
-    def __repr__(self) -> str:
+        @inject(MaterialService)
+        def __repr__(self) ->str:
         """Return string representation of the leather."""
-        return (f"<Leather(id={self.id}, name='{self.name}', "
-                f"type={self.leather_type.name}, area={self.area})>")
+        return (
+            f"<Leather(id={self.id}, name='{self.name}', type={self.leather_type.name}, area={self.area})>"
+            )
 
-    def to_dict(self) -> Dict[str, Any]:
+        @inject(MaterialService)
+        def to_dict(self) ->Dict[str, Any]:
         """
         Convert leather instance to dictionary representation.
 
         Returns:
             Dictionary containing leather data
         """
-        return {
-            'id': self.id,
-            'name': self.name,
-            'leather_type': self.leather_type.name,
-            'quality_grade': self.quality_grade.name,
-            'area': self.area,
-            'minimum_area': self.minimum_area,
-            'supplier_id': self.supplier_id
-        }
+        return {'id': self.id, 'name': self.name, 'leather_type': self.
+            leather_type.name, 'quality_grade': self.quality_grade.name,
+            'area': self.area, 'minimum_area': self.minimum_area,
+            'supplier_id': self.supplier_id}
 
-    def needs_reorder(self) -> bool:
+        @inject(MaterialService)
+        def needs_reorder(self) ->bool:
         """
         Check if leather needs to be reordered.
 

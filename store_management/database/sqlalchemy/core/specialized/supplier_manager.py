@@ -1,17 +1,9 @@
-# database/sqlalchemy/core/specialized/supplier_manager.py
+from di.core import inject
+from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
 """
 database/sqlalchemy/core/specialized/supplier_manager.py
 Specialized manager for Supplier models with additional capabilities.
 """
-
-from typing import List, Optional, Dict, Any, Tuple
-from datetime import datetime
-from sqlalchemy import select, and_, or_, func
-from sqlalchemy.orm import joinedload
-
-from database.sqlalchemy.core.base_manager import BaseManager
-from database.models import Supplier, Order, Part, Leather
-from utils.error_handling import DatabaseError
 
 
 class SupplierManager(BaseManager[Supplier]):
@@ -21,7 +13,8 @@ class SupplierManager(BaseManager[Supplier]):
     Extends BaseManager with supplier-specific operations.
     """
 
-    def get_supplier_with_orders(self, supplier_id: int) -> Optional[Supplier]:
+        @inject(MaterialService)
+        def get_supplier_with_orders(self, supplier_id: int) ->Optional[Supplier]:
         """
         Get supplier with their order history.
 
@@ -36,16 +29,16 @@ class SupplierManager(BaseManager[Supplier]):
         """
         try:
             with self.session_scope() as session:
-                query = select(Supplier).options(
-                    joinedload(Supplier.orders)
-                ).where(Supplier.id == supplier_id)
-
+                query = select(Supplier).options(joinedload(Supplier.orders)
+                    ).where(Supplier.id == supplier_id)
                 result = session.execute(query)
                 return result.scalars().first()
         except Exception as e:
-            raise DatabaseError(f"Failed to retrieve supplier with orders", str(e))
+            raise DatabaseError(f'Failed to retrieve supplier with orders',
+                str(e))
 
-    def get_supplier_products(self, supplier_id: int) -> Dict[str, List]:
+        @inject(MaterialService)
+        def get_supplier_products(self, supplier_id: int) ->Dict[str, List]:
         """
         Get all products supplied by a supplier.
 
@@ -60,29 +53,22 @@ class SupplierManager(BaseManager[Supplier]):
         """
         try:
             with self.session_scope() as session:
-                # Get parts from this supplier
-                parts_query = select(Part).where(Part.supplier_id == supplier_id)
+                parts_query = select(Part).where(Part.supplier_id ==
+                    supplier_id)
                 parts_result = session.execute(parts_query)
                 parts = list(parts_result.scalars().all())
-
-                # Get leather from this supplier
-                leather_query = select(Leather).where(Leather.supplier_id == supplier_id)
+                leather_query = select(Leather).where(Leather.supplier_id ==
+                    supplier_id)
                 leather_result = session.execute(leather_query)
                 leather = list(leather_result.scalars().all())
-
-                return {
-                    'parts': parts,
-                    'leather': leather
-                }
+                return {'parts': parts, 'leather': leather}
         except Exception as e:
-            raise DatabaseError(f"Failed to get supplier products", str(e))
+            raise DatabaseError(f'Failed to get supplier products', str(e))
 
-    def get_supplier_order_history(
-            self,
-            supplier_id: int,
-            start_date: Optional[datetime] = None,
-            end_date: Optional[datetime] = None
-    ) -> List[Order]:
+        @inject(MaterialService)
+        def get_supplier_order_history(self, supplier_id: int, start_date:
+        Optional[datetime]=None, end_date: Optional[datetime]=None) ->List[
+        Order]:
         """
         Get supplier's order history with optional date range.
 
@@ -100,23 +86,20 @@ class SupplierManager(BaseManager[Supplier]):
         try:
             with self.session_scope() as session:
                 query = select(Order).where(Order.supplier_id == supplier_id)
-
-                # Add date filters if provided
                 if start_date:
                     query = query.where(Order.order_date >= start_date)
                 if end_date:
                     query = query.where(Order.order_date <= end_date)
-
-                # Order by date descending
                 query = query.order_by(Order.order_date.desc())
-
                 result = session.execute(query)
                 return list(result.scalars().all())
         except Exception as e:
-            raise DatabaseError(f"Failed to get supplier order history", str(e))
+            raise DatabaseError(f'Failed to get supplier order history', str(e)
+                )
 
-    def update_supplier_rating(self, supplier_id: int, rating: float, notes: Optional[str] = None) -> Optional[
-        Supplier]:
+        @inject(MaterialService)
+        def update_supplier_rating(self, supplier_id: int, rating: float, notes:
+        Optional[str]=None) ->Optional[Supplier]:
         """
         Update supplier quality rating.
 
@@ -131,21 +114,15 @@ class SupplierManager(BaseManager[Supplier]):
         Raises:
             DatabaseError: If update fails
         """
-        # Validate rating
         if rating < 0 or rating > 5:
-            raise ValueError("Rating must be between 0 and 5")
-
-        # Update supplier
-        data = {
-            'rating': rating
-        }
-
+            raise ValueError('Rating must be between 0 and 5')
+        data = {'rating': rating}
         if notes:
             data['rating_notes'] = notes
-
         return self.update(supplier_id, data)
 
-    def search_suppliers(self, term: str) -> List[Supplier]:
+        @inject(MaterialService)
+        def search_suppliers(self, term: str) ->List[Supplier]:
         """
         Search suppliers across multiple fields.
 
@@ -158,4 +135,5 @@ class SupplierManager(BaseManager[Supplier]):
         Raises:
             DatabaseError: If search fails
         """
-        return self.search(term, fields=['name', 'contact_name', 'contact_email', 'contact_phone'])
+        return self.search(term, fields=['name', 'contact_name',
+            'contact_email', 'contact_phone'])

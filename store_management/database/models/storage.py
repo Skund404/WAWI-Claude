@@ -1,42 +1,50 @@
-# Path: database/models/storage.py
+from di.core import inject
+from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
 """
+F:/WAWI Homebrew/WAWI Claude/store_management/database/models/storage.py
+
 Storage model for the database.
 """
-import logging
-from sqlalchemy import Column, Integer, String, Float, Enum, Text
-from ..base import Base
-from database.base import BaseModel
-
-logger = logging.getLogger(__name__)
 
 
-class Storage(Base):
+class Storage(Base, BaseModel):
     """
-    Storage model representing a storage location in the warehouse.
+    Storage entity representing physical storage locations for inventory.
+
+    This class defines the storage location data model and provides methods for storage management.
     """
     __tablename__ = 'storage'
-
     id = Column(Integer, primary_key=True)
-    name = Column(String(100), nullable=False)
-    location = Column(String(100), nullable=False)
-    capacity = Column(Float, nullable=False, default=0.0)
-    current_occupancy = Column(Float, nullable=False, default=0.0)
-    type = Column(String(50), nullable=False)
+    name = Column(String(100), nullable=False, index=True)
+    location = Column(String(255), nullable=True)
+    capacity = Column(Float, default=0.0)
+    current_occupancy = Column(Float, default=0.0)
+    type = Column(String(50), nullable=True)
     description = Column(Text, nullable=True)
-    status = Column(String(50), nullable=False, default='active')
+    status = Column(String(20), default='Active')
+    width = Column(Float, nullable=True)
+    height = Column(Float, nullable=True)
+    depth = Column(Float, nullable=True)
+    temperature_controlled = Column(Boolean, default=False)
+    humidity_controlled = Column(Boolean, default=False)
+    fire_resistant = Column(Boolean, default=False)
+    products = relationship('Product', back_populates='storage')
 
-    def __init__(self, name, location, capacity, current_occupancy, type, description, status):
+        @inject(MaterialService)
+        def __init__(self, name: str, location: Optional[str]=None, capacity:
+        float=0.0, current_occupancy: float=0.0, type: Optional[str]=None,
+        description: Optional[str]=None, status: str='Active') ->None:
         """
         Initialize a new Storage instance.
 
         Args:
-            name: Name of the storage location
-            location: Physical location
-            capacity: Maximum capacity
-            current_occupancy: Current used capacity
-            type: Type of storage
-            description: Description
-            status: Status (active, inactive, etc.)
+            name: The name of the storage location.
+            location: The physical location description.
+            capacity: The total capacity of the storage.
+            current_occupancy: The current used capacity.
+            type: The type of storage (e.g., Warehouse, Workshop, etc.).
+            description: A detailed description of the storage.
+            status: The current status of the storage.
         """
         self.name = name
         self.location = location
@@ -46,20 +54,69 @@ class Storage(Base):
         self.description = description
         self.status = status
 
-    def __repr__(self):
-        """String representation of the storage location."""
-        return f"<Storage(id={self.id}, name={self.name}, location={self.location})>"
-
-    def occupancy_percentage(self):
+        @inject(MaterialService)
+        def __repr__(self) ->str:
         """
-        Calculate the occupancy percentage.
+        Get a string representation of the storage location.
 
         Returns:
-            float: Occupancy percentage
+            A string representation of the storage location.
         """
-        if self.capacity > 0:
-            return (self.current_occupancy / self.capacity) * 100
-        return 0.0
+        return (
+            f'<Storage id={self.id}, name={self.name}, status={self.status}>')
 
+        @inject(MaterialService)
+        def occupancy_percentage(self) ->float:
+        """
+        Calculate the occupancy percentage of the storage.
 
-logger.debug("Storage model defined")
+        Returns:
+            The occupancy percentage (0-100).
+        """
+        if self.capacity == 0:
+            return 0.0
+        percentage = self.current_occupancy / self.capacity * 100
+        return round(percentage, 2)
+
+        @inject(MaterialService)
+        def is_full(self) ->bool:
+        """
+        Check if the storage is full.
+
+        Returns:
+            True if the storage is full, False otherwise.
+        """
+        return self.current_occupancy >= self.capacity
+
+        @inject(MaterialService)
+        def is_empty(self) ->bool:
+        """
+        Check if the storage is empty.
+
+        Returns:
+            True if the storage is empty, False otherwise.
+        """
+        return self.current_occupancy <= 0
+
+        @inject(MaterialService)
+        def available_capacity(self) ->float:
+        """
+        Calculate the available capacity.
+
+        Returns:
+            The available capacity.
+        """
+        return max(0, self.capacity - self.current_occupancy)
+
+        @inject(MaterialService)
+        def can_store(self, required_capacity: float) ->bool:
+        """
+        Check if the storage can accommodate the required capacity.
+
+        Args:
+            required_capacity: The capacity required.
+
+        Returns:
+            True if the storage can accommodate the required capacity, False otherwise.
+        """
+        return self.available_capacity() >= required_capacity

@@ -1,69 +1,58 @@
-# Path: database/models/model_metaclass.py
+from di.core import inject
+from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
 """
-Unified metaclass for handling complex model inheritance.
-"""
+Custom metaclass implementation to resolve conflicts between SQLAlchemy and ABC metaclasses.
 
-from typing import Any, Dict, Type
-from sqlalchemy.orm import DeclarativeBase
-from abc import ABCMeta
+This module provides a ModelMetaclass that inherits from both the SQLAlchemy DeclarativeBase
+metaclass and the ABCMeta metaclass, allowing model classes to use both SQLAlchemy features
+and abstract base class functionality without metaclass conflicts.
+"""
 
 
 class ModelMetaclass(DeclarativeBase.__class__, ABCMeta):
     """
-    A unified metaclass that combines SQLAlchemy's DeclarativeBase
-    with Python's abstract base class (ABC) metaclass.
+    A custom metaclass that resolves the conflict between SQLAlchemy and ABC metaclasses.
 
-    This metaclass resolves conflicts in multiple inheritance scenarios
-    for database models with abstract interfaces.
+    This metaclass allows a class to inherit from both SQLAlchemy's DeclarativeBase
+    and Python's ABC (Abstract Base Class) without conflict.
     """
 
-    def __new__(mcs, name: str, bases: tuple, attrs: Dict[str, Any]) -> Type:
+        def __new__(mcs, name: str, bases: Tuple[Type, ...], attrs: Dict[str, Any]
+        ) ->Type:
         """
-        Custom class creation method to handle complex inheritance.
+        Create a new class with this metaclass.
 
         Args:
-            name (str): Name of the class being created
-            bases (tuple): Base classes
-            attrs (Dict[str, Any]): Class attributes
+            mcs: The metaclass
+            name: Name of the class being created
+            bases: Base classes of the class being created
+            attrs: Attributes of the class being created
 
         Returns:
-            Type: Newly created class
+            Type: The newly created class
         """
-        # Remove potential duplicate base classes
-        unique_bases = []
-        for base in bases:
-            if base not in unique_bases:
-                unique_bases.append(base)
-
-        # Merge attributes from all base classes
-        for base in unique_bases:
-            for key, value in getattr(base, '__dict__', {}).items():
-                if key not in attrs:
-                    attrs[key] = value
-
-        # Create the class with unified metaclass
-        return super().__new__(mcs, name, tuple(unique_bases), attrs)
+        return super().__new__(mcs, name, bases, attrs)
 
 
 class BaseModel(DeclarativeBase, metaclass=ModelMetaclass):
     """
-    Base model class that uses the unified ModelMetaclass.
-    Provides a foundation for all database models with robust inheritance.
+    Base model class that uses the custom ModelMetaclass.
+
+    This class can be used as a base for all models that need to use both
+    SQLAlchemy ORM features and ABC features.
     """
 
-    @classmethod
-    def __subclasshook__(cls, C: Type) -> bool:
+        @classmethod
+    def __subclasshook__(cls, C):
         """
-        Custom subclass hook to support interface-like behavior.
+        Special method to customize the behavior of issubclass() calls.
 
         Args:
-            C (Type): Potential subclass to check
+            cls: The class being checked against
+            C: The class being checked
 
         Returns:
-            bool: Whether C is considered a subclass
+            bool or NotImplemented: True if C is considered a subclass, False if not,
+                                   NotImplemented if the hook cannot decide
         """
-        if cls is BaseModel:
-            # Check for required methods or attributes
-            if all(hasattr(C, attr) for attr in ['to_dict', 'validate']):
-                return True
         return NotImplemented

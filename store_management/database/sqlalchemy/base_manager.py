@@ -1,13 +1,10 @@
-# Path: store_management\database\sqlalchemy\base_manager.py
+from di.core import inject
+from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
 """
 Base Manager for creating specialized database managers with generic operations.
 """
-
-from typing import TypeVar, Generic, Type, List, Optional, Any
-from sqlalchemy.orm import Session
-from sqlalchemy.exc import SQLAlchemyError
-
 T = TypeVar('T')
+
 
 class BaseManager(Generic[T]):
     """
@@ -21,11 +18,8 @@ class BaseManager(Generic[T]):
         _model_class (Type[T]): The SQLAlchemy model class managed by this manager
     """
 
-    def __init__(
-        self, 
-        model_class: Type[T], 
-        session_factory: Any
-    ):
+        @inject(MaterialService)
+        def __init__(self, model_class: Type[T], session_factory: Any):
         """
         Initialize the BaseManager.
 
@@ -36,7 +30,8 @@ class BaseManager(Generic[T]):
         self._model_class = model_class
         self._session_factory = session_factory
 
-    def _get_session(self) -> Session:
+        @inject(MaterialService)
+        def _get_session(self) ->Session:
         """
         Retrieve a database session.
 
@@ -45,7 +40,8 @@ class BaseManager(Generic[T]):
         """
         return self._session_factory()
 
-    def create(self, data: dict) -> T:
+        @inject(MaterialService)
+        def create(self, data: dict) ->T:
         """
         Create a new record.
 
@@ -63,11 +59,13 @@ class BaseManager(Generic[T]):
             return model_instance
         except SQLAlchemyError as e:
             session.rollback()
-            raise ValueError(f"Error creating {self._model_class.__name__}: {str(e)}")
+            raise ValueError(
+                f'Error creating {self._model_class.__name__}: {str(e)}')
         finally:
             session.close()
 
-    def get(self, id: int) -> Optional[T]:
+        @inject(MaterialService)
+        def get(self, id: int) ->Optional[T]:
         """
         Retrieve a record by its ID.
 
@@ -81,15 +79,14 @@ class BaseManager(Generic[T]):
         try:
             return session.query(self._model_class).get(id)
         except SQLAlchemyError as e:
-            raise ValueError(f"Error retrieving {self._model_class.__name__}: {str(e)}")
+            raise ValueError(
+                f'Error retrieving {self._model_class.__name__}: {str(e)}')
         finally:
             session.close()
 
-    def get_all(
-        self, 
-        order_by: Optional[str] = None, 
-        limit: Optional[int] = None
-    ) -> List[T]:
+        @inject(MaterialService)
+        def get_all(self, order_by: Optional[str]=None, limit: Optional[int]=None
+        ) ->List[T]:
         """
         Retrieve all records, with optional ordering and limiting.
 
@@ -103,20 +100,20 @@ class BaseManager(Generic[T]):
         session = self._get_session()
         try:
             query = session.query(self._model_class)
-            
             if order_by:
                 query = query.order_by(getattr(self._model_class, order_by))
-            
             if limit:
                 query = query.limit(limit)
-            
             return query.all()
         except SQLAlchemyError as e:
-            raise ValueError(f"Error retrieving {self._model_class.__name__} records: {str(e)}")
+            raise ValueError(
+                f'Error retrieving {self._model_class.__name__} records: {str(e)}'
+                )
         finally:
             session.close()
 
-    def update(self, id: int, data: dict) -> Optional[T]:
+        @inject(MaterialService)
+        def update(self, id: int, data: dict) ->Optional[T]:
         """
         Update an existing record.
 
@@ -132,19 +129,19 @@ class BaseManager(Generic[T]):
             model_instance = session.query(self._model_class).get(id)
             if not model_instance:
                 return None
-
             for key, value in data.items():
                 setattr(model_instance, key, value)
-            
             session.commit()
             return model_instance
         except SQLAlchemyError as e:
             session.rollback()
-            raise ValueError(f"Error updating {self._model_class.__name__}: {str(e)}")
+            raise ValueError(
+                f'Error updating {self._model_class.__name__}: {str(e)}')
         finally:
             session.close()
 
-    def delete(self, id: int) -> bool:
+        @inject(MaterialService)
+        def delete(self, id: int) ->bool:
         """
         Delete a record by its ID.
 
@@ -159,20 +156,19 @@ class BaseManager(Generic[T]):
             model_instance = session.query(self._model_class).get(id)
             if not model_instance:
                 return False
-
             session.delete(model_instance)
             session.commit()
             return True
         except SQLAlchemyError as e:
             session.rollback()
-            raise ValueError(f"Error deleting {self._model_class.__name__}: {str(e)}")
+            raise ValueError(
+                f'Error deleting {self._model_class.__name__}: {str(e)}')
         finally:
             session.close()
 
-def create_base_manager(
-    model_class: Type[T], 
-    session_factory: Any
-) -> BaseManager[T]:
+
+def create_base_manager(model_class: Type[T], session_factory: Any
+    ) ->BaseManager[T]:
     """
     Factory function to create a BaseManager for a specific model.
 

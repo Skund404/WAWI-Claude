@@ -1,9 +1,8 @@
-# File: config/settings.py
-import os
-from pathlib import Path
-from typing import Dict, Any
 
-def _find_project_root() -> Path:
+
+from di.core import inject
+from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+def _find_project_root() ->Path:
     """
     Find the root directory of the project.
 
@@ -13,19 +12,15 @@ def _find_project_root() -> Path:
     current_file = Path(__file__)
     return current_file.parent.parent
 
-# Application Configuration
-APP_NAME = "Store Management System"
-APP_VERSION = "0.1.0"
-APP_DESCRIPTION = "Inventory and Project Management Application"
 
-# Database Configuration
-DATABASE_CONFIG: Dict[str, Any] = {
-    'engine': 'sqlite',
-    'name': 'store.db',
-    'path': None,  # Will be set dynamically
-}
+APP_NAME = 'Store Management System'
+APP_VERSION = '0.1.0'
+APP_DESCRIPTION = 'Inventory and Project Management Application'
+DATABASE_CONFIG: Dict[str, Any] = {'engine': 'sqlite', 'name': 'store.db',
+    'path': None}
 
-def get_database_path() -> str:
+
+def get_database_path() ->str:
     """
     Get the path to the database file.
 
@@ -38,7 +33,8 @@ def get_database_path() -> str:
     DATABASE_CONFIG['path'] = str(db_dir / DATABASE_CONFIG['name'])
     return DATABASE_CONFIG['path']
 
-def get_log_path() -> str:
+
+def get_log_path() ->str:
     """
     Get the path to the log directory.
 
@@ -50,7 +46,8 @@ def get_log_path() -> str:
     log_dir.mkdir(exist_ok=True)
     return str(log_dir)
 
-def get_backup_path() -> str:
+
+def get_backup_path() ->str:
     """
     Get the path to the backup directory.
 
@@ -62,7 +59,8 @@ def get_backup_path() -> str:
     backup_dir.mkdir(exist_ok=True)
     return str(backup_dir)
 
-def get_config_path() -> str:
+
+def get_config_path() ->str:
     """
     Get the path to the configuration directory.
 
@@ -73,47 +71,17 @@ def get_config_path() -> str:
     config_dir = project_root / 'config'
     return str(config_dir)
 
-# Logging Configuration
-LOGGING_CONFIG: Dict[str, Any] = {
-    'level': 'INFO',
-    'format': '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    'filename': 'app.log',
-}
 
-# Application Environment Configuration
-ENVIRONMENT_CONFIG: Dict[str, Any] = {
-    'debug': False,
-    'testing': False,
-    'production': True,
-}
-
-# Feature Flags
-FEATURE_FLAGS: Dict[str, bool] = {
-    'inventory_tracking': True,
-    'project_management': True,
-    'order_system': True,
-    'reporting': True,
-}
-
-# Additional Configuration
-PERFORMANCE_CONFIG: Dict[str, Any] = {
-    'max_cache_size': 1000,
-    'connection_timeout': 30,
-    'retry_attempts': 3,
-}
-
-# Export all configuration variables and functions
-__all__ = [
-    'APP_NAME',
-    'APP_VERSION',
-    'APP_DESCRIPTION',
-    'DATABASE_CONFIG',
-    'LOGGING_CONFIG',
-    'ENVIRONMENT_CONFIG',
-    'FEATURE_FLAGS',
-    'PERFORMANCE_CONFIG',
-    'get_database_path',
-    'get_log_path',
-    'get_backup_path',
-    'get_config_path',
-]
+LOGGING_CONFIG: Dict[str, Any] = {'level': 'INFO', 'format':
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s', 'filename':
+    'app.log'}
+ENVIRONMENT_CONFIG: Dict[str, Any] = {'debug': False, 'testing': False,
+    'production': True}
+FEATURE_FLAGS: Dict[str, bool] = {'inventory_tracking': True,
+    'project_management': True, 'order_system': True, 'reporting': True}
+PERFORMANCE_CONFIG: Dict[str, Any] = {'max_cache_size': 1000,
+    'connection_timeout': 30, 'retry_attempts': 3}
+__all__ = ['APP_NAME', 'APP_VERSION', 'APP_DESCRIPTION', 'DATABASE_CONFIG',
+    'LOGGING_CONFIG', 'ENVIRONMENT_CONFIG', 'FEATURE_FLAGS',
+    'PERFORMANCE_CONFIG', 'get_database_path', 'get_log_path',
+    'get_backup_path', 'get_config_path']

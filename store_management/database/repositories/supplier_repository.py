@@ -1,287 +1,206 @@
-from typing import List, Optional, Dict, Any
-from datetime import datetime, timedelta
+from di.core import inject
+from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+"""
+F:/WAWI Homebrew/WAWI Claude/store_management/database/repositories/supplier_repository.py
 
-from sqlalchemy.orm import Session
-from sqlalchemy import func, or_
-
-from database.interfaces.base_repository import BaseRepository
-from database.models.supplier import Supplier
-from database.models.order import Order
-from utils.error_handler import DatabaseError, ValidationError
+Supplier repository for database access.
+"""
+logger = logging.getLogger(__name__)
 
 
 class SupplierRepository(BaseRepository):
     """
-    Repository for managing supplier-related database operations.
+    Repository for Supplier model database access.
 
-    Provides specialized methods for retrieving, creating, and managing
-    supplier information with advanced querying capabilities.
+    This class provides specialized operations for the Supplier model.
     """
 
-    def __init__(self, session: Session):
+        @inject(MaterialService)
+        def __init__(self, session: Session):
         """
-        Initialize the SupplierRepository with a database session.
+        Initialize a new SupplierRepository instance.
 
         Args:
-            session (Session): SQLAlchemy database session
+            session: SQLAlchemy session.
         """
         super().__init__(session, Supplier)
 
-    def search(self, search_term: str,
-               fields: List[str] = None,
-               limit: int = 10) -> List[Supplier]:
+        @inject(MaterialService)
+        def search(self, search_term: str, fields: List[str], limit: Optional[
+        int]=None) ->List[Supplier]:
         """
-        Search for suppliers using a flexible search across multiple fields.
+        Search for suppliers by a search term in specified fields.
 
         Args:
-            search_term (str): Term to search for
-            fields (Optional[List[str]]): Specific fields to search
-            limit (int, optional): Maximum number of results. Defaults to 10.
+            search_term: The search term.
+            fields: List of field names to search in.
+            limit: Maximum number of results to return.
 
         Returns:
-            List of Supplier instances matching the search criteria
+            List of suppliers that match the search criteria.
         """
         try:
-            # Default search fields if not specified
-            if not fields:
-                fields = ['name', 'email', 'phone', 'address']
-
-            # Prepare search conditions
-            search_conditions = []
-            normalized_term = f"%{search_term.lower().strip()}%"
-
+            from sqlalchemy import or_
+            if not search_term or not fields:
+                return []
+            conditions = []
             for field in fields:
-                # Dynamically create search conditions for each field
-                model_field = getattr(Supplier, field, None)
-                if model_field is not None:
-                    search_conditions.append(func.lower(model_field).like(normalized_term))
-
-            # Execute search query
-            query = self.session.query(Supplier).filter(or_(*search_conditions)).limit(limit)
+                if hasattr(Supplier, field):
+                    attr = getattr(Supplier, field)
+                    conditions.append(attr.ilike(f'%{search_term}%'))
+            if not conditions:
+                return []
+            query = self.session.query(Supplier).filter(or_(*conditions))
+            if limit:
+                query = query.limit(limit)
             return query.all()
+        except SQLAlchemyError as e:
+            logger.error(
+                f"Error searching suppliers for '{search_term}' in {fields}: {str(e)}"
+                )
+            return []
 
-        except Exception as e:
-            raise DatabaseError(f"Error searching suppliers: {str(e)}")
-
-    def get_supplier_orders(self,
-                            supplier_id: int,
-                            start_date: Optional[datetime] = None,
-                            end_date: Optional[datetime] = None) -> List[Order]:
+        @inject(MaterialService)
+        def get_supplier_orders(self, supplier_id: int, start_date: Optional[
+        datetime]=None, end_date: Optional[datetime]=None) ->List[Any]:
         """
-        Retrieve orders associated with a specific supplier.
+        Get orders for a supplier.
 
         Args:
-            supplier_id (int): ID of the supplier
-            start_date (Optional[datetime]): Start of order date range
-            end_date (Optional[datetime]): End of order date range
+            supplier_id: The ID of the supplier.
+            start_date: Optional start date for filtering orders.
+            end_date: Optional end date for filtering orders.
 
         Returns:
-            List of Order instances
+            List of orders for the supplier.
         """
         try:
-            # Default to last 90 days if no dates provided
-            if not start_date:
-                start_date = datetime.now() - timedelta(days=90)
-            if not end_date:
-                end_date = datetime.now()
+            supplier = self.get_by_id(supplier_id)
+            if not supplier or not hasattr(supplier, 'orders'):
+                return []
+            if supplier.orders is None:
+                return []
+            if start_date or end_date:
+                from sqlalchemy import and_
+                conditions = []
+                if start_date:
+                    conditions.append(Order.created_at >= start_date)
+                if end_date:
+                    conditions.append(Order.created_at <= end_date)
+                return self.session.query(Order).filter(and_(Order.
+                    supplier_id == supplier_id, *conditions)).all()
+            return supplier.orders
+        except (SQLAlchemyError, NameError) as e:
+            logger.error(
+                f'Error getting orders for supplier ID {supplier_id}: {str(e)}'
+                )
+            return []
 
-            # Construct query
-            query = (
-                self.session.query(Order)
-                .filter(Order.supplier_id == supplier_id)
-                .filter(Order.order_date.between(start_date, end_date))
-            )
-
-            return query.all()
-
-        except Exception as e:
-            raise DatabaseError(f"Error retrieving supplier orders: {str(e)}")
-
-    def get_top_suppliers(self,
-                          limit: int = 10,
-                          performance_metric: str = 'completed_orders') -> List[Dict[str, Any]]:
+        @inject(MaterialService)
+        def get_top_suppliers(self, limit: int=10, performance_metric: str='rating'
+        ) ->List[Supplier]:
         """
-        Retrieve top suppliers based on a specific performance metric.
+        Get top suppliers based on a performance metric.
 
         Args:
-            limit (int, optional): Number of top suppliers to return. Defaults to 10.
-            performance_metric (str, optional): Metric to rank suppliers. Defaults to 'completed_orders'.
+            limit: Maximum number of suppliers to return.
+            performance_metric: Metric to sort by (rating, reliability_score, etc.).
 
         Returns:
-            List of dictionaries with supplier information and performance metrics
+            List of top suppliers.
         """
         try:
-            # Subquery to get supplier performance
-            performance_subquery = (
-                self.session.query(
-                    Order.supplier_id,
-                    func.count(Order.id).label('total_orders'),
-                    func.sum(
-                        func.case(
-                            [(Order.status == 'COMPLETED', 1)],
-                            else_=0
-                        )
-                    ).label('completed_orders')
+            if not hasattr(Supplier, performance_metric):
+                logger.warning(
+                    f'Invalid performance metric: {performance_metric}')
+                performance_metric = 'rating'
+            metric_attr = getattr(Supplier, performance_metric)
+            return self.session.query(Supplier).filter(Supplier.is_active ==
+                True).order_by(desc(metric_attr)).limit(limit).all()
+        except SQLAlchemyError as e:
+            logger.error(
+                f'Error getting top suppliers by {performance_metric}: {str(e)}'
                 )
-                .group_by(Order.supplier_id)
-                .subquery()
-            )
+            return []
 
-            # Join suppliers with performance metrics
-            query = (
-                self.session.query(
-                    Supplier,
-                    performance_subquery.c.total_orders,
-                    performance_subquery.c.completed_orders
-                )
-                .outerjoin(
-                    performance_subquery,
-                    Supplier.id == performance_subquery.c.supplier_id
-                )
-                .order_by(performance_subquery.c.completed_orders.desc().nulls_last())
-                .limit(limit)
-            )
-
-            # Transform results
-            top_suppliers = []
-            for supplier, total_orders, completed_orders in query:
-                supplier_dict = supplier.to_dict()
-                supplier_dict['total_orders'] = total_orders or 0
-                supplier_dict['completed_orders'] = completed_orders or 0
-
-                # Calculate completion rate
-                supplier_dict['completion_rate'] = (
-                    (completed_orders / total_orders * 100) if total_orders else 0
-                )
-
-                top_suppliers.append(supplier_dict)
-
-            return top_suppliers
-
-        except Exception as e:
-            raise DatabaseError(f"Error retrieving top suppliers: {str(e)}")
-
-    def create(self, data: Dict[str, Any]) -> Supplier:
+        @inject(MaterialService)
+        def create(self, data: Dict[str, Any]) ->Optional[Supplier]:
         """
-        Create a new supplier record with additional validation.
+        Create a new supplier.
 
         Args:
-            data (Dict[str, Any]): Supplier creation data
+            data: Dictionary of supplier data.
 
         Returns:
-            Supplier: Created supplier instance
-
-        Raises:
-            ValidationError: If data is invalid
-            DatabaseError: For database-related errors
+            The created supplier, or None if creation failed.
         """
         try:
-            # Validate required fields
-            if not data.get('name'):
-                raise ValidationError("Supplier name is required")
-
-            # Check for existing supplier with the same name
-            existing_supplier = self.search(data['name'], fields=['name'])
-            if existing_supplier:
-                raise ValidationError(f"Supplier with name '{data['name']}' already exists")
-
-            # Create supplier instance
+            if 'name' not in data or not data['name']:
+                raise ValueError('Supplier name is required')
             supplier = Supplier(**data)
-
-            # Add to session and commit
             self.session.add(supplier)
-            self.session.commit()
-
+            self.session.flush()
+            logger.info(f'Created supplier: {supplier.name}')
             return supplier
-
-        except (ValidationError, DatabaseError):
-            # Re-raise validation errors
-            raise
         except Exception as e:
-            # Rollback session on unexpected errors
+            logger.error(f'Error creating supplier: {str(e)}')
             self.session.rollback()
-            raise DatabaseError(f"Error creating supplier: {str(e)}")
+            return None
 
-    def update(self, supplier_id: int, data: Dict[str, Any]) -> Supplier:
+        @inject(MaterialService)
+        def update(self, supplier_id: int, data: Dict[str, Any]) ->Optional[
+        Supplier]:
         """
-        Update an existing supplier record.
+        Update a supplier.
 
         Args:
-            supplier_id (int): ID of the supplier to update
-            data (Dict[str, Any]): Update data
+            supplier_id: The ID of the supplier to update.
+            data: Dictionary of supplier data to update.
 
         Returns:
-            Supplier: Updated supplier instance
-
-        Raises:
-            ValidationError: If data is invalid
-            DatabaseError: For database-related errors
+            The updated supplier, or None if update failed.
         """
         try:
-            # Retrieve existing supplier
-            supplier = self.get(supplier_id)
+            supplier = self.get_by_id(supplier_id)
             if not supplier:
-                raise ValidationError(f"Supplier with ID {supplier_id} not found")
-
-            # Update supplier attributes
+                logger.warning(
+                    f'Supplier with ID {supplier_id} not found for update')
+                return None
             for key, value in data.items():
-                setattr(supplier, key, value)
-
-            # Commit changes
-            self.session.commit()
-
+                if hasattr(supplier, key):
+                    setattr(supplier, key, value)
+            self.session.flush()
+            logger.info(f'Updated supplier: {supplier.name}')
             return supplier
-
-        except (ValidationError, DatabaseError):
-            # Re-raise validation errors
-            raise
         except Exception as e:
-            # Rollback session on unexpected errors
+            logger.error(
+                f'Error updating supplier with ID {supplier_id}: {str(e)}')
             self.session.rollback()
-            raise DatabaseError(f"Error updating supplier: {str(e)}")
+            return None
 
-    def delete(self, supplier_id: int) -> bool:
+        @inject(MaterialService)
+        def delete(self, supplier_id: int) ->bool:
         """
-        Delete a supplier record after checking for dependencies.
+        Delete a supplier.
 
         Args:
-            supplier_id (int): ID of the supplier to delete
+            supplier_id: The ID of the supplier to delete.
 
         Returns:
-            bool: True if deletion was successful
-
-        Raises:
-            ValidationError: If supplier has active dependencies
-            DatabaseError: For database-related errors
+            True if deletion was successful, False otherwise.
         """
         try:
-            # Check for existing orders
-            existing_orders = (
-                self.session.query(Order)
-                .filter(Order.supplier_id == supplier_id)
-                .count()
-            )
-
-            if existing_orders > 0:
-                raise ValidationError(
-                    f"Cannot delete supplier {supplier_id}. "
-                    "Existing orders prevent deletion."
-                )
-
-            # Retrieve and delete supplier
-            supplier = self.get(supplier_id)
+            supplier = self.get_by_id(supplier_id)
             if not supplier:
-                raise ValidationError(f"Supplier with ID {supplier_id} not found")
-
-            self.session.delete(supplier)
-            self.session.commit()
-
+                logger.warning(
+                    f'Supplier with ID {supplier_id} not found for deletion')
+                return False
+            supplier.is_active = False
+            self.session.flush()
+            logger.info(f'Marked supplier as inactive: {supplier.name}')
             return True
-
-        except (ValidationError, DatabaseError):
-            # Re-raise validation errors
-            raise
         except Exception as e:
-            # Rollback session on unexpected errors
+            logger.error(
+                f'Error deactivating supplier with ID {supplier_id}: {str(e)}')
             self.session.rollback()
-            raise DatabaseError(f"Error deleting supplier: {str(e)}")
+            return False

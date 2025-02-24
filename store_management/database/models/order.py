@@ -1,14 +1,8 @@
-# Path: database/models/order.py
+from di.core import inject
+from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
 """
 Order model definition with support for order items.
 """
-
-from datetime import datetime
-from sqlalchemy import Column, Integer, String, DateTime, Float, Enum
-from sqlalchemy.orm import relationship
-from .base import BaseModel
-from .enums import OrderStatus, PaymentStatus
-from .order_item import OrderItem
 
 
 class Order(BaseModel):
@@ -27,7 +21,6 @@ class Order(BaseModel):
         items (list): List of order items associated with this order.
     """
     __tablename__ = 'orders'
-
     id = Column(Integer, primary_key=True)
     order_number = Column(String(50), unique=True, nullable=False)
     status = Column(Enum(OrderStatus), default=OrderStatus.PENDING)
@@ -35,14 +28,13 @@ class Order(BaseModel):
     customer_name = Column(String(100))
     total_amount = Column(Float, default=0.0)
     created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=
+        datetime.utcnow)
+    items = relationship('OrderItem', back_populates='order', cascade=
+        'all, delete-orphan', lazy='subquery')
 
-    # Relationship with OrderItem, using the separate OrderItem model
-    items = relationship("OrderItem", back_populates="order",
-                         cascade="all, delete-orphan",
-                         lazy='subquery')
-
-    def __init__(self, order_number: str, customer_name: str = None):
+        @inject(MaterialService)
+        def __init__(self, order_number: str, customer_name: str=None):
         """
         Initialize an Order.
 
@@ -53,29 +45,32 @@ class Order(BaseModel):
         self.order_number = order_number
         self.customer_name = customer_name
 
-    def __repr__(self) -> str:
+        @inject(MaterialService)
+        def __repr__(self) ->str:
         """
         String representation of the Order.
 
         Returns:
             str: Formatted string describing the order.
         """
-        return (f"<Order(id={self.id}, "
-                f"order_number='{self.order_number}', "
-                f"status={self.status}, "
-                f"total_amount={self.total_amount})>")
+        return (
+            f"<Order(id={self.id}, order_number='{self.order_number}', status={self.status}, total_amount={self.total_amount})>"
+            )
 
-    def calculate_total_amount(self) -> float:
+        @inject(MaterialService)
+        def calculate_total_amount(self) ->float:
         """
         Calculate the total amount of the order based on items.
 
         Returns:
             float: Total order amount.
         """
-        self.total_amount = sum(item.calculate_total_price() for item in self.items)
+        self.total_amount = sum(item.calculate_total_price() for item in
+            self.items)
         return self.total_amount
 
-    def add_item(self, order_item: OrderItem) -> None:
+        @inject(MaterialService)
+        def add_item(self, order_item: OrderItem) ->None:
         """
         Add an item to the order.
 
@@ -86,7 +81,8 @@ class Order(BaseModel):
         self.items.append(order_item)
         self.calculate_total_amount()
 
-    def remove_item(self, order_item: OrderItem) -> None:
+        @inject(MaterialService)
+        def remove_item(self, order_item: OrderItem) ->None:
         """
         Remove an item from the order.
 
@@ -97,7 +93,8 @@ class Order(BaseModel):
             self.items.remove(order_item)
             self.calculate_total_amount()
 
-    def update_status(self, new_status: OrderStatus) -> None:
+        @inject(MaterialService)
+        def update_status(self, new_status: OrderStatus) ->None:
         """
         Update the order status.
 
@@ -106,7 +103,8 @@ class Order(BaseModel):
         """
         self.status = new_status
 
-    def update_payment_status(self, new_payment_status: PaymentStatus) -> None:
+        @inject(MaterialService)
+        def update_payment_status(self, new_payment_status: PaymentStatus) ->None:
         """
         Update the payment status of the order.
 
@@ -115,7 +113,8 @@ class Order(BaseModel):
         """
         self.payment_status = new_payment_status
 
-    def to_dict(self, include_items: bool = False) -> dict:
+        @inject(MaterialService)
+        def to_dict(self, include_items: bool=False) ->dict:
         """
         Convert Order to dictionary representation.
 
@@ -125,18 +124,14 @@ class Order(BaseModel):
         Returns:
             dict: Dictionary containing Order attributes.
         """
-        order_dict = {
-            'id': self.id,
-            'order_number': self.order_number,
+        order_dict = {'id': self.id, 'order_number': self.order_number,
             'status': self.status.value if self.status else None,
-            'payment_status': self.payment_status.value if self.payment_status else None,
-            'customer_name': self.customer_name,
-            'total_amount': self.total_amount,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
-        }
-
+            'payment_status': self.payment_status.value if self.
+            payment_status else None, 'customer_name': self.customer_name,
+            'total_amount': self.total_amount, 'created_at': self.
+            created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else
+            None}
         if include_items:
             order_dict['items'] = [item.to_dict() for item in self.items]
-
         return order_dict

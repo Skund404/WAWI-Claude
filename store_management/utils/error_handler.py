@@ -1,26 +1,5 @@
-# Path: store_management/services/base_service.py
-
-import logging
-from abc import ABC, abstractmethod
-from typing import (
-    Any,
-    Dict,
-    Generic,
-    List,
-    Optional,
-    Type,
-    TypeVar
-)
-
-from database.repositories.interfaces.base_repository import IBaseRepository
-from database.repositories.interfaces.unit_of_work import IUnitOfWork
-from utils.error_handler import (
-    ApplicationError,
-    ValidationError,
-    NotFoundError
-)
-
-# Type variable for the model
+from di.core import inject
+from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
 T = TypeVar('T')
 
 
@@ -38,11 +17,9 @@ class BaseService(ABC, Generic[T]):
         _logger (logging.Logger): Logger for the service
     """
 
-    def __init__(
-            self,
-            repository: IBaseRepository[T],
-            unit_of_work: Optional[IUnitOfWork] = None
-    ):
+        @inject(MaterialService)
+        def __init__(self, repository: IBaseRepository[T], unit_of_work:
+        Optional[IUnitOfWork]=None):
         """
         Initialize the base service with a repository and optional unit of work.
 
@@ -54,7 +31,8 @@ class BaseService(ABC, Generic[T]):
         self._unit_of_work = unit_of_work
         self._logger = logging.getLogger(self.__class__.__name__)
 
-    def get_by_id(self, id: Any) -> Optional[T]:
+        @inject(MaterialService)
+        def get_by_id(self, id: Any) ->Optional[T]:
         """
         Retrieve an entity by its unique identifier.
 
@@ -70,23 +48,17 @@ class BaseService(ABC, Generic[T]):
         try:
             entity = self._repository.get_by_id(id)
             if not entity:
-                raise NotFoundError(
-                    f"Entity with ID {id} not found",
-                    {"id": id}
-                )
+                raise NotFoundError(f'Entity with ID {id} not found', {'id':
+                    id})
             return entity
         except Exception as e:
-            self._logger.error(f"Error retrieving entity by ID {id}: {e}")
-            raise ApplicationError(
-                f"Failed to retrieve entity: {str(e)}",
-                {"id": id}
-            )
+            self._logger.error(f'Error retrieving entity by ID {id}: {e}')
+            raise ApplicationError(f'Failed to retrieve entity: {str(e)}',
+                {'id': id})
 
-    def get_all(
-            self,
-            limit: Optional[int] = None,
-            offset: Optional[int] = None
-    ) -> List[T]:
+        @inject(MaterialService)
+        def get_all(self, limit: Optional[int]=None, offset: Optional[int]=None
+        ) ->List[T]:
         """
         Retrieve all entities with optional pagination.
 
@@ -100,10 +72,11 @@ class BaseService(ABC, Generic[T]):
         try:
             return self._repository.get_all(limit=limit, offset=offset)
         except Exception as e:
-            self._logger.error(f"Error retrieving all entities: {e}")
-            raise ApplicationError("Failed to retrieve entities", {})
+            self._logger.error(f'Error retrieving all entities: {e}')
+            raise ApplicationError('Failed to retrieve entities', {})
 
-    def create(self, data: Dict[str, Any]) -> T:
+        @inject(MaterialService)
+        def create(self, data: Dict[str, Any]) ->T:
         """
         Create a new entity.
 
@@ -117,10 +90,7 @@ class BaseService(ABC, Generic[T]):
             ValidationError: If the data fails validation
         """
         try:
-            # Validate input data before creation
             self._validate_create_data(data)
-
-            # Use unit of work if available, otherwise proceed with direct creation
             if self._unit_of_work:
                 with self._unit_of_work:
                     entity = self._repository.add(data)
@@ -129,16 +99,15 @@ class BaseService(ABC, Generic[T]):
             else:
                 return self._repository.add(data)
         except ValidationError as ve:
-            self._logger.warning(f"Validation error creating entity: {ve}")
+            self._logger.warning(f'Validation error creating entity: {ve}')
             raise
         except Exception as e:
-            self._logger.error(f"Error creating entity: {e}")
-            raise ApplicationError(
-                f"Failed to create entity: {str(e)}",
-                {"input_data": data}
-            )
+            self._logger.error(f'Error creating entity: {e}')
+            raise ApplicationError(f'Failed to create entity: {str(e)}', {
+                'input_data': data})
 
-    def update(self, id: Any, data: Dict[str, Any]) -> T:
+        @inject(MaterialService)
+        def update(self, id: Any, data: Dict[str, Any]) ->T:
         """
         Update an existing entity.
 
@@ -154,13 +123,8 @@ class BaseService(ABC, Generic[T]):
             ValidationError: If the update data is invalid
         """
         try:
-            # Check if entity exists
             existing_entity = self.get_by_id(id)
-
-            # Validate input data before update
             self._validate_update_data(existing_entity, data)
-
-            # Use unit of work if available
             if self._unit_of_work:
                 with self._unit_of_work:
                     updated_entity = self._repository.update(id, data)
@@ -169,16 +133,14 @@ class BaseService(ABC, Generic[T]):
             else:
                 return self._repository.update(id, data)
         except (NotFoundError, ValidationError):
-            # Re-raise these specific errors
             raise
         except Exception as e:
-            self._logger.error(f"Error updating entity {id}: {e}")
-            raise ApplicationError(
-                f"Failed to update entity: {str(e)}",
-                {"id": id, "input_data": data}
-            )
+            self._logger.error(f'Error updating entity {id}: {e}')
+            raise ApplicationError(f'Failed to update entity: {str(e)}', {
+                'id': id, 'input_data': data})
 
-    def delete(self, id: Any) -> bool:
+        @inject(MaterialService)
+        def delete(self, id: Any) ->bool:
         """
         Delete an entity by its identifier.
 
@@ -192,10 +154,7 @@ class BaseService(ABC, Generic[T]):
             NotFoundError: If the entity doesn't exist
         """
         try:
-            # Verify entity exists before deletion
             self.get_by_id(id)
-
-            # Use unit of work if available
             if self._unit_of_work:
                 with self._unit_of_work:
                     result = self._repository.delete(id)
@@ -204,17 +163,15 @@ class BaseService(ABC, Generic[T]):
             else:
                 return self._repository.delete(id)
         except NotFoundError:
-            # Re-raise not found error
             raise
         except Exception as e:
-            self._logger.error(f"Error deleting entity {id}: {e}")
-            raise ApplicationError(
-                f"Failed to delete entity: {str(e)}",
-                {"id": id}
-            )
+            self._logger.error(f'Error deleting entity {id}: {e}')
+            raise ApplicationError(f'Failed to delete entity: {str(e)}', {
+                'id': id})
 
-    @abstractmethod
-    def _validate_create_data(self, data: Dict[str, Any]) -> None:
+        @abstractmethod
+    @inject(MaterialService)
+    def _validate_create_data(self, data: Dict[str, Any]) ->None:
         """
         Abstract method to validate data before entity creation.
 
@@ -228,12 +185,10 @@ class BaseService(ABC, Generic[T]):
         """
         pass
 
-    @abstractmethod
-    def _validate_update_data(
-            self,
-            existing_entity: T,
-            update_data: Dict[str, Any]
-    ) -> None:
+        @abstractmethod
+    @inject(MaterialService)
+    def _validate_update_data(self, existing_entity: T, update_data: Dict[
+        str, Any]) ->None:
         """
         Abstract method to validate data before entity update.
 
@@ -248,11 +203,9 @@ class BaseService(ABC, Generic[T]):
         """
         pass
 
-    def search(
-            self,
-            search_term: str,
-            fields: Optional[List[str]] = None
-    ) -> List[T]:
+        @inject(MaterialService)
+        def search(self, search_term: str, fields: Optional[List[str]]=None
+        ) ->List[T]:
         """
         Search for entities based on a search term.
 
@@ -264,15 +217,12 @@ class BaseService(ABC, Generic[T]):
             List[T]: List of matching entities
         """
         try:
-            # Check if repository supports search
             if hasattr(self._repository, 'search'):
                 return self._repository.search(search_term, fields)
             else:
-                self._logger.warning("Search not supported by repository")
+                self._logger.warning('Search not supported by repository')
                 return []
         except Exception as e:
-            self._logger.error(f"Error searching entities: {e}")
-            raise ApplicationError(
-                f"Failed to search entities: {str(e)}",
-                {"search_term": search_term, "fields": fields}
-            )
+            self._logger.error(f'Error searching entities: {e}')
+            raise ApplicationError(f'Failed to search entities: {str(e)}',
+                {'search_term': search_term, 'fields': fields})

@@ -1,162 +1,242 @@
-# database/repositories/base_repository.py
+from di.core import inject
+from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+"""
+F:/WAWI Homebrew/WAWI Claude/store_management/database/repositories/base_repository.py
 
-from typing import TypeVar, Generic, List, Optional, Any, Dict
-import logging
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
-from database.models.base import BaseModel
-
-T = TypeVar('T', bound=BaseModel)
+Base repository for database access.
+"""
+T = TypeVar('T')
+logger = logging.getLogger(__name__)
 
 
-class BaseRepository(Generic[T]):
+class BaseRepository(Generic[T], IBaseRepository[T]):
     """
-    Base repository class providing common CRUD operations.
+    Base repository class for database access.
 
-    Generic base class that can be used with any model type inheriting from BaseModel.
-    Provides basic database operations and error handling.
-
-    Type Parameters:
-        T: Model type inheriting from BaseModel
+    This class provides basic CRUD operations for database models and implements
+    the IBaseRepository interface.
     """
 
-    def __init__(self, session: Session, model_class: type[T]):
+        @inject(MaterialService)
+        def __init__(self, session: Session, model_class: Type):
         """
-        Initialize the repository.
+        Initialize a new BaseRepository instance.
 
         Args:
-            session: SQLAlchemy session instance
-            model_class: Class of the model this repository handles
+            session: SQLAlchemy session.
+            model_class: The model class that this repository manages.
         """
         self.session = session
         self.model_class = model_class
-        self.logger = logging.getLogger(f"{__name__}.{model_class.__name__}")
 
-    def get_by_id(self, id: Any) -> Optional[T]:
+        @inject(MaterialService)
+        def get_by_id(self, id: int) ->Optional[Any]:
         """
-        Get a record by ID.
+        Get a model instance by ID.
 
         Args:
-            id: Primary key value of the record
+            id: The ID of the model instance.
 
         Returns:
-            Optional[T]: The record if found, None otherwise
+            The model instance, or None if not found.
         """
         try:
             return self.session.query(self.model_class).get(id)
         except SQLAlchemyError as e:
-            self.logger.error(f"Error retrieving {self.model_class.__name__} with id {id}: {e}")
+            logger.error(
+                f'Error retrieving {self.model_class.__name__} with ID {id}: {str(e)}'
+                )
             return None
 
-    def get_all(self) -> List[T]:
+        @inject(MaterialService)
+        def get_all(self, limit: Optional[int]=None, offset: Optional[int]=None
+        ) ->List[Any]:
         """
-        Get all records.
-
-        Returns:
-            List[T]: List of all records
-        """
-        try:
-            return self.session.query(self.model_class).all()
-        except SQLAlchemyError as e:
-            self.logger.error(f"Error retrieving all {self.model_class.__name__}s: {e}")
-            return []
-
-    def create(self, data: Dict[str, Any]) -> Optional[T]:
-        """
-        Create a new record.
+        Get all model instances.
 
         Args:
-            data: Dictionary containing model field values
+            limit: Maximum number of results to return.
+            offset: Number of results to skip.
 
         Returns:
-            Optional[T]: The created record if successful, None otherwise
+            List of model instances.
+        """
+        try:
+            query = self.session.query(self.model_class)
+            if offset is not None:
+                query = query.offset(offset)
+            if limit is not None:
+                query = query.limit(limit)
+            return query.all()
+        except SQLAlchemyError as e:
+            logger.error(
+                f'Error retrieving all {self.model_class.__name__}: {str(e)}')
+            return []
+
+        @inject(MaterialService)
+        def create(self, data: Dict[str, Any]) ->Optional[Any]:
+        """
+        Create a new model instance.
+
+        Args:
+            data: Dictionary of field values.
+
+        Returns:
+            The created model instance, or None if creation failed.
         """
         try:
             instance = self.model_class(**data)
             self.session.add(instance)
-            self.session.commit()
+            self.session.flush()
             return instance
         except SQLAlchemyError as e:
-            self.logger.error(f"Error creating {self.model_class.__name__}: {e}")
+            logger.error(
+                f'Error creating {self.model_class.__name__}: {str(e)}')
             self.session.rollback()
             return None
 
-    def update(self, id: Any, data: Dict[str, Any]) -> Optional[T]:
+        @inject(MaterialService)
+        def update(self, id: int, data: Dict[str, Any]) ->Optional[Any]:
         """
-        Update an existing record.
+        Update a model instance.
 
         Args:
-            id: Primary key value of the record to update
-            data: Dictionary containing updated field values
+            id: The ID of the model instance.
+            data: Dictionary of field values to update.
 
         Returns:
-            Optional[T]: The updated record if successful, None otherwise
+            The updated model instance, or None if update failed.
         """
         try:
             instance = self.get_by_id(id)
-            if not instance:
+            if instance is None:
+                logger.warning(
+                    f'{self.model_class.__name__} with ID {id} not found for update'
+                    )
                 return None
-
             for key, value in data.items():
                 if hasattr(instance, key):
                     setattr(instance, key, value)
-
-            self.session.commit()
+            self.session.flush()
             return instance
         except SQLAlchemyError as e:
-            self.logger.error(f"Error updating {self.model_class.__name__} {id}: {e}")
+            logger.error(
+                f'Error updating {self.model_class.__name__} with ID {id}: {str(e)}'
+                )
             self.session.rollback()
             return None
 
-    def delete(self, id: Any) -> bool:
+        @inject(MaterialService)
+        def delete(self, id: int) ->bool:
         """
-        Delete a record.
+        Delete a model instance.
 
         Args:
-            id: Primary key value of the record to delete
+            id: The ID of the model instance.
 
         Returns:
-            bool: True if successful, False otherwise
+            True if deletion was successful, False otherwise.
         """
         try:
             instance = self.get_by_id(id)
-            if instance:
-                self.session.delete(instance)
-                self.session.commit()
-                return True
-            return False
+            if instance is None:
+                logger.warning(
+                    f'{self.model_class.__name__} with ID {id} not found for deletion'
+                    )
+                return False
+            self.session.delete(instance)
+            self.session.flush()
+            return True
         except SQLAlchemyError as e:
-            self.logger.error(f"Error deleting {self.model_class.__name__} {id}: {e}")
+            logger.error(
+                f'Error deleting {self.model_class.__name__} with ID {id}: {str(e)}'
+                )
             self.session.rollback()
             return False
 
-    def exists(self, id: Any) -> bool:
+        @inject(MaterialService)
+        def exists(self, id: int) ->bool:
         """
-        Check if a record exists.
+        Check if a model instance exists.
 
         Args:
-            id: Primary key value to check
+            id: The ID of the model instance.
 
         Returns:
-            bool: True if record exists, False otherwise
+            True if the model instance exists, False otherwise.
         """
         try:
-            return self.session.query(
-                self.session.query(self.model_class).filter_by(id=id).exists()
-            ).scalar()
+            return self.session.query(self.model_class).filter_by(id=id).first(
+                ) is not None
         except SQLAlchemyError as e:
-            self.logger.error(f"Error checking existence of {self.model_class.__name__} {id}: {e}")
+            logger.error(
+                f'Error checking existence of {self.model_class.__name__} with ID {id}: {str(e)}'
+                )
             return False
 
-    def count(self) -> int:
+        @inject(MaterialService)
+        def count(self) ->int:
         """
-        Get the total count of records.
+        Count the number of model instances.
 
         Returns:
-            int: Total number of records
+            The number of model instances.
         """
         try:
             return self.session.query(self.model_class).count()
         except SQLAlchemyError as e:
-            self.logger.error(f"Error counting {self.model_class.__name__}s: {e}")
+            logger.error(
+                f'Error counting {self.model_class.__name__} instances: {str(e)}'
+                )
             return 0
+
+        @inject(MaterialService)
+        def filter_by(self, **kwargs) ->List[Any]:
+        """
+        Filter model instances by attribute values.
+
+        Args:
+            **kwargs: Filter criteria as field=value pairs.
+
+        Returns:
+            List of model instances that match the criteria.
+        """
+        try:
+            return self.session.query(self.model_class).filter_by(**kwargs
+                ).all()
+        except SQLAlchemyError as e:
+            logger.error(
+                f'Error filtering {self.model_class.__name__} by {kwargs}: {str(e)}'
+                )
+            return []
+
+        @inject(MaterialService)
+        def search(self, search_term: str, fields: List[str]) ->List[Any]:
+        """
+        Search for model instances by a search term in specified fields.
+
+        Args:
+            search_term: The search term.
+            fields: List of field names to search in.
+
+        Returns:
+            List of model instances that match the search criteria.
+        """
+        try:
+            from sqlalchemy import or_
+            if not search_term or not fields:
+                return []
+            conditions = []
+            for field in fields:
+                if hasattr(self.model_class, field):
+                    attr = getattr(self.model_class, field)
+                    conditions.append(attr.ilike(f'%{search_term}%'))
+            if not conditions:
+                return []
+            return self.session.query(self.model_class).filter(or_(*conditions)
+                ).all()
+        except SQLAlchemyError as e:
+            logger.error(
+                f"Error searching {self.model_class.__name__} for '{search_term}' in {fields}: {str(e)}"
+                )
+            return []

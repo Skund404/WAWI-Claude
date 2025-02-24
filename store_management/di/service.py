@@ -1,14 +1,13 @@
-# Path:store_management\store_management\di\service.py
-import abc
-from typing import TypeVar, Type, Generic, Any
-from di.container import DependencyContainer
-
+from di.core import inject
+from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
 T = TypeVar('T')
+
 
 class Service(abc.ABC, Generic[T]):
     """Base class for services that use dependency injection."""
 
-    def __init__(self, container: DependencyContainer):
+        @inject(MaterialService)
+        def __init__(self, container: DependencyContainer):
         """
         Initialize the service with a dependency container.
 
@@ -17,7 +16,8 @@ class Service(abc.ABC, Generic[T]):
         """
         self._container = container
 
-    def get_dependency(self, dependency_type: Type[T]) -> T:
+        @inject(MaterialService)
+        def get_dependency(self, dependency_type: Type[T]) ->T:
         """
         Get a dependency from the container.
 

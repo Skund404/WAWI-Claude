@@ -1,139 +1,153 @@
-# Path: database/models/mixins.py
+from di.core import inject
+from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
 """
-Mixin classes to provide additional functionality to database models.
-"""
+F:/WAWI Homebrew/WAWI Claude/store_management/database/models/mixins.py
 
-from datetime import datetime
-from sqlalchemy import Column, DateTime
-from typing import Any, Dict, Optional
-import re
+Mixin classes for SQLAlchemy models.
+"""
+logger = logging.getLogger(__name__)
+
 
 class TimestampMixin:
     """
-    Mixin to add timestamp tracking to models.
-    """
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    Mixin for adding timestamp functionality to models.
 
-    def update_timestamp(self) -> None:
+    This mixin provides methods for updating timestamps on model changes.
+    """
+
+        @inject(MaterialService)
+        def update_timestamp(self) ->None:
         """
-        Manually update the updated_at timestamp.
+        Update the updated_at timestamp.
+
+        This method should be called before saving changes to the database.
         """
-        self.updated_at = datetime.utcnow()
+        if hasattr(self, 'updated_at'):
+            self.updated_at = datetime.datetime.utcnow()
+
 
 class ValidationMixin:
     """
-    Mixin to provide common validation methods for models.
+    Mixin for adding validation functionality to models.
+
+    This mixin provides methods for validating model data.
     """
-    def validate_required_fields(self, data: Dict[str, Any], required_fields: list[str]) -> bool:
+
+        @inject(MaterialService)
+        def validate_required_fields(self, data: Dict[str, Any],
+        required_fields: set) ->None:
         """
-        Validate that all required fields are present and not empty.
+        Validate that all required fields are present and not None.
 
         Args:
-            data (Dict[str, Any]): Dictionary of data to validate.
-            required_fields (list[str]): List of fields that must be present.
+            data: Dictionary of field values to validate.
+            required_fields: Set of field names that are required.
 
-        Returns:
-            bool: True if all required fields are present and non-empty, False otherwise.
+        Raises:
+            ValueError: If any required field is missing or None.
         """
         for field in required_fields:
-            if field not in data or not data[field]:
-                return False
-        return True
+            if field not in data or data[field] is None:
+                raise ValueError(f"Field '{field}' is required")
 
-    def validate_numeric_range(self,
-                                value: float,
-                                min_val: Optional[float] = None,
-                                max_val: Optional[float] = None) -> bool:
+        @inject(MaterialService)
+        def validate_numeric_range(self, value: float, min_val: float, max_val:
+        float) ->None:
         """
-        Validate a numeric value is within a specified range.
+        Validate that a numeric value is within the specified range.
 
         Args:
-            value (float): Value to validate.
-            min_val (Optional[float], optional): Minimum allowed value. Defaults to None.
-            max_val (Optional[float], optional): Maximum allowed value. Defaults to None.
+            value: The numeric value to validate.
+            min_val: The minimum allowed value.
+            max_val: The maximum allowed value.
 
-        Returns:
-            bool: True if value is within range, False otherwise.
+        Raises:
+            ValueError: If the value is outside the allowed range.
         """
-        if min_val is not None and value < min_val:
-            return False
-        if max_val is not None and value > max_val:
-            return False
-        return True
+        if value < min_val or value > max_val:
+            raise ValueError(
+                f'Value {value} must be between {min_val} and {max_val}')
 
-    def validate_string_format(self,
-                                value: str,
-                                min_length: Optional[int] = None,
-                                max_length: Optional[int] = None,
-                                pattern: Optional[str] = None) -> bool:
+        @inject(MaterialService)
+        def validate_string_format(self, value: str, min_length: int,
+        max_length: int, pattern: Optional[str]=None) ->None:
         """
-        Validate string based on length and optional regex pattern.
+        Validate that a string value meets the format requirements.
 
         Args:
-            value (str): String to validate.
-            min_length (Optional[int], optional): Minimum string length. Defaults to None.
-            max_length (Optional[int], optional): Maximum string length. Defaults to None.
-            pattern (Optional[str], optional): Regex pattern to match. Defaults to None.
+            value: The string value to validate.
+            min_length: The minimum allowed length.
+            max_length: The maximum allowed length.
+            pattern: Optional regex pattern that the string must match.
 
-        Returns:
-            bool: True if string meets all validation criteria, False otherwise.
+        Raises:
+            ValueError: If the string doesn't meet the requirements.
         """
-        if min_length is not None and len(value) < min_length:
-            return False
-        if max_length is not None and len(value) > max_length:
-            return False
-        if pattern is not None and not re.match(pattern, value):
-            return False
-        return True
+        if len(value) < min_length:
+            raise ValueError(
+                f'String length {len(value)} is less than minimum {min_length}'
+                )
+        if len(value) > max_length:
+            raise ValueError(
+                f'String length {len(value)} is greater than maximum {max_length}'
+                )
+        if pattern and not re.match(pattern, value):
+            raise ValueError(
+                f"String '{value}' does not match pattern '{pattern}'")
+
 
 class CostingMixin:
     """
-    Mixin to provide common costing methods for models.
+    Mixin for adding costing functionality to models.
+
+    This mixin provides methods for calculating costs.
     """
-    def calculate_labor_cost(self, hours: float, rate: float = 50.0) -> float:
+
+        @inject(MaterialService)
+        def calculate_labor_cost(self, hours: float, rate: float) ->float:
         """
-        Calculate labor cost based on hours and hourly rate.
+        Calculate the labor cost.
 
         Args:
-            hours (float): Number of labor hours.
-            rate (float, optional): Hourly rate. Defaults to 50.0.
+            hours: The number of labor hours.
+            rate: The hourly labor rate.
 
         Returns:
-            float: Total labor cost.
+            The calculated labor cost.
         """
         return hours * rate
 
-    def calculate_overhead_cost(self, base_cost: float, overhead_rate: float = 0.1) -> float:
+        @inject(MaterialService)
+        def calculate_overhead_cost(self, base_cost: float, overhead_rate: float
+        ) ->float:
         """
-        Calculate overhead cost as a percentage of base cost.
+        Calculate the overhead cost.
 
         Args:
-            base_cost (float): Base cost to calculate overhead on.
-            overhead_rate (float, optional): Overhead rate. Defaults to 0.1 (10%).
+            base_cost: The base cost.
+            overhead_rate: The overhead rate as a percentage.
 
         Returns:
-            float: Overhead cost.
+            The calculated overhead cost.
         """
-        return base_cost * overhead_rate
+        return base_cost * (overhead_rate / 100)
 
-    def calculate_total_cost(self,
-                              materials_cost: float,
-                              labor_hours: float,
-                              labor_rate: float = 50.0,
-                              overhead_rate: float = 0.1) -> float:
+        @inject(MaterialService)
+        def calculate_total_cost(self, materials_cost: float, labor_hours:
+        float, labor_rate: float, overhead_rate: float) ->float:
         """
-        Calculate total cost including materials, labor, and overhead.
+        Calculate the total cost including materials, labor, and overhead.
 
         Args:
-            materials_cost (float): Cost of materials.
-            labor_hours (float): Number of labor hours.
-            labor_rate (float, optional): Hourly labor rate. Defaults to 50.0.
-            overhead_rate (float, optional): Overhead rate. Defaults to 0.1 (10%).
+            materials_cost: The cost of materials.
+            labor_hours: The number of labor hours.
+            labor_rate: The hourly labor rate.
+            overhead_rate: The overhead rate as a percentage.
 
         Returns:
-            float: Total cost.
+            The calculated total cost.
         """
         labor_cost = self.calculate_labor_cost(labor_hours, labor_rate)
-        overhead_cost = self.calculate_overhead_cost(materials_cost + labor_cost, overhead_rate)
-        return materials_cost + labor_cost + overhead_cost
+        subtotal = materials_cost + labor_cost
+        overhead_cost = self.calculate_overhead_cost(subtotal, overhead_rate)
+        return subtotal + overhead_cost

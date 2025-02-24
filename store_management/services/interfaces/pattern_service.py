@@ -1,15 +1,13 @@
-# services/interfaces/pattern_service.py
-
-from abc import ABC, abstractmethod
-from typing import List, Optional, Dict, Any
-from datetime import datetime
 
 
+from di.core import inject
+from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
 class IPatternService(ABC):
     """Interface for pattern management service."""
 
-    @abstractmethod
-    def get_all_patterns(self) -> List[Any]:
+        @abstractmethod
+    @inject(MaterialService)
+    def get_all_patterns(self) ->List[Any]:
         """
         Get all available patterns.
 
@@ -18,8 +16,9 @@ class IPatternService(ABC):
         """
         pass
 
-    @abstractmethod
-    def get_pattern_by_id(self, pattern_id: int) -> Optional[Any]:
+        @abstractmethod
+    @inject(MaterialService)
+    def get_pattern_by_id(self, pattern_id: int) ->Optional[Any]:
         """
         Get pattern by ID.
 
@@ -31,8 +30,9 @@ class IPatternService(ABC):
         """
         pass
 
-    @abstractmethod
-    def create_pattern(self, pattern_data: Dict[str, Any]) -> Any:
+        @abstractmethod
+    @inject(MaterialService)
+    def create_pattern(self, pattern_data: Dict[str, Any]) ->Any:
         """
         Create a new pattern.
 
@@ -44,8 +44,10 @@ class IPatternService(ABC):
         """
         pass
 
-    @abstractmethod
-    def update_pattern(self, pattern_id: int, pattern_data: Dict[str, Any]) -> Optional[Any]:
+        @abstractmethod
+    @inject(MaterialService)
+    def update_pattern(self, pattern_id: int, pattern_data: Dict[str, Any]
+        ) ->Optional[Any]:
         """
         Update existing pattern.
 
@@ -58,8 +60,9 @@ class IPatternService(ABC):
         """
         pass
 
-    @abstractmethod
-    def delete_pattern(self, pattern_id: int) -> bool:
+        @abstractmethod
+    @inject(MaterialService)
+    def delete_pattern(self, pattern_id: int) ->bool:
         """
         Delete pattern by ID.
 
@@ -71,8 +74,10 @@ class IPatternService(ABC):
         """
         pass
 
-    @abstractmethod
-    def search_patterns(self, search_term: str, search_fields: List[str]) -> List[Any]:
+        @abstractmethod
+    @inject(MaterialService)
+    def search_patterns(self, search_term: str, search_fields: List[str]
+        ) ->List[Any]:
         """
         Search patterns based on criteria.
 
@@ -85,8 +90,10 @@ class IPatternService(ABC):
         """
         pass
 
-    @abstractmethod
-    def calculate_material_requirements(self, pattern_id: int, quantity: int = 1) -> Dict[str, float]:
+        @abstractmethod
+    @inject(MaterialService)
+    def calculate_material_requirements(self, pattern_id: int, quantity: int=1
+        ) ->Dict[str, float]:
         """
         Calculate material requirements for pattern.
 
@@ -99,8 +106,9 @@ class IPatternService(ABC):
         """
         pass
 
-    @abstractmethod
-    def validate_pattern(self, pattern_id: int) -> Dict[str, Any]:
+        @abstractmethod
+    @inject(MaterialService)
+    def validate_pattern(self, pattern_id: int) ->Dict[str, Any]:
         """
         Validate pattern data and requirements.
 

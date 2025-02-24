@@ -1,10 +1,6 @@
-# store_management/database/interfaces/base_repository.py
-
-from typing import TypeVar, Generic, Optional, List, Dict, Any
-from sqlalchemy.orm import Session
-from ..models.base import Base
-
-T = TypeVar('T', bound=Base)  # Type variable that must be a subclass of Base
+from di.core import inject
+from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+T = TypeVar('T', bound=Base)
 
 
 class BaseRepository(Generic[T]):
@@ -14,7 +10,8 @@ class BaseRepository(Generic[T]):
     Type parameter T must be a SQLAlchemy model class.
     """
 
-    def __init__(self, session: Session, model_class: type):
+        @inject(MaterialService)
+        def __init__(self, session: Session, model_class: type):
         """
         Initialize the repository with a session and model class.
 
@@ -25,7 +22,8 @@ class BaseRepository(Generic[T]):
         self.session = session
         self.model_class = model_class
 
-    def get(self, id: int) -> Optional[T]:
+        @inject(MaterialService)
+        def get(self, id: int) ->Optional[T]:
         """
         Get a single record by ID.
 
@@ -37,7 +35,8 @@ class BaseRepository(Generic[T]):
         """
         return self.session.query(self.model_class).get(id)
 
-    def get_all(self) -> List[T]:
+        @inject(MaterialService)
+        def get_all(self) ->List[T]:
         """
         Get all records.
 
@@ -46,7 +45,8 @@ class BaseRepository(Generic[T]):
         """
         return self.session.query(self.model_class).all()
 
-    def create(self, **kwargs) -> T:
+        @inject(MaterialService)
+        def create(self, **kwargs) ->T:
         """
         Create a new record.
 
@@ -60,7 +60,8 @@ class BaseRepository(Generic[T]):
         self.session.add(instance)
         return instance
 
-    def update(self, id: int, **kwargs) -> Optional[T]:
+        @inject(MaterialService)
+        def update(self, id: int, **kwargs) ->Optional[T]:
         """
         Update a record by ID.
 
@@ -77,7 +78,8 @@ class BaseRepository(Generic[T]):
                 setattr(instance, key, value)
         return instance
 
-    def delete(self, id: int) -> bool:
+        @inject(MaterialService)
+        def delete(self, id: int) ->bool:
         """
         Delete a record by ID.
 
@@ -93,7 +95,8 @@ class BaseRepository(Generic[T]):
             return True
         return False
 
-    def filter_by(self, **kwargs) -> List[T]:
+        @inject(MaterialService)
+        def filter_by(self, **kwargs) ->List[T]:
         """
         Get records matching the given criteria.
 
@@ -105,7 +108,8 @@ class BaseRepository(Generic[T]):
         """
         return self.session.query(self.model_class).filter_by(**kwargs).all()
 
-    def exists(self, **kwargs) -> bool:
+        @inject(MaterialService)
+        def exists(self, **kwargs) ->bool:
         """
         Check if a record exists with the given criteria.
 
@@ -115,4 +119,5 @@ class BaseRepository(Generic[T]):
         Returns:
             True if exists, False otherwise
         """
-        return self.session.query(self.model_class.id).filter_by(**kwargs).first() is not None
+        return self.session.query(self.model_class.id).filter_by(**kwargs
+            ).first() is not None

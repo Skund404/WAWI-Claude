@@ -1,9 +1,7 @@
-# Path: config/environment.py
-import os
-import logging
-from typing import Optional
 
 
+from di.core import inject
+from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
 class EnvironmentManager:
     """
     Manage application environment configuration.
@@ -11,7 +9,7 @@ class EnvironmentManager:
     _debug_mode = False
     _log_level = 'INFO'
 
-    @classmethod
+        @classmethod
     def __new__(cls):
         """
         Prevent direct instantiation.
@@ -19,10 +17,11 @@ class EnvironmentManager:
         Returns:
             EnvironmentManager: Class reference
         """
-        raise TypeError("EnvironmentManager is a static class and cannot be instantiated")
+        raise TypeError(
+            'EnvironmentManager is a static class and cannot be instantiated')
 
-    @classmethod
-    def get(cls, key: str, default: Optional[str] = None) -> Optional[str]:
+        @classmethod
+    def get(cls, key: str, default: Optional[str]=None) ->Optional[str]:
         """
         Get an environment variable.
 
@@ -35,42 +34,34 @@ class EnvironmentManager:
         """
         return os.environ.get(key, default)
 
-    @classmethod
-    def is_debug(cls) -> bool:
+        @classmethod
+    def is_debug(cls) ->bool:
         """
         Check if application is in debug mode.
 
         Returns:
             bool: True if in debug mode, False otherwise
         """
-        # Check environment variable or class attribute
         debug_env = os.environ.get('DEBUG', '').lower()
         return debug_env in ('1', 'true', 'yes') or cls._debug_mode
 
-    @classmethod
-    def get_log_level(cls) -> str:
+        @classmethod
+    def get_log_level(cls) ->str:
         """
         Get the current logging level.
 
         Returns:
             str: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
         """
-        # Check environment variable first
         log_level_env = os.environ.get('LOG_LEVEL', '').upper()
-
-        # Use environment variable if valid, otherwise use class attribute
         if log_level_env in ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']:
             return log_level_env
-
-        # If debugging is enabled, default to DEBUG
         if cls.is_debug():
             return 'DEBUG'
-
-        # Return default or configured log level
         return cls._log_level
 
-    @classmethod
-    def set_debug(cls, enable: bool = True):
+        @classmethod
+    def set_debug(cls, enable: bool=True):
         """
         Enable or disable debug mode.
 
@@ -78,6 +69,4 @@ class EnvironmentManager:
             enable (bool): Whether to enable debug mode
         """
         cls._debug_mode = enable
-
-        # Adjust log level when debug mode changes
         cls._log_level = 'DEBUG' if enable else 'INFO'

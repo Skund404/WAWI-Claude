@@ -1,11 +1,7 @@
-# database/sqlalchemy/mixins/search_mixin.py
-
-from typing import List, Optional, Type, Any, Dict
-from sqlalchemy import select, or_, func
-from database.sqlalchemy.base import Base
-from database.sqlalchemy.session import get_db_session
 
 
+from di.core import inject
+from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
 class SearchMixin:
     """Mixin providing advanced search functionality for managers.
 
@@ -13,7 +9,8 @@ class SearchMixin:
     - model_class attribute (SQLAlchemy model class)
     """
 
-    def search(self, search_term: str, fields: List[str] = None) -> List[Any]:
+        @inject(MaterialService)
+        def search(self, search_term: str, fields: List[str]=None) ->List[Any]:
         """Search for records across multiple fields.
 
         Args:
@@ -24,24 +21,20 @@ class SearchMixin:
             List of matching records
         """
         model_class = self.model_class
-
         with get_db_session() as session:
-            # If fields not specified, search all string fields
             if not fields:
-                fields = [column.name for column in model_class.__table__.columns
-                          if str(column.type).startswith(('VARCHAR', 'TEXT', 'String'))]
-
-            # Build search query with OR conditions
+                fields = [column.name for column in model_class.__table__.
+                    columns if str(column.type).startswith(('VARCHAR',
+                    'TEXT', 'String'))]
             conditions = []
             for field in fields:
                 column = getattr(model_class, field)
                 conditions.append(column.ilike(f'%{search_term}%'))
-
             query = select(model_class).where(or_(*conditions))
-
             return list(session.execute(query).scalars().all())
 
-    def advanced_search(self, criteria: Dict[str, Any]) -> List[Any]:
+        @inject(MaterialService)
+        def advanced_search(self, criteria: Dict[str, Any]) ->List[Any]:
         """Perform an advanced search with multiple criteria.
 
         Args:
@@ -53,15 +46,12 @@ class SearchMixin:
             List of matching records
         """
         model_class = self.model_class
-
         with get_db_session() as session:
             query = select(model_class)
-
             for field, condition in criteria.items():
                 column = getattr(model_class, field)
                 op = condition.get('op', 'eq')
                 value = condition.get('value')
-
                 if op == 'eq':
                     query = query.where(column == value)
                 elif op == 'neq':
@@ -82,5 +72,4 @@ class SearchMixin:
                     query = query.where(column.in_(value))
                 elif op == 'notin':
                     query = query.where(~column.in_(value))
-
             return list(session.execute(query).scalars().all())

@@ -1,46 +1,29 @@
-# Path: gui/storage/fix_storage_view.py
+from di.core import inject
+from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
 """
 Fixes for the storage view to make it display data properly.
 """
-import tkinter as tk
-from tkinter import ttk
-import sqlite3
-import logging
-import os
-import sys
-
-# Add the project root to the path to allow imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
-# Set up logging
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger("storage_view_fix")
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.
+    abspath(__file__)))))
+logging.basicConfig(level=logging.INFO, format=
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger('storage_view_fix')
 
 
 def find_database_file():
     """Find the SQLite database file."""
-    # List of possible locations
-    possible_locations = [
-        "store_management.db",
-        "data/store_management.db",
-        "database/store_management.db",
-        "config/database/store_management.db"
-    ]
-
+    possible_locations = ['store_management.db', 'data/store_management.db',
+        'database/store_management.db', 'config/database/store_management.db']
     for location in possible_locations:
         if os.path.exists(location):
             return location
-
-    # If not found in the predefined locations, search for it
-    logger.info("Searching for database file...")
-    for root, _, files in os.walk(""):
+    logger.info('Searching for database file...')
+    for root, _, files in os.walk(''):
         for file in files:
             if file.endswith('.db'):
                 path = os.path.join(root, file)
-                logger.info(f"Found database file: {path}")
+                logger.info(f'Found database file: {path}')
                 return path
-
     return None
 
 
@@ -51,20 +34,15 @@ def patch_storage_view(override=False):
     Args:
         override: If True, override the existing file without asking for confirmation
     """
-    # Path to the storage view file
     storage_view_path = os.path.join('gui', 'storage', 'storage_view.py')
-
-    # Create the file if it doesn't exist
     if not os.path.exists(storage_view_path) or override:
         os.makedirs(os.path.dirname(storage_view_path), exist_ok=True)
-
-        # New content for the storage view
         content = """
 # Path: gui/storage/storage_view.py
-\"\"\"
+""\"
 Storage view implementation that displays storage locations.
 This is a simplified version that directly accesses the database.
-\"\"\"
+""\"
 import tkinter as tk
 from tkinter import ttk
 import sqlite3
@@ -80,26 +58,28 @@ logging.basicConfig(level=logging.INFO,
 logger = logging.getLogger(__name__)
 
 class StorageView(BaseView):
-    \"\"\"
+    ""\"
     View for displaying and managing storage locations.
-    \"\"\"
+    ""\"
 
+    @inject(MaterialService)
     def __init__(self, parent, app):
-        \"\"\"
+        ""\"
         Initialize the storage view.
 
         Args:
             parent: Parent widget
             app: Application instance
-        \"\"\"
+        ""\"
         super().__init__(parent, app)
         self.db_path = self._find_database_file()
         logger.debug(f"StorageView initialized with database: {self.db_path}")
         self.setup_ui()
         self.load_data()
 
+    @inject(MaterialService)
     def _find_database_file(self):
-        \"\"\"Find the SQLite database file.\"\"\"
+        ""\"Find the SQLite database file.""\"
         # List of possible locations
         possible_locations = [
             "store_management.db",
@@ -123,13 +103,15 @@ class StorageView(BaseView):
 
         return None
 
+    @inject(MaterialService)
     def setup_ui(self):
-        \"\"\"Set up the user interface components.\"\"\"
+        ""\"Set up the user interface components.""\"
         self.create_toolbar()
         self.create_treeview()
 
+    @inject(MaterialService)
     def create_toolbar(self):
-        \"\"\"Create the toolbar with buttons.\"\"\"
+        ""\"Create the toolbar with buttons.""\"
         toolbar = ttk.Frame(self)
         toolbar.pack(side=tk.TOP, fill=tk.X, padx=5, pady=5)
 
@@ -141,8 +123,9 @@ class StorageView(BaseView):
 
         logger.debug("Toolbar created")
 
+    @inject(MaterialService)
     def create_treeview(self):
-        \"\"\"Create the treeview for displaying storage locations.\"\"\"
+        ""\"Create the treeview for displaying storage locations.""\"
         # Create a frame to hold the treeview and scrollbar
         frame = ttk.Frame(self)
         frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
@@ -186,8 +169,9 @@ class StorageView(BaseView):
 
         logger.debug("Treeview created")
 
+    @inject(MaterialService)
     def load_data(self):
-        \"\"\"Load storage locations from the database and display them.\"\"\"
+        ""\"Load storage locations from the database and display them.""\"
         try:
             logger.info("Loading storage data directly from database")
 
@@ -205,10 +189,10 @@ class StorageView(BaseView):
             cursor = conn.cursor()
 
             # Check if storage table exists
-            cursor.execute(\"\"\"
+            cursor.execute(""\"
                 SELECT name FROM sqlite_master 
                 WHERE type='table' AND name='storage';
-            \"\"\")
+            ""\")
             if not cursor.fetchone():
                 logger.error("Storage table doesn't exist in the database")
                 self.set_status("Error: Storage table not found")
@@ -267,65 +251,63 @@ class StorageView(BaseView):
             if 'conn' in locals():
                 conn.close()
 
+    @inject(MaterialService)
     def show_add_dialog(self):
-        \"\"\"Show dialog to add a new storage location.\"\"\"
+        ""\"Show dialog to add a new storage location.""\"
         # Implementation would go here
         logger.debug("Add dialog requested but not implemented")
         self.show_info("Not Implemented", "Add storage functionality is not yet implemented.")
 
+    @inject(MaterialService)
     def on_double_click(self, event):
-        \"\"\"Handle double-click on a storage item.\"\"\"
+        ""\"Handle double-click on a storage item.""\"
         # Implementation would go here
         logger.debug("Double-click event received but not implemented")
         self.show_info("Not Implemented", "Edit storage functionality is not yet implemented.")
 
+    @inject(MaterialService)
     def delete_selected(self, event):
-        \"\"\"Delete the selected storage location.\"\"\"
+        ""\"Delete the selected storage location.""\"
         # Implementation would go here
         logger.debug("Delete requested but not implemented")
         self.show_info("Not Implemented", "Delete storage functionality is not yet implemented.")
 
+    @inject(MaterialService)
     def show_search_dialog(self):
-        \"\"\"Show search dialog.\"\"\"
+        ""\"Show search dialog.""\"
         # Implementation would go here
         logger.debug("Search requested but not implemented")
         self.show_info("Not Implemented", "Search functionality is not yet implemented.")
 """
-
         try:
-            # Write the new content
             with open(storage_view_path, 'w') as f:
                 f.write(content.lstrip())
-            logger.info(f"Created/patched storage view at: {storage_view_path}")
+            logger.info(f'Created/patched storage view at: {storage_view_path}'
+                )
             return True
         except Exception as e:
-            logger.error(f"Error patching storage view: {str(e)}")
+            logger.error(f'Error patching storage view: {str(e)}')
             return False
     else:
-        logger.info(f"Storage view already exists at: {storage_view_path}")
-
-        # Ask for confirmation to override
+        logger.info(f'Storage view already exists at: {storage_view_path}')
         if not override:
-            response = input("Storage view already exists. Override? (y/n): ")
+            response = input('Storage view already exists. Override? (y/n): ')
             if response.lower() == 'y':
                 return patch_storage_view(override=True)
             else:
-                logger.info("Storage view not patched")
+                logger.info('Storage view not patched')
                 return False
-
         return False
 
 
 def main():
     """Main function to patch the storage view."""
-    logger.info("Starting storage view fix...")
-
-    # Patch the storage view
+    logger.info('Starting storage view fix...')
     if patch_storage_view():
-        logger.info("Storage view patched successfully.")
+        logger.info('Storage view patched successfully.')
     else:
-        logger.info("Storage view not patched.")
+        logger.info('Storage view not patched.')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

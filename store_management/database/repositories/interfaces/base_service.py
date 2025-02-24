@@ -1,35 +1,37 @@
-# database/services/interfaces/base_service.py
-
-from abc import ABC, abstractmethod
-from typing import Generic, TypeVar, List, Optional
-
+from di.core import inject
+from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
 T = TypeVar('T')
 
 
 class IBaseService(ABC, Generic[T]):
     """Base interface for all services."""
 
-    @abstractmethod
-    def get_by_id(self, id: int) -> Optional[T]:
+        @abstractmethod
+    @inject(MaterialService)
+    def get_by_id(self, id: int) ->Optional[T]:
         """Get entity by ID."""
         pass
 
-    @abstractmethod
-    def get_all(self) -> List[T]:
+        @abstractmethod
+    @inject(MaterialService)
+    def get_all(self) ->List[T]:
         """Get all entities."""
         pass
 
-    @abstractmethod
-    def create(self, data: dict) -> T:
+        @abstractmethod
+    @inject(MaterialService)
+    def create(self, data: dict) ->T:
         """Create new entity."""
         pass
 
-    @abstractmethod
-    def update(self, id: int, data: dict) -> Optional[T]:
+        @abstractmethod
+    @inject(MaterialService)
+    def update(self, id: int, data: dict) ->Optional[T]:
         """Update existing entity."""
         pass
 
-    @abstractmethod
-    def delete(self, id: int) -> bool:
+        @abstractmethod
+    @inject(MaterialService)
+    def delete(self, id: int) ->bool:
         """Delete entity."""
         pass

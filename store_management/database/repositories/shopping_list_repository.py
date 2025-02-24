@@ -1,18 +1,16 @@
-# store_management/database/repositories/shopping_list_repository.py
-
-from typing import List, Optional
-from sqlalchemy.orm import Session, joinedload
-from ..interfaces.base_repository import BaseRepository
-from ..models.shopping_list import ShoppingList, ShoppingListItem
 
 
+from di.core import inject
+from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
 class ShoppingListRepository(BaseRepository[ShoppingList]):
     """Repository for ShoppingList model operations"""
 
-    def __init__(self, session: Session):
+        @inject(MaterialService)
+        def __init__(self, session: Session):
         super().__init__(session, ShoppingList)
 
-    def get_with_items(self, list_id: int) -> Optional[ShoppingList]:
+        @inject(MaterialService)
+        def get_with_items(self, list_id: int) ->Optional[ShoppingList]:
         """
         Get shopping list with all items.
 
@@ -22,23 +20,22 @@ class ShoppingListRepository(BaseRepository[ShoppingList]):
         Returns:
             Shopping list with loaded items or None
         """
-        return self.session.query(ShoppingList) \
-            .options(joinedload(ShoppingList.items)) \
-            .filter(ShoppingList.id == list_id) \
-            .first()
+        return self.session.query(ShoppingList).options(joinedload(
+            ShoppingList.items)).filter(ShoppingList.id == list_id).first()
 
-    def get_pending_items(self) -> List[ShoppingListItem]:
+        @inject(MaterialService)
+        def get_pending_items(self) ->List[ShoppingListItem]:
         """
         Get all unpurchased shopping list items.
 
         Returns:
             List of unpurchased shopping list items
         """
-        return self.session.query(ShoppingListItem) \
-            .filter(ShoppingListItem.purchased == False) \
-            .all()
+        return self.session.query(ShoppingListItem).filter(ShoppingListItem
+            .purchased == False).all()
 
-    def get_items_by_supplier(self, supplier_id: int) -> List[ShoppingListItem]:
+        @inject(MaterialService)
+        def get_items_by_supplier(self, supplier_id: int) ->List[ShoppingListItem]:
         """
         Get shopping list items for a supplier.
 
@@ -53,18 +50,10 @@ class ShoppingListRepository(BaseRepository[ShoppingList]):
         """
         from ..models.part import Part
         from ..models.leather import Leather
-
-        # Get items where the part is from the supplier
-        part_items = self.session.query(ShoppingListItem) \
-            .join(Part, ShoppingListItem.part_id == Part.id) \
-            .filter(Part.supplier_id == supplier_id) \
-            .all()
-
-        # Get items where the leather is from the supplier
-        leather_items = self.session.query(ShoppingListItem) \
-            .join(Leather, ShoppingListItem.leather_id == Leather.id) \
-            .filter(Leather.supplier_id == supplier_id) \
-            .all()
-
-        # Combine and return
+        part_items = self.session.query(ShoppingListItem).join(Part, 
+            ShoppingListItem.part_id == Part.id).filter(Part.supplier_id ==
+            supplier_id).all()
+        leather_items = self.session.query(ShoppingListItem).join(Leather, 
+            ShoppingListItem.leather_id == Leather.id).filter(Leather.
+            supplier_id == supplier_id).all()
         return part_items + leather_items

@@ -1,17 +1,8 @@
-# database/sqlalchemy/core/specialized/leather_manager.py
+from di.core import inject
+from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
 """
 Specialized manager for Leather-related database operations.
 """
-
-from typing import List, Optional, Union
-
-from database.sqlalchemy.base_manager import BaseManager
-from database.sqlalchemy.models_file import (
-    Leather,
-    LeatherTransaction,
-    InventoryStatus,
-    TransactionType
-)
 
 
 class LeatherManager(BaseManager):
@@ -22,7 +13,9 @@ class LeatherManager(BaseManager):
     and stock-related queries.
     """
 
-    def get_leather_with_transactions(self, leather_id: int) -> Optional[Leather]:
+        @inject(MaterialService)
+        def get_leather_with_transactions(self, leather_id: int) ->Optional[Leather
+        ]:
         """
         Retrieve a leather item with its associated transactions.
 
@@ -34,24 +27,20 @@ class LeatherManager(BaseManager):
         """
         try:
             with self.session_scope() as session:
-                leather = session.query(Leather).filter(Leather.id == leather_id).first()
+                leather = session.query(Leather).filter(Leather.id ==
+                    leather_id).first()
                 if leather:
-                    # Eager load transactions if needed
-                    leather.transactions  # This will fetch related transactions
+                    leather.transactions
                 return leather
         except Exception as e:
-            # Assuming self._logger is available from BaseManager
-            self._logger.error(f"Error retrieving leather with transactions: {e}")
+            self._logger.error(
+                f'Error retrieving leather with transactions: {e}')
             return None
 
-    def update_leather_area(
-            self,
-            leather_id: int,
-            area_change: float,
-            transaction_type: TransactionType,
-            notes: Optional[str] = None,
-            wastage: Optional[float] = None
-    ) -> bool:
+        @inject(MaterialService)
+        def update_leather_area(self, leather_id: int, area_change: float,
+        transaction_type: TransactionType, notes: Optional[str]=None,
+        wastage: Optional[float]=None) ->bool:
         """
         Update leather area and create a corresponding transaction.
 
@@ -67,34 +56,25 @@ class LeatherManager(BaseManager):
         """
         try:
             with self.session_scope() as session:
-                leather = session.query(Leather).filter(Leather.id == leather_id).first()
+                leather = session.query(Leather).filter(Leather.id ==
+                    leather_id).first()
                 if not leather:
-                    self._logger.warning(f"Leather with ID {leather_id} not found.")
+                    self._logger.warning(
+                        f'Leather with ID {leather_id} not found.')
                     return False
-
-                # Update leather area
                 leather.current_area += area_change
-
-                # Create transaction record
-                transaction = LeatherTransaction(
-                    leather_id=leather_id,
-                    area_change=area_change,
-                    transaction_type=transaction_type,
-                    notes=notes,
-                    wastage=wastage
-                )
+                transaction = LeatherTransaction(leather_id=leather_id,
+                    area_change=area_change, transaction_type=
+                    transaction_type, notes=notes, wastage=wastage)
                 session.add(transaction)
-
                 return True
         except Exception as e:
-            self._logger.error(f"Error updating leather area: {e}")
+            self._logger.error(f'Error updating leather area: {e}')
             return False
 
-    def get_low_stock_leather(
-            self,
-            include_out_of_stock: bool = False,
-            supplier_id: Optional[int] = None
-    ) -> List[Leather]:
+        @inject(MaterialService)
+        def get_low_stock_leather(self, include_out_of_stock: bool=False,
+        supplier_id: Optional[int]=None) ->List[Leather]:
         """
         Retrieve leather items with low stock.
 
@@ -109,26 +89,21 @@ class LeatherManager(BaseManager):
         try:
             with self.session_scope() as session:
                 query = session.query(Leather)
-
-                # Filter by low stock
                 if include_out_of_stock:
-                    query = query.filter(Leather.current_area <= Leather.min_area)
+                    query = query.filter(Leather.current_area <= Leather.
+                        min_area)
                 else:
-                    query = query.filter(
-                        (Leather.current_area <= Leather.min_area) &
-                        (Leather.current_area > 0)
-                    )
-
-                # Optional supplier filter
+                    query = query.filter((Leather.current_area <= Leather.
+                        min_area) & (Leather.current_area > 0))
                 if supplier_id is not None:
                     query = query.filter(Leather.supplier_id == supplier_id)
-
                 return query.all()
         except Exception as e:
-            self._logger.error(f"Error retrieving low stock leather: {e}")
+            self._logger.error(f'Error retrieving low stock leather: {e}')
             return []
 
-    def get_by_supplier(self, supplier_id: int) -> List[Leather]:
+        @inject(MaterialService)
+        def get_by_supplier(self, supplier_id: int) ->List[Leather]:
         """
         Retrieve leather items associated with a specific supplier.
 
@@ -140,7 +115,8 @@ class LeatherManager(BaseManager):
         """
         try:
             with self.session_scope() as session:
-                return session.query(Leather).filter(Leather.supplier_id == supplier_id).all()
+                return session.query(Leather).filter(Leather.supplier_id ==
+                    supplier_id).all()
         except Exception as e:
-            self._logger.error(f"Error retrieving leather by supplier: {e}")
+            self._logger.error(f'Error retrieving leather by supplier: {e}')
             return []

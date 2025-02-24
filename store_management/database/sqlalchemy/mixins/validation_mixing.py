@@ -1,5 +1,5 @@
-# database/sqlalchemy/mixins/validation_mixing.py
-
+from di.core import inject
+from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
 """
 Validation mixin for SQLAlchemy models.
 Provides common validation functionality.
@@ -7,11 +7,6 @@ Provides common validation functionality.
 This mixin provides validation methods that can be used by SQLAlchemy models
 to ensure data integrity and business rule compliance.
 """
-
-from typing import Any, Dict, List, Optional, Union, Type
-from abc import ABC, abstractmethod
-import re
-from datetime import datetime
 
 
 class ValidationMixin(ABC):
@@ -23,7 +18,9 @@ class ValidationMixin(ABC):
     string formats, and custom business rules.
     """
 
-    def validate_required_fields(self, data: Dict[str, Any], required_fields: List[str]) -> bool:
+        @inject(MaterialService)
+        def validate_required_fields(self, data: Dict[str, Any],
+        required_fields: List[str]) ->bool:
         """
         Validate that all required fields are present and not None.
 
@@ -34,17 +31,13 @@ class ValidationMixin(ABC):
         Returns:
             bool: True if all required fields are present and not None
         """
-        return all(
-            field in data and data[field] is not None
-            for field in required_fields
-        )
+        return all(field in data and data[field] is not None for field in
+            required_fields)
 
-    def validate_numeric_range(
-            self,
-            value: Union[int, float],
-            min_val: Optional[Union[int, float]] = None,
-            max_val: Optional[Union[int, float]] = None
-    ) -> bool:
+        @inject(MaterialService)
+        def validate_numeric_range(self, value: Union[int, float], min_val:
+        Optional[Union[int, float]]=None, max_val: Optional[Union[int,
+        float]]=None) ->bool:
         """
         Validate that a numeric value is within the specified range.
 
@@ -62,13 +55,10 @@ class ValidationMixin(ABC):
             return False
         return True
 
-    def validate_string_format(
-            self,
-            value: str,
-            min_length: Optional[int] = None,
-            max_length: Optional[int] = None,
-            pattern: Optional[str] = None
-    ) -> bool:
+        @inject(MaterialService)
+        def validate_string_format(self, value: str, min_length: Optional[int]=
+        None, max_length: Optional[int]=None, pattern: Optional[str]=None
+        ) ->bool:
         """
         Validate string format including length and pattern matching.
 
@@ -89,12 +79,9 @@ class ValidationMixin(ABC):
             return False
         return True
 
-    def validate_date_range(
-            self,
-            date: datetime,
-            start_date: Optional[datetime] = None,
-            end_date: Optional[datetime] = None
-    ) -> bool:
+        @inject(MaterialService)
+        def validate_date_range(self, date: datetime, start_date: Optional[
+        datetime]=None, end_date: Optional[datetime]=None) ->bool:
         """
         Validate that a date falls within the specified range.
 
@@ -112,12 +99,10 @@ class ValidationMixin(ABC):
             return False
         return True
 
-    def validate_related_fields(
-            self,
-            data: Dict[str, Any],
-            field_pairs: List[Tuple[str, str]],
-            comparison_func: Optional[callable] = None
-    ) -> bool:
+        @inject(MaterialService)
+        def validate_related_fields(self, data: Dict[str, Any], field_pairs:
+        List[Tuple[str, str]], comparison_func: Optional[callable]=None
+        ) ->bool:
         """
         Validate relationships between pairs of fields.
 
@@ -132,7 +117,6 @@ class ValidationMixin(ABC):
         """
         if comparison_func is None:
             comparison_func = lambda x, y: x <= y
-
         for field1, field2 in field_pairs:
             if field1 not in data or field2 not in data:
                 return False
@@ -140,8 +124,9 @@ class ValidationMixin(ABC):
                 return False
         return True
 
-    @abstractmethod
-    def validate(self) -> bool:
+        @abstractmethod
+    @inject(MaterialService)
+    def validate(self) ->bool:
         """
         Validate the entire object.
 
@@ -153,7 +138,8 @@ class ValidationMixin(ABC):
         """
         pass
 
-    def _validate_type(self, value: Any, expected_type: Type) -> bool:
+        @inject(MaterialService)
+        def _validate_type(self, value: Any, expected_type: Type) ->bool:
         """
         Internal helper to validate type of a value.
 
@@ -166,7 +152,8 @@ class ValidationMixin(ABC):
         """
         return isinstance(value, expected_type)
 
-    def _validate_enum(self, value: Any, valid_values: List[Any]) -> bool:
+        @inject(MaterialService)
+        def _validate_enum(self, value: Any, valid_values: List[Any]) ->bool:
         """
         Internal helper to validate enum-like values.
 

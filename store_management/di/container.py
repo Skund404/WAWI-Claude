@@ -1,8 +1,5 @@
-# di/container.py
-
-from typing import Any, Dict, Callable, Optional, Type
-import logging
-
+from di.core import inject
+from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
 logger = logging.getLogger(__name__)
 
 
@@ -12,16 +9,17 @@ class DependencyContainer:
     using dependency injection pattern.
     """
 
-    def __init__(self) -> None:
+        @inject(MaterialService)
+        def __init__(self) ->None:
         """Initialize the dependency container."""
         self._registrations: Dict[str, Callable] = {}
         self._singletons: Dict[str, Any] = {}
         self._singleton_flags: Dict[str, bool] = {}
-        logger.debug("DependencyContainer initialized")
+        logger.debug('DependencyContainer initialized')
 
-    def register(self, interface_type: str,
-                 implementation_factory: Callable[['DependencyContainer'], Any],
-                 singleton: bool = False) -> None:
+        @inject(MaterialService)
+        def register(self, interface_type: str, implementation_factory:
+        Callable[['DependencyContainer'], Any], singleton: bool=False) ->None:
         """
         Register a service implementation with the container.
 
@@ -34,13 +32,14 @@ class DependencyContainer:
             ValueError: If interface_type is already registered
         """
         if interface_type in self._registrations:
-            raise ValueError(f"Type {interface_type} is already registered")
-
+            raise ValueError(f'Type {interface_type} is already registered')
         self._registrations[interface_type] = implementation_factory
         self._singleton_flags[interface_type] = singleton
-        logger.debug(f"Registered service: {interface_type} (singleton={singleton})")
+        logger.debug(
+            f'Registered service: {interface_type} (singleton={singleton})')
 
-    def resolve(self, interface_type: str) -> Any:
+        @inject(MaterialService)
+        def resolve(self, interface_type: str) ->Any:
         """
         Resolve and return a service instance.
 
@@ -54,18 +53,17 @@ class DependencyContainer:
             ValueError: If interface_type is not registered
         """
         if interface_type not in self._registrations:
-            raise ValueError(f"No registration found for type {interface_type}")
-
-        # Check if it's a singleton and already instantiated
+            raise ValueError(f'No registration found for type {interface_type}'
+                )
         if self._singleton_flags.get(interface_type):
             if interface_type not in self._singletons:
-                self._singletons[interface_type] = self._registrations[interface_type](self)
+                self._singletons[interface_type] = self._registrations[
+                    interface_type](self)
             return self._singletons[interface_type]
-
-        # Create new instance
         return self._registrations[interface_type](self)
 
-    def get_service(self, interface_type: Type) -> Any:
+        @inject(MaterialService)
+        def get_service(self, interface_type: Type) ->Any:
         """
         Get a service instance by its type.
 
@@ -82,10 +80,11 @@ class DependencyContainer:
         try:
             return self.resolve(type_name)
         except Exception as e:
-            logger.error(f"Error resolving service {type_name}: {str(e)}")
-            raise ValueError(f"Could not resolve service {type_name}") from e
+            logger.error(f'Error resolving service {type_name}: {str(e)}')
+            raise ValueError(f'Could not resolve service {type_name}') from e
 
-    def is_registered(self, interface_type: str) -> bool:
+        @inject(MaterialService)
+        def is_registered(self, interface_type: str) ->bool:
         """
         Check if a service type is registered.
 
@@ -97,14 +96,16 @@ class DependencyContainer:
         """
         return interface_type in self._registrations
 
-    def clear(self) -> None:
+        @inject(MaterialService)
+        def clear(self) ->None:
         """Clear all registrations and instances from the container."""
         self._registrations.clear()
         self._singletons.clear()
         self._singleton_flags.clear()
-        logger.debug("Container cleared")
+        logger.debug('Container cleared')
 
-    def __repr__(self) -> str:
+        @inject(MaterialService)
+        def __repr__(self) ->str:
         """String representation of the container."""
         services = ', '.join(self._registrations.keys())
-        return f"DependencyContainer(services=[{services}])"
+        return f'DependencyContainer(services=[{services}])'

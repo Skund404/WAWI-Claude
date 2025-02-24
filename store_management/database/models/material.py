@@ -1,34 +1,26 @@
-# Path: database/models/material.py
-
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Enum, Boolean
-from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
-from typing import List, Optional
-import enum
-
-from .base import BaseModel
-from .supplier import Supplier
 
 
+from di.core import inject
+from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
 class MaterialType(enum.Enum):
     """
     Enum representing different types of materials.
     """
-    LEATHER = "Leather"
-    THREAD = "Thread"
-    HARDWARE = "Hardware"
-    FABRIC = "Fabric"
-    OTHER = "Other"
+    LEATHER = 'Leather'
+    THREAD = 'Thread'
+    HARDWARE = 'Hardware'
+    FABRIC = 'Fabric'
+    OTHER = 'Other'
 
 
 class MaterialQualityGrade(enum.Enum):
     """
     Enum representing material quality grades.
     """
-    PREMIUM = "Premium"
-    HIGH = "High"
-    STANDARD = "Standard"
-    LOW = "Low"
+    PREMIUM = 'Premium'
+    HIGH = 'High'
+    STANDARD = 'Standard'
+    LOW = 'Low'
 
 
 class Material(BaseModel):
@@ -46,33 +38,35 @@ class Material(BaseModel):
         is_active (bool): Whether the material is currently active
     """
     __tablename__ = 'materials'
-
     name = Column(String(255), nullable=False, index=True)
     material_type = Column(Enum(MaterialType), nullable=False)
     supplier_id = Column(Integer, ForeignKey('supplier.id'), nullable=True)
-    quality_grade = Column(Enum(MaterialQualityGrade), default=MaterialQualityGrade.STANDARD)
-
+    quality_grade = Column(Enum(MaterialQualityGrade), default=
+        MaterialQualityGrade.STANDARD)
     current_stock = Column(Float, default=0.0)
     minimum_stock = Column(Float, default=0.0)
     unit_price = Column(Float, nullable=False)
-
     is_active = Column(Boolean, default=True)
     last_restocked_date = Column(DateTime(timezone=True))
+    supplier = relationship('Supplier', back_populates='materials')
+    transactions = relationship('MaterialTransaction', back_populates=
+        'material')
 
-    # Relationships
-    supplier = relationship("Supplier", back_populates="materials")
-    transactions = relationship("MaterialTransaction", back_populates="material")
-
-    def __repr__(self) -> str:
+        @inject(MaterialService)
+        def __repr__(self) ->str:
         """
         String representation of the Material model.
 
         Returns:
             str: A string showing material name, type, and current stock
         """
-        return f"<Material(id={self.id}, name='{self.name}', type={self.material_type.value}, stock={self.current_stock})>"
+        return (
+            f"<Material(id={self.id}, name='{self.name}', type={self.material_type.value}, stock={self.current_stock})>"
+            )
 
-    def update_stock(self, quantity_change: float, transaction_type: str = 'ADJUSTMENT') -> None:
+        @inject(MaterialService)
+        def update_stock(self, quantity_change: float, transaction_type: str=
+        'ADJUSTMENT') ->None:
         """
         Update the current stock of the material.
 
@@ -84,21 +78,17 @@ class Material(BaseModel):
             ValueError: If stock would become negative
         """
         new_stock = self.current_stock + quantity_change
-
         if new_stock < 0:
-            raise ValueError(f"Stock cannot become negative. Current: {self.current_stock}, Change: {quantity_change}")
-
+            raise ValueError(
+                f'Stock cannot become negative. Current: {self.current_stock}, Change: {quantity_change}'
+                )
         self.current_stock = new_stock
         self.last_restocked_date = func.now()
+        transaction = MaterialTransaction(material_id=self.id,
+            quantity_change=quantity_change, transaction_type=transaction_type)
 
-        # Create a transaction record
-        transaction = MaterialTransaction(
-            material_id=self.id,
-            quantity_change=quantity_change,
-            transaction_type=transaction_type
-        )
-
-    def is_low_stock(self) -> bool:
+        @inject(MaterialService)
+        def is_low_stock(self) ->bool:
         """
         Check if material is below minimum stock threshold.
 
@@ -107,19 +97,22 @@ class Material(BaseModel):
         """
         return self.current_stock <= self.minimum_stock
 
-    def deactivate(self) -> None:
+        @inject(MaterialService)
+        def deactivate(self) ->None:
         """
         Mark the material as inactive.
         """
         self.is_active = False
 
-    def activate(self) -> None:
+        @inject(MaterialService)
+        def activate(self) ->None:
         """
         Mark the material as active.
         """
         self.is_active = True
 
-    def to_dict(self, include_transactions: bool = False) -> dict:
+        @inject(MaterialService)
+        def to_dict(self, include_transactions: bool=False) ->dict:
         """
         Convert material to dictionary representation.
 
@@ -130,17 +123,12 @@ class Material(BaseModel):
             dict: Dictionary representation of the material
         """
         material_dict = super().to_dict()
-        material_dict.update({
-            'material_type': self.material_type.value,
-            'quality_grade': self.quality_grade.value,
-            'supplier_name': self.supplier.name if self.supplier else None
-        })
-
+        material_dict.update({'material_type': self.material_type.value,
+            'quality_grade': self.quality_grade.value, 'supplier_name': 
+            self.supplier.name if self.supplier else None})
         if include_transactions:
-            material_dict['transactions'] = [
-                transaction.to_dict() for transaction in self.transactions
-            ]
-
+            material_dict['transactions'] = [transaction.to_dict() for
+                transaction in self.transactions]
         return material_dict
 
 
@@ -155,26 +143,28 @@ class MaterialTransaction(BaseModel):
         transaction_date (DateTime): Date of the transaction
     """
     __tablename__ = 'material_transactions'
-
     material_id = Column(Integer, ForeignKey('materials.id'), nullable=False)
     quantity_change = Column(Float, nullable=False)
     transaction_type = Column(String(50), nullable=False)
-    transaction_date = Column(DateTime(timezone=True), server_default=func.now())
+    transaction_date = Column(DateTime(timezone=True), server_default=func.
+        now())
     notes = Column(String(500))
+    material = relationship('Material', back_populates='transactions')
 
-    # Relationships
-    material = relationship("Material", back_populates="transactions")
-
-    def __repr__(self) -> str:
+        @inject(MaterialService)
+        def __repr__(self) ->str:
         """
         String representation of the MaterialTransaction model.
 
         Returns:
             str: A string showing transaction details
         """
-        return f"<MaterialTransaction(material_id={self.material_id}, change={self.quantity_change}, type={self.transaction_type})>"
+        return (
+            f'<MaterialTransaction(material_id={self.material_id}, change={self.quantity_change}, type={self.transaction_type})>'
+            )
 
-    def to_dict(self) -> dict:
+        @inject(MaterialService)
+        def to_dict(self) ->dict:
         """
         Convert material transaction to dictionary representation.
 
@@ -182,5 +172,6 @@ class MaterialTransaction(BaseModel):
             dict: Dictionary representation of the material transaction
         """
         transaction_dict = super().to_dict()
-        transaction_dict['material_name'] = self.material.name if self.material else None
+        transaction_dict['material_name'
+            ] = self.material.name if self.material else None
         return transaction_dict

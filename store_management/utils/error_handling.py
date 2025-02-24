@@ -1,17 +1,16 @@
-# utils/error_handling.py
-
-from typing import Optional, Dict, Any
-import traceback
-import logging
 
 
+from di.core import inject
+from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
 class DatabaseError(Exception):
     """Custom exception for database-related errors.
 
     Provides detailed context about database operation failures.
     """
 
-    def __init__(self, message: str, details: Optional[str] = None, error_code: Optional[str] = None):
+        @inject(MaterialService)
+        def __init__(self, message: str, details: Optional[str]=None,
+        error_code: Optional[str]=None):
         """Initialize a database error with detailed information.
 
         Args:
@@ -24,19 +23,20 @@ class DatabaseError(Exception):
         self.error_code = error_code
         super().__init__(message)
 
-    def __str__(self) -> str:
+        @inject(MaterialService)
+        def __str__(self) ->str:
         """Provide a comprehensive string representation of the error.
 
         Returns:
             Formatted error message with details
         """
         if self.details:
-            return f"{self.message} - Details: {self.details}"
+            return f'{self.message} - Details: {self.details}'
         return self.message
 
 
-def handle_database_error(operation: str, error: Exception,
-                          context: Optional[Dict[str, Any]] = None) -> DatabaseError:
+def handle_database_error(operation: str, error: Exception, context:
+    Optional[Dict[str, Any]]=None) ->DatabaseError:
     """Standardized handler for database-related errors.
 
     Args:
@@ -48,25 +48,17 @@ def handle_database_error(operation: str, error: Exception,
         A standardized DatabaseError instance
     """
     logger = logging.getLogger(__name__)
-
-    # Get full stack trace
     tb = traceback.format_exc()
-
-    # Create error message
-    error_message = f"Database error during {operation}: {str(error)}"
-
-    # Log the error with context and stack trace
+    error_message = f'Database error during {operation}: {str(error)}'
     logger.error(error_message)
     if context:
-        logger.error(f"Context: {context}")
-    logger.debug(f"Stack trace: {tb}")
-
-    # Create and return standardized error
+        logger.error(f'Context: {context}')
+    logger.debug(f'Stack trace: {tb}')
     return DatabaseError(error_message, tb)
 
 
-def log_database_action(action: str, details: Optional[Dict[str, Any]] = None,
-                        level: str = 'info'):
+def log_database_action(action: str, details: Optional[Dict[str, Any]]=None,
+    level: str='info'):
     """Log database-related actions with optional details.
 
     Args:
@@ -75,13 +67,9 @@ def log_database_action(action: str, details: Optional[Dict[str, Any]] = None,
         level: Logging level (info, warning, error)
     """
     logger = logging.getLogger(__name__)
-
-    # Create log message
-    message = f"Database action: {action}"
+    message = f'Database action: {action}'
     if details:
-        message += f" - Details: {details}"
-
-    # Log at appropriate level
+        message += f' - Details: {details}'
     if level == 'warning':
         logger.warning(message)
     elif level == 'error':

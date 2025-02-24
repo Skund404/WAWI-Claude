@@ -1,19 +1,15 @@
-# Path: services/interfaces/order_service.py
-
-from abc import ABC, abstractmethod
-from typing import List, Optional, Dict, Any
-from datetime import datetime
-
-from database.models.order import OrderStatus
 
 
+from di.core import inject
+from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
 class IOrderService(ABC):
     """
     Abstract base class defining the interface for Order Service operations.
     """
 
-    @abstractmethod
-    def get_all_orders(self) -> List[Dict[str, Any]]:
+        @abstractmethod
+    @inject(MaterialService)
+    def get_all_orders(self) ->List[Dict[str, Any]]:
         """
         Retrieve all orders.
 
@@ -22,8 +18,9 @@ class IOrderService(ABC):
         """
         pass
 
-    @abstractmethod
-    def get_order_by_id(self, order_id: int) -> Optional[Dict[str, Any]]:
+        @abstractmethod
+    @inject(MaterialService)
+    def get_order_by_id(self, order_id: int) ->Optional[Dict[str, Any]]:
         """
         Retrieve a specific order by ID.
 
@@ -35,8 +32,9 @@ class IOrderService(ABC):
         """
         pass
 
-    @abstractmethod
-    def create_order(self, order_data: Dict[str, Any]) -> Dict[str, Any]:
+        @abstractmethod
+    @inject(MaterialService)
+    def create_order(self, order_data: Dict[str, Any]) ->Dict[str, Any]:
         """
         Create a new order.
 
@@ -48,8 +46,10 @@ class IOrderService(ABC):
         """
         pass
 
-    @abstractmethod
-    def update_order(self, order_id: int, order_data: Dict[str, Any]) -> Dict[str, Any]:
+        @abstractmethod
+    @inject(MaterialService)
+    def update_order(self, order_id: int, order_data: Dict[str, Any]) ->Dict[
+        str, Any]:
         """
         Update an existing order.
 
@@ -62,8 +62,9 @@ class IOrderService(ABC):
         """
         pass
 
-    @abstractmethod
-    def delete_order(self, order_id: int) -> bool:
+        @abstractmethod
+    @inject(MaterialService)
+    def delete_order(self, order_id: int) ->bool:
         """
         Delete an order.
 
@@ -75,8 +76,9 @@ class IOrderService(ABC):
         """
         pass
 
-    @abstractmethod
-    def get_orders_by_status(self, status: OrderStatus) -> List[Dict[str, Any]]:
+        @abstractmethod
+    @inject(MaterialService)
+    def get_orders_by_status(self, status: OrderStatus) ->List[Dict[str, Any]]:
         """
         Retrieve orders by their status.
 
@@ -88,8 +90,10 @@ class IOrderService(ABC):
         """
         pass
 
-    @abstractmethod
-    def get_orders_by_date_range(self, start_date: datetime, end_date: datetime) -> List[Dict[str, Any]]:
+        @abstractmethod
+    @inject(MaterialService)
+    def get_orders_by_date_range(self, start_date: datetime, end_date: datetime
+        ) ->List[Dict[str, Any]]:
         """
         Retrieve orders within a specific date range.
 
@@ -102,8 +106,9 @@ class IOrderService(ABC):
         """
         pass
 
-    @abstractmethod
-    def get_supplier_orders(self, supplier_id: int) -> List[Dict[str, Any]]:
+        @abstractmethod
+    @inject(MaterialService)
+    def get_supplier_orders(self, supplier_id: int) ->List[Dict[str, Any]]:
         """
         Retrieve all orders for a specific supplier.
 
@@ -115,8 +120,10 @@ class IOrderService(ABC):
         """
         pass
 
-    @abstractmethod
-    def generate_order_report(self, start_date: datetime, end_date: datetime) -> Dict[str, Any]:
+        @abstractmethod
+    @inject(MaterialService)
+    def generate_order_report(self, start_date: datetime, end_date: datetime
+        ) ->Dict[str, Any]:
         """
         Generate a comprehensive order report for a given period.
 

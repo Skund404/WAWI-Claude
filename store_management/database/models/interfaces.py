@@ -1,68 +1,83 @@
-# Path: database/models/interfaces.py
+from di.core import inject
+from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
 """
-Interface definitions for database models.
+Interface definitions for the store management system.
+
+This module defines abstract base classes that serve as interfaces for the models
+in the system. These interfaces define the methods that model classes must implement.
 """
 
-from abc import ABC, abstractmethod
-from typing import Optional, Any
 
 class IModel(ABC):
     """
-    Base interface for all database models.
+    Interface for all model classes.
+
+    Defines common methods that all models should implement.
     """
-    @abstractmethod
-    def to_dict(self, exclude_fields: Optional[list[str]] = None) -> dict:
+
+        @abstractmethod
+    @inject(MaterialService)
+    def to_dict(self, exclude_fields: Optional[List[str]]=None) ->Dict[str, Any
+        ]:
         """
-        Convert model to a dictionary representation.
+        Convert the model to a dictionary.
 
         Args:
-            exclude_fields (Optional[list[str]], optional): Fields to exclude. Defaults to None.
+            exclude_fields: List of field names to exclude
 
         Returns:
-            dict: Dictionary representation of the model.
+            Dict[str, Any]: Dictionary representation of the model
         """
         pass
+
 
 class IProject(IModel):
     """
-    Interface for Project-related models.
+    Interface for project models.
+
+    Defines methods that project models should implement.
     """
-    @abstractmethod
-    def calculate_complexity(self) -> float:
+
+        @abstractmethod
+    @inject(MaterialService)
+    def calculate_complexity(self) ->float:
         """
-        Calculate the complexity of the project.
+        Calculate the complexity score of the project.
 
         Returns:
-            float: Complexity score.
+            float: The calculated complexity score
         """
         pass
 
-    @abstractmethod
-    def calculate_total_cost(self) -> float:
+        @abstractmethod
+    @inject(MaterialService)
+    def calculate_total_cost(self) ->float:
         """
         Calculate the total cost of the project.
 
         Returns:
-            float: Total project cost.
+            float: The total estimated cost
         """
         pass
 
-    @abstractmethod
-    def update_status(self, new_status: Any) -> None:
+        @abstractmethod
+    @inject(MaterialService)
+    def update_status(self, new_status) ->None:
         """
-        Update the status of the project.
+        Update the project status.
 
         Args:
-            new_status (Any): New status to set.
+            new_status: The new status to set for the project
         """
         pass
 
-    @abstractmethod
-    def validate(self) -> bool:
+        @abstractmethod
+    @inject(MaterialService)
+    def validate(self) ->List[str]:
         """
-        Validate the project model.
+        Validate the project data.
 
         Returns:
-            bool: True if valid, False otherwise.
+            List[str]: List of validation error messages, empty if valid
         """
         pass

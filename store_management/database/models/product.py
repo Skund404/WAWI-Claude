@@ -1,65 +1,55 @@
-# Path: database/models/product.py
+from di.core import inject
+from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
 """
-Product model definition with support for order items.
+F:/WAWI Homebrew/WAWI Claude/store_management/database/models/product.py
+
+Product model for the database.
 """
 
-from sqlalchemy import Column, Integer, String, Float, Enum, DateTime
-from sqlalchemy.orm import relationship
-from datetime import datetime
-from .base import BaseModel
-from .enums import MaterialType
 
-
-class Product(BaseModel):
+class Product(Base, BaseModel):
     """
-    Represents a product in the inventory system.
+    Product entity representing items that can be sold or used in projects.
 
-    Attributes:
-        id (int): Primary key for the product.
-        name (str): Name of the product.
-        price (float): Selling price of the product.
-        cost_price (float): Cost price of the product.
-        description (str): Product description.
-        sku (str): Stock Keeping Unit identifier.
-        material_type (MaterialType): Type of material used in the product.
-        stock_quantity (float): Current stock quantity.
-        minimum_stock_level (float): Minimum stock level before reordering.
-        created_at (datetime): Timestamp of product creation.
-        updated_at (datetime): Timestamp of last product update.
-        order_items (list): List of order items associated with this product.
+    This class defines the product data model and provides methods for product management.
     """
     __tablename__ = 'products'
-
     id = Column(Integer, primary_key=True)
-    name = Column(String(100), nullable=False)
-    price = Column(Float, nullable=False)
-    cost_price = Column(Float, nullable=False)
-    description = Column(String(255))
-    sku = Column(String(50), unique=True)
-    material_type = Column(Enum(MaterialType))
-    stock_quantity = Column(Float, default=0)
-    minimum_stock_level = Column(Float, default=0)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    name = Column(String(100), nullable=False, index=True)
+    sku = Column(String(50), unique=True, nullable=True)
+    description = Column(Text, nullable=True)
+    price = Column(Float, nullable=False, default=0.0)
+    cost_price = Column(Float, nullable=False, default=0.0)
+    stock_quantity = Column(Integer, default=0)
+    minimum_stock = Column(Integer, default=0)
+    reorder_point = Column(Integer, default=5)
+    material_type = Column(String(50), nullable=True)
+    weight = Column(Float, nullable=True)
+    dimensions = Column(String(100), nullable=True)
+    is_active = Column(Boolean, default=True)
+    is_featured = Column(Boolean, default=False)
+    supplier_id = Column(Integer, ForeignKey('suppliers.id'), nullable=True)
+    storage_id = Column(Integer, ForeignKey('storage.id'), nullable=True)
+    supplier = relationship('Supplier', back_populates='products')
+    storage = relationship('Storage', back_populates='products')
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow,
+        onupdate=datetime.datetime.utcnow)
 
-    # Relationship with OrderItem
-    order_items = relationship("OrderItem", back_populates="product",
-                               cascade="all, delete-orphan",
-                               lazy='subquery')
-
-    def __init__(self, name: str, price: float, cost_price: float,
-                 description: str = None, sku: str = None,
-                 material_type: MaterialType = None):
+        @inject(MaterialService)
+        def __init__(self, name: str, price: float, cost_price: float,
+        description: Optional[str]=None, sku: Optional[str]=None,
+        material_type: Optional[str]=None) ->None:
         """
-        Initialize a Product.
+        Initialize a new Product instance.
 
         Args:
-            name (str): Name of the product.
-            price (float): Selling price of the product.
-            cost_price (float): Cost price of the product.
-            description (str, optional): Product description. Defaults to None.
-            sku (str, optional): Stock Keeping Unit identifier. Defaults to None.
-            material_type (MaterialType, optional): Type of material. Defaults to None.
+            name: The name of the product.
+            price: The selling price of the product.
+            cost_price: The cost price of the product.
+            description: A description of the product.
+            sku: The stock keeping unit code.
+            material_type: The type of material used in the product.
         """
         self.name = name
         self.price = price
@@ -67,89 +57,107 @@ class Product(BaseModel):
         self.description = description
         self.sku = sku
         self.material_type = material_type
+        self.stock_quantity = 0
+        self.is_active = True
+        self.is_featured = False
 
-    def __repr__(self) -> str:
+        @inject(MaterialService)
+        def __repr__(self) ->str:
         """
-        String representation of the Product.
+        Get a string representation of the product.
 
         Returns:
-            str: Formatted string describing the product.
+            A string representation of the product.
         """
-        return (f"<Product(id={self.id}, "
-                f"name='{self.name}', "
-                f"price={self.price}, "
-                f"stock_quantity={self.stock_quantity})>")
+        return (
+            f'<Product id={self.id}, name={self.name}, sku={self.sku}, stock={self.stock_quantity}>'
+            )
 
-    def update_stock(self, quantity_change: float, transaction_type: str = None) -> None:
+        @inject(MaterialService)
+        def update_stock(self, quantity_change: int, transaction_type: str=
+        'manual', notes: Optional[str]=None) ->None:
         """
-        Update the stock quantity of the product.
+        Update the product stock quantity.
 
         Args:
-            quantity_change (float): Amount to change stock by (positive or negative).
-            transaction_type (str, optional): Type of stock transaction. Defaults to None.
-        """
-        self.stock_quantity += quantity_change
+            quantity_change: The amount to change the stock by (positive or negative).
+            transaction_type: The type of transaction causing the stock change.
+            notes: Optional notes about the transaction.
 
-    def is_low_stock(self) -> bool:
+        Raises:
+            ValueError: If the resulting stock would be negative.
         """
-        Check if the product is below its minimum stock level.
+        new_quantity = self.stock_quantity + quantity_change
+        if new_quantity < 0:
+            raise ValueError(
+                f'Cannot reduce stock below 0. Current stock: {self.stock_quantity}, Requested change: {quantity_change}'
+                )
+        self.stock_quantity = new_quantity
+        self.updated_at = datetime.datetime.utcnow()
+
+        @inject(MaterialService)
+        def is_low_stock(self) ->bool:
+        """
+        Check if the product stock is below the reorder point.
 
         Returns:
-            bool: True if stock is low, False otherwise.
+            True if the stock is below the reorder point, False otherwise.
         """
-        return self.stock_quantity <= self.minimum_stock_level
+        return self.stock_quantity <= self.reorder_point
 
-    def calculate_profit_margin(self) -> float:
+        @inject(MaterialService)
+        def calculate_profit_margin(self) ->float:
         """
-        Calculate the profit margin of the product.
+        Calculate the profit margin percentage for this product.
 
         Returns:
-            float: Profit margin percentage.
+            The profit margin as a percentage.
         """
-        return ((self.price - self.cost_price) / self.price) * 100 if self.price > 0 else 0
+        if self.price == 0:
+            return 0
+        profit = self.price - self.cost_price
+        margin = profit / self.price * 100
+        return round(margin, 2)
 
-    def activate(self) -> None:
-        """
-        Activate the product (placeholder for potential future implementation).
-        """
-        # Future implementation might include setting an active flag
-        pass
+        @inject(MaterialService)
+        def activate(self) ->None:
+        """Activate this product."""
+        self.is_active = True
+        self.updated_at = datetime.datetime.utcnow()
 
-    def deactivate(self) -> None:
-        """
-        Deactivate the product (placeholder for potential future implementation).
-        """
-        # Future implementation might include setting an inactive flag
-        pass
+        @inject(MaterialService)
+        def deactivate(self) ->None:
+        """Deactivate this product."""
+        self.is_active = False
+        self.updated_at = datetime.datetime.utcnow()
 
-    def to_dict(self, include_details: bool = False) -> dict:
+        @inject(MaterialService)
+        def to_dict(self, include_details: bool=False) ->Dict[str, Any]:
         """
-        Convert Product to dictionary representation.
+        Convert the product instance to a dictionary.
 
         Args:
-            include_details (bool, optional): Whether to include additional details. Defaults to False.
+            include_details: Whether to include related entities and detailed information.
 
         Returns:
-            dict: Dictionary containing Product attributes.
+            A dictionary representation of the product.
         """
-        product_dict = {
-            'id': self.id,
-            'name': self.name,
-            'price': self.price,
-            'cost_price': self.cost_price,
-            'description': self.description,
-            'sku': self.sku,
-            'material_type': self.material_type.value if self.material_type else None,
-            'stock_quantity': self.stock_quantity,
-            'minimum_stock_level': self.minimum_stock_level,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
-        }
-
+        product_dict = {'id': self.id, 'name': self.name, 'sku': self.sku,
+            'description': self.description, 'price': self.price,
+            'cost_price': self.cost_price, 'stock_quantity': self.
+            stock_quantity, 'minimum_stock': self.minimum_stock,
+            'reorder_point': self.reorder_point, 'material_type': self.
+            material_type, 'weight': self.weight, 'dimensions': self.
+            dimensions, 'is_active': self.is_active, 'is_featured': self.
+            is_featured, 'profit_margin': self.calculate_profit_margin(),
+            'created_at': self.created_at.isoformat() if self.created_at else
+            None, 'updated_at': self.updated_at.isoformat() if self.
+            updated_at else None}
         if include_details:
-            product_dict.update({
-                'profit_margin': self.calculate_profit_margin(),
-                'is_low_stock': self.is_low_stock()
-            })
-
+            if self.supplier:
+                product_dict['supplier'] = {'id': self.supplier.id, 'name':
+                    self.supplier.name}
+            if self.storage:
+                product_dict['storage'] = {'id': self.storage.id, 'name':
+                    self.storage.name, 'location': self.storage.location}
         return product_dict

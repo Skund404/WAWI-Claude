@@ -1,11 +1,8 @@
-# Path: database/models/order_item.py
+from di.core import inject
+from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
 """
 Separate module for OrderItem to break circular import dependency.
 """
-
-from sqlalchemy import Column, Integer, Float, ForeignKey
-from sqlalchemy.orm import relationship
-from .base import BaseModel
 
 
 class OrderItem(BaseModel):
@@ -22,18 +19,17 @@ class OrderItem(BaseModel):
         product (relationship): Relationship to the associated Product.
     """
     __tablename__ = 'order_items'
-
     id = Column(Integer, primary_key=True)
     order_id = Column(Integer, ForeignKey('orders.id'))
     product_id = Column(Integer, ForeignKey('products.id'))
     quantity = Column(Float, nullable=False)
     unit_price = Column(Float, nullable=False)
+    order = relationship('Order', back_populates='items', lazy='subquery')
+    product = relationship('Product', back_populates='order_items', lazy=
+        'subquery')
 
-    # Use lazy='subquery' to optimize relationship loading
-    order = relationship("Order", back_populates="items", lazy='subquery')
-    product = relationship("Product", back_populates="order_items", lazy='subquery')
-
-    def __init__(self, product_id: int, quantity: float, unit_price: float):
+        @inject(MaterialService)
+        def __init__(self, product_id: int, quantity: float, unit_price: float):
         """
         Initialize an OrderItem.
 
@@ -46,19 +42,20 @@ class OrderItem(BaseModel):
         self.quantity = quantity
         self.unit_price = unit_price
 
-    def __repr__(self) -> str:
+        @inject(MaterialService)
+        def __repr__(self) ->str:
         """
         String representation of the OrderItem.
 
         Returns:
             str: Formatted string describing the order item.
         """
-        return (f"<OrderItem(id={self.id}, "
-                f"product_id={self.product_id}, "
-                f"quantity={self.quantity}, "
-                f"unit_price={self.unit_price})>")
+        return (
+            f'<OrderItem(id={self.id}, product_id={self.product_id}, quantity={self.quantity}, unit_price={self.unit_price})>'
+            )
 
-    def update_quantity(self, new_quantity: float) -> None:
+        @inject(MaterialService)
+        def update_quantity(self, new_quantity: float) ->None:
         """
         Update the quantity of the order item.
 
@@ -67,7 +64,8 @@ class OrderItem(BaseModel):
         """
         self.quantity = new_quantity
 
-    def calculate_total_price(self) -> float:
+        @inject(MaterialService)
+        def calculate_total_price(self) ->float:
         """
         Calculate the total price for this order item.
 
@@ -76,16 +74,13 @@ class OrderItem(BaseModel):
         """
         return self.quantity * self.unit_price
 
-    def to_dict(self) -> dict:
+        @inject(MaterialService)
+        def to_dict(self) ->dict:
         """
         Convert OrderItem to dictionary representation.
 
         Returns:
             dict: Dictionary containing OrderItem attributes.
         """
-        return {
-            'id': self.id,
-            'product_id': self.product_id,
-            'quantity': self.quantity,
-            'unit_price': self.unit_price
-        }
+        return {'id': self.id, 'product_id': self.product_id, 'quantity':
+            self.quantity, 'unit_price': self.unit_price}

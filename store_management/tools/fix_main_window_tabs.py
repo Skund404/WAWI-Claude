@@ -1,38 +1,31 @@
-# Path: tools/fix_main_window_tabs.py
+from di.core import inject
+from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
 """
 Completely rewrite the main_window.py file to include all tabs.
 """
-import os
-import logging
-
-# Set up logging
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger("main_window_fix")
+logging.basicConfig(level=logging.INFO, format=
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger('main_window_fix')
 
 
 def fix_main_window():
     """Completely rewrite the main_window.py file."""
     main_window_path = os.path.join('gui', 'main_window.py')
-
-    # Create a backup
     backup_path = main_window_path + '.backup'
     try:
         if os.path.exists(main_window_path):
             with open(main_window_path, 'r') as src:
                 with open(backup_path, 'w') as dst:
                     dst.write(src.read())
-            logger.info(f"Created backup of main window at {backup_path}")
+            logger.info(f'Created backup of main window at {backup_path}')
     except Exception as e:
-        logger.error(f"Failed to create backup: {str(e)}")
+        logger.error(f'Failed to create backup: {str(e)}')
         return False
-
-    # New content for main_window.py
-    new_content = '''
+    new_content = """
 # Path: gui/main_window.py
-"""
+""\"
 Main window implementation for the application.
-"""
+""\"
 import os
 import sys
 import tkinter as tk
@@ -47,19 +40,20 @@ from gui.shopping_list.shopping_list_view import ShoppingListView
 logger = logging.getLogger(__name__)
 
 class MainWindow:
-    """
+    ""\"
     Main window of the application.
     Contains the menu, notebook for views, and status bar.
-    """
+    ""\"
 
+    @inject(MaterialService)
     def __init__(self, root, app):
-        """
+        ""\"
         Initialize the main window.
 
         Args:
             root: Root Tkinter window
             app: Application instance
-        """
+        ""\"
         self.root = root
         self.app = app
 
@@ -71,8 +65,9 @@ class MainWindow:
 
         logger.info("Main window initialized")
 
+    @inject(MaterialService)
     def _setup_window(self):
-        """Set up the main window properties."""
+        ""\"Set up the main window properties.""\"
         self.root.title("Store Management System")
         self.root.geometry("1024x768")
 
@@ -83,8 +78,9 @@ class MainWindow:
         self.root.grid_rowconfigure(0, weight=1)
         self.root.grid_columnconfigure(0, weight=1)
 
+    @inject(MaterialService)
     def _create_menu(self):
-        """Create the main menu."""
+        ""\"Create the main menu.""\"
         self.menu_bar = tk.Menu(self.root)
 
         # File menu
@@ -112,8 +108,9 @@ class MainWindow:
         self.root.bind("<Control-z>", lambda event: self._on_undo())
         self.root.bind("<Control-y>", lambda event: self._on_redo())
 
+    @inject(MaterialService)
     def _create_notebook(self):
-        """Create the notebook with tabs for different views."""
+        ""\"Create the notebook with tabs for different views.""\"
         self.notebook = ttk.Notebook(self.root)
         self.notebook.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
 
@@ -123,8 +120,9 @@ class MainWindow:
         self._add_orders_tab()
         self._add_shopping_list_tab()
 
+    @inject(MaterialService)
     def _add_storage_tab(self):
-        """Add the storage tab to the notebook."""
+        ""\"Add the storage tab to the notebook.""\"
         try:
             logger.info("Creating storage view")
             storage_frame = ttk.Frame(self.notebook)
@@ -135,8 +133,9 @@ class MainWindow:
             logger.error(f"Error creating storage view: {str(e)}", exc_info=True)
             messagebox.showerror("Error", f"Failed to create Storage view: {str(e)}")
 
+    @inject(MaterialService)
     def _add_recipes_tab(self):
-        """Add the patterns tab to the notebook."""
+        ""\"Add the patterns tab to the notebook.""\"
         try:
             logger.info("Creating pattern view")
             recipes_frame = ttk.Frame(self.notebook)
@@ -147,8 +146,9 @@ class MainWindow:
             logger.error(f"Error creating pattern view: {str(e)}", exc_info=True)
             messagebox.showerror("Error", f"Failed to create Patterns view: {str(e)}")
 
+    @inject(MaterialService)
     def _add_orders_tab(self):
-        """Add the orders tab to the notebook."""
+        ""\"Add the orders tab to the notebook.""\"
         try:
             logger.info("Creating order view")
             orders_frame = ttk.Frame(self.notebook)
@@ -159,8 +159,9 @@ class MainWindow:
             logger.error(f"Error creating order view: {str(e)}", exc_info=True)
             messagebox.showerror("Error", f"Failed to create Orders view: {str(e)}")
 
+    @inject(MaterialService)
     def _add_shopping_list_tab(self):
-        """Add the shopping list tab to the notebook."""
+        ""\"Add the shopping list tab to the notebook.""\"
         try:
             logger.info("Creating shopping list view")
             shopping_list_frame = ttk.Frame(self.notebook)
@@ -171,8 +172,9 @@ class MainWindow:
             logger.error(f"Error creating shopping list view: {str(e)}", exc_info=True)
             messagebox.showerror("Error", f"Failed to create Shopping Lists view: {str(e)}")
 
+    @inject(MaterialService)
     def _create_status_bar(self):
-        """Create the status bar at the bottom of the window."""
+        ""\"Create the status bar at the bottom of the window.""\"
         self.status_var = tk.StringVar()
         self.status_var.set("Ready")
 
@@ -184,28 +186,32 @@ class MainWindow:
         )
         self.status_bar.grid(row=1, column=0, sticky="ew")
 
+    @inject(MaterialService)
     def set_status(self, message):
-        """
+        ""\"
         Set the status message in the status bar.
 
         Args:
             message: Status message
-        """
+        ""\"
         self.status_var.set(message)
         logger.debug(f"Status set to: {message}")
 
+    @inject(MaterialService)
     def _on_new(self):
-        """Handle New menu action."""
+        ""\"Handle New menu action.""\"
         logger.info("New action triggered")
         # Implementation depends on the specific functionality needed
 
+    @inject(MaterialService)
     def _on_open(self):
-        """Handle Open menu action."""
+        ""\"Handle Open menu action.""\"
         logger.info("Open action triggered")
         # Implementation depends on the specific functionality needed
 
+    @inject(MaterialService)
     def _on_save(self):
-        """Handle Save menu action."""
+        ""\"Handle Save menu action.""\"
         logger.info("Save action triggered")
 
         # Get the current tab
@@ -228,8 +234,9 @@ class MainWindow:
             logger.error(f"Error saving {tab_name}: {str(e)}")
             messagebox.showerror("Save Error", f"Error saving {tab_name}: {str(e)}")
 
+    @inject(MaterialService)
     def _on_undo(self):
-        """Handle Undo menu action."""
+        ""\"Handle Undo menu action.""\"
         logger.info("Undo action triggered")
 
         # Get the current tab
@@ -250,8 +257,9 @@ class MainWindow:
             logger.error(f"Error in undo: {str(e)}")
             messagebox.showerror("Undo Error", f"Error in undo operation: {str(e)}")
 
+    @inject(MaterialService)
     def _on_redo(self):
-        """Handle Redo menu action."""
+        ""\"Handle Redo menu action.""\"
         logger.info("Redo action triggered")
 
         # Get the current tab
@@ -272,29 +280,30 @@ class MainWindow:
             logger.error(f"Error in redo: {str(e)}")
             messagebox.showerror("Redo Error", f"Error in redo operation: {str(e)}")
 
+    @inject(MaterialService)
     def _on_exit(self):
-        """Handle Exit menu action."""
+        ""\"Handle Exit menu action.""\"
         logger.info("Exit action triggered")
 
         # Ask for confirmation
         if messagebox.askyesno("Exit", "Are you sure you want to exit?"):
             # Clean up and close the application
             self.app.quit()
-'''
-
-    # Write the new content
+"""
     try:
         with open(main_window_path, 'w') as f:
             f.write(new_content.strip())
-        logger.info(f"Updated main window at {main_window_path}")
+        logger.info(f'Updated main window at {main_window_path}')
         return True
     except Exception as e:
-        logger.error(f"Failed to update main window: {str(e)}")
+        logger.error(f'Failed to update main window: {str(e)}')
         return False
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     if fix_main_window():
-        logger.info("Main window fixed successfully. Run the application to see the changes.")
+        logger.info(
+            'Main window fixed successfully. Run the application to see the changes.'
+            )
     else:
-        logger.error("Failed to fix main window.")
+        logger.error('Failed to fix main window.')

@@ -1,125 +1,118 @@
-# Path: services/interfaces/material_service.py
-
-from abc import ABC, abstractmethod
-from typing import List, Optional, Dict, Any
-from datetime import datetime
-
-from database.models.material import MaterialType, MaterialQualityGrade
 
 
+from di.core import inject
+from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
 class IMaterialService(ABC):
     """
-    Abstract base class defining the interface for Material Service operations.
+    Interface defining the contract for Material Service operations.
+
+    Extends the base service interface with material-specific methods.
     """
 
-    @abstractmethod
-    def create_material(self, material_data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Create a new material.
-
-        Args:
-            material_data (Dict[str, Any]): Data for creating a new material
-
-        Returns:
-            Dict[str, Any]: Created material details
-        """
-        pass
-
-    @abstractmethod
-    def get_material(self, material_id: int) -> Optional[Dict[str, Any]]:
-        """
-        Retrieve a specific material by ID.
-
-        Args:
-            material_id (int): Unique identifier for the material
-
-        Returns:
-            Optional[Dict[str, Any]]: Material details
-        """
-        pass
-
-    @abstractmethod
-    def update_material(self, material_id: int, material_data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Update an existing material.
-
-        Args:
-            material_id (int): Unique identifier for the material
-            material_data (Dict[str, Any]): Updated material information
-
-        Returns:
-            Dict[str, Any]: Updated material details
-        """
-        pass
-
-    @abstractmethod
-    def delete_material(self, material_id: int) -> bool:
-        """
-        Delete a material.
-
-        Args:
-            material_id (int): Unique identifier for the material
-
-        Returns:
-            bool: True if deletion was successful
-        """
-        pass
-
-    @abstractmethod
-    def update_stock(self, material_id: int, quantity_change: float,
-                     transaction_type: str,
-                     notes: Optional[str] = None) -> Dict[str, Any]:
+        @abstractmethod
+    @inject(MaterialService)
+    def update_stock(self, material_id: Any, quantity_change: float,
+        transaction_type: str, notes: Optional[str]=None) ->Material:
         """
         Update the stock of a material.
 
         Args:
-            material_id (int): Unique identifier for the material
-            quantity_change (float): Amount to change stock by
+            material_id (Any): ID of the material
+            quantity_change (float): Quantity to add or subtract
             transaction_type (str): Type of stock transaction
-            notes (Optional[str]): Additional notes for the transaction
+            notes (Optional[str], optional): Additional notes for the transaction
 
         Returns:
-            Dict[str, Any]: Updated material details
+            Material: Updated material
         """
         pass
 
-    @abstractmethod
-    def get_low_stock_materials(self, include_zero_stock: bool = False) -> List[Dict[str, Any]]:
+        @abstractmethod
+    @inject(MaterialService)
+    def get_low_stock_materials(self, include_zero_stock: bool=False) ->List[
+        Material]:
         """
         Retrieve materials with low stock.
 
         Args:
-            include_zero_stock (bool): Whether to include materials with zero stock
+            include_zero_stock (bool, optional): Whether to include materials
+                with zero stock. Defaults to False.
 
         Returns:
-            List[Dict[str, Any]]: List of materials with low stock
+            List[Material]: List of low stock materials
         """
         pass
 
-    @abstractmethod
-    def search_materials(self, search_params: Dict[str, Any]) -> List[Dict[str, Any]]:
+        @abstractmethod
+    @inject(MaterialService)
+    def search_materials(self, search_params: Dict[str, Any]) ->List[Material]:
         """
-        Search for materials based on various parameters.
+                Search materials based on multiple criteria.
 
-        Args:
-            search_params (Dict[str, Any]): Search criteria
+                Args:
+                    search_params (Dict[str, Any]): Search criteria
 
-        Returns:
-            List[Dict[str, Any]]: List of matching materials
-        """
+                Returns:
+                    List[Material]: List of matching materials
+                """
         pass
 
-    @abstractmethod
-    def generate_material_usage_report(self,
-                                       start_date: datetime,
-                                       end_date: datetime) -> Dict[str, Any]:
+        @abstractmethod
+    @inject(MaterialService)
+    def generate_material_usage_report(self, start_date: Optional[str]=None,
+        end_date: Optional[str]=None) ->Dict[str, Any]:
         """
         Generate a comprehensive material usage report.
 
         Args:
-            start_date (datetime): Start of the reporting period
-            end_date (datetime): End of the reporting period
+            start_date (Optional[str], optional): Start date for the report
+            end_date (Optional[str], optional): End date for the report
+
         Returns:
-            Dict[str, Any]: Detailed material usage report
+            Dict[str, Any]: Material usage report
+        """
+        pass
+
+        @abstractmethod
+    @inject(MaterialService)
+    def deactivate_material(self, material_id: Any) ->Material:
+        """
+        Deactivate a material, preventing further use.
+
+        Args:
+            material_id (Any): ID of the material to deactivate
+
+        Returns:
+            Material: The deactivated material
+        """
+        pass
+
+        @abstractmethod
+    @inject(MaterialService)
+    def activate_material(self, material_id: Any) ->Material:
+        """
+        Reactivate a previously deactivated material.
+
+        Args:
+            material_id (Any): ID of the material to activate
+
+        Returns:
+            Material: The activated material
+        """
+        pass
+
+        @abstractmethod
+    @inject(MaterialService)
+    def validate_material_substitution(self, original_material_id: Any,
+        substitute_material_id: Any) ->bool:
+        """
+        Check if one material can be substituted for another.
+
+        Args:
+            original_material_id (Any): ID of the original material
+            substitute_material_id (Any): ID of the potential substitute material
+
+        Returns:
+            bool: True if substitution is possible, False otherwise
         """
         pass

@@ -1,114 +1,175 @@
-# File: database/repositories/storage_repository.py
-# Purpose: Storage repository refactored to use new manager pattern
+from di.core import inject
+from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+"""
+F:/WAWI Homebrew/WAWI Claude/store_management/database/repositories/storage_repository.py
 
-from typing import List, Optional, Dict, Any
-from sqlalchemy.orm import Session
-from sqlalchemy import select
-
-from database.sqlalchemy.base_manager import BaseManager
-from database.models.storage import Storage
-from database.sqlalchemy.manager_factory import register_specialized_manager
+Storage repository for database access.
+"""
+logger = logging.getLogger(__name__)
 
 
-class StorageRepository(BaseManager[Storage]):
+class StorageRepository(BaseRepository):
     """
-    Specialized repository for Storage model with additional methods.
+    Repository for Storage model database access.
 
-    Provides storage-specific operations beyond standard CRUD methods.
+    This class provides specialized operations for the Storage model.
     """
 
-    def get_by_location(self, location: str) -> Optional[Storage]:
+        @inject(MaterialService)
+        def __init__(self, session: Session):
         """
-        Retrieve a storage location by its specific location.
+        Initialize a new StorageRepository instance.
 
         Args:
-            location: The location identifier
-
-        Returns:
-            Storage instance if found, None otherwise
+            session: SQLAlchemy session.
         """
-        results = self.filter_by_multiple({'location': location})
-        return results[0] if results else None
+        super().__init__(session, Storage)
 
-    def get_available_storage(self) -> List[Storage]:
+        @inject(MaterialService)
+        def get_by_location(self, location: str) ->List[Storage]:
         """
-        Retrieve all available storage locations.
-
-        Returns:
-            List of available storage locations
-        """
-        return self.filter_by_multiple({'status': 'available'})
-
-    def get_storage_with_details(self, storage_id: int) -> Optional[Dict[str, Any]]:
-        """
-        Get detailed information about a storage location.
+        Get storage locations by location string.
 
         Args:
-            storage_id: ID of the storage location
+            location: The location string to search for.
 
         Returns:
-            Dictionary with storage details, or None if not found
+            List of storage locations that match the location.
         """
-        with self.session_factory() as session:
-            try:
-                # Retrieve storage with additional details
-                query = select(Storage).where(Storage.id == storage_id)
-                storage = session.execute(query).scalar_one_or_none()
+        try:
+            return self.session.query(Storage).filter(Storage.location.
+                ilike(f'%{location}%')).all()
+        except SQLAlchemyError as e:
+            logger.error(
+                f"Error getting storage locations by location '{location}': {str(e)}"
+                )
+            return []
 
-                if not storage:
-                    return None
-
-                # You can add more complex logic here to fetch related data
-                return {
-                    'id': storage.id,
-                    'location': storage.location,
-                    'capacity': storage.capacity,
-                    'current_usage': storage.current_usage,
-                    'status': storage.status
-                }
-            except Exception as e:
-                # Use error handling from previous implementation
-                from utils.error_handling import handle_database_error
-                raise handle_database_error("get_storage_with_details", e)
-
-    def search_storage(self, search_term: str) -> List[Storage]:
+        @inject(MaterialService)
+        def get_available_storage(self) ->List[Storage]:
         """
-        Search storage locations by location or description.
+        Get available storage locations (not full).
+
+        Returns:
+            List of available storage locations.
+        """
+        try:
+            return self.session.query(Storage).filter(Storage.
+                current_occupancy < Storage.capacity).filter(Storage.status ==
+                'Active').all()
+        except SQLAlchemyError as e:
+            logger.error(f'Error getting available storage locations: {str(e)}'
+                )
+            return []
+
+        @inject(MaterialService)
+        def get_storage_with_details(self, storage_id: int) ->Optional[Dict[str,
+        Any]]:
+        """
+        Get storage with detailed information including products.
 
         Args:
-            search_term: Term to search for
+            storage_id: The ID of the storage location.
 
         Returns:
-            List of matching storage locations
+            Dictionary with storage details, or None if storage not found.
         """
-        return self.search(search_term, fields=['location', 'description'])
+        try:
+            storage = self.get_by_id(storage_id)
+            if not storage:
+                return None
+            result = storage.to_dict() if hasattr(storage, 'to_dict') else {
+                'id': storage.id, 'name': storage.name, 'location': storage
+                .location, 'capacity': storage.capacity,
+                'current_occupancy': storage.current_occupancy, 'type':
+                storage.type, 'status': storage.status,
+                'occupancy_percentage': storage.occupancy_percentage()}
+            if hasattr(storage, 'products') and storage.products:
+                product_list = []
+                for product in storage.products:
+                    product_list.append({'id': product.id, 'name': product.
+                        name, 'sku': product.sku, 'quantity': product.
+                        stock_quantity})
+                result['products'] = product_list
+                result['product_count'] = len(product_list)
+            return result
+        except Exception as e:
+            logger.error(
+                f'Error getting storage details for ID {storage_id}: {str(e)}')
+            return None
 
+        @inject(MaterialService)
+        def search_storage(self, search_term: str) ->List[Storage]:
+        """
+        Search for storage locations by name, location, or type.
 
-# Register the specialized manager
-register_specialized_manager(Storage, StorageRepository)
+        Args:
+            search_term: The search term.
 
+        Returns:
+            List of storage locations that match the search criteria.
+        """
+        try:
+            return self.search(search_term, ['name', 'location', 'type',
+                'description'])
+        except Exception as e:
+            logger.error(
+                f"Error searching storage locations for '{search_term}': {str(e)}"
+                )
+            return []
 
-# Optional: Create a function for backward compatibility
-def get_storage_repository(session: Optional[Session] = None) -> StorageRepository:
-    """
-    Backward-compatible method to get a storage repository.
+        @inject(MaterialService)
+        def create(self, data: Dict[str, Any]) ->Optional[Storage]:
+        """
+        Create a new storage location.
 
-    Args:
-        session: Optional SQLAlchemy session (for backward compatibility)
+        Args:
+            data: Dictionary of storage data.
 
-    Returns:
-        StorageRepository instance
-    """
-    from database.sqlalchemy.session import get_db_session
+        Returns:
+            The created storage location, or None if creation failed.
+        """
+        try:
+            if 'name' not in data or not data['name']:
+                raise ValueError('Storage name is required')
+            storage = Storage(**data)
+            self.session.add(storage)
+            self.session.flush()
+            logger.info(f'Created storage location: {storage.name}')
+            return storage
+        except Exception as e:
+            logger.error(f'Error creating storage location: {str(e)}')
+            self.session.rollback()
+            return None
 
-    # If a session is provided, create a custom session factory
-    if session:
-        def session_factory():
-            return session
-    else:
-        session_factory = get_db_session
+        @inject(MaterialService)
+        def update(self, storage_id: int, data: Dict[str, Any]) ->Optional[Storage
+        ]:
+        """
+        Update a storage location.
 
-    return StorageRepository(
-        model_class=Storage,
-        session_factory=session_factory
-    )
+        Args:
+            storage_id: The ID of the storage location to update.
+            data: Dictionary of storage data to update.
+
+        Returns:
+            The updated storage location, or None if update failed.
+        """
+        try:
+            storage = self.get_by_id(storage_id)
+            if not storage:
+                logger.warning(
+                    f'Storage with ID {storage_id} not found for update')
+                return None
+            for key, value in data.items():
+                if hasattr(storage, key):
+                    setattr(storage, key, value)
+            self.session.flush()
+            logger.info(f'Updated storage location: {storage.name}')
+            return storage
+        except Exception as e:
+            logger.error(
+                f'Error updating storage location with ID {storage_id}: {str(e)}'
+                )
+            self.session.rollback()
+            return None

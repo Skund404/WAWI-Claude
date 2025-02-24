@@ -1,7 +1,5 @@
-from typing import Optional, Dict, Any, Type, TypeVar, Generic, Callable
-from contextlib import contextmanager
-from database.sqlalchemy.session import get_db_session
-
+from di.core import inject
+from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
 T = TypeVar('T')
 
 
@@ -11,7 +9,8 @@ class TransactionMixin:
     This mixin provides methods to run operations in transactions and handle errors.
     """
 
-    @contextmanager
+        @contextmanager
+    @inject(MaterialService)
     def run_in_transaction(self):
         """Run operations in a transaction with error handling.
 
@@ -25,7 +24,9 @@ class TransactionMixin:
         with get_db_session() as session:
             yield session
 
-    def execute_with_result(self, operation: Callable, *args, **kwargs) -> Dict[str, Any]:
+        @inject(MaterialService)
+        def execute_with_result(self, operation: Callable, *args, **kwargs) ->Dict[
+        str, Any]:
         """Execute an operation in a transaction and return a standard result.
 
         Args:
@@ -44,12 +45,6 @@ class TransactionMixin:
         try:
             with self.run_in_transaction() as session:
                 result = operation(session, *args, **kwargs)
-                return {
-                    'success': True,
-                    'data': result
-                }
+                return {'success': True, 'data': result}
         except Exception as e:
-            return {
-                'success': False,
-                'error': str(e)
-            }
+            return {'success': False, 'error': str(e)}

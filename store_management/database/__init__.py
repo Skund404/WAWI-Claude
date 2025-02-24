@@ -1,67 +1,36 @@
-# Path: database/__init__.py
+# F:\WAWI Homebrew\WAWI Claude\store_management\database\__init__.py
 
-import logging
-from typing import Optional
+from utils.circular_import_resolver import CircularImportResolver
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.ext.declarative import declarative_base
-
-# Import Base from models to ensure proper initialization
-from .models.base import Base
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-
-def init_database(database_url: str) -> Optional[Session]:
+def register_models():
     """
-    Initialize the database connection and return a session factory.
-
-    Args:
-        database_url (str): The database connection URL
-
-    Returns:
-        Optional[Session]: A SQLAlchemy session factory or None if initialization fails
+    Centralized model registration to avoid circular imports.
     """
     try:
-        # Create engine
-        engine = create_engine(database_url, echo=False)
+        # Importing models dynamically to avoid circular imports
+        from .models.pattern import Pattern
+        from .models.project import Project
+        from .models.components import Component, ProjectComponent, PatternComponent
+        from .models.material import Material
+        from .models.supplier import Supplier
+        from .models.order import Order
+        from .models.product import Product
+        from .models.storage import Storage
 
-        # Create all tables defined in Base
-        Base.metadata.create_all(engine)
+        # Register models with the circular import resolver
+        CircularImportResolver.register_class('Pattern', Pattern)
+        CircularImportResolver.register_class('Project', Project)
+        CircularImportResolver.register_class('Component', Component)
+        CircularImportResolver.register_class('ProjectComponent', ProjectComponent)
+        CircularImportResolver.register_class('PatternComponent', PatternComponent)
+        CircularImportResolver.register_class('Material', Material)
+        CircularImportResolver.register_class('Supplier', Supplier)
+        CircularImportResolver.register_class('Order', Order)
+        CircularImportResolver.register_class('Product', Product)
+        CircularImportResolver.register_class('Storage', Storage)
 
-        # Create and return session factory
-        SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+    except ImportError as e:
+        print(f"Error registering models: {e}")
 
-        return SessionLocal
-
-    except Exception as e:
-        logger.error(f"Database initialization error: {e}")
-        return None
-
-
-def get_db() -> Session:
-    """
-    Provide a database session.
-
-    Returns:
-        Session: A SQLAlchemy database session
-    """
-    try:
-        # This assumes init_database has been called earlier
-        SessionLocal = init_database('sqlite:///store_management.db')
-        if SessionLocal:
-            return SessionLocal()
-        raise RuntimeError("Database session could not be created")
-    except Exception as e:
-        logger.error(f"Error getting database session: {e}")
-        raise
-
-
-# Initialize database on import
-try:
-    init_database('sqlite:///store_management.db')
-except Exception as e:
-    logger.error(f"Critical database initialization error: {e}")
+# Register models when the module is imported
+register_models()

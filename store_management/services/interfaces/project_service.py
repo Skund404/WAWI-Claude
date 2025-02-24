@@ -1,24 +1,21 @@
-# services/interfaces/project_service.py
-
-from abc import ABC, abstractmethod
-from enum import Enum
-from typing import Dict, List, Optional, Union
 
 
+from di.core import inject
+from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
 class ProjectType(Enum):
     """Enumeration of different project types"""
-    LEATHER_BAG = "leather_bag"
-    WALLET = "wallet"
-    BELT = "belt"
-    CUSTOM = "custom"
+    LEATHER_BAG = 'leather_bag'
+    WALLET = 'wallet'
+    BELT = 'belt'
+    CUSTOM = 'custom'
 
 
 class SkillLevel(Enum):
     """Enumeration of skill levels required for projects"""
-    BEGINNER = "beginner"
-    INTERMEDIATE = "intermediate"
-    ADVANCED = "advanced"
-    EXPERT = "expert"
+    BEGINNER = 'beginner'
+    INTERMEDIATE = 'intermediate'
+    ADVANCED = 'advanced'
+    EXPERT = 'expert'
 
 
 class IProjectService(ABC):
@@ -27,8 +24,9 @@ class IProjectService(ABC):
     Handles project creation, management, and analysis functionality.
     """
 
-    @abstractmethod
-    def create_project(self, project_data: Dict) -> Dict:
+        @abstractmethod
+    @inject(MaterialService)
+    def create_project(self, project_data: Dict) ->Dict:
         """
         Create a new project with the given data.
 
@@ -48,8 +46,10 @@ class IProjectService(ABC):
         """
         pass
 
-    @abstractmethod
-    def get_project(self, project_id: int, include_components: bool = False) -> Dict:
+        @abstractmethod
+    @inject(MaterialService)
+    def get_project(self, project_id: int, include_components: bool=False
+        ) ->Dict:
         """
         Retrieve project details by ID.
 
@@ -65,8 +65,9 @@ class IProjectService(ABC):
         """
         pass
 
-    @abstractmethod
-    def update_project(self, project_id: int, project_data: Dict) -> Dict:
+        @abstractmethod
+    @inject(MaterialService)
+    def update_project(self, project_id: int, project_data: Dict) ->Dict:
         """
         Update an existing project.
 
@@ -83,8 +84,9 @@ class IProjectService(ABC):
         """
         pass
 
-    @abstractmethod
-    def delete_project(self, project_id: int) -> bool:
+        @abstractmethod
+    @inject(MaterialService)
+    def delete_project(self, project_id: int) ->bool:
         """
         Delete a project by ID.
 
@@ -99,8 +101,9 @@ class IProjectService(ABC):
         """
         pass
 
-    @abstractmethod
-    def search_projects(self, search_params: Dict) -> List[Dict]:
+        @abstractmethod
+    @inject(MaterialService)
+    def search_projects(self, search_params: Dict) ->List[Dict]:
         """
         Search projects based on given parameters.
 
@@ -117,8 +120,9 @@ class IProjectService(ABC):
         """
         pass
 
-    @abstractmethod
-    def get_complex_projects(self, complexity_threshold: float) -> List[Dict]:
+        @abstractmethod
+    @inject(MaterialService)
+    def get_complex_projects(self, complexity_threshold: float) ->List[Dict]:
         """
         Get projects above specified complexity threshold.
 
@@ -130,8 +134,9 @@ class IProjectService(ABC):
         """
         pass
 
-    @abstractmethod
-    def analyze_project_material_usage(self, project_id: int) -> Dict:
+        @abstractmethod
+    @inject(MaterialService)
+    def analyze_project_material_usage(self, project_id: int) ->Dict:
         """
         Analyze material usage for a specific project.
 
@@ -150,8 +155,9 @@ class IProjectService(ABC):
         """
         pass
 
-    @abstractmethod
-    def generate_project_complexity_report(self) -> Dict:
+        @abstractmethod
+    @inject(MaterialService)
+    def generate_project_complexity_report(self) ->Dict:
         """
         Generate a report on project complexities across the system.
 
@@ -163,8 +169,9 @@ class IProjectService(ABC):
         """
         pass
 
-    @abstractmethod
-    def update_project_status(self, project_id: int, new_status: str) -> Dict:
+        @abstractmethod
+    @inject(MaterialService)
+    def update_project_status(self, project_id: int, new_status: str) ->Dict:
         """
         Update the status of a project.
 

@@ -1,17 +1,11 @@
-#!/usr/bin/env python3
-
+from di.core import inject
+from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
 """
 Script to fix validation_mixing.py syntax issues.
 """
 
-import os
-import sys
-from pathlib import Path
-import shutil
-from datetime import datetime
 
-
-def fix_validation_mixing(project_root: Path) -> bool:
+def fix_validation_mixing(project_root: Path) ->bool:
     """
     Fix the validation_mixing.py file.
 
@@ -21,27 +15,25 @@ def fix_validation_mixing(project_root: Path) -> bool:
     Returns:
         bool: True if fix was successful
     """
-    file_path = project_root / "database" / "sqlalchemy" / "mixins" / "validation_mixing.py"
-
+    file_path = (project_root / 'database' / 'sqlalchemy' / 'mixins' /
+        'validation_mixing.py')
     if not file_path.exists():
-        print(f"Error: {file_path} not found")
+        print(f'Error: {file_path} not found')
         return False
-
-    # Create backup
-    backup_path = file_path.parent / f"{file_path.stem}_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.py"
+    backup_path = (file_path.parent /
+        f"{file_path.stem}_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.py"
+        )
     shutil.copy2(file_path, backup_path)
-    print(f"Created backup at {backup_path}")
-
-    # Read the fixed content
+    print(f'Created backup at {backup_path}')
     fixed_content = """# database/sqlalchemy/mixins/validation_mixing.py
 
-\"\"\"
+""\"
 Validation mixin for SQLAlchemy models.
 Provides common validation functionality.
 
 This mixin provides validation methods that can be used by SQLAlchemy models
 to ensure data integrity and business rule compliance.
-\"\"\"
+""\"
 
 from typing import Any, Dict, List, Optional, Union, Type
 from abc import ABC, abstractmethod
@@ -49,16 +41,17 @@ import re
 from datetime import datetime
 
 class ValidationMixin(ABC):
-    \"\"\"
+    ""\"
     Base mixin for validation functionality.
 
     This mixin provides common validation methods that can be used by any model
     class. It includes methods for validating required fields, numeric ranges,
     string formats, and custom business rules.
-    \"\"\"
+    ""\"
 
+    @inject(MaterialService)
     def validate_required_fields(self, data: Dict[str, Any], required_fields: List[str]) -> bool:
-        \"\"\"
+        ""\"
         Validate that all required fields are present and not None.
 
         Args:
@@ -67,7 +60,7 @@ class ValidationMixin(ABC):
 
         Returns:
             bool: True if all required fields are present and not None
-        \"\"\"
+        ""\"
         return all(
             field in data and data[field] is not None 
             for field in required_fields
@@ -79,7 +72,7 @@ class ValidationMixin(ABC):
         min_val: Optional[Union[int, float]] = None, 
         max_val: Optional[Union[int, float]] = None
     ) -> bool:
-        \"\"\"
+        ""\"
         Validate that a numeric value is within the specified range.
 
         Args:
@@ -89,7 +82,7 @@ class ValidationMixin(ABC):
 
         Returns:
             bool: True if value is within range
-        \"\"\"
+        ""\"
         if min_val is not None and value < min_val:
             return False
         if max_val is not None and value > max_val:
@@ -103,7 +96,7 @@ class ValidationMixin(ABC):
         max_length: Optional[int] = None,
         pattern: Optional[str] = None
     ) -> bool:
-        \"\"\"
+        ""\"
         Validate string format including length and pattern matching.
 
         Args:
@@ -114,7 +107,7 @@ class ValidationMixin(ABC):
 
         Returns:
             bool: True if string matches all specified criteria
-        \"\"\"
+        ""\"
         if min_length is not None and len(value) < min_length:
             return False
         if max_length is not None and len(value) > max_length:
@@ -129,7 +122,7 @@ class ValidationMixin(ABC):
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None
     ) -> bool:
-        \"\"\"
+        ""\"
         Validate that a date falls within the specified range.
 
         Args:
@@ -139,7 +132,7 @@ class ValidationMixin(ABC):
 
         Returns:
             bool: True if date is within range
-        \"\"\"
+        ""\"
         if start_date is not None and date < start_date:
             return False
         if end_date is not None and date > end_date:
@@ -152,7 +145,7 @@ class ValidationMixin(ABC):
         field_pairs: List[Tuple[str, str]],
         comparison_func: Optional[callable] = None
     ) -> bool:
-        \"\"\"
+        ""\"
         Validate relationships between pairs of fields.
 
         Args:
@@ -163,7 +156,7 @@ class ValidationMixin(ABC):
 
         Returns:
             bool: True if all field pairs pass validation
-        \"\"\"
+        ""\"
         if comparison_func is None:
             comparison_func = lambda x, y: x <= y
 
@@ -175,8 +168,9 @@ class ValidationMixin(ABC):
         return True
 
     @abstractmethod
+    @inject(MaterialService)
     def validate(self) -> bool:
-        \"\"\"
+        ""\"
         Validate the entire object.
 
         This method must be implemented by classes using this mixin to provide
@@ -184,11 +178,12 @@ class ValidationMixin(ABC):
 
         Returns:
             bool: True if all validation checks pass
-        \"\"\"
+        ""\"
         pass
 
+    @inject(MaterialService)
     def _validate_type(self, value: Any, expected_type: Type) -> bool:
-        \"\"\"
+        ""\"
         Internal helper to validate type of a value.
 
         Args:
@@ -197,11 +192,12 @@ class ValidationMixin(ABC):
 
         Returns:
             bool: True if value matches expected type
-        \"\"\"
+        ""\"
         return isinstance(value, expected_type)
 
+    @inject(MaterialService)
     def _validate_enum(self, value: Any, valid_values: List[Any]) -> bool:
-        \"\"\"
+        ""\"
         Internal helper to validate enum-like values.
 
         Args:
@@ -210,38 +206,32 @@ class ValidationMixin(ABC):
 
         Returns:
             bool: True if value is in valid_values
-        \"\"\"
+        ""\"
         return value in valid_values
 """
-
-    # Write the fixed content
     try:
         with open(file_path, 'w', encoding='utf-8') as f:
             f.write(fixed_content)
-        print(f"Successfully fixed {file_path}")
+        print(f'Successfully fixed {file_path}')
         return True
     except Exception as e:
-        print(f"Error writing fixed content: {e}")
+        print(f'Error writing fixed content: {e}')
         return False
 
 
-def main() -> None:
+def main() ->None:
     """Main entry point."""
     try:
-        # Get project root
         if len(sys.argv) > 1:
             project_root = Path(sys.argv[1])
         else:
             project_root = Path(__file__).resolve().parent.parent
-
-        # Fix the file
         success = fix_validation_mixing(project_root)
         sys.exit(0 if success else 1)
-
     except Exception as e:
-        print(f"Error: {e}")
+        print(f'Error: {e}')
         sys.exit(1)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

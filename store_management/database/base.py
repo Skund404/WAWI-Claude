@@ -1,15 +1,11 @@
-# database/base.py
+from di.core import inject
+from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
 """
 Base model and declarative base for SQLAlchemy models.
 
 Provides a foundational model class with common functionality
 for all database models in the application.
 """
-
-from typing import Dict, Any
-import sqlalchemy as sa
-from sqlalchemy.orm import registry, DeclarativeBase, mapped_column
-from sqlalchemy.orm.decl_api import DeclarativeMeta
 
 
 class BaseModel:
@@ -22,34 +18,33 @@ class BaseModel:
     - Basic validation helpers
     """
 
-    def __repr__(self) -> str:
+        @inject(MaterialService)
+        def __repr__(self) ->str:
         """
         Generate a string representation of the model instance.
 
         Returns:
             str: Readable representation of the model
         """
-        # Get primary key value if exists
         pk = self.get_primary_key_value()
+        pk_repr = f' {pk}' if pk is not None else ''
+        return f'<{self.__class__.__name__}{pk_repr}>'
 
-        # Use class name and primary key in representation
-        pk_repr = f" {pk}" if pk is not None else ""
-        return f"<{self.__class__.__name__}{pk_repr}>"
-
-    def get_primary_key_value(self) -> Any:
+        @inject(MaterialService)
+        def get_primary_key_value(self) ->Any:
         """
         Retrieve the primary key value of the model instance.
 
         Returns:
             Any: Value of the primary key, or None if not found
         """
-        # Attempt to find the primary key column
-        for column in self.__table__.columns:  # type: ignore
+        for column in self.__table__.columns:
             if column.primary_key:
                 return getattr(self, column.name, None)
         return None
 
-    def to_dict(self, exclude_fields: list = None) -> Dict[str, Any]:
+        @inject(MaterialService)
+        def to_dict(self, exclude_fields: list=None) ->Dict[str, Any]:
         """
         Convert the model instance to a dictionary representation.
 
@@ -60,16 +55,12 @@ class BaseModel:
             Dict[str, Any]: Dictionary representation of the model instance
         """
         exclude_fields = exclude_fields or []
+        return {column.name: getattr(self, column.name) for column in self.
+            __table__.columns if column.name not in exclude_fields and
+            hasattr(self, column.name)}
 
-        # Convert all columns to a dictionary, excluding specified fields
-        return {
-            column.name: getattr(self, column.name)
-            for column in self.__table__.columns  # type: ignore
-            if column.name not in exclude_fields and
-               hasattr(self, column.name)
-        }
-
-    def update(self, **kwargs):
+        @inject(MaterialService)
+        def update(self, **kwargs):
         """
         Update model instance attributes.
 
@@ -80,7 +71,7 @@ class BaseModel:
             if hasattr(self, key):
                 setattr(self, key, value)
 
-    @classmethod
+        @classmethod
     def create(cls, **kwargs):
         """
         Class method to create a new instance with given attributes.
@@ -94,11 +85,9 @@ class BaseModel:
         return cls(**kwargs)
 
 
-# Create a registry for declarative base
 mapper_registry = registry()
 
 
-# Create the declarative base using the registry
 class Base(DeclarativeBase):
     """
     Declarative base for SQLAlchemy models using the registry.
@@ -106,5 +95,4 @@ class Base(DeclarativeBase):
     registry = mapper_registry
 
 
-# Export both Base and BaseModel for use in other modules
 __all__ = ['Base', 'BaseModel', 'mapper_registry']

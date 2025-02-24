@@ -1,156 +1,111 @@
-# Path: store_management/database/models/__init__.py
+# database/models/__init__.py
 """
-Central model registration and circular import resolution.
+Database models package initialization.
+
+This module initializes the models package and registers all model classes
+to make them available throughout the application.
 """
 
-from sqlalchemy.orm import DeclarativeBase
-from typing import Dict, Type, Any, List
+import importlib
+import logging
+from typing import Dict, Optional, Type, Any
+
+logger = logging.getLogger(__name__)
 
 
 class ModelRegistry:
     """
-    Centralized registry for managing model imports and dependencies.
+    Registry for all model classes.
+
+    Provides methods to register and retrieve model classes by name.
     """
-    _models: Dict[str, Type[Any]] = {}
+    _models: Dict[str, Type] = {}
 
     @classmethod
-    def register(cls, name: str, model_class: Type[Any]) -> None:
+    def register(cls, name: str, model_class: Type) -> None:
         """
         Register a model class.
 
         Args:
-            name (str): Unique identifier for the model.
-            model_class (Type[Any]): The model class to register.
+            name: Name to register the model under
+            model_class: The model class to register
         """
         cls._models[name] = model_class
+        logger.debug(f"Registered model: {name}")
 
     @classmethod
-    def get(cls, name: str) -> Type[Any]:
+    def get(cls, name: str) -> Optional[Type]:
         """
-        Retrieve a registered model class.
+        Get a registered model class.
 
         Args:
-            name (str): Unique identifier for the model.
+            name: Name of the model to retrieve
 
         Returns:
-            Type[Any]: The requested model class.
-
-        Raises:
-            KeyError: If the model is not registered.
+            Type or None: The model class, or None if not found
         """
-        if name not in cls._models:
-            raise KeyError(f"Model '{name}' is not registered")
-        return cls._models[name]
+        return cls._models.get(name)
 
     @classmethod
-    def get_all_models(cls) -> List[Type[Any]]:
+    def get_all_models(cls) -> Dict[str, Type]:
         """
-        Retrieve all registered models.
+        Get all registered model classes.
 
         Returns:
-            List[Type[Any]]: List of all registered model classes.
+            Dict[str, Type]: Dictionary of all registered model classes
         """
-        return list(cls._models.values())
+        return cls._models.copy()
 
 
-class Base(DeclarativeBase):
+def _safe_import(module_name: str, class_name: str) -> Optional[Type]:
     """
-    Base declarative class for SQLAlchemy models.
-    """
-    pass
-
-
-def _safe_import(module_name: str, class_name: str) -> Any:
-    """
-    Safely import a class, handling potential import errors.
+    Safely import a class from a module.
 
     Args:
-        module_name (str): Name of the module to import from.
-        class_name (str): Name of the class to import.
+        module_name: Name of the module to import from
+        class_name: Name of the class to import
 
     Returns:
-        Any: Imported class or None if import fails.
+        Type or None: The imported class, or None if import failed
     """
     try:
-        module = __import__(f'database.models.{module_name}', fromlist=[class_name])
+        module = importlib.import_module(f'database.models.{module_name}')
         return getattr(module, class_name)
     except (ImportError, AttributeError) as e:
-        print(f"Error importing {class_name} from {module_name}: {e}")
+        logger.warning(f"Failed to import {class_name} from {module_name}: {e}")
         return None
 
 
-def _register_models():
+def _register_models() -> None:
     """
-    Register models with the ModelRegistry to prevent circular imports.
+    Register all model classes.
+
+    This function imports and registers all model classes that should be
+    available throughout the application.
     """
-    # Define a list of models to import
-    models_to_register = [
-        ('Supplier', 'supplier_resolver'),
-        ('Product', 'product_resolver'),
-        ('OrderItem', 'order_item_resolver'),
-        ('Order', 'order_resolver'),
-        ('Storage', 'storage_resolver'),
-        # Add other models as needed
+    # Import base models first
+    from database.models.base import Base, BaseModel
+    from database.models.model_metaclass import ModelMetaclass
+
+    # Register core models
+    # These should be imported in dependency order
+    model_imports = [
+        ('enums', 'ProjectStatus'),
+        ('enums', 'ProjectType'),
+        ('enums', 'SkillLevel'),
+        ('enums', 'MaterialType'),
+        ('project', 'Project'),
+        # Add other models here
     ]
 
-    # Attempt to register models
-    for class_name, module_name in models_to_register:
+    for module_name, class_name in model_imports:
         model_class = _safe_import(module_name, class_name)
         if model_class:
             ModelRegistry.register(class_name, model_class)
 
-    # Additional setup for resolvers to break circular dependencies
-    try:
-        from .supplier_resolver import SupplierModelResolver
-        from .product_resolver import ProductModelResolver
-        from .order_resolver import OrderModelResolver
-        from .order_item_resolver import OrderItemModelResolver
-        from .storage_resolver import StorageModelResolver
 
-        # Cross-register models for resolvers
-        supplier_model = ModelRegistry.get('Supplier')
-        product_model = ModelRegistry.get('Product')
-        order_model = ModelRegistry.get('Order')
-        order_item_model = ModelRegistry.get('OrderItem')
-        storage_model = ModelRegistry.get('Storage')
-
-        # Set models in resolvers
-        SupplierModelResolver.set_product_model(product_model)
-        SupplierModelResolver.set_order_model(order_model)
-
-        ProductModelResolver.set_supplier_model(supplier_model)
-        ProductModelResolver.set_order_item_model(order_item_model)
-        ProductModelResolver.set_storage_model(storage_model)
-
-        OrderModelResolver.set_supplier_model(supplier_model)
-        OrderModelResolver.set_order_item_model(order_item_model)
-
-        OrderItemModelResolver.set_product_model(product_model)
-        OrderItemModelResolver.set_order_model(order_model)
-
-        StorageModelResolver.set_product_model(product_model)
-
-    except Exception as e:
-        print(f"Error setting up model resolvers: {e}")
-
-
-# Import enums to ensure they are available
-from .enums import (
-    ProjectType, SkillLevel, ProjectStatus,
-    ProductionStatus, MaterialType, TransactionType,
-    OrderStatus, PaymentStatus, ShoppingListStatus,
-    StitchType, EdgeFinishType
-)
-
-# Run model registration
+# Register all models when this module is imported
 _register_models()
 
-# Export all relevant classes and enums
-__all__ = [
-    'Base', 'ModelRegistry',
-    # Enums
-    'ProjectType', 'SkillLevel', 'ProjectStatus',
-    'ProductionStatus', 'MaterialType', 'TransactionType',
-    'OrderStatus', 'PaymentStatus', 'ShoppingListStatus',
-    'StitchType', 'EdgeFinishType'
-]
+# Export the registry
+__all__ = ['ModelRegistry']

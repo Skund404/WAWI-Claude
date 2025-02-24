@@ -1,64 +1,72 @@
-# database/session.py
+from di.core import inject
+from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
 """
-Database session management for the store management system.
-Provides functions to create and retrieve SQLAlchemy sessions.
+F:/WAWI Homebrew/WAWI Claude/store_management/database/session.py
+
+Database session management functions.
 """
-
-import logging
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, scoped_session
-from sqlalchemy.ext.declarative import declarative_base
-
-# Change this relative import to an absolute import
-from config.settings import get_database_path
-
-# Global variables
+logger = logging.getLogger(__name__)
 _engine = None
 _SessionFactory = None
-Base = declarative_base()
+_scoped_session = None
 
 
-def init_database(db_url=None):
+def init_database(database_url: str) ->None:
     """
     Initialize the database connection.
 
     Args:
-        db_url (str): Database URL. If None, it will be determined from settings.
+        database_url: The database connection URL.
+    """
+    global _engine, _SessionFactory, _scoped_session
+    try:
+        _engine = create_engine(database_url, pool_size=5, max_overflow=10,
+            pool_pre_ping=True, connect_args={'check_same_thread': False})
+        _SessionFactory = sessionmaker(bind=_engine)
+        _scoped_session = scoped_session(_SessionFactory)
+        logger.info(f'Database engine initialized with {database_url}')
+    except Exception as e:
+        logger.error(f'Failed to initialize database engine: {str(e)}')
+        raise
+
+
+def get_db_session() ->Session:
+    """
+    Get a database session from the scoped session registry.
 
     Returns:
-        Engine: SQLAlchemy engine
+        A database session.
+
+    Raises:
+        RuntimeError: If the database has not been initialized.
     """
-    global _engine
-    global _SessionFactory
+    if _scoped_session is None:
+        raise RuntimeError(
+            'Database session has not been initialized. Call init_database first.'
+            )
+    return _scoped_session()
 
-    if not db_url:
-        db_path = get_database_path()
-        db_url = f"sqlite:///{db_path}"
 
-    _engine = create_engine(db_url, echo=False)
-    _SessionFactory = sessionmaker(bind=_engine)
+def close_db_session() ->None:
+    """
+    Close the current database session.
+    """
+    if _scoped_session is not None:
+        _scoped_session.remove()
 
+
+def get_engine():
+    """
+    Get the SQLAlchemy engine.
+
+    Returns:
+        The SQLAlchemy engine.
+
+    Raises:
+        RuntimeError: If the database has not been initialized.
+    """
+    if _engine is None:
+        raise RuntimeError(
+            'Database engine has not been initialized. Call init_database first.'
+            )
     return _engine
-
-
-def get_db_session():
-    """
-    Get a new database session.
-
-    Returns:
-        Session: A new SQLAlchemy session
-    """
-    global _SessionFactory
-
-    if _SessionFactory is None:
-        init_database()
-
-    return _SessionFactory()
-
-
-def close_db_session():
-    """
-    Close all sessions
-    """
-    if _SessionFactory:
-        _SessionFactory.close_all()

@@ -1,41 +1,33 @@
-# Path: tools/fix_application.py
+from di.core import inject
+from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
 """
 Fix for the application class to ensure services are properly registered and used.
 """
-import os
-import logging
-
-# Set up logging
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger("application_fix")
+logging.basicConfig(level=logging.INFO, format=
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger('application_fix')
 
 
 def fix_application():
     """Fix the application implementation."""
     app_path = 'application.py'
-
     if not os.path.exists(app_path):
-        logger.error(f"Application file not found at {app_path}")
+        logger.error(f'Application file not found at {app_path}')
         return False
-
-    # Create a backup
     backup_path = app_path + '.bak'
     try:
         with open(app_path, 'r') as src:
             with open(backup_path, 'w') as dst:
                 dst.write(src.read())
-        logger.info(f"Created backup of application at {backup_path}")
+        logger.info(f'Created backup of application at {backup_path}')
     except Exception as e:
-        logger.error(f"Failed to create backup: {str(e)}")
+        logger.error(f'Failed to create backup: {str(e)}')
         return False
-
-    # New content for application.py
-    new_content = '''
+    new_content = """
 # Path: application.py
-"""
+""\"
 Main application class that orchestrates the components of the system.
-"""
+""\"
 import tkinter as tk
 import logging
 from typing import Any, Type
@@ -58,20 +50,22 @@ from services.implementations.supplier_service import SupplierService
 logger = logging.getLogger(__name__)
 
 class Application:
-    """
+    ""\"
     Main application class responsible for running the application.
-    """
+    ""\"
 
+    @inject(MaterialService)
     def __init__(self):
-        """Initialize the application."""
+        ""\"Initialize the application.""\"
         self.container = DependencyContainer()
         self.root = None
         self.main_window = None
         self._register_services()
         logger.info("Application initialized")
 
+    @inject(MaterialService)
     def _register_services(self):
-        """Register all services in the dependency container."""
+        ""\"Register all services in the dependency container.""\"
         try:
             # Register all services
             self.container.register(IStorageService, lambda c: StorageService(c), True)
@@ -86,8 +80,9 @@ class Application:
             logger.error(f"Error registering services: {str(e)}", exc_info=True)
             raise
 
+    @inject(MaterialService)
     def get_service(self, service_type: Type):
-        """
+        ""\"
         Get a service from the container.
 
         Args:
@@ -95,7 +90,7 @@ class Application:
 
         Returns:
             Service instance
-        """
+        ""\"
         if service_type is None:
             logger.warning("Attempted to get service with None service_type")
             return None
@@ -108,8 +103,9 @@ class Application:
             logger.error(f"Error getting service {service_type}: {str(e)}")
             return None
 
+    @inject(MaterialService)
     def run(self):
-        """Run the application."""
+        ""\"Run the application.""\"
         try:
             # Create the main window
             self.root = tk.Tk()
@@ -125,8 +121,9 @@ class Application:
             logger.error(f"Error running application: {str(e)}", exc_info=True)
             raise
 
+    @inject(MaterialService)
     def quit(self):
-        """Quit the application."""
+        ""\"Quit the application.""\"
         try:
             # Perform cleanup
             if self.root:
@@ -135,21 +132,21 @@ class Application:
         except Exception as e:
             logger.error(f"Error quitting application: {str(e)}", exc_info=True)
             raise
-'''
-
-    # Write the new content
+"""
     try:
         with open(app_path, 'w') as f:
             f.write(new_content.strip())
-        logger.info(f"Updated application at {app_path}")
+        logger.info(f'Updated application at {app_path}')
         return True
     except Exception as e:
-        logger.error(f"Failed to update application: {str(e)}")
+        logger.error(f'Failed to update application: {str(e)}')
         return False
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     if fix_application():
-        logger.info("Application fixed successfully. Run the application to see the changes.")
+        logger.info(
+            'Application fixed successfully. Run the application to see the changes.'
+            )
     else:
-        logger.error("Failed to fix application.")
+        logger.error('Failed to fix application.')

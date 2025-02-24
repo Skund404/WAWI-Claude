@@ -1,17 +1,8 @@
-# database/sqlalchemy/core/specialized/part_manager.py
+from di.core import inject
+from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
 """
 Specialized manager for Part-related database operations.
 """
-
-from typing import List, Optional, Union
-
-from database.sqlalchemy.base_manager import BaseManager
-from database.models import (
-    Part,
-    InventoryTransaction,
-    InventoryStatus,
-    TransactionType
-)
 
 
 class PartManager(BaseManager):
@@ -22,7 +13,8 @@ class PartManager(BaseManager):
     and stock-related queries.
     """
 
-    def get_part_with_transactions(self, part_id: int) -> Optional[Part]:
+        @inject(MaterialService)
+        def get_part_with_transactions(self, part_id: int) ->Optional[Part]:
         """
         Retrieve a part with its associated transactions.
 
@@ -36,20 +28,15 @@ class PartManager(BaseManager):
             with self.session_scope() as session:
                 part = session.query(Part).filter(Part.id == part_id).first()
                 if part:
-                    # Eager load transactions if needed
-                    part.transactions  # This will fetch related transactions
+                    part.transactions
                 return part
         except Exception as e:
-            self._logger.error(f"Error retrieving part with transactions: {e}")
+            self._logger.error(f'Error retrieving part with transactions: {e}')
             return None
 
-    def update_part_stock(
-            self,
-            part_id: int,
-            quantity_change: float,
-            transaction_type: TransactionType,
-            notes: Optional[str] = None
-    ) -> bool:
+        @inject(MaterialService)
+        def update_part_stock(self, part_id: int, quantity_change: float,
+        transaction_type: TransactionType, notes: Optional[str]=None) ->bool:
         """
         Update part stock and create a corresponding transaction.
 
@@ -66,30 +53,21 @@ class PartManager(BaseManager):
             with self.session_scope() as session:
                 part = session.query(Part).filter(Part.id == part_id).first()
                 if not part:
-                    self._logger.warning(f"Part with ID {part_id} not found.")
+                    self._logger.warning(f'Part with ID {part_id} not found.')
                     return False
-
-                # Update part stock
                 part.stock += quantity_change
-
-                # Create transaction record
-                transaction = InventoryTransaction(
-                    part_id=part_id,
-                    quantity_change=quantity_change,
-                    transaction_type=transaction_type,
-                    notes=notes
-                )
+                transaction = InventoryTransaction(part_id=part_id,
+                    quantity_change=quantity_change, transaction_type=
+                    transaction_type, notes=notes)
                 session.add(transaction)
-
                 return True
         except Exception as e:
-            self._logger.error(f"Error updating part stock: {e}")
+            self._logger.error(f'Error updating part stock: {e}')
             return False
 
-    def get_low_stock_parts(
-            self,
-            include_out_of_stock: bool = False
-    ) -> List[Part]:
+        @inject(MaterialService)
+        def get_low_stock_parts(self, include_out_of_stock: bool=False) ->List[Part
+        ]:
         """
         Retrieve parts with low stock.
 
@@ -103,21 +81,18 @@ class PartManager(BaseManager):
         try:
             with self.session_scope() as session:
                 query = session.query(Part)
-
                 if include_out_of_stock:
                     query = query.filter(Part.stock <= Part.min_stock)
                 else:
-                    query = query.filter(
-                        (Part.stock <= Part.min_stock) &
-                        (Part.stock > 0)
-                    )
-
+                    query = query.filter((Part.stock <= Part.min_stock) & (
+                        Part.stock > 0))
                 return query.all()
         except Exception as e:
-            self._logger.error(f"Error retrieving low stock parts: {e}")
+            self._logger.error(f'Error retrieving low stock parts: {e}')
             return []
 
-    def get_by_supplier(self, supplier_id: int) -> List[Part]:
+        @inject(MaterialService)
+        def get_by_supplier(self, supplier_id: int) ->List[Part]:
         """
         Retrieve parts associated with a specific supplier.
 
@@ -129,7 +104,8 @@ class PartManager(BaseManager):
         """
         try:
             with self.session_scope() as session:
-                return session.query(Part).filter(Part.supplier_id == supplier_id).all()
+                return session.query(Part).filter(Part.supplier_id ==
+                    supplier_id).all()
         except Exception as e:
-            self._logger.error(f"Error retrieving parts by supplier: {e}")
+            self._logger.error(f'Error retrieving parts by supplier: {e}')
             return []

@@ -1,14 +1,5 @@
-# File: database/sqlalchemy/mixins/base_mixins.py
-# Purpose: Provide base mixins for database access and operations
-
-from typing import (
-    TypeVar, Generic, Type, List, Dict, Any, Optional,
-    Callable, Union
-)
-from sqlalchemy.orm import Session
-from sqlalchemy import select, or_, and_, func
-from sqlalchemy.sql.expression import ColumnElement
-
+from di.core import inject
+from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
 T = TypeVar('T')
 
 
@@ -20,7 +11,9 @@ class BaseMixin(Generic[T]):
     providing common initialization and type safety.
     """
 
-    def __init__(self, model_class: Type[T], session_factory: Callable[[], Session]):
+        @inject(MaterialService)
+        def __init__(self, model_class: Type[T], session_factory: Callable[[],
+        Session]):
         """
         Initialize the base mixin with a model class and session factory.
 
@@ -40,11 +33,9 @@ class SearchMixin(BaseMixin[T]):
     with flexible configuration.
     """
 
-    def search(
-            self,
-            search_term: str,
-            fields: Optional[List[str]] = None
-    ) -> List[T]:
+        @inject(MaterialService)
+        def search(self, search_term: str, fields: Optional[List[str]]=None
+        ) ->List[T]:
         """
         Perform a comprehensive search across multiple fields.
 
@@ -58,24 +49,15 @@ class SearchMixin(BaseMixin[T]):
         """
         with self.session_factory() as session:
             if not fields:
-                # Dynamically detect string columns if not specified
-                fields = [
-                    col.name for col in self.model_class.__table__.columns
-                    if hasattr(col.type, 'length')
-                ]
-
-            search_conditions = [
-                func.lower(getattr(self.model_class, field)).like(f'%{search_term.lower()}%')
-                for field in fields
-            ]
-
+                fields = [col.name for col in self.model_class.__table__.
+                    columns if hasattr(col.type, 'length')]
+            search_conditions = [func.lower(getattr(self.model_class, field
+                )).like(f'%{search_term.lower()}%') for field in fields]
             query = select(self.model_class).where(or_(*search_conditions))
             return session.execute(query).scalars().all()
 
-    def advanced_search(
-            self,
-            criteria: Dict[str, Dict[str, Any]]
-    ) -> List[T]:
+        @inject(MaterialService)
+        def advanced_search(self, criteria: Dict[str, Dict[str, Any]]) ->List[T]:
         """
         Perform an advanced search with multiple criteria.
 
@@ -90,27 +72,16 @@ class SearchMixin(BaseMixin[T]):
             List of matching records
         """
         with self.session_factory() as session:
-            # Build conditions dynamically based on criteria
             conditions = []
             for field, condition in criteria.items():
                 column = getattr(self.model_class, field)
                 op = condition.get('op', '==')
                 value = condition['value']
-
-                # Map string operators to SQLAlchemy operators
-                ops = {
-                    '==': column == value,
-                    '!=': column != value,
-                    '>': column > value,
-                    '<': column < value,
-                    '>=': column >= value,
-                    '<=': column <= value,
-                    'like': column.like(value),
-                    'in': column.in_(value)
-                }
-
+                ops = {'==': column == value, '!=': column != value, '>': 
+                    column > value, '<': column < value, '>=': column >=
+                    value, '<=': column <= value, 'like': column.like(value
+                    ), 'in': column.in_(value)}
                 conditions.append(ops.get(op, column == value))
-
             query = select(self.model_class).where(and_(*conditions))
             return session.execute(query).scalars().all()
 
@@ -122,7 +93,8 @@ class FilterMixin(BaseMixin[T]):
     Provides methods for complex, flexible filtering of database records.
     """
 
-    def filter_by_multiple(self, filters: Dict[str, Any]) -> List[T]:
+        @inject(MaterialService)
+        def filter_by_multiple(self, filters: Dict[str, Any]) ->List[T]:
         """
         Filter records by multiple exact match criteria.
 
@@ -133,14 +105,13 @@ class FilterMixin(BaseMixin[T]):
             List of matching records
         """
         with self.session_factory() as session:
-            conditions = [
-                getattr(self.model_class, field) == value
-                for field, value in filters.items()
-            ]
+            conditions = [(getattr(self.model_class, field) == value) for 
+                field, value in filters.items()]
             query = select(self.model_class).where(and_(*conditions))
             return session.execute(query).scalars().all()
 
-    def filter_with_or(self, filters: Dict[str, List[Any]]) -> List[T]:
+        @inject(MaterialService)
+        def filter_with_or(self, filters: Dict[str, List[Any]]) ->List[T]:
         """
         Filter records with OR conditions for each field.
 
@@ -152,18 +123,14 @@ class FilterMixin(BaseMixin[T]):
             List of matching records
         """
         with self.session_factory() as session:
-            conditions = [
-                getattr(self.model_class, field).in_(values)
-                for field, values in filters.items()
-            ]
+            conditions = [getattr(self.model_class, field).in_(values) for 
+                field, values in filters.items()]
             query = select(self.model_class).where(or_(*conditions))
             return session.execute(query).scalars().all()
 
-    def filter_complex(
-            self,
-            conditions: List[Dict[str, Any]],
-            join_type: str = 'and'
-    ) -> List[T]:
+        @inject(MaterialService)
+        def filter_complex(self, conditions: List[Dict[str, Any]], join_type:
+        str='and') ->List[T]:
         """
         Execute a complex filter with custom conditions.
 
@@ -175,34 +142,23 @@ class FilterMixin(BaseMixin[T]):
             List of matching records
         """
 
-        def build_condition(condition: Dict[str, Any]) -> ColumnElement:
+        def build_condition(condition: Dict[str, Any]) ->ColumnElement:
             field = condition['field']
             op = condition.get('op', '==')
             value = condition['value']
-
             column = getattr(self.model_class, field)
-
-            ops = {
-                '==': column == value,
-                '!=': column != value,
-                '>': column > value,
-                '<': column < value,
-                '>=': column >= value,
-                '<=': column <= value,
-                'like': column.like(value),
-                'in': column.in_(value)
-            }
-
+            ops = {'==': column == value, '!=': column != value, '>': 
+                column > value, '<': column < value, '>=': column >= value,
+                '<=': column <= value, 'like': column.like(value), 'in':
+                column.in_(value)}
             return ops.get(op, column == value)
-
         with self.session_factory() as session:
             mapped_conditions = [build_condition(cond) for cond in conditions]
-
             if join_type == 'and':
-                query = select(self.model_class).where(and_(*mapped_conditions))
+                query = select(self.model_class).where(and_(*mapped_conditions)
+                    )
             else:
                 query = select(self.model_class).where(or_(*mapped_conditions))
-
             return session.execute(query).scalars().all()
 
 
@@ -214,13 +170,10 @@ class PaginationMixin(BaseMixin[T]):
     optional filtering and ordering.
     """
 
-    def get_paginated(
-            self,
-            page: int = 1,
-            page_size: int = 20,
-            order_by: Optional[str] = None,
-            filters: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        @inject(MaterialService)
+        def get_paginated(self, page: int=1, page_size: int=20, order_by:
+        Optional[str]=None, filters: Optional[Dict[str, Any]]=None) ->Dict[
+        str, Any]:
         """
         Get paginated results with optional ordering and filtering.
 
@@ -234,43 +187,22 @@ class PaginationMixin(BaseMixin[T]):
             Pagination result dictionary
         """
         with self.session_factory() as session:
-            # Start with base query
             query = select(self.model_class)
-
-            # Apply filters if provided
             if filters:
-                filter_conditions = [
-                    getattr(self.model_class, field) == value
-                    for field, value in filters.items()
-                ]
+                filter_conditions = [(getattr(self.model_class, field) ==
+                    value) for field, value in filters.items()]
                 query = query.where(and_(*filter_conditions))
-
-            # Apply ordering if specified
             if order_by:
                 order_column = getattr(self.model_class, order_by)
                 query = query.order_by(order_column)
-
-            # Calculate total items
             total_query = select(func.count()).select_from(query.subquery())
             total_items = session.execute(total_query).scalar() or 0
-
-            # Calculate total pages
             total_pages = (total_items + page_size - 1) // page_size
-
-            # Apply pagination
             offset = (page - 1) * page_size
             paginated_query = query.offset(offset).limit(page_size)
-
-            # Execute query
             items = session.execute(paginated_query).scalars().all()
-
-            return {
-                'items': items,
-                'page': page,
-                'page_size': page_size,
-                'total_items': total_items,
-                'total_pages': total_pages
-            }
+            return {'items': items, 'page': page, 'page_size': page_size,
+                'total_items': total_items, 'total_pages': total_pages}
 
 
 class TransactionMixin(BaseMixin[T]):
@@ -281,12 +213,9 @@ class TransactionMixin(BaseMixin[T]):
     with robust error handling.
     """
 
-    def run_in_transaction(
-            self,
-            operation: Callable[[Session], Any],
-            *args,
-            **kwargs
-    ) -> Any:
+        @inject(MaterialService)
+        def run_in_transaction(self, operation: Callable[[Session], Any], *args,
+        **kwargs) ->Any:
         """
         Execute an operation within a database transaction.
 
@@ -310,12 +239,9 @@ class TransactionMixin(BaseMixin[T]):
                 session.rollback()
                 raise
 
-    def execute_with_result(
-            self,
-            operation: Callable[..., Any],
-            *args,
-            **kwargs
-    ) -> Dict[str, Any]:
+        @inject(MaterialService)
+        def execute_with_result(self, operation: Callable[..., Any], *args, **
+        kwargs) ->Dict[str, Any]:
         """
         Execute an operation in a transaction and return a standard result.
 
@@ -329,14 +255,6 @@ class TransactionMixin(BaseMixin[T]):
         """
         try:
             result = self.run_in_transaction(operation, *args, **kwargs)
-            return {
-                'success': True,
-                'data': result,
-                'error': None
-            }
+            return {'success': True, 'data': result, 'error': None}
         except Exception as e:
-            return {
-                'success': False,
-                'data': None,
-                'error': str(e)
-            }
+            return {'success': False, 'data': None, 'error': str(e)}

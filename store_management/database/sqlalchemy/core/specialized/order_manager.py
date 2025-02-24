@@ -1,10 +1,7 @@
-# File: F:\WAWI Homebrew\WAWI Claude\store_management\database\sqlalchemy\core\specialized\order_manager.py
 
-from typing import List, Optional, Dict, Any, Callable
-from sqlalchemy.orm import Session
-from database.sqlalchemy.core.base_manager import BaseManager
-from database.models.order import Order
 
+from di.core import inject
+from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
 class OrderManager(BaseManager):
     """
     Specialized manager for Order model operations.
@@ -12,7 +9,8 @@ class OrderManager(BaseManager):
     This class extends BaseManager with order-specific operations.
     """
 
-    def __init__(self, session_factory: Callable[[], Session]):
+        @inject(MaterialService)
+        def __init__(self, session_factory: Callable[[], Session]):
         """
         Initialize the OrderManager.
 
@@ -21,7 +19,8 @@ class OrderManager(BaseManager):
         """
         super().__init__(Order, session_factory)
 
-    def create_order(self, order_data: Dict[str, Any]) -> Order:
+        @inject(MaterialService)
+        def create_order(self, order_data: Dict[str, Any]) ->Order:
         """
         Create a new order.
 
@@ -37,7 +36,8 @@ class OrderManager(BaseManager):
             session.commit()
             return order
 
-    def get_order_by_id(self, order_id: int) -> Optional[Order]:
+        @inject(MaterialService)
+        def get_order_by_id(self, order_id: int) ->Optional[Order]:
         """
         Retrieve an order by its ID.
 
@@ -50,7 +50,8 @@ class OrderManager(BaseManager):
         with self.session_scope() as session:
             return session.query(Order).filter(Order.id == order_id).first()
 
-    def get_all_orders(self) -> List[Order]:
+        @inject(MaterialService)
+        def get_all_orders(self) ->List[Order]:
         """
         Retrieve all orders.
 
@@ -59,5 +60,3 @@ class OrderManager(BaseManager):
         """
         with self.session_scope() as session:
             return session.query(Order).all()
-
-    # Add more order-specific methods as needed

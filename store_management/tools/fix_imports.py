@@ -1,43 +1,33 @@
-# Path: tools/fix_imports.py
+from di.core import inject
+from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
 """
 Script to fix import issues in the project.
 """
-import os
-import sys
-import re
-import logging
-from pathlib import Path
-
-# Set up logging
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger("import_fixer")
+logging.basicConfig(level=logging.INFO, format=
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger('import_fixer')
 
 
 def scan_for_problematic_imports():
     """
     Scan for files with problematic imports (using store_management prefix).
     """
-    logger.info("Scanning for problematic imports...")
-
+    logger.info('Scanning for problematic imports...')
     problematic_files = []
-
-    for root, _, files in os.walk(""):
+    for root, _, files in os.walk(''):
         for file in files:
             if file.endswith('.py'):
                 file_path = os.path.join(root, file)
-
                 try:
                     with open(file_path, 'r', encoding='utf-8') as f:
                         content = f.read()
-
-                        # Check for imports that include 'store_management'
-                        if re.search(r'(from|import)\s+store_management', content):
-                            logger.info(f"Found problematic import in: {file_path}")
+                        if re.search('(from|import)\\s+store_management',
+                            content):
+                            logger.info(
+                                f'Found problematic import in: {file_path}')
                             problematic_files.append(file_path)
                 except Exception as e:
-                    logger.error(f"Error reading file {file_path}: {str(e)}")
-
+                    logger.error(f'Error reading file {file_path}: {str(e)}')
     return problematic_files
 
 
@@ -50,64 +40,48 @@ def fix_imports(file_paths, dry_run=True):
         dry_run: If True, only show what would be changed without making changes
     """
     if not file_paths:
-        logger.info("No problematic files found.")
+        logger.info('No problematic files found.')
         return
-
     for file_path in file_paths:
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 content = f.read()
-
-            # Replace store_management.X imports with just X
             new_content = re.sub(
-                r'from\s+store_management\.([^\s]+)\s+import',
-                r'from \1 import',
-                content
-            )
-
-            # Replace direct store_management imports
-            new_content = re.sub(
-                r'import\s+store_management\.([^\s]+)',
-                r'import \1',
-                new_content
-            )
-
-            # Check if any changes were made
+                'from\\s+store_management\\.([^\\s]+)\\s+import',
+                'from \\1 import', content)
+            new_content = re.sub('import\\s+store_management\\.([^\\s]+)',
+                'import \\1', new_content)
             if content != new_content:
                 if dry_run:
-                    logger.info(f"Would fix imports in: {file_path}")
-
-                    # Show a diff of the changes
+                    logger.info(f'Would fix imports in: {file_path}')
                     original_lines = content.splitlines()
                     new_lines = new_content.splitlines()
-
-                    for i, (orig, new) in enumerate(zip(original_lines, new_lines)):
+                    for i, (orig, new) in enumerate(zip(original_lines,
+                        new_lines)):
                         if orig != new:
-                            logger.info(f"  Line {i + 1}:")
-                            logger.info(f"    - {orig}")
-                            logger.info(f"    + {new}")
+                            logger.info(f'  Line {i + 1}:')
+                            logger.info(f'    - {orig}')
+                            logger.info(f'    + {new}')
                 else:
                     with open(file_path, 'w', encoding='utf-8') as f:
                         f.write(new_content)
-                    logger.info(f"Fixed imports in: {file_path}")
+                    logger.info(f'Fixed imports in: {file_path}')
             else:
-                logger.info(f"No problematic imports found in: {file_path}")
-
+                logger.info(f'No problematic imports found in: {file_path}')
         except Exception as e:
-            logger.error(f"Error processing file {file_path}: {str(e)}")
+            logger.error(f'Error processing file {file_path}: {str(e)}')
 
 
 def create_standalone_viewer():
     """
     Create a standalone storage viewer script that doesn't rely on the application.
     """
-    viewer_path = "tools/standalone_storage_viewer.py"
-
+    viewer_path = 'tools/standalone_storage_viewer.py'
     viewer_code = """
 # Path: tools/standalone_storage_viewer.py
-\"\"\"
+""\"
 Standalone storage viewer that directly accesses the database.
-\"\"\"
+""\"
 import os
 import sys
 import sqlite3
@@ -122,7 +96,7 @@ logging.basicConfig(level=logging.INFO,
 logger = logging.getLogger("standalone_viewer")
 
 def find_database_file():
-    \"\"\"Find the SQLite database file.\"\"\"
+    ""\"Find the SQLite database file.""\"
     # List of possible locations
     possible_locations = [
         "store_management.db",
@@ -147,10 +121,11 @@ def find_database_file():
     return None
 
 class StorageViewer:
-    \"\"\"Simple viewer for storage data.\"\"\"
+    ""\"Simple viewer for storage data.""\"
 
+    @inject(MaterialService)
     def __init__(self, root):
-        \"\"\"Initialize the viewer.\"\"\"
+        ""\"Initialize the viewer.""\"
         self.root = root
         self.root.title("Storage Locations Viewer")
         self.root.geometry("800x600")
@@ -161,8 +136,9 @@ class StorageViewer:
         if not self.db_path:
             self.show_error("Database Error", "Could not find the database file.")
 
+    @inject(MaterialService)
     def setup_ui(self):
-        \"\"\"Set up the user interface.\"\"\"
+        ""\"Set up the user interface.""\"
         # Main frame
         main_frame = ttk.Frame(self.root, padding="10")
         main_frame.pack(fill=tk.BOTH, expand=True)
@@ -216,8 +192,9 @@ class StorageViewer:
         # Load data
         self.load_data()
 
+    @inject(MaterialService)
     def load_data(self):
-        \"\"\"Load storage data from the database.\"\"\"
+        ""\"Load storage data from the database.""\"
         # Clear existing data
         for i in self.tree.get_children():
             self.tree.delete(i)
@@ -232,10 +209,10 @@ class StorageViewer:
             cursor = conn.cursor()
 
             # Check if storage table exists
-            cursor.execute(\"\"\"
+            cursor.execute(""\"
                 SELECT name FROM sqlite_master 
                 WHERE type='table' AND name='storage';
-            \"\"\")
+            ""\")
             if not cursor.fetchone():
                 self.status_var.set("Storage table doesn't exist")
                 return
@@ -263,13 +240,14 @@ class StorageViewer:
             if 'conn' in locals():
                 conn.close()
 
+    @inject(MaterialService)
     def show_error(self, title, message):
-        \"\"\"Show an error message.\"\"\"
+        ""\"Show an error message.""\"
         from tkinter import messagebox
         messagebox.showerror(title, message)
 
 def main():
-    \"\"\"Main function.\"\"\"
+    ""\"Main function.""\"
     root = tk.Tk()
     app = StorageViewer(root)
     root.mainloop()
@@ -277,46 +255,38 @@ def main():
 if __name__ == "__main__":
     main()
 """
-
     try:
         with open(viewer_path, 'w', encoding='utf-8') as f:
             f.write(viewer_code.lstrip())
-        logger.info(f"Created standalone viewer at: {viewer_path}")
+        logger.info(f'Created standalone viewer at: {viewer_path}')
         return True
     except Exception as e:
-        logger.error(f"Error creating standalone viewer: {str(e)}")
+        logger.error(f'Error creating standalone viewer: {str(e)}')
         return False
 
 
 def main():
     """Main function."""
-    logger.info("Starting import fixer...")
-
-    # Check for problematic imports
+    logger.info('Starting import fixer...')
     problematic_files = scan_for_problematic_imports()
-
     if problematic_files:
-        logger.info(f"Found {len(problematic_files)} files with problematic imports.")
-
-        # Show what would be changed first
+        logger.info(
+            f'Found {len(problematic_files)} files with problematic imports.')
         fix_imports(problematic_files, dry_run=True)
-
-        # Ask user if they want to apply the fixes
-        response = input("Do you want to fix these imports? (y/n): ")
+        response = input('Do you want to fix these imports? (y/n): ')
         if response.lower() == 'y':
             fix_imports(problematic_files, dry_run=False)
-            logger.info("Imports fixed successfully.")
+            logger.info('Imports fixed successfully.')
         else:
-            logger.info("No changes made.")
+            logger.info('No changes made.')
     else:
-        logger.info("No problematic imports found.")
-
-    # Create standalone viewer
-    logger.info("Creating standalone storage viewer...")
+        logger.info('No problematic imports found.')
+    logger.info('Creating standalone storage viewer...')
     if create_standalone_viewer():
         logger.info(
-            "Standalone viewer created successfully. You can run it with: python tools/standalone_storage_viewer.py")
+            'Standalone viewer created successfully. You can run it with: python tools/standalone_storage_viewer.py'
+            )
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
