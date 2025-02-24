@@ -2,12 +2,14 @@
 
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+
+
 class ImportAnalyzer:
     """
     A tool to analyze and fix circular import issues in a Python project.
     """
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, project_root: str):
         """
         Initialize the import analyzer.
@@ -20,7 +22,7 @@ class ImportAnalyzer:
         self.circular_imports: List[Tuple[str, str]] = []
 
         @inject(MaterialService)
-        def find_python_files(self) ->List[str]:
+            def find_python_files(self) -> List[str]:
         """
         Find all Python files in the project.
 
@@ -35,7 +37,7 @@ class ImportAnalyzer:
         return python_files
 
         @inject(MaterialService)
-        def parse_imports(self, file_path: str) ->Set[str]:
+            def parse_imports(self, file_path: str) -> Set[str]:
         """
         Parse imports from a Python file.
 
@@ -62,7 +64,7 @@ class ImportAnalyzer:
         return imports
 
         @inject(MaterialService)
-        def build_import_graph(self):
+            def build_import_graph(self):
         """
         Build a graph of import dependencies across the project.
         """
@@ -74,7 +76,7 @@ class ImportAnalyzer:
             self.import_graph[module_path] = imports
 
         @inject(MaterialService)
-        def detect_circular_imports(self):
+            def detect_circular_imports(self):
         """
         Detect circular imports in the project.
         """
@@ -85,7 +87,7 @@ class ImportAnalyzer:
                     self.circular_imports.append((module, dep))
 
         @inject(MaterialService)
-        def generate_import_report(self) ->str:
+            def generate_import_report(self) -> str:
         """
         Generate a report of circular imports.
 
@@ -101,7 +103,7 @@ class ImportAnalyzer:
         return report
 
         @inject(MaterialService)
-        def fix_circular_imports(self):
+            def fix_circular_imports(self):
         """
         Attempt to fix circular imports by suggesting refactoring strategies.
         """

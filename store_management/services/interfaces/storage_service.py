@@ -16,16 +16,13 @@ class IStorageService(ABC):
     """
     Abstract base class defining the interface for storage-related operations.
 
-    This service provides methods for managing inventory storage, 
+    This service provides methods for managing inventory storage,
     tracking, and manipulation of stored items.
     """
 
     @abstractmethod
     def add_to_storage(
-            self,
-            part: Part,
-            quantity: float,
-            storage_location: Optional[str] = None
+        self, part: Part, quantity: float, storage_location: Optional[str] = None
     ) -> bool:
         """
         Add a specified quantity of a part to storage.
@@ -33,8 +30,8 @@ class IStorageService(ABC):
         Args:
             part (Part): The part to be added to storage.
             quantity (float): The quantity of the part to add.
-            storage_location (Optional[str], optional): Specific storage location. 
-                Defaults to None.
+            storage_location (Optional[str], optional): Specific storage location.
+            Defaults to None.
 
         Returns:
             bool: True if the addition was successful, False otherwise.
@@ -43,10 +40,7 @@ class IStorageService(ABC):
 
     @abstractmethod
     def remove_from_storage(
-            self,
-            part: Part,
-            quantity: float,
-            storage_location: Optional[str] = None
+        self, part: Part, quantity: float, storage_location: Optional[str] = None
     ) -> bool:
         """
         Remove a specified quantity of a part from storage.
@@ -54,8 +48,8 @@ class IStorageService(ABC):
         Args:
             part (Part): The part to be removed from storage.
             quantity (float): The quantity of the part to remove.
-            storage_location (Optional[str], optional): Specific storage location. 
-                Defaults to None.
+            storage_location (Optional[str], optional): Specific storage location.
+            Defaults to None.
 
         Returns:
             bool: True if the removal was successful, False otherwise.
@@ -64,17 +58,15 @@ class IStorageService(ABC):
 
     @abstractmethod
     def get_storage_quantity(
-            self,
-            part: Part,
-            storage_location: Optional[str] = None
+        self, part: Part, storage_location: Optional[str] = None
     ) -> float:
         """
         Get the current quantity of a part in storage.
 
         Args:
             part (Part): The part to check.
-            storage_location (Optional[str], optional): Specific storage location. 
-                Defaults to None.
+            storage_location (Optional[str], optional): Specific storage location.
+            Defaults to None.
 
         Returns:
             float: The current quantity of the part in storage.
@@ -83,14 +75,13 @@ class IStorageService(ABC):
 
     @abstractmethod
     def list_storage_items(
-            self,
-            filter_criteria: Optional[Dict[str, Any]] = None
+        self, filter_criteria: Optional[Dict[str, Any]] = None
     ) -> List[Dict[str, Any]]:
         """
         List items currently in storage with optional filtering.
 
         Args:
-            filter_criteria (Optional[Dict[str, Any]], optional): 
+            filter_criteria (Optional[Dict[str, Any]], optional):
                 Dictionary of filter parameters. Defaults to None.
 
         Returns:
@@ -100,11 +91,7 @@ class IStorageService(ABC):
 
     @abstractmethod
     def move_storage_item(
-            self,
-            part: Part,
-            quantity: float,
-            from_location: str,
-            to_location: str
+        self, part: Part, quantity: float, from_location: str, to_location: str
     ) -> bool:
         """
         Move a specified quantity of a part between storage locations.
@@ -122,10 +109,7 @@ class IStorageService(ABC):
 
     @abstractmethod
     def validate_storage_operation(
-            self,
-            part: Part,
-            quantity: float,
-            operation_type: str
+        self, part: Part, quantity: float, operation_type: str
     ) -> bool:
         """
         Validate a storage operation before execution.

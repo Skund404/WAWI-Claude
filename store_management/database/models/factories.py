@@ -2,15 +2,17 @@
 
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+
+
 class ProjectFactory:
     """
     Factory class for creating Project and related objects.
     """
 
-        @staticmethod
-    def create_project(name: str, project_type: ProjectType=ProjectType.
-        LEATHER_GOODS, skill_level: SkillLevel=SkillLevel.BEGINNER,
-        description: Optional[str]=None, estimated_hours: float=0.0) ->Project:
+    @staticmethod
+    def create_project(name: str, project_type: ProjectType = ProjectType.
+                       LEATHER_GOODS, skill_level: SkillLevel = SkillLevel.BEGINNER,
+                       description: Optional[str] = None, estimated_hours: float = 0.0) -> Project:
         """
         Create a new Project instance with the specified attributes.
 
@@ -36,8 +38,8 @@ class ProjectFactory:
 
         @staticmethod
     def create_project_component(name: str, material_type: MaterialType,
-        quantity: float, unit_cost: float, component_type: ComponentType,
-        description: Optional[str]=None) ->ProjectComponent:
+                                 quantity: float, unit_cost: float, component_type: ComponentType,
+                                 description: Optional[str] = None) -> ProjectComponent:
         """
         Create a new ProjectComponent instance.
 
@@ -69,10 +71,10 @@ class PatternFactory:
     Factory class for creating Pattern and related objects.
     """
 
-        @staticmethod
+    @staticmethod
     def create_pattern(name: str, base_labor_hours: float, description:
-        Optional[str]=None, is_template: bool=False, version: str='1.0',
-        difficulty_multiplier: float=1.0) ->Pattern:
+                       Optional[str] = None, is_template: bool = False, version: str = '1.0',
+                       difficulty_multiplier: float = 1.0) -> Pattern:
         """
         Create a new Pattern instance.
 
@@ -100,11 +102,11 @@ class PatternFactory:
 
         @staticmethod
     def create_pattern_component(name: str, material_type: MaterialType,
-        quantity: float, unit_cost: float, minimum_quantity: float=0.0,
-        substitutable: bool=False, component_type: ComponentType=
-        ComponentType.MAIN_BODY, description: Optional[str]=None,
-        stitch_type: Optional[StitchType]=None, edge_finish_type: Optional[
-        EdgeFinishType]=None) ->PatternComponent:
+                                 quantity: float, unit_cost: float, minimum_quantity: float = 0.0,
+                                 substitutable: bool = False, component_type: ComponentType =
+                                 ComponentType.MAIN_BODY, description: Optional[str] = None,
+                                 stitch_type: Optional[StitchType] = None, edge_finish_type: Optional[
+                                     EdgeFinishType] = None) -> PatternComponent:
         """
         Create a new PatternComponent instance.
 

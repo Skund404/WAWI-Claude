@@ -9,12 +9,11 @@ This script provides a comprehensive solution for:
 - Initializing the database with the latest model definitions
 """
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..',
-    '..'))
+                                            '..'))
 sys.path.insert(0, project_root)
-logging.basicConfig(level=logging.INFO, format=
-    '%(asctime)s - %(levelname)s - %(message)s', handlers=[logging.
-    FileHandler(os.path.join(project_root, 'logs', 'database_migration.log'
-    )), logging.StreamHandler(sys.stdout)])
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', handlers=[logging.
+                                                                                                      FileHandler(os.path.join(project_root, 'logs', 'database_migration.log'
+                                                                                                                               )), logging.StreamHandler(sys.stdout)])
 logger = logging.getLogger(__name__)
 
 
@@ -23,8 +22,8 @@ class DatabaseInitializer:
     Comprehensive database initialization and migration utility
     """
 
-        @inject(MaterialService)
-        def __init__(self, db_url: str, backup_dir: Optional[str]=None):
+    @inject(MaterialService)
+        def __init__(self, db_url: str, backup_dir: Optional[str] = None):
         """
         Initialize database initialization process
 
@@ -34,13 +33,13 @@ class DatabaseInitializer:
         """
         self.db_url = db_url
         self.backup_dir = backup_dir or os.path.join(project_root,
-            'database', 'backups')
+                                                     'database', 'backups')
         os.makedirs(self.backup_dir, exist_ok=True)
         self.engine = create_engine(db_url)
         self.SessionLocal = sessionmaker(bind=self.engine)
 
         @inject(MaterialService)
-        def create_backup(self) ->Optional[str]:
+            def create_backup(self) -> Optional[str]:
         """
         Create a backup of the existing database if it exists
 
@@ -53,7 +52,7 @@ class DatabaseInitializer:
                 if os.path.exists(db_path):
                     backup_timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
                     backup_filename = os.path.join(self.backup_dir,
-                        f'database_backup_{backup_timestamp}.db')
+                                                   f'database_backup_{backup_timestamp}.db')
                     import shutil
                     shutil.copy(db_path, backup_filename)
                     logger.info(f'Database backup created: {backup_filename}')
@@ -64,7 +63,7 @@ class DatabaseInitializer:
             return None
 
         @inject(MaterialService)
-        def drop_all_tables(self):
+            def drop_all_tables(self):
         """
         Drop all existing tables in the database
         """
@@ -91,7 +90,7 @@ class DatabaseInitializer:
             raise
 
         @inject(MaterialService)
-        def initialize_database(self):
+            def initialize_database(self):
         """
         Complete database initialization process
 
@@ -119,9 +118,9 @@ class DatabaseInitializer:
             return False
 
 
-def run_database_initialization(db_url: Optional[str]=
-    'sqlite:///./store_management.db', backup_dir: Optional[str]=None,
-    force: bool=False) ->bool:
+def run_database_initialization(db_url: Optional[str] =
+                                'sqlite:///./store_management.db', backup_dir: Optional[str] = None,
+                                force: bool = False) -> bool:
     """
     Execute database initialization
 
@@ -152,9 +151,9 @@ def run_database_initialization(db_url: Optional[str]=
 
 if __name__ == '__main__':
     project_root = os.path.abspath(os.path.join(os.path.dirname(__file__),
-        '..', '..'))
+                                                '..', '..'))
     backup_dir = os.path.join(project_root, 'database', 'backups')
     db_url = 'sqlite:///./store_management.db'
-    success = run_database_initialization(db_url=db_url, backup_dir=
-        backup_dir, force=True)
+    success = run_database_initialization(
+        db_url=db_url, backup_dir=backup_dir, force=True)
     sys.exit(0 if success else 1)

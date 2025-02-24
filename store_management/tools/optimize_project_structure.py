@@ -13,17 +13,16 @@ This script handles:
 Author: Project Optimization Team
 Date: 2024-02-24
 """
-logging.basicConfig(level=logging.INFO, format=
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s', handlers=[
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', handlers=[
     logging.FileHandler('project_fixes.log'), logging.StreamHandler(sys.
-    stdout)])
+                                                                    stdout)])
 logger = logging.getLogger(__name__)
 
 
 class ProjectFixer:
     """Implements fixes for identified project issues."""
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, project_root: Path):
         self.project_root = Path(project_root)
         self.backup_path = None
@@ -31,7 +30,7 @@ class ProjectFixer:
         self.centralized_backups_dir = self.project_root / 'backups'
 
         @inject(MaterialService)
-        def fix_all(self) ->None:
+            def fix_all(self) -> None:
         """Execute all fixes in the correct order."""
         try:
             logger.info('Starting project fixes...')
@@ -50,7 +49,7 @@ class ProjectFixer:
             raise
 
         @inject(MaterialService)
-        def centralize_logs(self) ->None:
+            def centralize_logs(self) -> None:
         """Centralize all log files into a single directory."""
         logger.info('Centralizing log files...')
         self.centralized_logs_dir.mkdir(exist_ok=True)
@@ -68,7 +67,7 @@ class ProjectFixer:
                 logger.error(f'Error moving log file {log_file}: {e}')
 
         @inject(MaterialService)
-        def consolidate_backups(self) ->None:
+            def consolidate_backups(self) -> None:
         """Consolidate all backup files into a single directory."""
         logger.info('Consolidating backup files...')
         self.centralized_backups_dir.mkdir(exist_ok=True)
@@ -80,10 +79,10 @@ class ProjectFixer:
             if self.centralized_backups_dir in backup_file.parents:
                 continue
             timestamp = datetime.fromtimestamp(backup_file.stat().st_mtime
-                ).strftime('%Y%m%d_%H%M%S')
+                                               ).strftime('%Y%m%d_%H%M%S')
             new_name = (
                 f'{backup_file.parent.name}_{backup_file.stem}_{timestamp}{backup_file.suffix}'
-                )
+            )
             new_path = self.centralized_backups_dir / new_name
             try:
                 if backup_file.exists():
@@ -93,7 +92,7 @@ class ProjectFixer:
                 logger.error(f'Error moving backup file {backup_file}: {e}')
 
         @inject(MaterialService)
-        def clean_duplicate_files(self) ->None:
+            def clean_duplicate_files(self) -> None:
         """Remove duplicate implementations and consolidate code."""
         logger.info('Cleaning duplicate files...')
         service_files = list((self.project_root / 'services').rglob('*.py'))
@@ -111,11 +110,11 @@ class ProjectFixer:
                 self._consolidate_implementations(base_name, implementations)
 
         @inject(MaterialService)
-        def remove_redundant_paths(self) ->None:
+            def remove_redundant_paths(self) -> None:
         """Remove redundant path structures."""
         logger.info('Removing redundant paths...')
         redundant_paths = [self.project_root / 'path', self.project_root /
-            'database/sqlalchemy/path']
+                           'database/sqlalchemy/path']
         for path in redundant_paths:
             if path.exists():
                 try:
@@ -125,13 +124,13 @@ class ProjectFixer:
                     logger.error(f'Error removing path {path}: {e}')
 
         @inject(MaterialService)
-        def fix_syntax_errors(self) ->None:
+            def fix_syntax_errors(self) -> None:
         """Fix identified syntax errors in Python files."""
         logger.info('Fixing syntax errors...')
         files_to_fix = {(self.project_root / 'pyproject.toml.py'): self.
-            _fix_pyproject_toml, (self.project_root /
-            'database/sqlalchemy/mixins/validation_mixing.py'): self.
-            _fix_validation_mixing}
+                        _fix_pyproject_toml, (self.project_root /
+                                              'database/sqlalchemy/mixins/validation_mixing.py'): self.
+                        _fix_validation_mixing}
         for file_path, fix_func in files_to_fix.items():
             if file_path.exists():
                 try:
@@ -141,7 +140,7 @@ class ProjectFixer:
                     logger.error(f'Error fixing {file_path}: {e}')
 
         @inject(MaterialService)
-        def consolidate_services(self) ->None:
+            def consolidate_services(self) -> None:
         """Consolidate service implementations using best practices."""
         logger.info('Consolidating services...')
         services_dir = self.project_root / 'services'
@@ -160,13 +159,13 @@ class ProjectFixer:
                         shutil.move(str(service_file), str(new_path))
                         logger.info(
                             f'Moved {service_file} to implementations directory'
-                            )
+                        )
                 except Exception as e:
                     logger.error(
                         f'Error moving service file {service_file}: {e}')
 
         @inject(MaterialService)
-        def standardize_configs(self) ->None:
+            def standardize_configs(self) -> None:
         """Standardize configuration management."""
         logger.info('Standardizing configurations...')
         config_dir = self.project_root / 'config'
@@ -183,14 +182,14 @@ class ProjectFixer:
                         for target in node.targets:
                             if isinstance(target, ast.Name):
                                 all_configs[target.id] = {'file':
-                                    config_file.name, 'value': self.
-                                    _get_value_from_node(node.value)}
+                                                          config_file.name, 'value': self.
+                                                          _get_value_from_node(node.value)}
             except Exception as e:
                 logger.error(f'Error analyzing config file {config_file}: {e}')
         self._create_centralized_config(all_configs)
 
         @inject(MaterialService)
-        def _fix_pyproject_toml(self, file_path: Path) ->None:
+            def _fix_pyproject_toml(self, file_path: Path) -> None:
         """Fix syntax in pyproject.toml.py."""
         with open(file_path, 'r', encoding='utf-8') as f:
             content = f.read()
@@ -199,7 +198,7 @@ class ProjectFixer:
             f.write(fixed_content)
 
         @inject(MaterialService)
-        def _fix_validation_mixing(self, file_path: Path) ->None:
+            def _fix_validation_mixing(self, file_path: Path) -> None:
         """Fix syntax in validation_mixing.py."""
         with open(file_path, 'r', encoding='utf-8') as f:
             content = f.read()
@@ -208,21 +207,21 @@ class ProjectFixer:
             f.write(fixed_content)
 
         @inject(MaterialService)
-        def _consolidate_implementations(self, base_name: str, implementations:
-        List[Path]) ->None:
+            def _consolidate_implementations(self, base_name: str, implementations:
+                                         List[Path]) -> None:
         """Consolidate multiple implementations into a single best version."""
         implementations.sort(key=lambda p: p.stat().st_mtime, reverse=True)
         keeper = implementations[0]
         for impl in implementations[1:]:
             backup_path = (self.centralized_backups_dir /
-                f"{impl.stem}_deprecated_{time.strftime('%Y%m%d_%H%M%S')}{impl.suffix}"
-                )
+                           f"{impl.stem}_deprecated_{time.strftime('%Y%m%d_%H%M%S')}{impl.suffix}"
+                           )
             shutil.move(str(impl), str(backup_path))
             logger.info(
                 f'Moved duplicate implementation {impl} to {backup_path}')
 
         @inject(MaterialService)
-        def _create_centralized_config(self, configs: Dict[str, Any]) ->None:
+            def _create_centralized_config(self, configs: Dict[str, Any]) -> None:
         """Create a centralized configuration file."""
         config_path = self.project_root / 'config' / 'configuration.py'
         with open(config_path, 'w', encoding='utf-8') as f:
@@ -236,16 +235,16 @@ class ProjectFixer:
                 f.write(f"    {name} = {value!r}  # from {details['file']}\n")
 
         @inject(MaterialService)
-        def _create_backup(self) ->None:
+            def _create_backup(self) -> None:
         """Create a backup of the project."""
         timestamp = time.strftime('%Y%m%d_%H%M%S')
         self.backup_path = (self.project_root.parent /
-            f'{self.project_root.name}_backup_{timestamp}')
+                            f'{self.project_root.name}_backup_{timestamp}')
         shutil.copytree(self.project_root, self.backup_path)
         logger.info(f'Created backup at {self.backup_path}')
 
         @inject(MaterialService)
-        def _restore_backup(self) ->None:
+            def _restore_backup(self) -> None:
         """Restore from backup if available."""
         if self.backup_path and self.backup_path.exists():
             shutil.rmtree(self.project_root)
@@ -253,7 +252,7 @@ class ProjectFixer:
             logger.info('Restored from backup')
 
         @inject(MaterialService)
-        def _get_value_from_node(self, node: ast.AST) ->Any:
+            def _get_value_from_node(self, node: ast.AST) -> Any:
         """Convert AST node to Python value."""
         if isinstance(node, ast.Str):
             return node.s
@@ -263,11 +262,11 @@ class ProjectFixer:
             return node.value
         elif isinstance(node, ast.Dict):
             return {self._get_value_from_node(k): self._get_value_from_node
-                (v) for k, v in zip(node.keys, node.values)}
+                    (v) for k, v in zip(node.keys, node.values)}
         return str(ast.dump(node))
 
 
-def main() ->None:
+def main() -> None:
     """Main entry point for the script."""
     try:
         if len(sys.argv) > 1:

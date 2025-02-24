@@ -29,13 +29,13 @@ class Leather(BaseModel):
     area = Column(Float, default=0)
     minimum_area = Column(Float, default=0)
     supplier_id = Column(Integer, ForeignKey('suppliers.id'))
-    transactions = relationship('LeatherTransaction', back_populates=
-        'leather', cascade='all, delete-orphan')
+    transactions = relationship(
+        'LeatherTransaction', back_populates='leather', cascade='all, delete-orphan')
     supplier = relationship('Supplier', back_populates='leathers')
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, name: str, leather_type: LeatherType, quality_grade:
-        MaterialQualityGrade, area: float=0, minimum_area: float=0):
+                 MaterialQualityGrade, area: float = 0, minimum_area: float = 0):
         """
         Initialize a new leather instance.
 
@@ -53,14 +53,14 @@ class Leather(BaseModel):
         self.minimum_area = minimum_area
 
         @inject(MaterialService)
-        def __repr__(self) ->str:
+            def __repr__(self) -> str:
         """Return string representation of the leather."""
         return (
             f"<Leather(id={self.id}, name='{self.name}', type={self.leather_type.name}, area={self.area})>"
-            )
+        )
 
         @inject(MaterialService)
-        def to_dict(self) ->Dict[str, Any]:
+            def to_dict(self) -> Dict[str, Any]:
         """
         Convert leather instance to dictionary representation.
 
@@ -68,12 +68,12 @@ class Leather(BaseModel):
             Dictionary containing leather data
         """
         return {'id': self.id, 'name': self.name, 'leather_type': self.
-            leather_type.name, 'quality_grade': self.quality_grade.name,
-            'area': self.area, 'minimum_area': self.minimum_area,
-            'supplier_id': self.supplier_id}
+                leather_type.name, 'quality_grade': self.quality_grade.name,
+                'area': self.area, 'minimum_area': self.minimum_area,
+                'supplier_id': self.supplier_id}
 
         @inject(MaterialService)
-        def needs_reorder(self) ->bool:
+            def needs_reorder(self) -> bool:
         """
         Check if leather needs to be reordered.
 

@@ -9,8 +9,8 @@ class InventoryService(Service, IInventoryService):
     and handling inventory transactions.
     """
 
-        @inject(MaterialService)
-        def __init__(self, container) ->None:
+    @inject(MaterialService)
+        def __init__(self, container) -> None:
         """
         Initialize the inventory service.
 
@@ -24,8 +24,8 @@ class InventoryService(Service, IInventoryService):
             'TransactionRepository')
 
         @inject(MaterialService)
-        def update_part_stock(self, part_id: int, quantity_change: float,
-        transaction_type: TransactionType, notes: str) ->None:
+            def update_part_stock(self, part_id: int, quantity_change: float,
+                              transaction_type: TransactionType, notes: str) -> None:
         """
         Update the stock level for a part and record the transaction.
 
@@ -46,11 +46,10 @@ class InventoryService(Service, IInventoryService):
             if new_quantity < 0:
                 raise ValueError(
                     f'Cannot reduce stock below zero. Current stock: {part.quantity}'
-                    )
+                )
             part.quantity = new_quantity
-            self.transaction_repository.create_part_transaction(part_id=
-                part_id, quantity_change=quantity_change, transaction_type=
-                transaction_type, notes=notes)
+            self.transaction_repository.create_part_transaction(
+                part_id=part_id, quantity_change=quantity_change, transaction_type=transaction_type, notes=notes)
             self._update_part_status(part)
             logger.info(
                 f'Updated stock for part {part_id} by {quantity_change}')
@@ -59,9 +58,9 @@ class InventoryService(Service, IInventoryService):
             raise
 
         @inject(MaterialService)
-        def update_leather_area(self, leather_id: int, area_change: float,
-        transaction_type: TransactionType, notes: str, wastage: Optional[
-        float]=None) ->None:
+            def update_leather_area(self, leather_id: int, area_change: float,
+                                transaction_type: TransactionType, notes: str, wastage: Optional[
+                                    float] = None) -> None:
         """
         Update the available area for a leather piece and record the transaction.
 
@@ -83,11 +82,10 @@ class InventoryService(Service, IInventoryService):
             if new_area < 0:
                 raise ValueError(
                     f'Cannot reduce area below zero. Current area: {leather.area}'
-                    )
+                )
             leather.area = new_area
-            self.transaction_repository.create_leather_transaction(leather_id
-                =leather_id, area_change=area_change, transaction_type=
-                transaction_type, notes=notes, wastage=wastage)
+            self.transaction_repository.create_leather_transaction(
+                leather_id=leather_id, area_change=area_change, transaction_type=transaction_type, notes=notes, wastage=wastage)
             self._update_leather_status(leather)
             logger.info(
                 f'Updated area for leather {leather_id} by {area_change}')
@@ -96,8 +94,8 @@ class InventoryService(Service, IInventoryService):
             raise
 
         @inject(MaterialService)
-        def get_low_stock_parts(self, include_out_of_stock: bool=False) ->List[Dict
-        [str, Any]]:
+            def get_low_stock_parts(self, include_out_of_stock: bool = False) -> List[Dict
+                                                                                  [str, Any]]:
         """
         Get list of parts with low stock levels.
 
@@ -117,8 +115,8 @@ class InventoryService(Service, IInventoryService):
             return []
 
         @inject(MaterialService)
-        def get_low_stock_leather(self, include_out_of_stock: bool=False) ->List[
-        Dict[str, Any]]:
+            def get_low_stock_leather(self, include_out_of_stock: bool = False) -> List[
+                Dict[str, Any]]:
         """
         Get list of leather pieces with low area remaining.
 
@@ -138,7 +136,7 @@ class InventoryService(Service, IInventoryService):
             return []
 
         @inject(MaterialService)
-        def _update_part_status(self, part: Any) ->None:
+            def _update_part_status(self, part: Any) -> None:
         """
         Update the status of a part based on its current stock level.
 
@@ -153,7 +151,7 @@ class InventoryService(Service, IInventoryService):
             part.status = InventoryStatus.IN_STOCK
 
         @inject(MaterialService)
-        def _update_leather_status(self, leather: Any) ->None:
+            def _update_leather_status(self, leather: Any) -> None:
         """
         Update the status of a leather piece based on its current area.
 
@@ -168,7 +166,7 @@ class InventoryService(Service, IInventoryService):
             leather.status = InventoryStatus.IN_STOCK
 
         @inject(MaterialService)
-        def _part_to_dict(self, part: Any) ->Dict[str, Any]:
+            def _part_to_dict(self, part: Any) -> Dict[str, Any]:
         """
         Convert a part to a dictionary representation.
 
@@ -179,12 +177,12 @@ class InventoryService(Service, IInventoryService):
             Dict[str, Any]: Dictionary representation of the part
         """
         return {'id': part.id, 'name': part.name, 'quantity': part.quantity,
-            'reorder_point': part.reorder_point, 'status': part.status.
-            value, 'location': part.location, 'supplier': part.supplier.
-            name if part.supplier else None}
+                'reorder_point': part.reorder_point, 'status': part.status.
+                value, 'location': part.location, 'supplier': part.supplier.
+                name if part.supplier else None}
 
         @inject(MaterialService)
-        def _leather_to_dict(self, leather: Any) ->Dict[str, Any]:
+            def _leather_to_dict(self, leather: Any) -> Dict[str, Any]:
         """
         Convert a leather piece to a dictionary representation.
 
@@ -195,8 +193,8 @@ class InventoryService(Service, IInventoryService):
             Dict[str, Any]: Dictionary representation of the leather piece
         """
         return {'id': leather.id, 'name': leather.name, 'area': leather.
-            area, 'minimum_area': leather.minimum_area, 'leather_type':
-            leather.leather_type.value, 'quality_grade': leather.
-            quality_grade.value, 'status': leather.status.value, 'location':
-            leather.location, 'supplier': leather.supplier.name if leather.
-            supplier else None}
+                area, 'minimum_area': leather.minimum_area, 'leather_type':
+                leather.leather_type.value, 'quality_grade': leather.
+                quality_grade.value, 'status': leather.status.value, 'location':
+                leather.location, 'supplier': leather.supplier.name if leather.
+                supplier else None}

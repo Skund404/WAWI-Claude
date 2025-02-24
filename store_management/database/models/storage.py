@@ -30,10 +30,10 @@ class Storage(Base, BaseModel):
     fire_resistant = Column(Boolean, default=False)
     products = relationship('Product', back_populates='storage')
 
-        @inject(MaterialService)
-        def __init__(self, name: str, location: Optional[str]=None, capacity:
-        float=0.0, current_occupancy: float=0.0, type: Optional[str]=None,
-        description: Optional[str]=None, status: str='Active') ->None:
+    @inject(MaterialService)
+        def __init__(self, name: str, location: Optional[str] = None, capacity:
+                 float = 0.0, current_occupancy: float = 0.0, type: Optional[str] = None,
+                 description: Optional[str] = None, status: str = 'Active') -> None:
         """
         Initialize a new Storage instance.
 
@@ -55,7 +55,7 @@ class Storage(Base, BaseModel):
         self.status = status
 
         @inject(MaterialService)
-        def __repr__(self) ->str:
+            def __repr__(self) -> str:
         """
         Get a string representation of the storage location.
 
@@ -66,7 +66,7 @@ class Storage(Base, BaseModel):
             f'<Storage id={self.id}, name={self.name}, status={self.status}>')
 
         @inject(MaterialService)
-        def occupancy_percentage(self) ->float:
+            def occupancy_percentage(self) -> float:
         """
         Calculate the occupancy percentage of the storage.
 
@@ -79,7 +79,7 @@ class Storage(Base, BaseModel):
         return round(percentage, 2)
 
         @inject(MaterialService)
-        def is_full(self) ->bool:
+            def is_full(self) -> bool:
         """
         Check if the storage is full.
 
@@ -89,7 +89,7 @@ class Storage(Base, BaseModel):
         return self.current_occupancy >= self.capacity
 
         @inject(MaterialService)
-        def is_empty(self) ->bool:
+            def is_empty(self) -> bool:
         """
         Check if the storage is empty.
 
@@ -99,7 +99,7 @@ class Storage(Base, BaseModel):
         return self.current_occupancy <= 0
 
         @inject(MaterialService)
-        def available_capacity(self) ->float:
+            def available_capacity(self) -> float:
         """
         Calculate the available capacity.
 
@@ -109,7 +109,7 @@ class Storage(Base, BaseModel):
         return max(0, self.capacity - self.current_occupancy)
 
         @inject(MaterialService)
-        def can_store(self, required_capacity: float) ->bool:
+            def can_store(self, required_capacity: float) -> bool:
         """
         Check if the storage can accommodate the required capacity.
 

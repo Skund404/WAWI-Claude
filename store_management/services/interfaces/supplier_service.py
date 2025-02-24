@@ -16,9 +16,9 @@ class ISupplierService(ABC):
     ensuring consistent implementation across different service layers.
     """
 
-        @abstractmethod
+    @abstractmethod
     @inject(MaterialService)
-    def get_all_suppliers(self) ->List[Dict[str, Any]]:
+        def get_all_suppliers(self) -> List[Dict[str, Any]]:
         """
         Retrieve all suppliers in the system.
 
@@ -29,7 +29,7 @@ class ISupplierService(ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def get_supplier_by_id(self, supplier_id: int) ->Optional[Dict[str, Any]]:
+        def get_supplier_by_id(self, supplier_id: int) -> Optional[Dict[str, Any]]:
         """
         Retrieve a specific supplier by their unique identifier.
 
@@ -43,7 +43,7 @@ class ISupplierService(ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def create_supplier(self, supplier_data: Dict[str, Any]) ->Dict[str, Any]:
+        def create_supplier(self, supplier_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Create a new supplier in the system.
 
@@ -60,8 +60,8 @@ class ISupplierService(ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def update_supplier(self, supplier_id: int, update_data: Dict[str, Any]
-        ) ->Dict[str, Any]:
+        def update_supplier(self, supplier_id: int, update_data: Dict[str, Any]
+                        ) -> Dict[str, Any]:
         """
         Update an existing supplier's information.
 
@@ -80,7 +80,7 @@ class ISupplierService(ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def delete_supplier(self, supplier_id: int) ->bool:
+        def delete_supplier(self, supplier_id: int) -> bool:
         """
         Delete a supplier from the system.
 
@@ -97,8 +97,8 @@ class ISupplierService(ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def get_supplier_performance(self, supplier_id: int, start_date:
-        datetime=None, end_date: datetime=None) ->Dict[str, Any]:
+        def get_supplier_performance(self, supplier_id: int, start_date:
+                                 datetime = None, end_date: datetime = None) -> Dict[str, Any]:
         """
         Retrieve performance metrics for a specific supplier.
 
@@ -114,8 +114,8 @@ class ISupplierService(ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def search_suppliers(self, search_term: str, search_fields: List[str]=None
-        ) ->List[Dict[str, Any]]:
+        def search_suppliers(self, search_term: str, search_fields: List[str] = None
+                         ) -> List[Dict[str, Any]]:
         """
         Search for suppliers based on a search term.
 
@@ -130,7 +130,7 @@ class ISupplierService(ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def generate_supplier_report(self) ->Dict[str, Any]:
+        def generate_supplier_report(self) -> Dict[str, Any]:
         """
         Generate a comprehensive report of all suppliers.
 

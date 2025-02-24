@@ -1,27 +1,34 @@
 from di.core import inject
-from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+from services.interfaces import (
+    MaterialService,
+    ProjectService,
+    InventoryService,
+    OrderService,
+)
+
 """
 Fix for the main window to ensure views are properly created and loaded.
 """
-logging.basicConfig(level=logging.INFO, format=
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger('main_window_fix')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger("main_window_fix")
 
 
 def fix_main_window():
     """Fix the main window implementation to ensure views are properly loaded."""
-    main_window_path = os.path.join('gui', 'main_window.py')
+    main_window_path = os.path.join("gui", "main_window.py")
     if not os.path.exists(main_window_path):
-        logger.error(f'Main window file not found at {main_window_path}')
+        logger.error(f"Main window file not found at {main_window_path}")
         return False
-    backup_path = main_window_path + '.bak'
+    backup_path = main_window_path + ".bak"
     try:
-        with open(main_window_path, 'r') as src:
-            with open(backup_path, 'w') as dst:
+        with open(main_window_path, "r") as src:
+            with open(backup_path, "w") as dst:
                 dst.write(src.read())
-        logger.info(f'Created backup of main window at {backup_path}')
+        logger.info(f"Created backup of main window at {backup_path}")
     except Exception as e:
-        logger.error(f'Failed to create backup: {str(e)}')
+        logger.error(f"Failed to create backup: {str(e)}")
         return False
     new_content = """
 # Path: gui/main_window.py
@@ -49,7 +56,7 @@ class MainWindow:
     ""\"
 
     @inject(MaterialService)
-    def __init__(self, root, app):
+        def __init__(self, root, app):
         ""\"
         Initialize the main window.
 
@@ -69,7 +76,7 @@ class MainWindow:
         logger.info("Main window initialized")
 
     @inject(MaterialService)
-    def _setup_window(self):
+        def _setup_window(self):
         ""\"Set up the main window properties.""\"
         self.root.title("Store Management System")
         self.root.geometry("1024x768")
@@ -82,7 +89,7 @@ class MainWindow:
         self.root.grid_columnconfigure(0, weight=1)
 
     @inject(MaterialService)
-    def _create_menu(self):
+        def _create_menu(self):
         ""\"Create the main menu.""\"
         self.menu_bar = tk.Menu(self.root)
 
@@ -112,7 +119,7 @@ class MainWindow:
         self.root.bind("<Control-y>", lambda event: self._on_redo())
 
     @inject(MaterialService)
-    def _create_notebook(self):
+        def _create_notebook(self):
         ""\"Create the notebook with tabs for different views.""\"
         self.notebook = ttk.Notebook(self.root)
         self.notebook.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
@@ -125,7 +132,7 @@ class MainWindow:
         # self._add_shopping_list_tab()
 
     @inject(MaterialService)
-    def _add_storage_tab(self):
+        def _add_storage_tab(self):
         ""\"Add the storage tab to the notebook.""\"
         try:
             logger.info("Creating storage view")
@@ -138,7 +145,7 @@ class MainWindow:
             messagebox.showerror("Error", f"Failed to create Storage view: {str(e)}")
 
     @inject(MaterialService)
-    def _add_recipes_tab(self):
+        def _add_recipes_tab(self):
         ""\"Add the patterns tab to the notebook.""\"
         try:
             recipes_frame = ttk.Frame(self.notebook)
@@ -149,7 +156,7 @@ class MainWindow:
             messagebox.showerror("Error", f"Failed to create Patterns view: {str(e)}")
 
     @inject(MaterialService)
-    def _add_orders_tab(self):
+        def _add_orders_tab(self):
         ""\"Add the orders tab to the notebook.""\"
         try:
             orders_frame = ttk.Frame(self.notebook)
@@ -160,7 +167,7 @@ class MainWindow:
             messagebox.showerror("Error", f"Failed to create Orders view: {str(e)}")
 
     @inject(MaterialService)
-    def _add_shopping_list_tab(self):
+        def _add_shopping_list_tab(self):
         ""\"Add the shopping list tab to the notebook.""\"
         try:
             shopping_list_frame = ttk.Frame(self.notebook)
@@ -171,7 +178,7 @@ class MainWindow:
             messagebox.showerror("Error", f"Failed to create Shopping Lists view: {str(e)}")
 
     @inject(MaterialService)
-    def _create_status_bar(self):
+        def _create_status_bar(self):
         ""\"Create the status bar at the bottom of the window.""\"
         self.status_var = tk.StringVar()
         self.status_var.set("Ready")
@@ -185,7 +192,7 @@ class MainWindow:
         self.status_bar.grid(row=1, column=0, sticky="ew")
 
     @inject(MaterialService)
-    def set_status(self, message):
+        def set_status(self, message):
         ""\"
         Set the status message in the status bar.
 
@@ -196,19 +203,19 @@ class MainWindow:
         logger.debug(f"Status set to: {message}")
 
     @inject(MaterialService)
-    def _on_new(self):
+        def _on_new(self):
         ""\"Handle New menu action.""\"
         logger.info("New action triggered")
         # Implementation depends on the specific functionality needed
 
     @inject(MaterialService)
-    def _on_open(self):
+        def _on_open(self):
         ""\"Handle Open menu action.""\"
         logger.info("Open action triggered")
         # Implementation depends on the specific functionality needed
 
     @inject(MaterialService)
-    def _on_save(self):
+        def _on_save(self):
         ""\"Handle Save menu action.""\"
         logger.info("Save action triggered")
 
@@ -233,7 +240,7 @@ class MainWindow:
             messagebox.showerror("Save Error", f"Error saving {tab_name}: {str(e)}")
 
     @inject(MaterialService)
-    def _on_undo(self):
+        def _on_undo(self):
         ""\"Handle Undo menu action.""\"
         logger.info("Undo action triggered")
 
@@ -256,7 +263,7 @@ class MainWindow:
             messagebox.showerror("Undo Error", f"Error in undo operation: {str(e)}")
 
     @inject(MaterialService)
-    def _on_redo(self):
+        def _on_redo(self):
         ""\"Handle Redo menu action.""\"
         logger.info("Redo action triggered")
 
@@ -279,7 +286,7 @@ class MainWindow:
             messagebox.showerror("Redo Error", f"Error in redo operation: {str(e)}")
 
     @inject(MaterialService)
-    def _on_exit(self):
+        def _on_exit(self):
         ""\"Handle Exit menu action.""\"
         logger.info("Exit action triggered")
 
@@ -289,19 +296,19 @@ class MainWindow:
             self.app.quit()
 """
     try:
-        with open(main_window_path, 'w') as f:
+        with open(main_window_path, "w") as f:
             f.write(new_content.strip())
-        logger.info(f'Updated main window at {main_window_path}')
+        logger.info(f"Updated main window at {main_window_path}")
         return True
     except Exception as e:
-        logger.error(f'Failed to update main window: {str(e)}')
+        logger.error(f"Failed to update main window: {str(e)}")
         return False
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     if fix_main_window():
         logger.info(
-            'Main window fixed successfully. Run the application to see the changes.'
-            )
+            "Main window fixed successfully. Run the application to see the changes."
+        )
     else:
-        logger.error('Failed to fix main window.')
+        logger.error("Failed to fix main window.")

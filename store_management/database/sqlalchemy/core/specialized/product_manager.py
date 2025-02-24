@@ -13,8 +13,8 @@ class ProductManager(BaseManager[Product]):
     Extends BaseManager with product-specific operations.
     """
 
-        @inject(MaterialService)
-        def get_product_with_recipe(self, product_id: int) ->Optional[Product]:
+    @inject(MaterialService)
+        def get_product_with_recipe(self, product_id: int) -> Optional[Product]:
         """
         Get product with its pattern.
 
@@ -30,15 +30,15 @@ class ProductManager(BaseManager[Product]):
         try:
             with self.session_scope() as session:
                 query = select(Product).options(joinedload(Product.pattern)
-                    ).where(Product.id == product_id)
+                                                ).where(Product.id == product_id)
                 result = session.execute(query)
                 return result.scalars().first()
         except Exception as e:
             raise DatabaseError(f'Failed to retrieve product with pattern',
-                str(e))
+                                str(e))
 
         @inject(MaterialService)
-        def get_by_storage(self, storage_id: int) ->List[Product]:
+            def get_by_storage(self, storage_id: int) -> List[Product]:
         """
         Get products by storage location.
 
@@ -54,8 +54,8 @@ class ProductManager(BaseManager[Product]):
         return self.filter_by(storage_id=storage_id)
 
         @inject(MaterialService)
-        def assign_to_storage(self, product_id: int, storage_id: int) ->Optional[
-        Product]:
+            def assign_to_storage(self, product_id: int, storage_id: int) -> Optional[
+                Product]:
         """
         Assign a product to a storage location.
 
@@ -72,7 +72,7 @@ class ProductManager(BaseManager[Product]):
         return self.update(product_id, {'storage_id': storage_id})
 
         @inject(MaterialService)
-        def search_by_name(self, name: str) ->List[Product]:
+            def search_by_name(self, name: str) -> List[Product]:
         """
         Search products by name.
 

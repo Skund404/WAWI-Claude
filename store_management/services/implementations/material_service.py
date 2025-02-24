@@ -2,6 +2,8 @@
 
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+
+
 class MaterialService(BaseService[Material], IMaterialService):
     """
     Service implementation for managing materials.
@@ -9,9 +11,9 @@ class MaterialService(BaseService[Material], IMaterialService):
     Provides business logic and validation for material-related operations.
     """
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, repository: MaterialRepository, unit_of_work:
-        Optional[IUnitOfWork]=None):
+                 Optional[IUnitOfWork] = None):
         """
         Initialize the MaterialService.
 
@@ -23,7 +25,7 @@ class MaterialService(BaseService[Material], IMaterialService):
         self._repository = repository
 
         @inject(MaterialService)
-        def _validate_create_data(self, data: Dict[str, Any]) ->None:
+            def _validate_create_data(self, data: Dict[str, Any]) -> None:
         """
         Validate data before creating a new material.
 
@@ -35,29 +37,29 @@ class MaterialService(BaseService[Material], IMaterialService):
         """
         if not data.get('name'):
             raise ValidationError('Material name is required', {'name':
-                'Name cannot be empty'})
+                                                                'Name cannot be empty'})
         try:
             material_type = MaterialType(data.get('material_type'))
         except ValueError:
             raise ValidationError('Invalid material type', {'material_type':
-                'Must be a valid MaterialType'})
+                                                            'Must be a valid MaterialType'})
         try:
             quality_grade = MaterialQualityGrade(data.get('quality_grade'))
         except ValueError:
             raise ValidationError('Invalid quality grade', {'quality_grade':
-                'Must be a valid MaterialQualityGrade'})
+                                                            'Must be a valid MaterialQualityGrade'})
         stock = data.get('stock', 0)
         if not isinstance(stock, (int, float)) or stock < 0:
             raise ValidationError('Invalid stock quantity', {'stock':
-                'Stock must be a non-negative number'})
+                                                             'Stock must be a non-negative number'})
         unit_price = data.get('unit_price', 0)
         if not isinstance(unit_price, (int, float)) or unit_price < 0:
             raise ValidationError('Invalid unit price', {'unit_price':
-                'Unit price must be a non-negative number'})
+                                                         'Unit price must be a non-negative number'})
 
         @inject(MaterialService)
-        def _validate_update_data(self, existing_entity: Material, update_data:
-        Dict[str, Any]) ->None:
+            def _validate_update_data(self, existing_entity: Material, update_data:
+                                  Dict[str, Any]) -> None:
         """
         Validate data before updating an existing material.
 
@@ -70,7 +72,7 @@ class MaterialService(BaseService[Material], IMaterialService):
         """
         if 'name' in update_data and not update_data['name']:
             raise ValidationError('Material name cannot be empty', {'name':
-                'Name cannot be empty'})
+                                                                    'Name cannot be empty'})
         if 'material_type' in update_data:
             try:
                 MaterialType(update_data['material_type'])
@@ -87,16 +89,16 @@ class MaterialService(BaseService[Material], IMaterialService):
             stock = update_data['stock']
             if not isinstance(stock, (int, float)) or stock < 0:
                 raise ValidationError('Invalid stock quantity', {'stock':
-                    'Stock must be a non-negative number'})
+                                                                 'Stock must be a non-negative number'})
         if 'unit_price' in update_data:
             unit_price = update_data['unit_price']
             if not isinstance(unit_price, (int, float)) or unit_price < 0:
                 raise ValidationError('Invalid unit price', {'unit_price':
-                    'Unit price must be a non-negative number'})
+                                                             'Unit price must be a non-negative number'})
 
         @inject(MaterialService)
-        def update_stock(self, material_id: Any, quantity_change: float,
-        transaction_type: str, notes: Optional[str]=None) ->Material:
+            def update_stock(self, material_id: Any, quantity_change: float,
+                         transaction_type: str, notes: Optional[str] = None) -> Material:
         """
         Update the stock of a material.
 
@@ -120,7 +122,7 @@ class MaterialService(BaseService[Material], IMaterialService):
                     'quantity_change': 'Must be a number'})
             if hasattr(self._repository, 'update_stock'):
                 return self._repository.update_stock(material_id,
-                    quantity_change, transaction_type, notes)
+                                                     quantity_change, transaction_type, notes)
             else:
                 material.update_stock(quantity_change)
                 return self.update(material_id, {'stock': material.stock})
@@ -129,13 +131,12 @@ class MaterialService(BaseService[Material], IMaterialService):
         except Exception as e:
             self._logger.error(
                 f'Error updating stock for material {material_id}: {e}')
-            raise ApplicationError(f'Failed to update material stock: {str(e)}'
-                , {'material_id': material_id, 'quantity_change':
-                quantity_change})
+            raise ApplicationError(f'Failed to update material stock: {str(e)}', {'material_id': material_id, 'quantity_change':
+                                                                                  quantity_change})
 
         @inject(MaterialService)
-        def get_low_stock_materials(self, include_zero_stock: bool=False) ->List[
-        Material]:
+            def get_low_stock_materials(self, include_zero_stock: bool = False) -> List[
+                Material]:
         """
         Retrieve materials with low stock.
 
@@ -152,15 +153,15 @@ class MaterialService(BaseService[Material], IMaterialService):
                     include_zero_stock)
             all_materials = self.get_all()
             return [material for material in all_materials if material.
-                is_low_stock() or include_zero_stock and material.stock == 0]
+                    is_low_stock() or include_zero_stock and material.stock == 0]
         except Exception as e:
             self._logger.error(f'Error retrieving low stock materials: {e}')
             raise ApplicationError(
                 f'Failed to retrieve low stock materials: {str(e)}', {
-                'include_zero_stock': include_zero_stock})
+                    'include_zero_stock': include_zero_stock})
 
         @inject(MaterialService)
-        def search_materials(self, search_params: Dict[str, Any]) ->List[Material]:
+            def search_materials(self, search_params: Dict[str, Any]) -> List[Material]:
         """
         Search materials based on multiple criteria.
 
@@ -175,16 +176,16 @@ class MaterialService(BaseService[Material], IMaterialService):
                 return self._repository.search_materials(search_params)
             all_materials = self.get_all()
             return [material for material in all_materials if all(self.
-                _match_search_criterion(material, key, value) for key,
-                value in search_params.items())]
+                                                                  _match_search_criterion(material, key, value) for key,
+                                                                  value in search_params.items())]
         except Exception as e:
             self._logger.error(f'Error searching materials: {e}')
             raise ApplicationError(f'Failed to search materials: {str(e)}',
-                {'search_params': search_params})
+                                   {'search_params': search_params})
 
         @inject(MaterialService)
-        def _match_search_criterion(self, material: Material, key: str, value: Any
-        ) ->bool:
+            def _match_search_criterion(self, material: Material, key: str, value: Any
+                                    ) -> bool:
         """
         Helper method to match a single search criterion.
 
@@ -209,8 +210,8 @@ class MaterialService(BaseService[Material], IMaterialService):
             return False
 
         @inject(MaterialService)
-        def generate_material_usage_report(self, start_date: Optional[str]=None,
-        end_date: Optional[str]=None) ->Dict[str, Any]:
+            def generate_material_usage_report(self, start_date: Optional[str] = None,
+                                           end_date: Optional[str] = None) -> Dict[str, Any]:
         """
         Generate a comprehensive material usage report.
 
@@ -227,7 +228,7 @@ class MaterialService(BaseService[Material], IMaterialService):
                     start_date, end_date)
             materials = self.get_all()
             report = {'total_materials': len(materials),
-                'low_stock_materials': 0, 'materials': []}
+                      'low_stock_materials': 0, 'materials': []}
             for material in materials:
                 material_data = material.to_dict()
                 if material.is_low_stock():
@@ -238,10 +239,10 @@ class MaterialService(BaseService[Material], IMaterialService):
             self._logger.error(f'Error generating material usage report: {e}')
             raise ApplicationError(
                 f'Failed to generate material usage report: {str(e)}', {
-                'start_date': start_date, 'end_date': end_date})
+                    'start_date': start_date, 'end_date': end_date})
 
         @inject(MaterialService)
-        def deactivate_material(self, material_id: Any) ->Material:
+            def deactivate_material(self, material_id: Any) -> Material:
         """
         Deactivate a material, preventing further use.
 
@@ -258,10 +259,10 @@ class MaterialService(BaseService[Material], IMaterialService):
             self._logger.error(
                 f'Error deactivating material {material_id}: {e}')
             raise ApplicationError(f'Failed to deactivate material: {str(e)}',
-                {'material_id': material_id})
+                                   {'material_id': material_id})
 
         @inject(MaterialService)
-        def activate_material(self, material_id: Any) ->Material:
+            def activate_material(self, material_id: Any) -> Material:
         """
         Reactivate a previously deactivated material.
 
@@ -277,11 +278,11 @@ class MaterialService(BaseService[Material], IMaterialService):
         except Exception as e:
             self._logger.error(f'Error activating material {material_id}: {e}')
             raise ApplicationError(f'Failed to activate material: {str(e)}',
-                {'material_id': material_id})
+                                   {'material_id': material_id})
 
         @inject(MaterialService)
-        def validate_material_substitution(self, original_material_id: Any,
-        substitute_material_id: Any) ->bool:
+            def validate_material_substitution(self, original_material_id: Any,
+                                           substitute_material_id: Any) -> bool:
         """
         Check if one material can be substituted for another.
 
@@ -299,9 +300,9 @@ class MaterialService(BaseService[Material], IMaterialService):
             original_material = self.get_by_id(original_material_id)
             substitute_material = self.get_by_id(substitute_material_id)
             substitution_checks = [original_material.material_type ==
-                substitute_material.material_type, substitute_material.
-                stock > 0, substitute_material.quality_grade.value >=
-                original_material.quality_grade.value]
+                                   substitute_material.material_type, substitute_material.
+                                   stock > 0, substitute_material.quality_grade.value >=
+                                   original_material.quality_grade.value]
             if hasattr(self._repository, 'validate_material_substitution'):
                 repo_check = self._repository.validate_material_substitution(
                     original_material_id, substitute_material_id)
@@ -312,8 +313,8 @@ class MaterialService(BaseService[Material], IMaterialService):
         except Exception as e:
             self._logger.error(
                 f'Error validating material substitution ({original_material_id} -> {substitute_material_id}): {e}'
-                )
+            )
             raise ApplicationError(
                 f'Failed to validate material substitution: {str(e)}', {
-                'original_material_id': original_material_id,
-                'substitute_material_id': substitute_material_id})
+                    'original_material_id': original_material_id,
+                    'substitute_material_id': substitute_material_id})

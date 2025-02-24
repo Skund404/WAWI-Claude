@@ -15,14 +15,14 @@ class DatabaseService:
     This class provides methods for common database operations across models.
     """
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self):
         """Initialize a new DatabaseService instance."""
         self._session_factory = get_db_session
 
         @contextmanager
     @inject(MaterialService)
-    def session_scope(self):
+        def session_scope(self):
         """
         Provide a transactional scope around a series of operations.
 
@@ -41,8 +41,8 @@ class DatabaseService:
             session.close()
 
         @inject(MaterialService)
-        def get_repository(self, model_name: str, session: Session
-        ) ->BaseRepository:
+            def get_repository(self, model_name: str, session: Session
+                           ) -> BaseRepository:
         """
         Get a repository for a model.
 
@@ -56,7 +56,7 @@ class DatabaseService:
         return RepositoryFactory.get_repository(model_name, session)
 
         @inject(MaterialService)
-        def create(self, model_name: str, data: Dict[str, Any]) ->Optional[Any]:
+            def create(self, model_name: str, data: Dict[str, Any]) -> Optional[Any]:
         """
         Create a new model instance.
 
@@ -76,7 +76,7 @@ class DatabaseService:
             return None
 
         @inject(MaterialService)
-        def get_by_id(self, model_name: str, id: int) ->Optional[Any]:
+            def get_by_id(self, model_name: str, id: int) -> Optional[Any]:
         """
         Get a model instance by ID.
 
@@ -96,8 +96,8 @@ class DatabaseService:
             return None
 
         @inject(MaterialService)
-        def get_all(self, model_name: str, limit: Optional[int]=None, offset:
-        Optional[int]=None) ->List[Any]:
+            def get_all(self, model_name: str, limit: Optional[int] = None, offset:
+                    Optional[int] = None) -> List[Any]:
         """
         Get all instances of a model.
 
@@ -118,8 +118,8 @@ class DatabaseService:
             return []
 
         @inject(MaterialService)
-        def update(self, model_name: str, id: int, data: Dict[str, Any]
-        ) ->Optional[Any]:
+            def update(self, model_name: str, id: int, data: Dict[str, Any]
+                   ) -> Optional[Any]:
         """
         Update a model instance.
 
@@ -140,7 +140,7 @@ class DatabaseService:
             return None
 
         @inject(MaterialService)
-        def delete(self, model_name: str, id: int) ->bool:
+            def delete(self, model_name: str, id: int) -> bool:
         """
         Delete a model instance.
 
@@ -160,8 +160,8 @@ class DatabaseService:
             return False
 
         @inject(MaterialService)
-        def search(self, model_name: str, search_term: str, fields: List[str]
-        ) ->List[Any]:
+            def search(self, model_name: str, search_term: str, fields: List[str]
+                   ) -> List[Any]:
         """
         Search for model instances.
 
@@ -183,7 +183,7 @@ class DatabaseService:
             return []
 
         @inject(MaterialService)
-        def execute_custom_query(self, callback, *args, **kwargs) ->Any:
+            def execute_custom_query(self, callback, *args, **kwargs) -> Any:
         """
         Execute a custom database query.
 

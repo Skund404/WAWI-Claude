@@ -2,6 +2,8 @@
 
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+
+
 class AddOrderDialog(BaseDialog):
     """
     Flexible dialog for creating and editing orders.
@@ -13,11 +15,11 @@ class AddOrderDialog(BaseDialog):
     - Editing existing orders
     """
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, parent: tk.Tk, save_callback: Callable[[Dict[str,
-        Any]], None], fields: Optional[List[tuple]]=None, suppliers:
-        Optional[List[Dict[str, Any]]]=None, existing_data: Optional[Dict[
-        str, Any]]=None, title: str='Add Order'):
+                                                                    Any]], None], fields: Optional[List[tuple]] = None, suppliers:
+                 Optional[List[Dict[str, Any]]] = None, existing_data: Optional[Dict[
+                     str, Any]] = None, title: str = 'Add Order'):
         """
         Initialize the order dialog.
 
@@ -32,8 +34,8 @@ class AddOrderDialog(BaseDialog):
         if fields is None:
             fields = [('supplier_id', 'Supplier', True, 'supplier'), (
                 'order_date', 'Order Date', True, 'date'), ('status',
-                'Status', True, 'status'), ('total_amount', 'Total Amount',
-                True, 'float'), ('notes', 'Notes', False, 'text')]
+                                                            'Status', True, 'status'), ('total_amount', 'Total Amount',
+                                                                                        True, 'float'), ('notes', 'Notes', False, 'text')]
         self._save_callback = save_callback
         self._suppliers = suppliers or []
         self._existing_data = existing_data or {}
@@ -43,7 +45,7 @@ class AddOrderDialog(BaseDialog):
         self._entries: Dict[str, Any] = {}
 
         @inject(MaterialService)
-        def _create_main_frame(self) ->None:
+            def _create_main_frame(self) -> None:
         """
         Create dialog main frame with dynamic fields and order items section.
         """
@@ -57,7 +59,7 @@ class AddOrderDialog(BaseDialog):
         self._create_order_items_section(items_frame)
 
         @inject(MaterialService)
-        def _create_order_details_fields(self, parent: ttk.Frame) ->None:
+            def _create_order_details_fields(self, parent: ttk.Frame) -> None:
         """
         Create dynamic fields for order details.
 
@@ -66,17 +68,16 @@ class AddOrderDialog(BaseDialog):
         """
         parent.columnconfigure(1, weight=1)
         for i, (field_name, display_name, required, field_type) in enumerate(
-            self._fields):
+                self._fields):
             label = ttk.Label(parent, text=f'{display_name}:')
             label.grid(row=i, column=0, sticky=tk.W, padx=5, pady=5)
             if field_type == 'supplier':
                 supplier_var = tk.StringVar()
-                supplier_dropdown = ttk.Combobox(parent, textvariable=
-                    supplier_var, values=[s.get('name', '') for s in self.
-                    _suppliers], state='readonly' if self._suppliers else
-                    'normal')
-                supplier_dropdown.grid(row=i, column=1, sticky=tk.EW, padx=
-                    5, pady=5)
+                supplier_dropdown = ttk.Combobox(parent, textvariable=supplier_var, values=[s.get('name', '') for s in self.
+                                                                                            _suppliers], state='readonly' if self._suppliers else
+                                                 'normal')
+                supplier_dropdown.grid(
+                    row=i, column=1, sticky=tk.EW, padx=5, pady=5)
                 self._entries[field_name] = supplier_var
                 if field_name in self._existing_data:
                     supplier_var.set(self._existing_data[field_name])
@@ -86,16 +87,16 @@ class AddOrderDialog(BaseDialog):
                 date_entry.grid(row=i, column=1, sticky=tk.EW, padx=5, pady=5)
                 self._entries[field_name] = date_var
                 default_date = self._existing_data.get(field_name, datetime
-                    .now().strftime('%Y-%m-%d'))
+                                                       .now().strftime('%Y-%m-%d'))
                 date_var.set(default_date)
             elif field_type == 'status':
                 status_options = ['Pending', 'Processing', 'Completed',
-                    'Cancelled']
+                                  'Cancelled']
                 status_var = tk.StringVar()
-                status_dropdown = ttk.Combobox(parent, textvariable=
-                    status_var, values=status_options, state='readonly')
+                status_dropdown = ttk.Combobox(
+                    parent, textvariable=status_var, values=status_options, state='readonly')
                 status_dropdown.grid(row=i, column=1, sticky=tk.EW, padx=5,
-                    pady=5)
+                                     pady=5)
                 self._entries[field_name] = status_var
                 if field_name in self._existing_data:
                     status_var.set(self._existing_data[field_name])
@@ -115,7 +116,7 @@ class AddOrderDialog(BaseDialog):
                         field_name]))
 
         @inject(MaterialService)
-        def _create_order_items_section(self, parent: ttk.Frame) ->None:
+            def _create_order_items_section(self, parent: ttk.Frame) -> None:
         """
         Create section for managing order items.
 
@@ -125,27 +126,27 @@ class AddOrderDialog(BaseDialog):
         items_frame = ttk.Frame(parent)
         items_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
         columns = 'Product', 'Quantity', 'Unit Price', 'Total'
-        self.items_tree = ttk.Treeview(items_frame, columns=columns, show=
-            'headings')
+        self.items_tree = ttk.Treeview(
+            items_frame, columns=columns, show='headings')
         for col in columns:
             self.items_tree.heading(col, text=col)
             self.items_tree.column(col, width=100, anchor='center')
-        scrollbar = ttk.Scrollbar(items_frame, orient=tk.VERTICAL, command=
-            self.items_tree.yview)
+        scrollbar = ttk.Scrollbar(
+            items_frame, orient=tk.VERTICAL, command=self.items_tree.yview)
         self.items_tree.configure(yscroll=scrollbar.set)
         self.items_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         buttons_frame = ttk.Frame(items_frame)
         buttons_frame.pack(side=tk.BOTTOM, fill=tk.X, padx=10, pady=10)
-        add_item_btn = ttk.Button(buttons_frame, text='Add Item', command=
-            self._show_add_item_dialog)
+        add_item_btn = ttk.Button(
+            buttons_frame, text='Add Item', command=self._show_add_item_dialog)
         add_item_btn.pack(side=tk.LEFT, padx=5)
         remove_item_btn = ttk.Button(buttons_frame, text='Remove Item',
-            command=self._remove_selected_item)
+                                     command=self._remove_selected_item)
         remove_item_btn.pack(side=tk.LEFT, padx=5)
 
         @inject(MaterialService)
-        def _show_add_item_dialog(self) ->None:
+            def _show_add_item_dialog(self) -> None:
         """
         Show dialog to add a new order item.
         """
@@ -172,30 +173,30 @@ class AddOrderDialog(BaseDialog):
                     )), 'total': float(quantity_var.get()) * float(
                     price_var.get())}
                 self.items_tree.insert('', 'end', values=(item['product'],
-                    item['quantity'], item['unit_price'], item['total']))
+                                                          item['quantity'], item['unit_price'], item['total']))
                 self._order_items.append(item)
                 dialog.destroy()
             except ValueError:
                 messagebox.showerror('Invalid Input',
-                    'Please enter valid numbers')
+                                     'Please enter valid numbers')
         save_btn = ttk.Button(dialog, text='Save', command=save_item)
         save_btn.pack(pady=10)
 
         @inject(MaterialService)
-        def _remove_selected_item(self) ->None:
+            def _remove_selected_item(self) -> None:
         """
         Remove selected order item.
         """
         selected_item = self.items_tree.selection()
         if not selected_item:
             messagebox.showwarning('Selection Required',
-                'Please select an item to remove')
+                                   'Please select an item to remove')
             return
         self.items_tree.delete(selected_item)
         del self._order_items[self.items_tree.index(selected_item)]
 
         @inject(MaterialService)
-        def ok(self, event=None) ->None:
+            def ok(self, event=None) -> None:
         """
         Save order data when OK is pressed.
 
@@ -219,7 +220,7 @@ class AddOrderDialog(BaseDialog):
             messagebox.showerror('Save Error', str(e))
 
         @inject(MaterialService)
-        def validate(self) ->bool:
+            def validate(self) -> bool:
         """
         Validate order data before saving.
 
@@ -237,13 +238,13 @@ class AddOrderDialog(BaseDialog):
                     val = value
                 if not val:
                     messagebox.showerror('Validation Error',
-                        f'{display_name} is required')
+                                         f'{display_name} is required')
                     return False
         try:
             total_amount = float(self._entries['total_amount'].get())
             if total_amount < 0:
                 messagebox.showerror('Validation Error',
-                    'Total amount must be non-negative')
+                                     'Total amount must be non-negative')
                 return False
         except ValueError:
             messagebox.showerror('Validation Error', 'Invalid total amount')

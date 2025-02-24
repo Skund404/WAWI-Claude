@@ -20,8 +20,8 @@ class LeatherCuttingView(BaseView):
     Implements drag-and-drop functionality for arranging leather pieces.
     """
 
-        @inject(MaterialService)
-        def __init__(self, parent: tk.Widget, app: Any) ->None:
+    @inject(MaterialService)
+        def __init__(self, parent: tk.Widget, app: Any) -> None:
         """
         Initialize the leather cutting view.
 
@@ -39,14 +39,14 @@ class LeatherCuttingView(BaseView):
         self.load_data()
 
         @inject(MaterialService)
-        def setup_ui(self) ->None:
+            def setup_ui(self) -> None:
         """Set up the user interface components."""
         try:
             self.main_frame = ttk.Frame(self)
             self.main_frame.pack(fill=tk.BOTH, expand=True)
             self.create_toolbar()
             self.canvas = tk.Canvas(self.main_frame, width=800, height=600,
-                background='white')
+                                    background='white')
             self.canvas.pack(fill=tk.BOTH, expand=True)
             self.canvas.bind('<ButtonPress-1>', self.on_canvas_click)
             self.canvas.bind('<B1-Motion>', self.on_drag)
@@ -55,38 +55,38 @@ class LeatherCuttingView(BaseView):
         except Exception as e:
             logger.error(f'Error setting up UI: {str(e)}')
             messagebox.showerror('Error',
-                f'Failed to set up interface: {str(e)}')
+                                 f'Failed to set up interface: {str(e)}')
 
         @inject(MaterialService)
-        def create_toolbar(self) ->None:
+            def create_toolbar(self) -> None:
         """Create the toolbar with control buttons."""
         toolbar = ttk.Frame(self.main_frame)
         toolbar.pack(fill=tk.X, padx=5, pady=5)
-        ttk.Button(toolbar, text='Add Piece', command=self.add_piece).pack(side
-            =tk.LEFT, padx=2)
+        ttk.Button(toolbar, text='Add Piece', command=self.add_piece).pack(
+            side=tk.LEFT, padx=2)
         ttk.Button(toolbar, text='Export', command=self.export_layout).pack(
             side=tk.LEFT, padx=2)
-        ttk.Button(toolbar, text='Clear', command=self.clear_layout).pack(side
-            =tk.LEFT, padx=2)
+        ttk.Button(toolbar, text='Clear', command=self.clear_layout).pack(
+            side=tk.LEFT, padx=2)
         ttk.Label(toolbar, text='Zoom:').pack(side=tk.LEFT, padx=5)
-        ttk.Button(toolbar, text='+', command=lambda : self.adjust_zoom(1.2)
-            ).pack(side=tk.LEFT)
-        ttk.Button(toolbar, text='-', command=lambda : self.adjust_zoom(0.8)
-            ).pack(side=tk.LEFT)
+        ttk.Button(toolbar, text='+', command=lambda: self.adjust_zoom(1.2)
+                   ).pack(side=tk.LEFT)
+        ttk.Button(toolbar, text='-', command=lambda: self.adjust_zoom(0.8)
+                   ).pack(side=tk.LEFT)
 
         @inject(MaterialService)
-        def load_data(self) ->None:
+            def load_data(self) -> None:
         """Load initial data and any saved layouts."""
         try:
             self.pieces = [LeatherPiece(100, 150, 'Piece 1', 1),
-                LeatherPiece(200, 100, 'Piece 2', 2)]
+                           LeatherPiece(200, 100, 'Piece 2', 2)]
             self.refresh_canvas()
         except Exception as e:
             logger.error(f'Error loading data: {str(e)}')
             messagebox.showerror('Error', 'Failed to load layout data')
 
         @inject(MaterialService)
-        def refresh_canvas(self) ->None:
+            def refresh_canvas(self) -> None:
         """Refresh the canvas display with current pieces."""
         if not self.canvas:
             return
@@ -96,7 +96,7 @@ class LeatherCuttingView(BaseView):
             self.draw_piece(piece)
 
         @inject(MaterialService)
-        def draw_grid(self) ->None:
+            def draw_grid(self) -> None:
         """Draw the background grid."""
         if not self.canvas:
             return
@@ -109,7 +109,7 @@ class LeatherCuttingView(BaseView):
             self.canvas.create_line(0, y, width, y, fill='#EEEEEE')
 
         @inject(MaterialService)
-        def draw_piece(self, piece: LeatherPiece) ->None:
+            def draw_piece(self, piece: LeatherPiece) -> None:
         """
         Draw a single leather piece on the canvas.
 
@@ -123,14 +123,13 @@ class LeatherCuttingView(BaseView):
         x2 = x1 + piece.width * self.zoom_level
         y2 = y1 + piece.height * self.zoom_level
         color = self._get_color_for_priority(piece.priority)
-        self.canvas.create_rectangle(x1, y1, x2, y2, fill=color, outline=
-            'black')
-        self.canvas.create_text((x1 + x2) / 2, (y1 + y2) / 2, text=
-            f"""{piece.name}
+        self.canvas.create_rectangle(
+            x1, y1, x2, y2, fill=color, outline='black')
+        self.canvas.create_text((x1 + x2) / 2, (y1 + y2) / 2, text=f"""{piece.name}
 {piece.width}x{piece.height}""")
 
         @inject(MaterialService)
-        def _get_color_for_priority(self, priority: int) ->str:
+            def _get_color_for_priority(self, priority: int) -> str:
         """
         Get color based on piece priority.
 
@@ -141,24 +140,24 @@ class LeatherCuttingView(BaseView):
             Color hex code
         """
         colors = {(1): '#BBDEFB', (2): '#C8E6C9', (3): '#FFECB3', (4):
-            '#FFCDD2'}
+                  '#FFCDD2'}
         return colors.get(priority, '#FFFFFF')
 
         @inject(MaterialService)
-        def on_canvas_click(self, event) ->None:
+            def on_canvas_click(self, event) -> None:
         """Handle canvas click event to select pieces."""
         if not self.canvas:
             return
         x = event.x / self.zoom_level
         y = event.y / self.zoom_level
         for piece in reversed(self.pieces):
-            if (piece.x <= x <= piece.x + piece.width and piece.y <= y <= 
-                piece.y + piece.height):
+            if (piece.x <= x <= piece.x + piece.width and piece.y <= y <=
+                    piece.y + piece.height):
                 self.selected_piece = piece
                 break
 
         @inject(MaterialService)
-        def on_drag(self, event) ->None:
+            def on_drag(self, event) -> None:
         """Handle drag event to move pieces."""
         if not self.canvas or not self.selected_piece:
             return
@@ -169,7 +168,7 @@ class LeatherCuttingView(BaseView):
         self.refresh_canvas()
 
         @inject(MaterialService)
-        def on_zoom(self, event) ->None:
+            def on_zoom(self, event) -> None:
         """Handle mouse wheel zoom event."""
         if event.delta > 0:
             self.adjust_zoom(1.1)
@@ -177,7 +176,7 @@ class LeatherCuttingView(BaseView):
             self.adjust_zoom(0.9)
 
         @inject(MaterialService)
-        def adjust_zoom(self, factor: float) ->None:
+            def adjust_zoom(self, factor: float) -> None:
         """
         Adjust the zoom level.
 
@@ -189,25 +188,25 @@ class LeatherCuttingView(BaseView):
         self.refresh_canvas()
 
         @inject(MaterialService)
-        def update_grid(self, event=None) ->None:
+            def update_grid(self, event=None) -> None:
         """Update the grid when window is resized."""
         self.refresh_canvas()
 
         @inject(MaterialService)
-        def add_piece(self) ->None:
+            def add_piece(self) -> None:
         """Add a new leather piece to the layout."""
         new_piece = LeatherPiece(150, 100, f'Piece {len(self.pieces) + 1}')
         self.pieces.append(new_piece)
         self.refresh_canvas()
 
         @inject(MaterialService)
-        def clear_layout(self) ->None:
+            def clear_layout(self) -> None:
         """Clear all pieces from the layout."""
         self.pieces.clear()
         self.refresh_canvas()
 
         @inject(MaterialService)
-        def export_layout(self) ->None:
+            def export_layout(self) -> None:
         """Export the current layout."""
         try:
             logger.info('Exporting layout...')
@@ -220,7 +219,7 @@ class LeatherCuttingView(BaseView):
 class MockApp:
     """Mock application class for testing."""
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def get_service(self, service_type):
         return None
 
@@ -240,6 +239,6 @@ def main():
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO, format=
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    logging.basicConfig(
+        level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     main()

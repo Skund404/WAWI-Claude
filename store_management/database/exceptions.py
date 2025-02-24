@@ -10,8 +10,8 @@ Custom exceptions for database operations.
 class DatabaseError(Exception):
     """Base exception for all database errors."""
 
-        @inject(MaterialService)
-        def __init__(self, message: str, details: str=None, error_code: int=None):
+    @inject(MaterialService)
+        def __init__(self, message: str, details: str = None, error_code: int = None):
         """
         Initialize a new DatabaseError.
 
@@ -26,7 +26,7 @@ class DatabaseError(Exception):
         super().__init__(message)
 
         @inject(MaterialService)
-        def __str__(self) ->str:
+            def __str__(self) -> str:
         """Get string representation of the error."""
         if self.details:
             return f'{self.message} - {self.details}'
@@ -36,8 +36,8 @@ class DatabaseError(Exception):
 class ModelNotFoundError(DatabaseError):
     """Exception raised when a model instance is not found."""
 
-        @inject(MaterialService)
-        def __init__(self, model_name: str, model_id: int, message: str=None):
+    @inject(MaterialService)
+        def __init__(self, model_name: str, model_id: int, message: str = None):
         """
         Initialize a new ModelNotFoundError.
 
@@ -55,8 +55,8 @@ class ModelNotFoundError(DatabaseError):
 class ValidationError(DatabaseError):
     """Exception raised when model validation fails."""
 
-        @inject(MaterialService)
-        def __init__(self, model_name: str, errors: dict, message: str=None):
+    @inject(MaterialService)
+        def __init__(self, model_name: str, errors: dict, message: str = None):
         """
         Initialize a new ValidationError.
 
@@ -74,9 +74,9 @@ class ValidationError(DatabaseError):
 class RepositoryError(DatabaseError):
     """Exception raised for repository operations errors."""
 
-        @inject(MaterialService)
-        def __init__(self, repository_name: str, operation: str, details: str=None
-        ):
+    @inject(MaterialService)
+        def __init__(self, repository_name: str, operation: str, details: str = None
+                 ):
         """
         Initialize a new RepositoryError.
 
@@ -95,9 +95,9 @@ class RepositoryError(DatabaseError):
 class DatabaseConnectionError(DatabaseError):
     """Exception raised when database connection fails."""
 
-        @inject(MaterialService)
-        def __init__(self, message: str='Failed to connect to the database',
-        details: str=None):
+    @inject(MaterialService)
+        def __init__(self, message: str = 'Failed to connect to the database',
+                 details: str = None):
         """
         Initialize a new DatabaseConnectionError.
 
@@ -111,8 +111,8 @@ class DatabaseConnectionError(DatabaseError):
 class TransactionError(DatabaseError):
     """Exception raised when a database transaction fails."""
 
-        @inject(MaterialService)
-        def __init__(self, operation: str, details: str=None):
+    @inject(MaterialService)
+        def __init__(self, operation: str, details: str = None):
         """
         Initialize a new TransactionError.
 

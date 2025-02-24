@@ -6,4 +6,4 @@ Repository interfaces package initialization.
 
 from .base_repository import IBaseRepository
 
-__all__ = ['IBaseRepository']
+__all__ = ["IBaseRepository"]

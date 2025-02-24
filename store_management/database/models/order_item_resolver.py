@@ -19,12 +19,12 @@ class OrderItemModelResolver:
     _order_model: Optional[Any] = None
 
         @classmethod
-    def set_product_model(cls, product_model: Any) ->None:
+    def set_product_model(cls, product_model: Any) -> None:
         """Set the Product model class for lazy loading."""
         cls._product_model = product_model
 
         @classmethod
-    def set_order_model(cls, order_model: Any) ->None:
+    def set_order_model(cls, order_model: Any) -> None:
         """Set the Order model class for lazy loading."""
         cls._order_model = order_model
 
@@ -34,8 +34,7 @@ class OrderItemModelResolver:
         if cls._product_model is None:
             from .product import Product
             cls._product_model = Product
-        return relationship(cls._product_model, back_populates=
-            'order_items', lazy='subquery')
+        return relationship(cls._product_model, back_populates='order_items', lazy='subquery')
 
         @classmethod
     def get_order_relationship(cls):
@@ -43,8 +42,7 @@ class OrderItemModelResolver:
         if cls._order_model is None:
             from .order import Order
             cls._order_model = Order
-        return relationship(cls._order_model, back_populates='items', lazy=
-            'subquery')
+        return relationship(cls._order_model, back_populates='items', lazy='subquery')
 
 
 def create_order_item_model(base_classes):
@@ -57,7 +55,6 @@ def create_order_item_model(base_classes):
     Returns:
         type: Dynamically created OrderItem model class.
     """
-
 
     class OrderItem(*base_classes):
         """
@@ -74,7 +71,7 @@ def create_order_item_model(base_classes):
         order = OrderItemModelResolver.get_order_relationship()
 
                 @inject(MaterialService)
-                def __init__(self, product_id: int, quantity: float, unit_price: float
+                    def __init__(self, product_id: int, quantity: float, unit_price: float
             ):
             """
             Initialize an OrderItem instance.
@@ -89,7 +86,7 @@ def create_order_item_model(base_classes):
             self.unit_price = unit_price
 
                 @inject(MaterialService)
-                def calculate_total_price(self) ->float:
+                    def calculate_total_price(self) ->float:
             """
             Calculate the total price for this order item.
 
@@ -99,7 +96,7 @@ def create_order_item_model(base_classes):
             return self.quantity * self.unit_price
 
                 @inject(MaterialService)
-                def update_quantity(self, new_quantity: float) ->None:
+                    def update_quantity(self, new_quantity: float) ->None:
             """
             Update the quantity of the order item.
 
@@ -109,7 +106,7 @@ def create_order_item_model(base_classes):
             self.quantity = new_quantity
 
                 @inject(MaterialService)
-                def to_dict(self, exclude_fields: Optional[List[str]]=None,
+                    def to_dict(self, exclude_fields: Optional[List[str]]=None,
             include_relationships: bool=False) ->Dict[str, Any]:
             """
             Convert OrderItem to dictionary representation.

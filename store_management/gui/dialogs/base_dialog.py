@@ -2,6 +2,8 @@
 
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+
+
 class BaseDialog(tk.Toplevel):
     """
     Base class for all dialog windows in the application.
@@ -19,9 +21,9 @@ class BaseDialog(tk.Toplevel):
         modal (bool): Whether the dialog should be modal
     """
 
-        @inject(MaterialService)
-        def __init__(self, parent: (tk.Tk | tk.Toplevel), title: str='Dialog',
-        size: Optional[Tuple[int, int]]=None, modal: bool=True):
+    @inject(MaterialService)
+        def __init__(self, parent: (tk.Tk | tk.Toplevel), title: str = 'Dialog',
+                 size: Optional[Tuple[int, int]] = None, modal: bool = True):
         """
         Initialize the base dialog.
 
@@ -44,7 +46,7 @@ class BaseDialog(tk.Toplevel):
         self._create_button_frame()
 
         @inject(MaterialService)
-        def _create_main_frame(self) ->None:
+            def _create_main_frame(self) -> None:
         """
         Create the main content frame for dialog content.
         Subclasses should override and add specific content.
@@ -53,7 +55,7 @@ class BaseDialog(tk.Toplevel):
         self.main_frame.pack(padx=10, pady=10, fill=tk.BOTH, expand=True)
 
         @inject(MaterialService)
-        def _create_button_frame(self) ->None:
+            def _create_button_frame(self) -> None:
         """
         Create a standard button frame with OK and Cancel buttons.
         """
@@ -62,8 +64,8 @@ class BaseDialog(tk.Toplevel):
         self.add_ok_cancel_buttons()
 
         @inject(MaterialService)
-        def add_ok_cancel_buttons(self, ok_text: str='OK', cancel_text: str=
-        'Cancel', ok_command: Optional[Callable]=None) ->None:
+            def add_ok_cancel_buttons(self, ok_text: str = 'OK', cancel_text: str =
+                                  'Cancel', ok_command: Optional[Callable] = None) -> None:
         """
         Add standard OK and Cancel buttons to the dialog.
 
@@ -73,17 +75,17 @@ class BaseDialog(tk.Toplevel):
             ok_command: Optional custom command for OK button
         """
         cancel_btn = ttk.Button(self.button_frame, text=cancel_text,
-            command=self.cancel)
+                                command=self.cancel)
         cancel_btn.pack(side=tk.RIGHT, padx=5)
-        ok_btn = ttk.Button(self.button_frame, text=ok_text, command=
-            ok_command or self.ok)
+        ok_btn = ttk.Button(self.button_frame, text=ok_text,
+                            command=ok_command or self.ok)
         ok_btn.pack(side=tk.RIGHT)
         self.bind('<Return>', self.ok)
         self.bind('<Escape>', self.cancel)
 
         @inject(MaterialService)
-        def add_button(self, text: str, command: Callable, side: str=tk.RIGHT,
-        width: int=10, default: bool=False) ->ttk.Button:
+            def add_button(self, text: str, command: Callable, side: str = tk.RIGHT,
+                       width: int = 10, default: bool = False) -> ttk.Button:
         """
         Add a custom button to the button frame.
 
@@ -98,14 +100,14 @@ class BaseDialog(tk.Toplevel):
             The created button
         """
         button = ttk.Button(self.button_frame, text=text, command=command,
-            width=width)
+                            width=width)
         button.pack(side=side, padx=5)
         if default:
             button.bind('<Return>', command)
         return button
 
         @inject(MaterialService)
-        def center_on_parent(self) ->None:
+            def center_on_parent(self) -> None:
         """
         Center the dialog on its parent window.
         """
@@ -121,7 +123,7 @@ class BaseDialog(tk.Toplevel):
         self.geometry(f'+{x}+{y}')
 
         @inject(MaterialService)
-        def ok(self, event: Optional[tk.Event]=None) ->None:
+            def ok(self, event: Optional[tk.Event] = None) -> None:
         """
         Standard OK button handler.
         Subclasses should override to add specific validation logic.
@@ -134,7 +136,7 @@ class BaseDialog(tk.Toplevel):
             self.destroy()
 
         @inject(MaterialService)
-        def cancel(self, event: Optional[tk.Event]=None) ->None:
+            def cancel(self, event: Optional[tk.Event] = None) -> None:
         """
         Standard Cancel button handler.
 
@@ -144,7 +146,7 @@ class BaseDialog(tk.Toplevel):
         self.destroy()
 
         @inject(MaterialService)
-        def validate(self) ->bool:
+            def validate(self) -> bool:
         """
         Validate dialog contents before closing.
 

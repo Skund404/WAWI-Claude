@@ -2,13 +2,15 @@
 
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+
+
 class InventoryManager:
     """
     Comprehensive inventory manager handling both Part and Leather inventory.
     Uses separate BaseManager instances for each model type.
     """
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, session_factory):
         """Initialize inventory managers with session factory."""
         self.session_factory = session_factory
@@ -16,7 +18,7 @@ class InventoryManager:
         self.leather_manager = BaseManager[Leather](session_factory, Leather)
 
         @inject(MaterialService)
-        def add_part(self, data: Dict[str, Any]) ->Part:
+            def add_part(self, data: Dict[str, Any]) -> Part:
         """
         Add a new part to inventory.
 
@@ -38,8 +40,7 @@ class InventoryManager:
                 session.flush()
                 if part.current_stock > 0:
                     transaction = InventoryTransaction(part_id=part.id,
-                        transaction_type=TransactionType.INITIAL, quantity=
-                        part.current_stock, notes='Initial stock')
+                                                       transaction_type=TransactionType.INITIAL, quantity=part.current_stock, notes='Initial stock')
                     session.add(transaction)
                 session.commit()
                 return part
@@ -48,7 +49,7 @@ class InventoryManager:
                 raise DatabaseError(f'Failed to add part: {str(e)}')
 
         @inject(MaterialService)
-        def add_leather(self, data: Dict[str, Any]) ->Leather:
+            def add_leather(self, data: Dict[str, Any]) -> Leather:
         """
         Add a new leather to inventory.
 
@@ -70,8 +71,7 @@ class InventoryManager:
                 session.flush()
                 if leather.available_area_sqft > 0:
                     transaction = LeatherTransaction(leather_id=leather.id,
-                        transaction_type=TransactionType.INITIAL, area_sqft
-                        =leather.available_area_sqft, notes='Initial stock')
+                                                     transaction_type=TransactionType.INITIAL, area_sqft=leather.available_area_sqft, notes='Initial stock')
                     session.add(transaction)
                 session.commit()
                 return leather
@@ -80,8 +80,8 @@ class InventoryManager:
                 raise DatabaseError(f'Failed to add leather: {str(e)}')
 
         @inject(MaterialService)
-        def update_part_stock(self, part_id: int, quantity_change: int,
-        transaction_type: TransactionType, notes: Optional[str]=None) ->Part:
+            def update_part_stock(self, part_id: int, quantity_change: int,
+                              transaction_type: TransactionType, notes: Optional[str] = None) -> Part:
         """
         Update part stock levels with transaction tracking.
 
@@ -105,8 +105,8 @@ class InventoryManager:
                 part.current_stock = new_stock
                 part.modified_at = datetime.utcnow()
                 transaction = InventoryTransaction(part_id=part_id,
-                    transaction_type=transaction_type, quantity=abs(
-                    quantity_change), notes=notes)
+                                                   transaction_type=transaction_type, quantity=abs(
+                                                       quantity_change), notes=notes)
                 session.add(transaction)
                 if new_stock <= part.min_stock_level:
                     part.status = InventoryStatus.LOW_STOCK
@@ -121,9 +121,9 @@ class InventoryManager:
                 raise DatabaseError(f'Failed to update part stock: {str(e)}')
 
         @inject(MaterialService)
-        def update_leather_stock(self, leather_id: int, area_change: float,
-        transaction_type: TransactionType, notes: Optional[str]=None
-        ) ->Leather:
+            def update_leather_stock(self, leather_id: int, area_change: float,
+                                 transaction_type: TransactionType, notes: Optional[str] = None
+                                 ) -> Leather:
         """
         Update leather stock levels with transaction tracking.
 
@@ -147,8 +147,8 @@ class InventoryManager:
                 leather.available_area_sqft = new_area
                 leather.modified_at = datetime.utcnow()
                 transaction = LeatherTransaction(leather_id=leather_id,
-                    transaction_type=transaction_type, area_sqft=abs(
-                    area_change), notes=notes)
+                                                 transaction_type=transaction_type, area_sqft=abs(
+                                                     area_change), notes=notes)
                 session.add(transaction)
                 if new_area <= leather.min_area_sqft:
                     leather.status = InventoryStatus.LOW_STOCK
@@ -161,10 +161,10 @@ class InventoryManager:
             except SQLAlchemyError as e:
                 session.rollback()
                 raise DatabaseError(f'Failed to update leather stock: {str(e)}'
-                    )
+                                    )
 
         @inject(MaterialService)
-        def get_part_with_transactions(self, part_id: int) ->Optional[Part]:
+            def get_part_with_transactions(self, part_id: int) -> Optional[Part]:
         """
         Get part with its transaction history.
 
@@ -180,8 +180,8 @@ class InventoryManager:
             return session.execute(query).scalar()
 
         @inject(MaterialService)
-        def get_leather_with_transactions(self, leather_id: int) ->Optional[Leather
-        ]:
+            def get_leather_with_transactions(self, leather_id: int) -> Optional[Leather
+                                                                             ]:
         """
         Get leather with its transaction history.
 
@@ -193,12 +193,12 @@ class InventoryManager:
         """
         with self.session_factory() as session:
             query = select(Leather).options(joinedload(Leather.transactions)
-                ).filter(Leather.id == leather_id)
+                                            ).filter(Leather.id == leather_id)
             return session.execute(query).scalar()
 
         @inject(MaterialService)
-        def get_low_stock_parts(self, include_out_of_stock: bool=True) ->List[Part
-        ]:
+            def get_low_stock_parts(self, include_out_of_stock: bool = True) -> List[Part
+                                                                                 ]:
         """
         Get all parts with low stock levels.
 
@@ -210,14 +210,14 @@ class InventoryManager:
         """
         with self.session_factory() as session:
             query = select(Part).filter(Part.current_stock <= Part.
-                min_stock_level)
+                                        min_stock_level)
             if not include_out_of_stock:
                 query = query.filter(Part.current_stock > 0)
             return list(session.execute(query).scalars())
 
         @inject(MaterialService)
-        def get_low_stock_leather(self, include_out_of_stock: bool=True) ->List[
-        Leather]:
+            def get_low_stock_leather(self, include_out_of_stock: bool = True) -> List[
+                Leather]:
         """
         Get all leather with low stock levels.
 
@@ -229,16 +229,16 @@ class InventoryManager:
         """
         with self.session_factory() as session:
             query = select(Leather).filter(Leather.available_area_sqft <=
-                Leather.min_area_sqft)
+                                           Leather.min_area_sqft)
             if not include_out_of_stock:
                 query = query.filter(Leather.available_area_sqft > 0)
             return list(session.execute(query).scalars())
 
         @inject(MaterialService)
-        def get_inventory_transactions(self, part_id: Optional[int]=None,
-        leather_id: Optional[int]=None, start_date: Optional[datetime]=None,
-        end_date: Optional[datetime]=None) ->List[Union[
-        InventoryTransaction, LeatherTransaction]]:
+            def get_inventory_transactions(self, part_id: Optional[int] = None,
+                                       leather_id: Optional[int] = None, start_date: Optional[datetime] = None,
+                                       end_date: Optional[datetime] = None) -> List[Union[
+                InventoryTransaction, LeatherTransaction]]:
         """
         Get inventory transactions with optional filtering.
 
@@ -258,26 +258,26 @@ class InventoryManager:
                     InventoryTransaction.part_id == part_id)
                 if start_date:
                     query = query.filter(InventoryTransaction.timestamp >=
-                        start_date)
+                                         start_date)
                 if end_date:
                     query = query.filter(InventoryTransaction.timestamp <=
-                        end_date)
+                                         end_date)
                 transactions.extend(session.execute(query).scalars())
             if leather_id:
                 query = select(LeatherTransaction).filter(
                     LeatherTransaction.leather_id == leather_id)
                 if start_date:
                     query = query.filter(LeatherTransaction.timestamp >=
-                        start_date)
+                                         start_date)
                 if end_date:
                     query = query.filter(LeatherTransaction.timestamp <=
-                        end_date)
+                                         end_date)
                 transactions.extend(session.execute(query).scalars())
             return sorted(transactions, key=lambda x: x.timestamp, reverse=True
-                )
+                          )
 
         @inject(MaterialService)
-        def get_inventory_value(self) ->Dict[str, float]:
+            def get_inventory_value(self) -> Dict[str, float]:
         """
         Calculate total value of inventory.
 
@@ -286,14 +286,14 @@ class InventoryManager:
         """
         with self.session_factory() as session:
             parts_value = session.query(func.sum(Part.current_stock * Part.
-                price)).scalar() or 0.0
+                                                 price)).scalar() or 0.0
             leather_value = session.query(func.sum(Leather.
-                available_area_sqft * Leather.price_per_sqft)).scalar() or 0.0
+                                                   available_area_sqft * Leather.price_per_sqft)).scalar() or 0.0
             return {'parts_value': parts_value, 'leather_value':
-                leather_value, 'total_value': parts_value + leather_value}
+                    leather_value, 'total_value': parts_value + leather_value}
 
         @inject(MaterialService)
-        def search_inventory(self, search_term: str) ->Dict[str, List]:
+            def search_inventory(self, search_term: str) -> Dict[str, List]:
         """
         Search both parts and leather inventory.
 
@@ -310,12 +310,12 @@ class InventoryManager:
             parts = list(session.execute(parts_query).scalars())
             leather_query = select(Leather).filter(or_(Leather.type.ilike(
                 f'%{search_term}%'), Leather.color.ilike(f'%{search_term}%'
-                ), Leather.notes.ilike(f'%{search_term}%')))
+                                                         ), Leather.notes.ilike(f'%{search_term}%')))
             leather = list(session.execute(leather_query).scalars())
             return {'parts': parts, 'leather': leather}
 
         @inject(MaterialService)
-        def adjust_min_stock_levels(self, part_id: int, new_min_level: int) ->Part:
+            def adjust_min_stock_levels(self, part_id: int, new_min_level: int) -> Part:
         """
         Adjust minimum stock level for a part.
 
@@ -339,8 +339,8 @@ class InventoryManager:
             return part
 
         @inject(MaterialService)
-        def adjust_min_leather_area(self, leather_id: int, new_min_area: float
-        ) ->Leather:
+            def adjust_min_leather_area(self, leather_id: int, new_min_area: float
+                                    ) -> Leather:
         """
         Adjust minimum area for a leather type.
 
@@ -364,7 +364,7 @@ class InventoryManager:
             return leather
 
         @inject(MaterialService)
-        def get_inventory_summary(self) ->Dict[str, Any]:
+            def get_inventory_summary(self) -> Dict[str, Any]:
         """
         Get comprehensive inventory summary including counts and values.
 
@@ -373,31 +373,31 @@ class InventoryManager:
         """
         with self.session_factory() as session:
             parts_summary = {'total_count': session.query(func.count(Part.
-                id)).scalar(), 'low_stock_count': session.query(func.count(
-                Part.id)).filter(Part.status == InventoryStatus.LOW_STOCK).
-                scalar(), 'out_of_stock_count': session.query(func.count(
-                Part.id)).filter(Part.status == InventoryStatus.
-                OUT_OF_STOCK).scalar(), 'total_value': session.query(func.
-                sum(Part.current_stock * Part.price)).scalar() or 0.0}
+                                                                     id)).scalar(), 'low_stock_count': session.query(func.count(
+                                                                         Part.id)).filter(Part.status == InventoryStatus.LOW_STOCK).
+                             scalar(), 'out_of_stock_count': session.query(func.count(
+                                 Part.id)).filter(Part.status == InventoryStatus.
+                                                  OUT_OF_STOCK).scalar(), 'total_value': session.query(func.
+                                                                                                       sum(Part.current_stock * Part.price)).scalar() or 0.0}
             leather_summary = {'total_count': session.query(func.count(
                 Leather.id)).scalar(), 'low_stock_count': session.query(
                 func.count(Leather.id)).filter(Leather.status ==
-                InventoryStatus.LOW_STOCK).scalar(), 'out_of_stock_count':
+                                               InventoryStatus.LOW_STOCK).scalar(), 'out_of_stock_count':
                 session.query(func.count(Leather.id)).filter(Leather.status ==
-                InventoryStatus.OUT_OF_STOCK).scalar(), 'total_area': 
+                                                             InventoryStatus.OUT_OF_STOCK).scalar(), 'total_area':
                 session.query(func.sum(Leather.available_area_sqft)).scalar
                 () or 0.0, 'total_value': session.query(func.sum(Leather.
-                available_area_sqft * Leather.price_per_sqft)).scalar() or 0.0}
+                                                                 available_area_sqft * Leather.price_per_sqft)).scalar() or 0.0}
             transaction_summary = {'part_transactions': session.query(func.
-                count(InventoryTransaction.id)).scalar(),
-                'leather_transactions': session.query(func.count(
-                LeatherTransaction.id)).scalar()}
+                                                                      count(InventoryTransaction.id)).scalar(),
+                                   'leather_transactions': session.query(func.count(
+                                       LeatherTransaction.id)).scalar()}
             return {'parts': parts_summary, 'leather': leather_summary,
-                'transactions': transaction_summary, 'total_value': 
-                parts_summary['total_value'] + leather_summary['total_value']}
+                    'transactions': transaction_summary, 'total_value':
+                    parts_summary['total_value'] + leather_summary['total_value']}
 
         @inject(MaterialService)
-        def bulk_update_parts(self, updates: List[Dict[str, Any]]) ->int:
+            def bulk_update_parts(self, updates: List[Dict[str, Any]]) -> int:
         """
         Update multiple parts in a single transaction.
 
@@ -426,7 +426,7 @@ class InventoryManager:
                 raise DatabaseError(f'Failed to bulk update parts: {str(e)}')
 
         @inject(MaterialService)
-        def bulk_update_leather(self, updates: List[Dict[str, Any]]) ->int:
+            def bulk_update_leather(self, updates: List[Dict[str, Any]]) -> int:
         """
         Update multiple leather items in a single transaction.
 
@@ -455,9 +455,9 @@ class InventoryManager:
                 raise DatabaseError(f'Failed to bulk update leather: {str(e)}')
 
         @inject(MaterialService)
-        def get_transaction_history(self, start_date: Optional[datetime]=None,
-        end_date: Optional[datetime]=None, transaction_type: Optional[
-        TransactionType]=None) ->Dict[str, List]:
+            def get_transaction_history(self, start_date: Optional[datetime] = None,
+                                    end_date: Optional[datetime] = None, transaction_type: Optional[
+                TransactionType] = None) -> Dict[str, List]:
         """
         Get transaction history with optional filtering.
 
@@ -474,31 +474,31 @@ class InventoryManager:
                 InventoryTransaction.part))
             if start_date:
                 part_query = part_query.filter(InventoryTransaction.
-                    timestamp >= start_date)
+                                               timestamp >= start_date)
             if end_date:
                 part_query = part_query.filter(InventoryTransaction.
-                    timestamp <= end_date)
+                                               timestamp <= end_date)
             if transaction_type:
                 part_query = part_query.filter(InventoryTransaction.
-                    transaction_type == transaction_type)
+                                               transaction_type == transaction_type)
             leather_query = select(LeatherTransaction).options(joinedload(
                 LeatherTransaction.leather))
             if start_date:
                 leather_query = leather_query.filter(LeatherTransaction.
-                    timestamp >= start_date)
+                                                     timestamp >= start_date)
             if end_date:
                 leather_query = leather_query.filter(LeatherTransaction.
-                    timestamp <= end_date)
+                                                     timestamp <= end_date)
             if transaction_type:
                 leather_query = leather_query.filter(LeatherTransaction.
-                    transaction_type == transaction_type)
+                                                     transaction_type == transaction_type)
             return {'part_transactions': list(session.execute(part_query).
-                scalars()), 'leather_transactions': list(session.execute(
-                leather_query).scalars())}
+                                              scalars()), 'leather_transactions': list(session.execute(
+                                                  leather_query).scalars())}
 
         @inject(MaterialService)
-        def get_part_stock_history(self, part_id: int, days: Optional[int]=None
-        ) ->List[Dict[str, Any]]:
+            def get_part_stock_history(self, part_id: int, days: Optional[int] = None
+                                   ) -> List[Dict[str, Any]]:
         """
         Get stock level history for a part.
 
@@ -516,25 +516,25 @@ class InventoryManager:
             if days:
                 cutoff_date = datetime.utcnow() - timedelta(days=days)
                 query = query.filter(InventoryTransaction.timestamp >=
-                    cutoff_date)
+                                     cutoff_date)
             transactions = session.execute(query).scalars()
             stock_history = []
             running_stock = 0
             for transaction in transactions:
                 if transaction.transaction_type in [TransactionType.INITIAL,
-                    TransactionType.INCREASE]:
+                                                    TransactionType.INCREASE]:
                     running_stock += transaction.quantity
                 else:
                     running_stock -= transaction.quantity
                 stock_history.append({'timestamp': transaction.timestamp,
-                    'stock_level': running_stock, 'change': transaction.
-                    quantity, 'transaction_type': transaction.
-                    transaction_type, 'notes': transaction.notes})
+                                      'stock_level': running_stock, 'change': transaction.
+                                      quantity, 'transaction_type': transaction.
+                                      transaction_type, 'notes': transaction.notes})
             return stock_history
 
         @inject(MaterialService)
-        def get_leather_stock_history(self, leather_id: int, days: Optional[int
-        ]=None) ->List[Dict[str, Any]]:
+            def get_leather_stock_history(self, leather_id: int, days: Optional[int
+                                                                            ] = None) -> List[Dict[str, Any]]:
         """
         Get stock level history for a leather item.
 
@@ -547,29 +547,29 @@ class InventoryManager:
         """
         with self.session_factory() as session:
             query = select(LeatherTransaction).filter(LeatherTransaction.
-                leather_id == leather_id).order_by(LeatherTransaction.timestamp
-                )
+                                                      leather_id == leather_id).order_by(LeatherTransaction.timestamp
+                                                                                         )
             if days:
                 cutoff_date = datetime.utcnow() - timedelta(days=days)
                 query = query.filter(LeatherTransaction.timestamp >=
-                    cutoff_date)
+                                     cutoff_date)
             transactions = session.execute(query).scalars()
             stock_history = []
             running_area = 0
             for transaction in transactions:
                 if transaction.transaction_type in [TransactionType.INITIAL,
-                    TransactionType.INCREASE]:
+                                                    TransactionType.INCREASE]:
                     running_area += transaction.area_sqft
                 else:
                     running_area -= transaction.area_sqft
                 stock_history.append({'timestamp': transaction.timestamp,
-                    'available_area': running_area, 'change': transaction.
-                    area_sqft, 'transaction_type': transaction.
-                    transaction_type, 'notes': transaction.notes})
+                                      'available_area': running_area, 'change': transaction.
+                                      area_sqft, 'transaction_type': transaction.
+                                      transaction_type, 'notes': transaction.notes})
             return stock_history
 
         @inject(MaterialService)
-        def get_reorder_suggestions(self) ->Dict[str, List[Dict[str, Any]]]:
+            def get_reorder_suggestions(self) -> Dict[str, List[Dict[str, Any]]]:
         """
         Get suggestions for items that need reordering.
 
@@ -578,21 +578,21 @@ class InventoryManager:
         """
         with self.session_factory() as session:
             parts_query = select(Part).filter(Part.current_stock <= Part.
-                min_stock_level).order_by((Part.current_stock / Part.
-                min_stock_level).asc())
+                                              min_stock_level).order_by((Part.current_stock / Part.
+                                                                         min_stock_level).asc())
             parts = []
             for part in session.execute(parts_query).scalars():
                 parts.append({'id': part.id, 'name': part.name,
-                    'current_stock': part.current_stock, 'min_stock_level':
-                    part.min_stock_level, 'suggested_order': max(part.
-                    min_stock_level - part.current_stock, 0)})
+                              'current_stock': part.current_stock, 'min_stock_level':
+                              part.min_stock_level, 'suggested_order': max(part.
+                                                                           min_stock_level - part.current_stock, 0)})
             leather_query = select(Leather).filter(Leather.
-                available_area_sqft <= Leather.min_area_sqft).order_by((
-                Leather.available_area_sqft / Leather.min_area_sqft).asc())
+                                                   available_area_sqft <= Leather.min_area_sqft).order_by((
+                                                       Leather.available_area_sqft / Leather.min_area_sqft).asc())
             leather = []
             for item in session.execute(leather_query).scalars():
                 leather.append({'id': item.id, 'type': item.type, 'color':
-                    item.color, 'available_area': item.available_area_sqft,
-                    'min_area': item.min_area_sqft, 'suggested_order': max(
-                    item.min_area_sqft - item.available_area_sqft, 0)})
+                                item.color, 'available_area': item.available_area_sqft,
+                                'min_area': item.min_area_sqft, 'suggested_order': max(
+                                    item.min_area_sqft - item.available_area_sqft, 0)})
             return {'parts': parts, 'leather': leather}

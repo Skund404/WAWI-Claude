@@ -15,9 +15,9 @@ class BaseManager(Generic[T]):
     with extensive error handling and transaction management.
     """
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, model_class: Type[T], session_factory: Callable[[],
-        Session]):
+                                                                       Session]):
         """
         Initialize the base manager with a model class and session factory.
 
@@ -31,7 +31,7 @@ class BaseManager(Generic[T]):
 
         @contextmanager
     @inject(MaterialService)
-    def session_scope(self):
+        def session_scope(self):
         """
         Provide a transactional scope around a series of operations.
 
@@ -57,7 +57,7 @@ class BaseManager(Generic[T]):
             session.close()
 
         @inject(MaterialService)
-        def create(self, data: Dict[str, Any]) ->T:
+            def create(self, data: Dict[str, Any]) -> T:
         """
         Create a new record in the database.
 
@@ -78,11 +78,11 @@ class BaseManager(Generic[T]):
                 session.refresh(instance)
                 return instance
         except Exception as e:
-            raise DatabaseError(f'Failed to create {self.model_class.__name__}'
-                , str(e))
+            raise DatabaseError(
+                f'Failed to create {self.model_class.__name__}', str(e))
 
         @inject(MaterialService)
-        def get(self, id: Any) ->Optional[T]:
+            def get(self, id: Any) -> Optional[T]:
         """
         Retrieve a record by its primary key.
 
@@ -104,8 +104,8 @@ class BaseManager(Generic[T]):
                 str(e))
 
         @inject(MaterialService)
-        def get_all(self, order_by: Optional[str]=None, limit: Optional[int]=None
-        ) ->List[T]:
+            def get_all(self, order_by: Optional[str] = None, limit: Optional[int] = None
+                    ) -> List[T]:
         """
         Retrieve all records, with optional ordering and limit.
 
@@ -136,7 +136,7 @@ class BaseManager(Generic[T]):
                 str(e))
 
         @inject(MaterialService)
-        def update(self, id: Any, data: Dict[str, Any]) ->Optional[T]:
+            def update(self, id: Any, data: Dict[str, Any]) -> Optional[T]:
         """
         Update an existing record.
 
@@ -166,7 +166,7 @@ class BaseManager(Generic[T]):
                 str(e))
 
         @inject(MaterialService)
-        def delete(self, id: Any) ->bool:
+            def delete(self, id: Any) -> bool:
         """
         Delete a record by its primary key.
 
@@ -192,7 +192,7 @@ class BaseManager(Generic[T]):
                 str(e))
 
         @inject(MaterialService)
-        def exists(self, **kwargs) ->bool:
+            def exists(self, **kwargs) -> bool:
         """
         Check if a record exists with the given criteria.
 
@@ -223,7 +223,7 @@ class BaseManager(Generic[T]):
                 str(e))
 
         @inject(MaterialService)
-        def count(self, **kwargs) ->int:
+            def count(self, **kwargs) -> int:
         """
         Count records matching the given criteria.
 
@@ -253,7 +253,7 @@ class BaseManager(Generic[T]):
                 f'Failed to count {self.model_class.__name__} records', str(e))
 
         @inject(MaterialService)
-        def filter_by(self, **kwargs) ->List[T]:
+            def filter_by(self, **kwargs) -> List[T]:
         """
         Retrieve records matching the given criteria.
 
@@ -281,10 +281,10 @@ class BaseManager(Generic[T]):
         except Exception as e:
             raise DatabaseError(
                 f'Failed to filter {self.model_class.__name__} records', str(e)
-                )
+            )
 
         @inject(MaterialService)
-        def search(self, term: str, fields: Optional[List[str]]=None) ->List[T]:
+            def search(self, term: str, fields: Optional[List[str]] = None) -> List[T]:
         """
         Search for records where any of the specified fields contain the search term.
 
@@ -302,8 +302,8 @@ class BaseManager(Generic[T]):
             with self.session_scope() as session:
                 if not fields:
                     mapper = inspect(self.model_class)
-                    fields = [column.key for column in mapper.columns if 
-                        column.type.python_type == str]
+                    fields = [column.key for column in mapper.columns if
+                              column.type.python_type == str]
                 query = select(self.model_class)
                 conditions = []
                 for field in fields:
@@ -317,10 +317,10 @@ class BaseManager(Generic[T]):
         except Exception as e:
             raise DatabaseError(
                 f'Failed to search {self.model_class.__name__} records', str(e)
-                )
+            )
 
         @inject(MaterialService)
-        def bulk_create(self, items: List[Dict[str, Any]]) ->List[T]:
+            def bulk_create(self, items: List[Dict[str, Any]]) -> List[T]:
         """
         Create multiple records in a single transaction.
 
@@ -348,7 +348,7 @@ class BaseManager(Generic[T]):
                 str(e))
 
         @inject(MaterialService)
-        def bulk_update(self, items: List[Dict[str, Any]]) ->List[T]:
+            def bulk_update(self, items: List[Dict[str, Any]]) -> List[T]:
         """
         Update multiple records in a single transaction.
 

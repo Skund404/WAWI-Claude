@@ -18,9 +18,9 @@ class ValidationMixin(ABC):
     string formats, and custom business rules.
     """
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def validate_required_fields(self, data: Dict[str, Any],
-        required_fields: List[str]) ->bool:
+                                 required_fields: List[str]) -> bool:
         """
         Validate that all required fields are present and not None.
 
@@ -32,12 +32,12 @@ class ValidationMixin(ABC):
             bool: True if all required fields are present and not None
         """
         return all(field in data and data[field] is not None for field in
-            required_fields)
+                   required_fields)
 
         @inject(MaterialService)
-        def validate_numeric_range(self, value: Union[int, float], min_val:
-        Optional[Union[int, float]]=None, max_val: Optional[Union[int,
-        float]]=None) ->bool:
+            def validate_numeric_range(self, value: Union[int, float], min_val:
+                                   Optional[Union[int, float]] = None, max_val: Optional[Union[int,
+                                                                                               float]] = None) -> bool:
         """
         Validate that a numeric value is within the specified range.
 
@@ -56,9 +56,9 @@ class ValidationMixin(ABC):
         return True
 
         @inject(MaterialService)
-        def validate_string_format(self, value: str, min_length: Optional[int]=
-        None, max_length: Optional[int]=None, pattern: Optional[str]=None
-        ) ->bool:
+            def validate_string_format(self, value: str, min_length: Optional[int] =
+                                   None, max_length: Optional[int] = None, pattern: Optional[str] = None
+                                   ) -> bool:
         """
         Validate string format including length and pattern matching.
 
@@ -80,8 +80,8 @@ class ValidationMixin(ABC):
         return True
 
         @inject(MaterialService)
-        def validate_date_range(self, date: datetime, start_date: Optional[
-        datetime]=None, end_date: Optional[datetime]=None) ->bool:
+            def validate_date_range(self, date: datetime, start_date: Optional[
+                datetime] = None, end_date: Optional[datetime] = None) -> bool:
         """
         Validate that a date falls within the specified range.
 
@@ -100,9 +100,9 @@ class ValidationMixin(ABC):
         return True
 
         @inject(MaterialService)
-        def validate_related_fields(self, data: Dict[str, Any], field_pairs:
-        List[Tuple[str, str]], comparison_func: Optional[callable]=None
-        ) ->bool:
+            def validate_related_fields(self, data: Dict[str, Any], field_pairs:
+                                    List[Tuple[str, str]], comparison_func: Optional[callable] = None
+                                    ) -> bool:
         """
         Validate relationships between pairs of fields.
 
@@ -116,7 +116,7 @@ class ValidationMixin(ABC):
             bool: True if all field pairs pass validation
         """
         if comparison_func is None:
-            comparison_func = lambda x, y: x <= y
+            def comparison_func(x, y): return x <= y
         for field1, field2 in field_pairs:
             if field1 not in data or field2 not in data:
                 return False
@@ -126,7 +126,7 @@ class ValidationMixin(ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def validate(self) ->bool:
+        def validate(self) -> bool:
         """
         Validate the entire object.
 
@@ -139,7 +139,7 @@ class ValidationMixin(ABC):
         pass
 
         @inject(MaterialService)
-        def _validate_type(self, value: Any, expected_type: Type) ->bool:
+            def _validate_type(self, value: Any, expected_type: Type) -> bool:
         """
         Internal helper to validate type of a value.
 
@@ -153,7 +153,7 @@ class ValidationMixin(ABC):
         return isinstance(value, expected_type)
 
         @inject(MaterialService)
-        def _validate_enum(self, value: Any, valid_values: List[Any]) ->bool:
+            def _validate_enum(self, value: Any, valid_values: List[Any]) -> bool:
         """
         Internal helper to validate enum-like values.
 

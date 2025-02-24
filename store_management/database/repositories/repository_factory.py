@@ -15,13 +15,13 @@ class RepositoryFactory:
     This class provides methods for creating repositories for different models.
     """
     _repository_classes: Dict[str, Type[BaseRepository]] = {'Supplier':
-        SupplierRepository, 'Storage': StorageRepository, 'Product':
-        ProductRepository}
+                                                            SupplierRepository, 'Storage': StorageRepository, 'Product':
+                                                            ProductRepository}
     _repositories: Dict[str, BaseRepository] = {}
 
-        @classmethod
+    @classmethod
     def register_repository(cls, model_name: str, repository_class: Type[
-        BaseRepository]) ->None:
+            BaseRepository]) -> None:
         """
         Register a repository class for a model.
 
@@ -32,11 +32,11 @@ class RepositoryFactory:
         cls._repository_classes[model_name] = repository_class
         logger.debug(
             f'Registered repository for {model_name}: {repository_class.__name__}'
-            )
+        )
 
         @classmethod
     def get_repository(cls, model_name: str, session: Session
-        ) ->BaseRepository:
+                       ) -> BaseRepository:
         """
         Get a repository instance for a model.
 
@@ -62,6 +62,6 @@ class RepositoryFactory:
         return repository
 
         @classmethod
-    def clear_cache(cls) ->None:
+    def clear_cache(cls) -> None:
         """Clear the repository cache."""
         cls._repositories.clear()

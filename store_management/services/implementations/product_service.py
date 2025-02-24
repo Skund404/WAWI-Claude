@@ -2,6 +2,8 @@
 
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+
+
 class ProductService(Service, IProductService):
     """
     Implementation of the Product Service.
@@ -9,8 +11,8 @@ class ProductService(Service, IProductService):
     Provides comprehensive methods for managing product-related operations.
     """
 
-        @inject(MaterialService)
-        def __init__(self, session: Optional[Session]=None):
+    @inject(MaterialService)
+        def __init__(self, session: Optional[Session] = None):
         """
         Initialize the Product Service.
 
@@ -23,7 +25,7 @@ class ProductService(Service, IProductService):
         self._repository = ProductRepository(self._session)
 
         @inject(MaterialService)
-        def create_product(self, product_data: Dict[str, Any]) ->Dict[str, Any]:
+            def create_product(self, product_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Create a new product with comprehensive validation.
 
@@ -49,8 +51,8 @@ class ProductService(Service, IProductService):
             cost_price = product_data.get('cost_price')
             minimum_stock_level = product_data.get('minimum_stock_level', 0.0)
             product = Product.create_product(name=name, price=price,
-                description=description, sku=sku, category=category,
-                cost_price=cost_price, minimum_stock_level=minimum_stock_level)
+                                             description=description, sku=sku, category=category,
+                                             cost_price=cost_price, minimum_stock_level=minimum_stock_level)
             created_product = self._repository.add(product)
             return created_product.to_dict(include_details=True)
         except (DatabaseError, ValidationError) as e:
@@ -58,7 +60,7 @@ class ProductService(Service, IProductService):
             raise
 
         @inject(MaterialService)
-        def get_product(self, product_id: int) ->Optional[Dict[str, Any]]:
+            def get_product(self, product_id: int) -> Optional[Dict[str, Any]]:
         """
         Retrieve a specific product by ID with detailed information.
 
@@ -81,8 +83,8 @@ class ProductService(Service, IProductService):
             raise
 
         @inject(MaterialService)
-        def update_product(self, product_id: int, product_data: Dict[str, Any]
-        ) ->Dict[str, Any]:
+            def update_product(self, product_id: int, product_data: Dict[str, Any]
+                           ) -> Dict[str, Any]:
         """
         Update an existing product with comprehensive validation.
 
@@ -134,7 +136,7 @@ class ProductService(Service, IProductService):
             raise
 
         @inject(MaterialService)
-        def delete_product(self, product_id: int) ->bool:
+            def delete_product(self, product_id: int) -> bool:
         """
         Delete a product with additional checks.
 
@@ -161,8 +163,8 @@ class ProductService(Service, IProductService):
             raise
 
         @inject(MaterialService)
-        def search_products(self, search_params: Dict[str, Any]) ->List[Dict[
-        str, Any]]:
+            def search_products(self, search_params: Dict[str, Any]) -> List[Dict[
+                str, Any]]:
         """
         Advanced search for products with multiple search criteria.
 
@@ -175,34 +177,34 @@ class ProductService(Service, IProductService):
         try:
             if 'name' in search_params:
                 return [product.to_dict(include_details=True) for product in
-                    self._repository.search_by_name(search_params['name'])]
+                        self._repository.search_by_name(search_params['name'])]
             if 'category' in search_params:
                 return [product.to_dict(include_details=True) for product in
-                    self._repository.get_products_by_category(search_params
-                    ['category'])]
+                        self._repository.get_products_by_category(search_params
+                                                                  ['category'])]
             if 'is_active' in search_params:
                 return [product.to_dict(include_details=True) for product in
-                    self._repository.get_active_products()]
+                        self._repository.get_active_products()]
             if 'low_stock' in search_params:
                 include_zero = search_params.get('include_zero_stock', False)
                 return [product.to_dict(include_details=True) for product in
-                    self._repository.get_low_stock_products(include_zero)]
+                        self._repository.get_low_stock_products(include_zero)]
             if 'min_price' in search_params or 'max_price' in search_params:
                 min_price = search_params.get('min_price', 0)
                 max_price = search_params.get('max_price', float('inf'))
                 return [product.to_dict(include_details=True) for product in
-                    self._repository.get_all() if min_price <= product.
-                    price <= max_price]
+                        self._repository.get_all() if min_price <= product.
+                        price <= max_price]
             return [product.to_dict(include_details=True) for product in
-                self._repository.get_all()]
+                    self._repository.get_all()]
         except DatabaseError as e:
             self._logger.error(f'Error searching products: {e}')
             raise
 
         @inject(MaterialService)
-        def update_product_stock(self, product_id: int, quantity_change: float,
-        transaction_type: str='ADJUSTMENT', notes: Optional[str]=None) ->Dict[
-        str, Any]:
+            def update_product_stock(self, product_id: int, quantity_change: float,
+                                 transaction_type: str = 'ADJUSTMENT', notes: Optional[str] = None) -> Dict[
+                str, Any]:
         """
         Update the stock of a product.
 
@@ -232,7 +234,7 @@ class ProductService(Service, IProductService):
             raise
 
         @inject(MaterialService)
-        def generate_product_report(self) ->Dict[str, Any]:
+            def generate_product_report(self) -> Dict[str, Any]:
         """
         Generate a comprehensive product report.
 
@@ -243,8 +245,8 @@ class ProductService(Service, IProductService):
             summary = self._repository.get_product_sales_summary()
             low_stock_products = self._repository.get_low_stock_products()
             report = {'summary': summary, 'low_stock_products': [product.
-                to_dict(include_details=True) for product in
-                low_stock_products]}
+                                                                 to_dict(include_details=True) for product in
+                                                                 low_stock_products]}
             return report
         except DatabaseError as e:
             self._logger.error(f'Error generating product report: {e}')

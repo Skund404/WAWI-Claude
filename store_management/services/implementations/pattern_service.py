@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 class PatternService(IPatternService):
     """Implementation of pattern management service."""
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, session_factory):
         """
         Initialize service with database session factory.
@@ -17,7 +17,7 @@ class PatternService(IPatternService):
         self.session_factory = session_factory
 
         @inject(MaterialService)
-        def get_all_patterns(self) ->List[Pattern]:
+            def get_all_patterns(self) -> List[Pattern]:
         """Get all patterns."""
         try:
             with self.session_factory() as session:
@@ -27,19 +27,19 @@ class PatternService(IPatternService):
             raise ApplicationError('Failed to retrieve patterns', str(e))
 
         @inject(MaterialService)
-        def get_pattern_by_id(self, pattern_id: int) ->Optional[Pattern]:
+            def get_pattern_by_id(self, pattern_id: int) -> Optional[Pattern]:
         """Get pattern by ID."""
         try:
             with self.session_factory() as session:
                 return session.query(Pattern).filter(Pattern.id == pattern_id
-                    ).first()
+                                                     ).first()
         except Exception as e:
             logger.error(f'Failed to get pattern {pattern_id}: {str(e)}')
             raise ApplicationError(f'Failed to retrieve pattern {pattern_id}',
-                str(e))
+                                   str(e))
 
         @inject(MaterialService)
-        def create_pattern(self, pattern_data: Dict[str, Any]) ->Pattern:
+            def create_pattern(self, pattern_data: Dict[str, Any]) -> Pattern:
         """Create new pattern."""
         try:
             with self.session_factory() as session:
@@ -59,13 +59,13 @@ class PatternService(IPatternService):
             raise ApplicationError('Failed to create pattern', str(e))
 
         @inject(MaterialService)
-        def update_pattern(self, pattern_id: int, pattern_data: Dict[str, Any]
-        ) ->Optional[Pattern]:
+            def update_pattern(self, pattern_id: int, pattern_data: Dict[str, Any]
+                           ) -> Optional[Pattern]:
         """Update existing pattern."""
         try:
             with self.session_factory() as session:
                 pattern = session.query(Pattern).filter(Pattern.id ==
-                    pattern_id).first()
+                                                        pattern_id).first()
                 if not pattern:
                     return None
                 self._validate_pattern_data(pattern_data)
@@ -79,15 +79,15 @@ class PatternService(IPatternService):
         except Exception as e:
             logger.error(f'Failed to update pattern {pattern_id}: {str(e)}')
             raise ApplicationError(f'Failed to update pattern {pattern_id}',
-                str(e))
+                                   str(e))
 
         @inject(MaterialService)
-        def delete_pattern(self, pattern_id: int) ->bool:
+            def delete_pattern(self, pattern_id: int) -> bool:
         """Delete pattern by ID."""
         try:
             with self.session_factory() as session:
                 pattern = session.query(Pattern).filter(Pattern.id ==
-                    pattern_id).first()
+                                                        pattern_id).first()
                 if not pattern:
                     return False
                 session.delete(pattern)
@@ -96,11 +96,11 @@ class PatternService(IPatternService):
         except Exception as e:
             logger.error(f'Failed to delete pattern {pattern_id}: {str(e)}')
             raise ApplicationError(f'Failed to delete pattern {pattern_id}',
-                str(e))
+                                   str(e))
 
         @inject(MaterialService)
-        def search_patterns(self, search_term: str, search_fields: List[str]
-        ) ->List[Pattern]:
+            def search_patterns(self, search_term: str, search_fields: List[str]
+                            ) -> List[Pattern]:
         """Search patterns."""
         try:
             with self.session_factory() as session:
@@ -118,13 +118,13 @@ class PatternService(IPatternService):
             raise ApplicationError('Failed to search patterns', str(e))
 
         @inject(MaterialService)
-        def calculate_material_requirements(self, pattern_id: int, quantity: int=1
-        ) ->Dict[str, float]:
+            def calculate_material_requirements(self, pattern_id: int, quantity: int = 1
+                                            ) -> Dict[str, float]:
         """Calculate material requirements."""
         try:
             with self.session_factory() as session:
                 pattern = session.query(Pattern).filter(Pattern.id ==
-                    pattern_id).first()
+                                                        pattern_id).first()
                 if not pattern:
                     raise ValidationError(f'Pattern {pattern_id} not found')
                 requirements = {}
@@ -141,21 +141,21 @@ class PatternService(IPatternService):
         except Exception as e:
             logger.error(
                 f'Failed to calculate requirements for pattern {pattern_id}: {str(e)}'
-                )
+            )
             raise ApplicationError(f'Failed to calculate pattern requirements',
-                str(e))
+                                   str(e))
 
         @inject(MaterialService)
-        def validate_pattern(self, pattern_id: int) ->Dict[str, Any]:
+            def validate_pattern(self, pattern_id: int) -> Dict[str, Any]:
         """Validate pattern data."""
         try:
             with self.session_factory() as session:
                 pattern = session.query(Pattern).filter(Pattern.id ==
-                    pattern_id).first()
+                                                        pattern_id).first()
                 if not pattern:
                     raise ValidationError(f'Pattern {pattern_id} not found')
                 validation_results = {'is_valid': True, 'errors': [],
-                    'warnings': []}
+                                      'warnings': []}
                 if not pattern.name:
                     validation_results['is_valid'] = False
                     validation_results['errors'].append(
@@ -172,7 +172,7 @@ class PatternService(IPatternService):
                     if component.unit_cost < 0:
                         validation_results['errors'].append(
                             f'Invalid unit cost for component {component.name}'
-                            )
+                        )
                         validation_results['is_valid'] = False
                 return validation_results
         except ValidationError:
@@ -182,7 +182,7 @@ class PatternService(IPatternService):
             raise ApplicationError(f'Failed to validate pattern', str(e))
 
         @inject(MaterialService)
-        def _validate_pattern_data(self, pattern_data: Dict[str, Any]) ->None:
+            def _validate_pattern_data(self, pattern_data: Dict[str, Any]) -> None:
         """
         Validate pattern data before creation/update.
 

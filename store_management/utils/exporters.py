@@ -2,11 +2,13 @@
 
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+
+
 class OrderExporter:
     """Handler for exporting order data"""
 
-        @staticmethod
-    def export_to_csv(data: Dict[str, Any], filepath: Path) ->bool:
+    @staticmethod
+    def export_to_csv(data: Dict[str, Any], filepath: Path) -> bool:
         """Export order data to CSV"""
         try:
             order_header = filepath.with_suffix('.order.csv')
@@ -17,9 +19,9 @@ class OrderExporter:
             details_file = filepath.with_suffix('.details.csv')
             if data['details']:
                 with open(details_file, 'w', newline='', encoding='utf-8'
-                    ) as f:
+                          ) as f:
                     writer = csv.DictWriter(f, fieldnames=data['details'][0
-                        ].keys())
+                                                                          ].keys())
                     writer.writeheader()
                     writer.writerows(data['details'])
             return True
@@ -28,35 +30,35 @@ class OrderExporter:
             return False
 
         @staticmethod
-    def export_to_excel(data: Dict[str, Any], filepath: Path) ->bool:
+    def export_to_excel(data: Dict[str, Any], filepath: Path) -> bool:
         """Export order data to Excel"""
         try:
             filepath = filepath.with_suffix('.xlsx')
             workbook = xlsxwriter.Workbook(str(filepath))
             header_format = workbook.add_format({'bold': True, 'bg_color':
-                '#D3D3D3', 'border': 1})
+                                                 '#D3D3D3', 'border': 1})
             date_format = workbook.add_format({'num_format': 'yyyy-mm-dd'})
             number_format = workbook.add_format({'num_format': '#,##0.00'})
             order_sheet = workbook.add_worksheet('Order')
             for col, field in enumerate(data['order'].keys()):
                 order_sheet.write(0, col, field.replace('_', ' ').title(),
-                    header_format)
+                                  header_format)
                 value = data['order'][field]
                 if field == 'date_of_order':
                     order_sheet.write(1, col, datetime.strptime(value,
-                        '%Y-%m-%d'), date_format)
+                                                                '%Y-%m-%d'), date_format)
                 else:
                     order_sheet.write(1, col, value)
             if data['details']:
                 details_sheet = workbook.add_worksheet('Details')
                 for col, field in enumerate(data['details'][0].keys()):
                     details_sheet.write(0, col, field.replace('_', ' ').
-                        title(), header_format)
+                                        title(), header_format)
                 for row, detail in enumerate(data['details'], 1):
                     for col, (field, value) in enumerate(detail.items()):
                         if field in ['price', 'total']:
                             details_sheet.write(row, col, float(value),
-                                number_format)
+                                                number_format)
                         else:
                             details_sheet.write(row, col, value)
             workbook.close()
@@ -66,7 +68,7 @@ class OrderExporter:
             return False
 
         @staticmethod
-    def export_to_json(data: Dict[str, Any], filepath: Path) ->bool:
+    def export_to_json(data: Dict[str, Any], filepath: Path) -> bool:
         """Export order data to JSON (backup)"""
         try:
             filepath = filepath.with_suffix('.json')
@@ -81,9 +83,9 @@ class OrderExporter:
 class OrderImporter:
     """Handler for importing order data"""
 
-        @staticmethod
-    def import_from_csv(order_file: Path, details_file: Optional[Path]=None
-        ) ->Dict[str, Any]:
+    @staticmethod
+    def import_from_csv(order_file: Path, details_file: Optional[Path] = None
+                        ) -> Dict[str, Any]:
         """Import order data from CSV files"""
         try:
             with open(order_file, 'r', encoding='utf-8') as f:
@@ -100,7 +102,7 @@ class OrderImporter:
             return {}
 
         @staticmethod
-    def import_from_excel(filepath: Path) ->Dict[str, Any]:
+    def import_from_excel(filepath: Path) -> Dict[str, Any]:
         """Import order data from Excel file"""
         try:
             xl = pd.ExcelFile(filepath)
@@ -116,7 +118,7 @@ class OrderImporter:
             return {}
 
         @staticmethod
-    def import_from_json(filepath: Path) ->Dict[str, Any]:
+    def import_from_json(filepath: Path) -> Dict[str, Any]:
         """Import order data from JSON backup"""
         try:
             with open(filepath, 'r', encoding='utf-8') as f:

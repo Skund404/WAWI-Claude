@@ -1,17 +1,24 @@
 from di.core import inject
-from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+from services.interfaces import (
+    MaterialService,
+    ProjectService,
+    InventoryService,
+    OrderService,
+)
+
 """
 Script to enable all tabs in the main window.
 """
-logging.basicConfig(level=logging.INFO, format=
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger('tab_enabler')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger("tab_enabler")
 
 
 def create_recipe_view():
     """Create a basic pattern view."""
-    recipe_view_dir = os.path.join('gui', 'pattern')
-    recipe_view_path = os.path.join(recipe_view_dir, 'recipe_view.py')
+    recipe_view_dir = os.path.join("gui", "pattern")
+    recipe_view_path = os.path.join(recipe_view_dir, "recipe_view.py")
     os.makedirs(recipe_view_dir, exist_ok=True)
     recipe_view_content = """
 # Path: gui/pattern/recipe_view.py
@@ -29,7 +36,7 @@ from services.interfaces.recipe_service import IRecipeService
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, 
-                   format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 class RecipeView(BaseView):
@@ -38,7 +45,7 @@ class RecipeView(BaseView):
     ""\"
 
     @inject(MaterialService)
-    def __init__(self, parent, app):
+        def __init__(self, parent, app):
         ""\"
         Initialize the pattern view.
 
@@ -53,7 +60,7 @@ class RecipeView(BaseView):
         self.load_data()
 
     @inject(MaterialService)
-    def _find_database_file(self):
+        def _find_database_file(self):
         ""\"Find the SQLite database file.""\"
         # List of possible locations
         possible_locations = [
@@ -79,13 +86,13 @@ class RecipeView(BaseView):
         return None
 
     @inject(MaterialService)
-    def setup_ui(self):
+        def setup_ui(self):
         ""\"Set up the user interface components.""\"
         self.create_toolbar()
         self.create_treeview()
 
     @inject(MaterialService)
-    def create_toolbar(self):
+        def create_toolbar(self):
         ""\"Create the toolbar with buttons.""\"
         toolbar = ttk.Frame(self)
         toolbar.pack(side=tk.TOP, fill=tk.X, padx=5, pady=5)
@@ -99,7 +106,7 @@ class RecipeView(BaseView):
         logger.debug("Toolbar created")
 
     @inject(MaterialService)
-    def create_treeview(self):
+        def create_treeview(self):
         ""\"Create the treeview for displaying patterns.""\"
         # Create a frame to hold the treeview and scrollbar
         frame = ttk.Frame(self)
@@ -143,7 +150,7 @@ class RecipeView(BaseView):
         logger.debug("Treeview created")
 
     @inject(MaterialService)
-    def load_data(self):
+        def load_data(self):
         ""\"Load patterns from the database and display them.""\"
         try:
             logger.info("Loading pattern data")
@@ -205,43 +212,43 @@ class RecipeView(BaseView):
                 conn.close()
 
     @inject(MaterialService)
-    def show_add_dialog(self):
+        def show_add_dialog(self):
         ""\"Show dialog to add a new pattern.""\"
         # Implementation would go here
         logger.debug("Add dialog requested but not implemented")
         self.show_info("Not Implemented", "Add pattern functionality is not yet implemented.")
 
     @inject(MaterialService)
-    def on_double_click(self, event):
+        def on_double_click(self, event):
         ""\"Handle double-click on a pattern item.""\"
         # Implementation would go here
         logger.debug("Double-click event received but not implemented")
         self.show_info("Not Implemented", "Edit pattern functionality is not yet implemented.")
 
     @inject(MaterialService)
-    def delete_selected(self, event):
+        def delete_selected(self, event):
         ""\"Delete the selected pattern.""\"
         # Implementation would go here
         logger.debug("Delete requested but not implemented")
         self.show_info("Not Implemented", "Delete pattern functionality is not yet implemented.")
 
     @inject(MaterialService)
-    def show_search_dialog(self):
+        def show_search_dialog(self):
         ""\"Show search dialog.""\"
         # Implementation would go here
         logger.debug("Search requested but not implemented")
         self.show_info("Not Implemented", "Search functionality is not yet implemented.")
 """
-    with open(recipe_view_path, 'w') as f:
+    with open(recipe_view_path, "w") as f:
         f.write(recipe_view_content.strip())
-    logger.info(f'Created pattern view at {recipe_view_path}')
+    logger.info(f"Created pattern view at {recipe_view_path}")
     return True
 
 
 def create_order_view():
     """Create a basic order view."""
-    order_view_dir = os.path.join('gui', 'order')
-    order_view_path = os.path.join(order_view_dir, 'order_view.py')
+    order_view_dir = os.path.join("gui", "order")
+    order_view_path = os.path.join(order_view_dir, "order_view.py")
     os.makedirs(order_view_dir, exist_ok=True)
     order_view_content = """
 # Path: gui/order/order_view.py
@@ -260,7 +267,7 @@ from services.interfaces.order_service import IOrderService
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, 
-                   format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 class OrderView(BaseView):
@@ -269,7 +276,7 @@ class OrderView(BaseView):
     ""\"
 
     @inject(MaterialService)
-    def __init__(self, parent, app):
+        def __init__(self, parent, app):
         ""\"
         Initialize the order view.
 
@@ -284,7 +291,7 @@ class OrderView(BaseView):
         self.load_data()
 
     @inject(MaterialService)
-    def _find_database_file(self):
+        def _find_database_file(self):
         ""\"Find the SQLite database file.""\"
         # List of possible locations
         possible_locations = [
@@ -310,13 +317,13 @@ class OrderView(BaseView):
         return None
 
     @inject(MaterialService)
-    def setup_ui(self):
+        def setup_ui(self):
         ""\"Set up the user interface components.""\"
         self.create_toolbar()
         self.create_treeview()
 
     @inject(MaterialService)
-    def create_toolbar(self):
+        def create_toolbar(self):
         ""\"Create the toolbar with buttons.""\"
         toolbar = ttk.Frame(self)
         toolbar.pack(side=tk.TOP, fill=tk.X, padx=5, pady=5)
@@ -330,7 +337,7 @@ class OrderView(BaseView):
         logger.debug("Toolbar created")
 
     @inject(MaterialService)
-    def create_treeview(self):
+        def create_treeview(self):
         ""\"Create the treeview for displaying orders.""\"
         # Create a frame to hold the treeview and scrollbar
         frame = ttk.Frame(self)
@@ -374,7 +381,7 @@ class OrderView(BaseView):
         logger.debug("Treeview created")
 
     @inject(MaterialService)
-    def load_data(self):
+        def load_data(self):
         ""\"Load orders from the database and display them.""\"
         try:
             logger.info("Loading order data")
@@ -438,44 +445,44 @@ class OrderView(BaseView):
                 conn.close()
 
     @inject(MaterialService)
-    def show_add_dialog(self):
+        def show_add_dialog(self):
         ""\"Show dialog to add a new order.""\"
         # Implementation would go here
         logger.debug("Add dialog requested but not implemented")
         self.show_info("Not Implemented", "Add order functionality is not yet implemented.")
 
     @inject(MaterialService)
-    def on_double_click(self, event):
+        def on_double_click(self, event):
         ""\"Handle double-click on an order item.""\"
         # Implementation would go here
         logger.debug("Double-click event received but not implemented")
         self.show_info("Not Implemented", "Edit order functionality is not yet implemented.")
 
     @inject(MaterialService)
-    def delete_selected(self, event):
+        def delete_selected(self, event):
         ""\"Delete the selected order.""\"
         # Implementation would go here
         logger.debug("Delete requested but not implemented")
         self.show_info("Not Implemented", "Delete order functionality is not yet implemented.")
 
     @inject(MaterialService)
-    def show_search_dialog(self):
+        def show_search_dialog(self):
         ""\"Show search dialog.""\"
         # Implementation would go here
         logger.debug("Search requested but not implemented")
         self.show_info("Not Implemented", "Search functionality is not yet implemented.")
 """
-    with open(order_view_path, 'w') as f:
+    with open(order_view_path, "w") as f:
         f.write(order_view_content.strip())
-    logger.info(f'Created order view at {order_view_path}')
+    logger.info(f"Created order view at {order_view_path}")
     return True
 
 
 def create_shopping_list_view():
     """Create a basic shopping list view."""
-    shopping_list_dir = os.path.join('gui', 'shopping_list')
-    shopping_list_path = os.path.join(shopping_list_dir,
-        'shopping_list_view.py')
+    shopping_list_dir = os.path.join("gui", "shopping_list")
+    shopping_list_path = os.path.join(
+        shopping_list_dir, "shopping_list_view.py")
     os.makedirs(shopping_list_dir, exist_ok=True)
     shopping_list_content = """
 # Path: gui/shopping_list/shopping_list_view.py
@@ -494,7 +501,7 @@ from services.interfaces.shopping_list_service import IShoppingListService
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, 
-                   format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 class ShoppingListView(BaseView):
@@ -503,7 +510,7 @@ class ShoppingListView(BaseView):
     ""\"
 
     @inject(MaterialService)
-    def __init__(self, parent, app):
+        def __init__(self, parent, app):
         ""\"
         Initialize the shopping list view.
 
@@ -518,7 +525,7 @@ class ShoppingListView(BaseView):
         self.load_data()
 
     @inject(MaterialService)
-    def _find_database_file(self):
+        def _find_database_file(self):
         ""\"Find the SQLite database file.""\"
         # List of possible locations
         possible_locations = [
@@ -544,13 +551,13 @@ class ShoppingListView(BaseView):
         return None
 
     @inject(MaterialService)
-    def setup_ui(self):
+        def setup_ui(self):
         ""\"Set up the user interface components.""\"
         self.create_toolbar()
         self.create_treeview()
 
     @inject(MaterialService)
-    def create_toolbar(self):
+        def create_toolbar(self):
         ""\"Create the toolbar with buttons.""\"
         toolbar = ttk.Frame(self)
         toolbar.pack(side=tk.TOP, fill=tk.X, padx=5, pady=5)
@@ -564,7 +571,7 @@ class ShoppingListView(BaseView):
         logger.debug("Toolbar created")
 
     @inject(MaterialService)
-    def create_treeview(self):
+        def create_treeview(self):
         ""\"Create the treeview for displaying shopping lists.""\"
         # Create a frame to hold the treeview and scrollbar
         frame = ttk.Frame(self)
@@ -610,7 +617,7 @@ class ShoppingListView(BaseView):
         logger.debug("Treeview created")
 
     @inject(MaterialService)
-    def load_data(self):
+        def load_data(self):
         ""\"Load shopping lists from the database and display them.""\"
         try:
             logger.info("Loading shopping list data")
@@ -674,92 +681,90 @@ class ShoppingListView(BaseView):
                 conn.close()
 
     @inject(MaterialService)
-    def show_add_dialog(self):
+        def show_add_dialog(self):
         ""\"Show dialog to add a new shopping list.""\"
         # Implementation would go here
         logger.debug("Add dialog requested but not implemented")
         self.show_info("Not Implemented", "Add shopping list functionality is not yet implemented.")
 
     @inject(MaterialService)
-    def on_double_click(self, event):
+        def on_double_click(self, event):
         ""\"Handle double-click on a shopping list item.""\"
         # Implementation would go here
         logger.debug("Double-click event received but not implemented")
         self.show_info("Not Implemented", "Edit shopping list functionality is not yet implemented.")
 
     @inject(MaterialService)
-    def delete_selected(self, event):
+        def delete_selected(self, event):
         ""\"Delete the selected shopping list.""\"
         # Implementation would go here
         logger.debug("Delete requested but not implemented")
         self.show_info("Not Implemented", "Delete shopping list functionality is not yet implemented.")
 
     @inject(MaterialService)
-    def show_search_dialog(self):
+        def show_search_dialog(self):
         ""\"Show search dialog.""\"
         # Implementation would go here
         logger.debug("Search requested but not implemented")
         self.show_info("Not Implemented", "Search functionality is not yet implemented.")
 """
-    with open(shopping_list_path, 'w') as f:
+    with open(shopping_list_path, "w") as f:
         f.write(shopping_list_content.strip())
-    logger.info(f'Created shopping list view at {shopping_list_path}')
+    logger.info(f"Created shopping list view at {shopping_list_path}")
     return True
 
 
 def enable_tabs_in_main_window():
     """Enable all tabs in the main window."""
-    main_window_path = os.path.join('gui', 'main_window.py')
+    main_window_path = os.path.join("gui", "main_window.py")
     if not os.path.exists(main_window_path):
-        logger.error(f'Main window file not found at {main_window_path}')
+        logger.error(f"Main window file not found at {main_window_path}")
         return False
-    with open(main_window_path, 'r') as f:
+    with open(main_window_path, "r") as f:
         content = f.read()
     content = content.replace(
         """# from gui.pattern.recipe_view import PatternView
 # from gui.order.order_view import OrderView
-# from gui.shopping_list.shopping_list_view import ShoppingListView"""
-        ,
+# from gui.shopping_list.shopping_list_view import ShoppingListView""",
         """from gui.pattern.recipe_view import PatternView
 from gui.order.order_view import OrderView
-from gui.shopping_list.shopping_list_view import ShoppingListView"""
-        )
+from gui.shopping_list.shopping_list_view import ShoppingListView""",
+    )
     content = content.replace(
         """# self._add_recipes_tab()
 # self._add_orders_tab()
-# self._add_shopping_list_tab()"""
-        ,
+# self._add_shopping_list_tab()""",
         """self._add_recipes_tab()
 self._add_orders_tab()
-self._add_shopping_list_tab()"""
-        )
-    with open(main_window_path, 'w') as f:
+self._add_shopping_list_tab()""",
+    )
+    with open(main_window_path, "w") as f:
         f.write(content)
-    logger.info(f'Enabled all tabs in main window at {main_window_path}')
+    logger.info(f"Enabled all tabs in main window at {main_window_path}")
     return True
 
 
 def main():
     """Main function."""
-    logger.info('Starting tab enabler...')
+    logger.info("Starting tab enabler...")
     if create_recipe_view():
-        logger.info('Project view created successfully')
+        logger.info("Project view created successfully")
     else:
-        logger.error('Failed to create pattern view')
+        logger.error("Failed to create pattern view")
     if create_order_view():
-        logger.info('Order view created successfully')
+        logger.info("Order view created successfully")
     else:
-        logger.error('Failed to create order view')
+        logger.error("Failed to create order view")
     if create_shopping_list_view():
-        logger.info('Shopping list view created successfully')
+        logger.info("Shopping list view created successfully")
     else:
-        logger.error('Failed to create shopping list view')
+        logger.error("Failed to create shopping list view")
     if enable_tabs_in_main_window():
-        logger.info('All tabs enabled successfully')
+        logger.info("All tabs enabled successfully")
     else:
-        logger.error('Failed to enable tabs in main window')
-    logger.info('Tab enabler completed. Run the application to see all tabs.')
+        logger.error("Failed to enable tabs in main window")
+    logger.info("Tab enabler completed. Run the application to see all tabs.")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

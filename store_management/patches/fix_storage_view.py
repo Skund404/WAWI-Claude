@@ -1,12 +1,19 @@
 from di.core import inject
-from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+from services.interfaces import (
+    MaterialService,
+    ProjectService,
+    InventoryService,
+    OrderService,
+)
+
 """
 Quick fix for the storage view to debug data loading issues.
 """
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-logging.basicConfig(level=logging.DEBUG, format=
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger('storage_view_fix')
+logging.basicConfig(
+    level=logging.DEBUG, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger("storage_view_fix")
 
 
 def manually_load_storage_view():
@@ -16,21 +23,22 @@ def manually_load_storage_view():
     from database.session import get_db_session
     from database.models.storage import Storage
     from application import Application
-    logger.info('Starting manual storage view loading')
+
+    logger.info("Starting manual storage view loading")
     app = Application()
     root = tk.Tk()
-    root.title('Storage View Debug')
-    root.geometry('800x600')
+    root.title("Storage View Debug")
+    root.geometry("800x600")
     frame = ttk.Frame(root)
     frame.pack(fill=tk.BOTH, expand=True)
-    columns = ('id', 'name', 'location', 'capacity', 'occupancy', 'type',
-        'status')
-    tree = ttk.Treeview(frame, columns=columns, show='headings')
+    columns = ("id", "name", "location", "capacity",
+               "occupancy", "type", "status")
+    tree = ttk.Treeview(frame, columns=columns, show="headings")
     for col in columns:
         tree.heading(col, text=col.capitalize())
         tree.column(col, width=100)
-    vsb = ttk.Scrollbar(frame, orient='vertical', command=tree.yview)
-    hsb = ttk.Scrollbar(frame, orient='horizontal', command=tree.xview)
+    vsb = ttk.Scrollbar(frame, orient="vertical", command=tree.yview)
+    hsb = ttk.Scrollbar(frame, orient="horizontal", command=tree.xview)
     tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
     vsb.pack(side=tk.RIGHT, fill=tk.Y)
     hsb.pack(side=tk.BOTTOM, fill=tk.X)
@@ -38,11 +46,21 @@ def manually_load_storage_view():
     try:
         session = get_db_session()
         storage_locations = session.query(Storage).all()
-        logger.info(f'Found {len(storage_locations)} storage locations')
+        logger.info(f"Found {len(storage_locations)} storage locations")
         for storage in storage_locations:
-            tree.insert('', tk.END, values=(storage.id, storage.name,
-                storage.location, storage.capacity, storage.
-                current_occupancy, storage.type, storage.status))
+            tree.insert(
+                "",
+                tk.END,
+                values=(
+                    storage.id,
+                    storage.name,
+                    storage.location,
+                    storage.capacity,
+                    storage.current_occupancy,
+                    storage.type,
+                    storage.status,
+                ),
+            )
         button_frame = ttk.Frame(root)
         button_frame.pack(fill=tk.X, pady=5)
 
@@ -52,26 +70,37 @@ def manually_load_storage_view():
             session = get_db_session()
             storage_locations = session.query(Storage).all()
             logger.info(
-                f'Refreshed: Found {len(storage_locations)} storage locations')
+                f"Refreshed: Found {len(storage_locations)} storage locations")
             for storage in storage_locations:
-                tree.insert('', tk.END, values=(storage.id, storage.name,
-                    storage.location, storage.capacity, storage.
-                    current_occupancy, storage.type, storage.status))
+                tree.insert(
+                    "",
+                    tk.END,
+                    values=(
+                        storage.id,
+                        storage.name,
+                        storage.location,
+                        storage.capacity,
+                        storage.current_occupancy,
+                        storage.type,
+                        storage.status,
+                    ),
+                )
             session.close()
-        refresh_btn = ttk.Button(button_frame, text='Refresh', command=
-            refresh_data)
+
+        refresh_btn = ttk.Button(
+            button_frame, text="Refresh", command=refresh_data)
         refresh_btn.pack(side=tk.LEFT, padx=5)
-        close_btn = ttk.Button(button_frame, text='Close', command=root.destroy
-            )
+        close_btn = ttk.Button(
+            button_frame, text="Close", command=root.destroy)
         close_btn.pack(side=tk.RIGHT, padx=5)
-        logger.info('Starting main loop')
+        logger.info("Starting main loop")
         root.mainloop()
     except Exception as e:
-        logger.error(f'Error loading storage data: {str(e)}', exc_info=True)
+        logger.error(f"Error loading storage data: {str(e)}", exc_info=True)
     finally:
-        if 'session' in locals():
+        if "session" in locals():
             session.close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     manually_load_storage_view()

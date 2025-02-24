@@ -6,7 +6,7 @@ logger = get_logger(__name__)
 class ReportDialog(BaseDialog):
 
         @inject(MaterialService)
-        def __init__(self, parent):
+            def __init__(self, parent):
         super().__init__(parent, title='Generate Reports', size=(800, 600),
             modal=True)
         self.report_manager = ReportManager(get_session)
@@ -14,7 +14,7 @@ class ReportDialog(BaseDialog):
         self.create_ui()
 
         @inject(MaterialService)
-        def create_ui(self):
+            def create_ui(self):
         """Create the report dialog UI"""
         left_panel = ttk.Frame(self.main_frame)
         left_panel.pack(side='left', fill='y', padx=(0, 10))
@@ -23,9 +23,8 @@ class ReportDialog(BaseDialog):
         report_types = [('Inventory Report', 'inventory'), ('Orders Report',
             'orders'), ('Suppliers Report', 'suppliers')]
         for text, value in report_types:
-            ttk.Radiobutton(left_panel, text=text, value=value, variable=
-                self.report_type, command=self.on_report_type_change).pack(fill
-                ='x', pady=2)
+            ttk.Radiobutton(left_panel, text=text, value=value, variable=self.report_type,
+                            command=self.on_report_type_change).pack(fill='x', pady=2)
         ttk.Separator(left_panel, orient='horizontal').pack(fill='x', pady=10)
         self.options_frame = ttk.LabelFrame(left_panel, text='Options')
         self.options_frame.pack(fill='x', pady=5)
@@ -62,13 +61,13 @@ class ReportDialog(BaseDialog):
         self.create_report_display(right_panel)
 
         @inject(MaterialService)
-        def create_report_display(self, parent):
+            def create_report_display(self, parent):
         """Create the report display area"""
         display_frame = ttk.LabelFrame(parent, text='Report')
         display_frame.pack(fill='both', expand=True)
         self.canvas = tk.Canvas(display_frame)
-        scrollbar = ttk.Scrollbar(display_frame, orient='vertical', command
-            =self.canvas.yview)
+        scrollbar = ttk.Scrollbar(
+            display_frame, orient='vertical', command=self.canvas.yview)
         self.canvas.configure(yscrollcommand=scrollbar.set)
         self.report_frame = ttk.Frame(self.canvas)
         self.canvas_frame = self.canvas.create_window((0, 0), window=self.
@@ -83,7 +82,7 @@ class ReportDialog(BaseDialog):
             self.canvas_frame, width=e.width))
 
         @inject(MaterialService)
-        def update_options(self):
+            def update_options(self):
         """Update visible options based on report type"""
         for widget in self.options_frame.winfo_children():
             widget.pack_forget()
@@ -94,14 +93,14 @@ class ReportDialog(BaseDialog):
             self.detail_frame.pack(fill='x', pady=5)
 
         @inject(MaterialService)
-        def on_report_type_change(self):
+            def on_report_type_change(self):
         """Handle report type change"""
         self.update_options()
         if self.current_report:
             self.generate_report()
 
         @inject(MaterialService)
-        def generate_report(self):
+            def generate_report(self):
         """Generate the selected report"""
         try:
             for widget in self.report_frame.winfo_children():
@@ -111,14 +110,12 @@ class ReportDialog(BaseDialog):
             if self.report_type.get() == 'orders':
                 params['date_range'] = self.date_range.get()
             self.current_report = self.report_manager.generate_report(params)
-            ttk.Label(self.report_frame, text=
-                f"{params['report_type'].title()} Report", font=('', 14,
+            ttk.Label(self.report_frame, text=f"{params['report_type'].title()} Report", font=('', 14,
                 'bold')).pack(fill='x', pady=10)
-            ttk.Label(self.report_frame, text=
-                f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+            ttk.Label(self.report_frame, text=f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
                 ).pack(fill='x')
-            ttk.Separator(self.report_frame, orient='horizontal').pack(fill
-                ='x', pady=10)
+            ttk.Separator(self.report_frame, orient='horizontal').pack(
+                fill='x', pady=10)
             if params['report_type'] == 'inventory':
                 self.display_inventory_report()
             elif params['report_type'] == 'orders':
@@ -131,7 +128,7 @@ class ReportDialog(BaseDialog):
                 f'Failed to generate report: {str(e)}')
 
         @inject(MaterialService)
-        def display_inventory_report(self):
+            def display_inventory_report(self):
         """Display inventory report"""
         report = self.current_report
         shelf_frame = ttk.LabelFrame(self.report_frame, text='Shelf Inventory')
@@ -162,11 +159,11 @@ class ReportDialog(BaseDialog):
             tree.pack(fill='x', pady=5)
 
         @inject(MaterialService)
-        def display_orders_report(self):
+            def display_orders_report(self):
         """Display orders report"""
         report = self.current_report
-        summary_frame = ttk.LabelFrame(self.report_frame, text=
-            'Order Status Summary')
+        summary_frame = ttk.LabelFrame(
+            self.report_frame, text='Order Status Summary')
         summary_frame.pack(fill='x', pady=5)
         columns = ['Status', 'Count', 'Paid Count']
         tree = self.create_treeview(summary_frame, columns, report[
@@ -179,8 +176,8 @@ class ReportDialog(BaseDialog):
             'sections']['recent_orders'])
         tree.pack(fill='x', pady=5)
         if report['sections']['pending_payments']:
-            pending_frame = ttk.LabelFrame(self.report_frame, text=
-                'Pending Payments')
+            pending_frame = ttk.LabelFrame(
+                self.report_frame, text='Pending Payments')
             pending_frame.pack(fill='x', pady=5)
             columns = ['Supplier', 'Date', 'Order Number']
             tree = self.create_treeview(pending_frame, columns, report[
@@ -188,11 +185,11 @@ class ReportDialog(BaseDialog):
             tree.pack(fill='x', pady=5)
 
         @inject(MaterialService)
-        def display_suppliers_report(self):
+            def display_suppliers_report(self):
         """Display suppliers report"""
         report = self.current_report
-        summary_frame = ttk.LabelFrame(self.report_frame, text=
-            'Supplier Summary')
+        summary_frame = ttk.LabelFrame(
+            self.report_frame, text='Supplier Summary')
         summary_frame.pack(fill='x', pady=5)
         summary = report['sections']['summary']
         ttk.Label(summary_frame, text=f"Total Suppliers: {summary['total']}"
@@ -201,15 +198,15 @@ class ReportDialog(BaseDialog):
             ).pack(fill='x')
         ttk.Label(summary_frame, text=f"Currencies: {summary['currencies']}"
             ).pack(fill='x')
-        orders_frame = ttk.LabelFrame(self.report_frame, text=
-            'Orders by Supplier')
+        orders_frame = ttk.LabelFrame(
+            self.report_frame, text='Orders by Supplier')
         orders_frame.pack(fill='x', pady=5)
         columns = ['Company Name', 'Order Count', 'Last Order']
         tree = self.create_treeview(orders_frame, columns, report[
             'sections']['supplier_orders'])
         tree.pack(fill='x', pady=5)
-        terms_frame = ttk.LabelFrame(self.report_frame, text=
-            'Payment Terms Analysis')
+        terms_frame = ttk.LabelFrame(
+            self.report_frame, text='Payment Terms Analysis')
         terms_frame.pack(fill='x', pady=5)
         columns = ['Payment Terms', 'Supplier Count']
         tree = self.create_treeview(terms_frame, columns, report['sections'
@@ -217,8 +214,8 @@ class ReportDialog(BaseDialog):
         tree.pack(fill='x', pady=5)
 
         @inject(MaterialService)
-        def create_treeview(self, parent, columns: List[str], data: List[tuple]
-        ) ->ttk.Treeview:
+            def create_treeview(self, parent, columns: List[str], data: List[tuple]
+        ) -> ttk.Treeview:
         """Create a treeview with given columns and data"""
         tree = ttk.Treeview(parent, columns=columns, show='headings',
             height=min(len(data), 10))
@@ -230,17 +227,15 @@ class ReportDialog(BaseDialog):
         return tree
 
         @inject(MaterialService)
-        def export_csv(self):
+            def export_csv(self):
             """Export current report as CSV"""
             if not self.current_report:
                 messagebox.showwarning('Warning',
                     'Please generate a report first')
                 return
             try:
-                file_path = filedialog.asksaveasfilename(defaultextension=
-                    '.csv', filetypes=[('CSV files', '*.csv'), ('All files',
-                    '*.*')], initialfile=
-                    f"{self.report_type.get()}_report_{datetime.now().strftime('%Y%m%d')}"
+                file_path = filedialog.asksaveasfilename(defaultextension='.csv', filetypes=[('CSV files', '*.csv'), ('All files',
+                    '*.*')], initialfile=f"{self.report_type.get()}_report_{datetime.now().strftime('%Y%m%d')}"
                     )
                 if not file_path:
                     return
@@ -264,7 +259,7 @@ class ReportDialog(BaseDialog):
                     f'Failed to export report: {str(e)}')
 
         @inject(MaterialService)
-        def _export_inventory_csv(self, writer):
+            def _export_inventory_csv(self, writer):
             """Export inventory report to CSV"""
             writer.writerow(['Shelf Inventory'])
             writer.writerow(['Type', 'Count', 'Total Area', 'Color Count'])
@@ -291,7 +286,7 @@ class ReportDialog(BaseDialog):
                     writer.writerow(row)
 
         @inject(MaterialService)
-        def _export_orders_csv(self, writer):
+            def _export_orders_csv(self, writer):
             """Export orders report to CSV"""
             writer.writerow(['Order Status Summary'])
             writer.writerow(['Status', 'Count', 'Paid Count'])
@@ -311,7 +306,7 @@ class ReportDialog(BaseDialog):
                     writer.writerow(row)
 
         @inject(MaterialService)
-        def _export_suppliers_csv(self, writer):
+            def _export_suppliers_csv(self, writer):
             """Export suppliers report to CSV"""
             summary = self.current_report['sections']['summary']
             writer.writerow(['Supplier Summary'])
@@ -330,17 +325,15 @@ class ReportDialog(BaseDialog):
                 writer.writerow(row)
 
         @inject(MaterialService)
-        def export_excel(self):
+            def export_excel(self):
             """Export current report as Excel"""
             if not self.current_report:
                 messagebox.showwarning('Warning',
                     'Please generate a report first')
                 return
             try:
-                file_path = filedialog.asksaveasfilename(defaultextension=
-                    '.xlsx', filetypes=[('Excel files', '*.xlsx'), (
-                    'All files', '*.*')], initialfile=
-                    f"{self.report_type.get()}_report_{datetime.now().strftime('%Y%m%d')}"
+                file_path = filedialog.asksaveasfilename(defaultextension='.xlsx', filetypes=[('Excel files', '*.xlsx'), (
+                    'All files', '*.*')], initialfile=f"{self.report_type.get()}_report_{datetime.now().strftime('%Y%m%d')}"
                     )
                 if not file_path:
                     return
@@ -353,17 +346,15 @@ class ReportDialog(BaseDialog):
                     f'Failed to export report: {str(e)}')
 
         @inject(MaterialService)
-        def export_pdf(self):
+            def export_pdf(self):
             """Export current report as PDF"""
             if not self.current_report:
                 messagebox.showwarning('Warning',
                     'Please generate a report first')
                 return
             try:
-                file_path = filedialog.asksaveasfilename(defaultextension=
-                    '.pdf', filetypes=[('PDF files', '*.pdf'), ('All files',
-                    '*.*')], initialfile=
-                    f"{self.report_type.get()}_report_{datetime.now().strftime('%Y%m%d')}"
+                file_path = filedialog.asksaveasfilename(defaultextension='.pdf', filetypes=[('PDF files', '*.pdf'), ('All files',
+                    '*.*')], initialfile=f"{self.report_type.get()}_report_{datetime.now().strftime('%Y%m%d')}"
                     )
                 if not file_path:
                     return
@@ -376,7 +367,7 @@ class ReportDialog(BaseDialog):
                     f'Failed to export report: {str(e)}')
 
         @inject(MaterialService)
-        def print_report(self):
+            def print_report(self):
             """Print current report"""
             if not self.current_report:
                 messagebox.showwarning('Warning',
@@ -395,14 +386,14 @@ class ReportDialog(BaseDialog):
         """Dialog for print preview and printing"""
 
                 @inject(MaterialService)
-                def __init__(self, parent, report_data: Dict):
+                    def __init__(self, parent, report_data: Dict):
             super().__init__(parent, title='Print Report', size=(600, 800),
                 modal=True)
             self.report_data = report_data
             self.create_ui()
 
                 @inject(MaterialService)
-                def create_ui(self):
+                    def create_ui(self):
             """Create print dialog UI"""
             options_frame = ttk.LabelFrame(self.main_frame, text=
                 'Print Options')
@@ -444,7 +435,7 @@ class ReportDialog(BaseDialog):
             self.update_preview()
 
                 @inject(MaterialService)
-                def update_preview(self):
+                    def update_preview(self):
             """Update print preview"""
             self.preview_canvas.delete('all')
             width = 500
@@ -458,7 +449,7 @@ class ReportDialog(BaseDialog):
                 height * scale, fill='white', outline='gray')
 
                 @inject(MaterialService)
-                def print_report(self):
+                    def print_report(self):
             """Send report to printer"""
             logger.info('Print functionality to be implemented')
             messagebox.showinfo('Info',

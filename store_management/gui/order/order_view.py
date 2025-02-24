@@ -2,6 +2,8 @@
 
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+
+
 class OrderView(BaseView):
     """View for managing orders in the application.
 
@@ -13,7 +15,7 @@ class OrderView(BaseView):
     - Filtering and searching orders
     """
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, parent, app):
         """Initialize the order view.
 
@@ -25,32 +27,32 @@ class OrderView(BaseView):
         self.setup_ui()
 
         @inject(MaterialService)
-        def setup_ui(self):
+            def setup_ui(self):
         """Set up the user interface components."""
         self._setup_treeview()
         self.load_data()
         self.tree.bind('<Double-1>', self.on_double_click)
 
         @inject(MaterialService)
-        def _get_columns(self):
+            def _get_columns(self):
         """Get the column definitions for the treeview."""
         return ('Order Number', 'Customer Name', 'Status', 'Payment Status',
-            'Total Amount', 'Notes')
+                'Total Amount', 'Notes')
 
         @inject(MaterialService)
-        def _setup_treeview(self):
+            def _setup_treeview(self):
         """Configure the treeview columns and headings."""
         columns = self._get_columns()
         self.tree = tkinter.ttk.Treeview(self, columns=columns, show='headings'
-            )
+                                         )
         for col in columns:
             self.tree.heading(col, text=col, command=lambda _col=col: self.
-                _sort_column(_col))
+                              _sort_column(_col))
             self.tree.column(col, minwidth=100)
         self.tree.pack(expand=True, fill=tkinter.BOTH)
 
         @inject(MaterialService)
-        def load_data(self):
+            def load_data(self):
         """Load and display order data in the treeview."""
         try:
             order_service = self.get_service(IOrderService)
@@ -58,45 +60,45 @@ class OrderView(BaseView):
             self.tree.delete(*self.tree.get_children())
             for order in orders:
                 self.tree.insert('', tkinter.END, values=(order.
-                    order_number, order.customer_name, order.status, order.
-                    payment_status, order.total_amount, order.notes))
+                                                          order_number, order.customer_name, order.status, order.
+                                                          payment_status, order.total_amount, order.notes))
         except Exception as e:
             self.show_error('Error loading order data', str(e))
 
         @inject(MaterialService)
-        def show_add_dialog(self):
+            def show_add_dialog(self):
         """Show dialog for adding a new order."""
         pass
 
         @inject(MaterialService)
-        def delete_selected(self, event):
+            def delete_selected(self, event):
         """Delete the selected order."""
         pass
 
         @inject(MaterialService)
-        def on_double_click(self, event):
+            def on_double_click(self, event):
         """Handle double-click on an order to edit it."""
         pass
 
         @inject(MaterialService)
-        def _sort_column(self, col):
+            def _sort_column(self, col):
         """Sort treeview by the specified column."""
         pass
 
         @inject(MaterialService)
-        def _get_dialog_fields(self):
+            def _get_dialog_fields(self):
         """Get field definitions for the order dialog."""
         pass
 
         @inject(MaterialService)
-        def show_search_dialog(self):
+            def show_search_dialog(self):
         """Show dialog for searching orders."""
         columns = self._get_columns()
         search_callback = self._search_orders
         dialog = SearchDialog(self, columns, search_callback)
 
         @inject(MaterialService)
-        def _search_orders(self, search_term: str, columns: List[str]):
+            def _search_orders(self, search_term: str, columns: List[str]):
         """
         Search for orders based on the provided search term and columns.
 
@@ -111,7 +113,7 @@ class OrderView(BaseView):
                 self.tree.delete(item)
             for order in orders:
                 self.tree.insert('', END, values=(order.order_number, order
-                    .customer_name, order.status, order.payment_status,
-                    order.total_amount, order.notes))
+                                                  .customer_name, order.status, order.payment_status,
+                                                  order.total_amount, order.notes))
         except Exception as e:
             self.show_error('Error searching orders', str(e))

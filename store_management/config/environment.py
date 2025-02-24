@@ -2,6 +2,8 @@
 
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+
+
 class EnvironmentManager:
     """
     Manage application environment configuration.
@@ -9,7 +11,7 @@ class EnvironmentManager:
     _debug_mode = False
     _log_level = 'INFO'
 
-        @classmethod
+    @classmethod
     def __new__(cls):
         """
         Prevent direct instantiation.
@@ -21,7 +23,7 @@ class EnvironmentManager:
             'EnvironmentManager is a static class and cannot be instantiated')
 
         @classmethod
-    def get(cls, key: str, default: Optional[str]=None) ->Optional[str]:
+    def get(cls, key: str, default: Optional[str] = None) -> Optional[str]:
         """
         Get an environment variable.
 
@@ -35,7 +37,7 @@ class EnvironmentManager:
         return os.environ.get(key, default)
 
         @classmethod
-    def is_debug(cls) ->bool:
+    def is_debug(cls) -> bool:
         """
         Check if application is in debug mode.
 
@@ -46,7 +48,7 @@ class EnvironmentManager:
         return debug_env in ('1', 'true', 'yes') or cls._debug_mode
 
         @classmethod
-    def get_log_level(cls) ->str:
+    def get_log_level(cls) -> str:
         """
         Get the current logging level.
 
@@ -61,7 +63,7 @@ class EnvironmentManager:
         return cls._log_level
 
         @classmethod
-    def set_debug(cls, enable: bool=True):
+    def set_debug(cls, enable: bool = True):
         """
         Enable or disable debug mode.
 

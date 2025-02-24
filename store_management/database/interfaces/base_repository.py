@@ -10,7 +10,7 @@ class BaseRepository(Generic[T]):
     Type parameter T must be a SQLAlchemy model class.
     """
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, session: Session, model_class: type):
         """
         Initialize the repository with a session and model class.
@@ -23,7 +23,7 @@ class BaseRepository(Generic[T]):
         self.model_class = model_class
 
         @inject(MaterialService)
-        def get(self, id: int) ->Optional[T]:
+            def get(self, id: int) -> Optional[T]:
         """
         Get a single record by ID.
 
@@ -36,7 +36,7 @@ class BaseRepository(Generic[T]):
         return self.session.query(self.model_class).get(id)
 
         @inject(MaterialService)
-        def get_all(self) ->List[T]:
+            def get_all(self) -> List[T]:
         """
         Get all records.
 
@@ -46,7 +46,7 @@ class BaseRepository(Generic[T]):
         return self.session.query(self.model_class).all()
 
         @inject(MaterialService)
-        def create(self, **kwargs) ->T:
+            def create(self, **kwargs) -> T:
         """
         Create a new record.
 
@@ -61,7 +61,7 @@ class BaseRepository(Generic[T]):
         return instance
 
         @inject(MaterialService)
-        def update(self, id: int, **kwargs) ->Optional[T]:
+            def update(self, id: int, **kwargs) -> Optional[T]:
         """
         Update a record by ID.
 
@@ -79,7 +79,7 @@ class BaseRepository(Generic[T]):
         return instance
 
         @inject(MaterialService)
-        def delete(self, id: int) ->bool:
+            def delete(self, id: int) -> bool:
         """
         Delete a record by ID.
 
@@ -96,7 +96,7 @@ class BaseRepository(Generic[T]):
         return False
 
         @inject(MaterialService)
-        def filter_by(self, **kwargs) ->List[T]:
+            def filter_by(self, **kwargs) -> List[T]:
         """
         Get records matching the given criteria.
 
@@ -109,7 +109,7 @@ class BaseRepository(Generic[T]):
         return self.session.query(self.model_class).filter_by(**kwargs).all()
 
         @inject(MaterialService)
-        def exists(self, **kwargs) ->bool:
+            def exists(self, **kwargs) -> bool:
         """
         Check if a record exists with the given criteria.
 
@@ -120,4 +120,4 @@ class BaseRepository(Generic[T]):
             True if exists, False otherwise
         """
         return self.session.query(self.model_class.id).filter_by(**kwargs
-            ).first() is not None
+                                                                 ).first() is not None

@@ -2,19 +2,21 @@
 
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+
+
 class SupplierManager(BaseManager[Supplier]):
     """
     Manager for handling supplier operations and relationships.
     Includes supplier performance tracking and order history management.
     """
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, session_factory):
         """Initialize SupplierManager with session factory."""
         super().__init__(session_factory, Supplier)
 
         @inject(MaterialService)
-        def create_supplier(self, data: Dict[str, Any]) ->Supplier:
+            def create_supplier(self, data: Dict[str, Any]) -> Supplier:
         """
         Create a new supplier with validation.
 
@@ -38,8 +40,8 @@ class SupplierManager(BaseManager[Supplier]):
             raise DatabaseError(f'Failed to create supplier: {str(e)}')
 
         @inject(MaterialService)
-        def update_supplier(self, supplier_id: int, data: Dict[str, Any]
-        ) ->Optional[Supplier]:
+            def update_supplier(self, supplier_id: int, data: Dict[str, Any]
+                            ) -> Optional[Supplier]:
         """
         Update supplier information.
 
@@ -59,7 +61,7 @@ class SupplierManager(BaseManager[Supplier]):
             raise DatabaseError(f'Failed to update supplier: {str(e)}')
 
         @inject(MaterialService)
-        def get_supplier_with_orders(self, supplier_id: int) ->Optional[Supplier]:
+            def get_supplier_with_orders(self, supplier_id: int) -> Optional[Supplier]:
         """
         Get supplier with their order history.
 
@@ -71,11 +73,11 @@ class SupplierManager(BaseManager[Supplier]):
         """
         with self.session_scope() as session:
             query = select(Supplier).options(joinedload(Supplier.orders)
-                ).filter(Supplier.id == supplier_id)
+                                             ).filter(Supplier.id == supplier_id)
             return session.execute(query).scalar()
 
         @inject(MaterialService)
-        def get_supplier_products(self, supplier_id: int) ->Dict[str, List]:
+            def get_supplier_products(self, supplier_id: int) -> Dict[str, List]:
         """
         Get all products supplied by a supplier.
 
@@ -90,13 +92,13 @@ class SupplierManager(BaseManager[Supplier]):
             if not supplier:
                 raise DatabaseError(f'Supplier {supplier_id} not found')
             parts = session.query(Part).filter(Part.supplier_id == supplier_id
-                ).all()
+                                               ).all()
             leather = session.query(Leather).filter(Leather.supplier_id ==
-                supplier_id).all()
+                                                    supplier_id).all()
             return {'parts': parts, 'leather': leather}
 
         @inject(MaterialService)
-        def get_supplier_performance(self, supplier_id: int) ->Dict[str, Any]:
+            def get_supplier_performance(self, supplier_id: int) -> Dict[str, Any]:
         """
         Calculate supplier performance metrics.
 
@@ -111,29 +113,29 @@ class SupplierManager(BaseManager[Supplier]):
             if not supplier:
                 raise DatabaseError(f'Supplier {supplier_id} not found')
             orders = session.query(Order).filter(Order.supplier_id ==
-                supplier_id).all()
+                                                 supplier_id).all()
             total_orders = len(orders)
             if total_orders == 0:
                 return {'total_orders': 0, 'on_time_delivery_rate': 0,
-                    'average_delay_days': 0, 'order_fulfillment_rate': 0,
-                    'quality_rating': supplier.quality_rating or 0}
+                        'average_delay_days': 0, 'order_fulfillment_rate': 0,
+                        'quality_rating': supplier.quality_rating or 0}
             on_time_deliveries = sum(1 for o in orders if o.delivery_date and
-                o.delivery_date <= o.expected_delivery_date)
+                                     o.delivery_date <= o.expected_delivery_date)
             delays = [(o.delivery_date - o.expected_delivery_date).days for
-                o in orders if o.delivery_date and o.delivery_date > o.
-                expected_delivery_date]
+                      o in orders if o.delivery_date and o.delivery_date > o.
+                      expected_delivery_date]
             fulfilled_orders = sum(1 for o in orders if o.status == 'completed'
-                )
-            return {'total_orders': total_orders, 'on_time_delivery_rate': 
-                on_time_deliveries / total_orders * 100,
-                'average_delay_days': sum(delays) / len(delays) if delays else
-                0, 'order_fulfillment_rate': fulfilled_orders /
-                total_orders * 100, 'quality_rating': supplier.
-                quality_rating or 0}
+                                   )
+            return {'total_orders': total_orders, 'on_time_delivery_rate':
+                    on_time_deliveries / total_orders * 100,
+                    'average_delay_days': sum(delays) / len(delays) if delays else
+                    0, 'order_fulfillment_rate': fulfilled_orders /
+                    total_orders * 100, 'quality_rating': supplier.
+                    quality_rating or 0}
 
         @inject(MaterialService)
-        def update_supplier_rating(self, supplier_id: int, rating: float, notes:
-        Optional[str]=None) ->Supplier:
+            def update_supplier_rating(self, supplier_id: int, rating: float, notes:
+                                   Optional[str] = None) -> Supplier:
         """
         Update supplier quality rating.
 
@@ -157,9 +159,9 @@ class SupplierManager(BaseManager[Supplier]):
             return supplier
 
         @inject(MaterialService)
-        def get_supplier_order_history(self, supplier_id: int, start_date:
-        Optional[datetime]=None, end_date: Optional[datetime]=None) ->List[
-        Order]:
+            def get_supplier_order_history(self, supplier_id: int, start_date:
+                                       Optional[datetime] = None, end_date: Optional[datetime] = None) -> List[
+                Order]:
         """
         Get supplier's order history with optional date range.
 
@@ -181,7 +183,7 @@ class SupplierManager(BaseManager[Supplier]):
             return list(session.execute(query).scalars())
 
         @inject(MaterialService)
-        def get_top_suppliers(self, limit: int=10) ->List[Dict[str, Any]]:
+            def get_top_suppliers(self, limit: int = 10) -> List[Dict[str, Any]]:
         """
         Get top suppliers based on order volume and performance.
 
@@ -193,30 +195,30 @@ class SupplierManager(BaseManager[Supplier]):
         """
         with self.session_scope() as session:
             suppliers = session.query(Supplier).options(joinedload(Supplier
-                .orders)).all()
+                                                                   .orders)).all()
             supplier_metrics = []
             for supplier in suppliers:
                 total_orders = len(supplier.orders)
                 if total_orders == 0:
                     continue
                 completed_orders = sum(1 for o in supplier.orders if o.
-                    status == 'completed')
+                                       status == 'completed')
                 on_time_orders = sum(1 for o in supplier.orders if o.
-                    delivery_date and o.delivery_date <= o.
-                    expected_delivery_date)
+                                     delivery_date and o.delivery_date <= o.
+                                     expected_delivery_date)
                 supplier_metrics.append({'id': supplier.id, 'name':
-                    supplier.name, 'total_orders': total_orders,
-                    'completed_orders': completed_orders,
-                    'on_time_delivery_rate': on_time_orders / total_orders *
-                    100, 'quality_rating': supplier.quality_rating or 0,
-                    'performance_score': (completed_orders / total_orders *
-                    0.4 + on_time_orders / total_orders * 0.4 + (supplier.
-                    quality_rating or 0) / 5 * 0.2) * 100})
+                                         supplier.name, 'total_orders': total_orders,
+                                         'completed_orders': completed_orders,
+                                         'on_time_delivery_rate': on_time_orders / total_orders *
+                                         100, 'quality_rating': supplier.quality_rating or 0,
+                                         'performance_score': (completed_orders / total_orders *
+                                                               0.4 + on_time_orders / total_orders * 0.4 + (supplier.
+                                                                                                            quality_rating or 0) / 5 * 0.2) * 100})
             return sorted(supplier_metrics, key=lambda x: x[
                 'performance_score'], reverse=True)[:limit]
 
         @inject(MaterialService)
-        def get_supplier_categories(self, supplier_id: int) ->List[str]:
+            def get_supplier_categories(self, supplier_id: int) -> List[str]:
         """
         Get categories of products supplied by a supplier.
 
@@ -228,15 +230,15 @@ class SupplierManager(BaseManager[Supplier]):
         """
         with self.session_scope() as session:
             part_categories = session.query(Part.category).filter(Part.
-                supplier_id == supplier_id).distinct().all()
+                                                                  supplier_id == supplier_id).distinct().all()
             leather_types = session.query(Leather.type).filter(Leather.
-                supplier_id == supplier_id).distinct().all()
+                                                               supplier_id == supplier_id).distinct().all()
             categories = [cat[0] for cat in part_categories if cat[0]] + [type_
-                [0] for type_ in leather_types if type_[0]]
+                                                                          [0] for type_ in leather_types if type_[0]]
             return sorted(set(categories))
 
         @inject(MaterialService)
-        def search_suppliers(self, search_term: str) ->List[Supplier]:
+            def search_suppliers(self, search_term: str) -> List[Supplier]:
         """
         Search suppliers across multiple fields.
 
@@ -255,7 +257,7 @@ class SupplierManager(BaseManager[Supplier]):
             return list(session.execute(query).scalars())
 
         @inject(MaterialService)
-        def get_supplier_statistics(self) ->Dict[str, Any]:
+            def get_supplier_statistics(self) -> Dict[str, Any]:
         """
         Get overall supplier statistics.
 
@@ -267,11 +269,11 @@ class SupplierManager(BaseManager[Supplier]):
             active_suppliers = session.query(func.count(Supplier.id)).filter(
                 Supplier.status == 'active').scalar()
             avg_rating = session.query(func.avg(Supplier.quality_rating)
-                ).scalar() or 0
+                                       ).scalar() or 0
             total_orders = session.query(func.count(Order.id)).scalar()
             return {'total_suppliers': total_suppliers, 'active_suppliers':
-                active_suppliers, 'inactive_suppliers': total_suppliers -
-                active_suppliers, 'average_rating': round(avg_rating, 2),
-                'total_orders': total_orders, 'orders_per_supplier': round(
-                total_orders / total_suppliers, 2) if total_suppliers > 0 else
-                0}
+                    active_suppliers, 'inactive_suppliers': total_suppliers -
+                    active_suppliers, 'average_rating': round(avg_rating, 2),
+                    'total_orders': total_orders, 'orders_per_supplier': round(
+                        total_orders / total_suppliers, 2) if total_suppliers > 0 else
+                    0}

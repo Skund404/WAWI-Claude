@@ -13,28 +13,28 @@ This script:
 class ProjectReorganizer:
     """Handles project reorganization tasks."""
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, project_root: str):
         self.project_root = Path(project_root)
         self.log_file = self.project_root / 'reorganization_log.md'
         self.changes: List[str] = []
         self.new_structure = {'services': {'interfaces': ['base_service.py',
-            'pattern_service.py', 'leather_inventory_service.py'],
-            'implementations': ['pattern_service.py',
-            'leather_inventory_service.py']}, 'repositories': {'interfaces':
-            ['base_repository.py', 'pattern_repository.py',
-            'leather_repository.py'], 'implementations': [
-            'pattern_repository.py', 'leather_repository.py']},
-            'unit_of_work': ['unit_of_work.py', 'exceptions.py']}
+                                                          'pattern_service.py', 'leather_inventory_service.py'],
+                                           'implementations': ['pattern_service.py',
+                                                               'leather_inventory_service.py']}, 'repositories': {'interfaces':
+                                                                                                                  ['base_repository.py', 'pattern_repository.py',
+                                                                                                                   'leather_repository.py'], 'implementations': [
+                                                                                                                      'pattern_repository.py', 'leather_repository.py']},
+                              'unit_of_work': ['unit_of_work.py', 'exceptions.py']}
         self.consolidate_files = {'services/service_registry.py': [
             'services/service_registry.py', 'di/service_registry.py'],
             'services/service_provider.py': ['services/service_provider.py',
-            'di/service_provider.py'], 'unit_of_work/unit_of_work.py': [
+                                             'di/service_provider.py'], 'unit_of_work/unit_of_work.py': [
             'database/repositories/unit_of_work.py',
             'database/sqlalchemy/core/unit_of_work.py']}
 
         @inject(MaterialService)
-        def create_new_structure(self):
+            def create_new_structure(self):
         """Create the new directory structure."""
         for main_dir, sub_dirs in self.new_structure.items():
             base_path = self.project_root / 'database' / main_dir
@@ -45,12 +45,12 @@ class ProjectReorganizer:
             self.changes.append(f'Created directory structure: {main_dir}')
 
         @inject(MaterialService)
-        def move_files(self):
+            def move_files(self):
         """Move files to their new locations."""
         moves = {'database/repositories/interfaces/base_service.py':
-            'database/services/interfaces/base_service.py',
-            'database/repositories/interfaces/leather_inventory_service.py':
-            'database/services/interfaces/leather_inventory_service.py'}
+                 'database/services/interfaces/base_service.py',
+                 'database/repositories/interfaces/leather_inventory_service.py':
+                 'database/services/interfaces/leather_inventory_service.py'}
         for old_path, new_path in moves.items():
             old_full = self.project_root / old_path
             new_full = self.project_root / new_path
@@ -60,14 +60,14 @@ class ProjectReorganizer:
                 self.changes.append(f'Moved: {old_path} -> {new_path}')
 
         @inject(MaterialService)
-        def update_imports(self, file_path: Path):
+            def update_imports(self, file_path: Path):
         """Update import statements in a file."""
         with open(file_path, 'r', encoding='utf-8') as f:
             content = f.read()
         import_updates = {'from database.repositories.interfaces.base_service':
-            'from database.services.interfaces.base_service',
-            'from database.repositories.unit_of_work':
-            'from database.unit_of_work.unit_of_work'}
+                          'from database.services.interfaces.base_service',
+                          'from database.repositories.unit_of_work':
+                          'from database.unit_of_work.unit_of_work'}
         updated_content = content
         for old_import, new_import in import_updates.items():
             updated_content = updated_content.replace(old_import, new_import)
@@ -77,7 +77,7 @@ class ProjectReorganizer:
             self.changes.append(f'Updated imports in: {file_path}')
 
         @inject(MaterialService)
-        def consolidate_implementations(self):
+            def consolidate_implementations(self):
         """Consolidate duplicate implementations."""
         for target, sources in self.consolidate_files.items():
             target_path = self.project_root / target
@@ -97,7 +97,7 @@ class ProjectReorganizer:
                 self.changes.append(f'Created consolidated file: {target}')
 
         @inject(MaterialService)
-        def create_log(self):
+            def create_log(self):
         """Create a detailed log of all changes."""
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         log_content = f"""# Project Reorganization Log
@@ -130,7 +130,7 @@ database/
             f.write(log_content)
 
         @inject(MaterialService)
-        def run(self):
+            def run(self):
         """Execute the reorganization process."""
         print('Starting project reorganization...')
         self.create_new_structure()
@@ -143,7 +143,7 @@ database/
         self.create_log()
         print(
             'Reorganization completed! Check reorganization_log.md for details.'
-            )
+        )
 
 
 if __name__ == '__main__':

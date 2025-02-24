@@ -1,87 +1,114 @@
+# Relative path: store_management/config/settings.py
+
+"""
+Configuration Settings Module
+
+Provides utility functions and constants for application configuration.
+"""
+
+import os
+import sys
+from typing import Optional
+
+# Application Constants
+APP_NAME = "Store Management"
+APP_VERSION = "0.1.0"
+APP_DESCRIPTION = "Inventory and Store Management System"
 
 
-from di.core import inject
-from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
-def _find_project_root() ->Path:
+def _find_project_root() -> str:
     """
     Find the root directory of the project.
 
     Returns:
-        Path: Path to the project root directory.
+        str: Absolute path to the project root directory.
     """
-    current_file = Path(__file__)
-    return current_file.parent.parent
+    # Start from the current file's directory
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+
+    # Traverse up until we find a distinctive project marker
+    while current_dir:
+        # Check for a distinctive file or directory that indicates project root
+        if os.path.exists(os.path.join(current_dir, 'main.py')) or \
+                os.path.exists(os.path.join(current_dir, 'pyproject.toml')):
+            return current_dir
+
+        # Move up one directory
+        parent_dir = os.path.dirname(current_dir)
+        if parent_dir == current_dir:
+            # Reached the filesystem root
+            break
+        current_dir = parent_dir
+
+    # Fallback to the directory of the current script
+    return os.path.dirname(os.path.abspath(__file__))
 
 
-APP_NAME = 'Store Management System'
-APP_VERSION = '0.1.0'
-APP_DESCRIPTION = 'Inventory and Project Management Application'
-DATABASE_CONFIG: Dict[str, Any] = {'engine': 'sqlite', 'name': 'store.db',
-    'path': None}
-
-
-def get_database_path() ->str:
+def get_database_path() -> str:
     """
-    Get the path to the database file.
+    Get the path to the SQLite database file.
 
     Returns:
-        str: Path to the database file.
+        str: Absolute path to the database file.
     """
     project_root = _find_project_root()
-    db_dir = project_root / 'data'
-    db_dir.mkdir(exist_ok=True)
-    DATABASE_CONFIG['path'] = str(db_dir / DATABASE_CONFIG['name'])
-    return DATABASE_CONFIG['path']
+
+    # Create a 'data' directory if it doesn't exist
+    data_dir = os.path.join(project_root, 'data')
+    os.makedirs(data_dir, exist_ok=True)
+
+    # Define database path
+    return os.path.join(data_dir, 'store_management.db')
 
 
-def get_log_path() ->str:
+def get_log_path() -> str:
     """
     Get the path to the log directory.
 
     Returns:
-        str: Path to the log directory.
+        str: Absolute path to the log directory.
     """
     project_root = _find_project_root()
-    log_dir = project_root / 'logs'
-    log_dir.mkdir(exist_ok=True)
-    return str(log_dir)
+
+    # Create a 'logs' directory if it doesn't exist
+    log_dir = os.path.join(project_root, 'logs')
+    os.makedirs(log_dir, exist_ok=True)
+
+    return log_dir
 
 
-def get_backup_path() ->str:
+def get_backup_path() -> str:
     """
     Get the path to the backup directory.
 
     Returns:
-        str: Path to the backup directory.
+        str: Absolute path to the backup directory.
     """
     project_root = _find_project_root()
-    backup_dir = project_root / 'backups'
-    backup_dir.mkdir(exist_ok=True)
-    return str(backup_dir)
+
+    # Create a 'backups' directory if it doesn't exist
+    backup_dir = os.path.join(project_root, 'backups')
+    os.makedirs(backup_dir, exist_ok=True)
+
+    return backup_dir
 
 
-def get_config_path() ->str:
+def get_config_path() -> str:
     """
     Get the path to the configuration directory.
 
     Returns:
-        str: Path to the configuration directory.
+        str: Absolute path to the configuration directory.
     """
     project_root = _find_project_root()
-    config_dir = project_root / 'config'
-    return str(config_dir)
+
+    return os.path.join(project_root, 'config')
 
 
-LOGGING_CONFIG: Dict[str, Any] = {'level': 'INFO', 'format':
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s', 'filename':
-    'app.log'}
-ENVIRONMENT_CONFIG: Dict[str, Any] = {'debug': False, 'testing': False,
-    'production': True}
-FEATURE_FLAGS: Dict[str, bool] = {'inventory_tracking': True,
-    'project_management': True, 'order_system': True, 'reporting': True}
-PERFORMANCE_CONFIG: Dict[str, Any] = {'max_cache_size': 1000,
-    'connection_timeout': 30, 'retry_attempts': 3}
-__all__ = ['APP_NAME', 'APP_VERSION', 'APP_DESCRIPTION', 'DATABASE_CONFIG',
-    'LOGGING_CONFIG', 'ENVIRONMENT_CONFIG', 'FEATURE_FLAGS',
-    'PERFORMANCE_CONFIG', 'get_database_path', 'get_log_path',
-    'get_backup_path', 'get_config_path']
+def add_project_to_path():
+    """
+    Add the project root to Python's system path to enable absolute imports.
+    """
+    project_root = _find_project_root()
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)

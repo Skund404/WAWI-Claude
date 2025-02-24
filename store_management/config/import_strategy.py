@@ -2,6 +2,8 @@
 
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+
+
 class ImportStrategy:
     """
     Centralized import management and optimization strategy.
@@ -12,8 +14,8 @@ class ImportStrategy:
     _import_blacklist: set = set()
     _import_whitelist: set = set()
 
-        @classmethod
-    def configure_import_paths(cls, additional_paths: Optional[list]=None):
+    @classmethod
+    def configure_import_paths(cls, additional_paths: Optional[list] = None):
         """
         Configure additional import paths for the project.
 
@@ -23,9 +25,9 @@ class ImportStrategy:
         project_root = os.path.abspath(os.path.join(os.path.dirname(
             __file__), '..'))
         key_dirs = [project_root, os.path.join(project_root,
-            'store_management'), os.path.join(project_root,
-            'store_management', 'database'), os.path.join(project_root,
-            'store_management', 'services')]
+                                               'store_management'), os.path.join(project_root,
+                                                                                 'store_management', 'database'), os.path.join(project_root,
+                                                                                                                               'store_management', 'services')]
         if additional_paths:
             key_dirs.extend(additional_paths)
         for directory in key_dirs:
@@ -33,8 +35,8 @@ class ImportStrategy:
                 sys.path.insert(0, directory)
 
         @classmethod
-    def safe_import(cls, module_path: str, class_name: Optional[str]=None
-        ) ->Any:
+    def safe_import(cls, module_path: str, class_name: Optional[str] = None
+                    ) -> Any:
         """
         Safely import a module or class with caching and error handling.
 
@@ -95,7 +97,7 @@ class ImportStrategy:
         cls._import_cache.clear()
 
         @classmethod
-    def get_import_stats(cls) ->Dict[str, Any]:
+    def get_import_stats(cls) -> Dict[str, Any]:
         """
         Get statistics about imports.
 
@@ -103,11 +105,11 @@ class ImportStrategy:
             Dict containing import statistics
         """
         return {'cached_imports': len(cls._import_cache),
-            'blacklisted_imports': len(cls._import_blacklist),
-            'whitelisted_imports': len(cls._import_whitelist)}
+                'blacklisted_imports': len(cls._import_blacklist),
+                'whitelisted_imports': len(cls._import_whitelist)}
 
 
-def lazy_import(module_path: str, class_name: Optional[str]=None):
+def lazy_import(module_path: str, class_name: Optional[str] = None):
     """
     Decorator for lazy importing modules or classes.
 

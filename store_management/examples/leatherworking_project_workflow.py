@@ -10,9 +10,9 @@ class LeatherworkingProjectWorkflow:
     Demonstrates a typical workflow for managing leatherworking projects.
     """
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, project_service: ProjectService, material_service:
-        MaterialService, inventory_service: InventoryService):
+                 MaterialService, inventory_service: InventoryService):
         """
         Initialize the workflow with necessary services.
 
@@ -27,7 +27,7 @@ class LeatherworkingProjectWorkflow:
         self.logger = get_logger(__name__)
 
         @inject(MaterialService)
-        def create_leather_bag_project(self) ->Dict[str, Any]:
+            def create_leather_bag_project(self) -> Dict[str, Any]:
         """
         Create a sample leather bag project with predefined characteristics.
 
@@ -36,9 +36,9 @@ class LeatherworkingProjectWorkflow:
         """
         try:
             project_data = {'name': 'Classic Leather Messenger Bag', 'type':
-                'bag', 'skill_level': 'intermediate', 'complexity_level': 7,
-                'estimated_time': 120, 'collection': 'Urban Essentials',
-                'version': '1.0'}
+                            'bag', 'skill_level': 'intermediate', 'complexity_level': 7,
+                            'estimated_time': 120, 'collection': 'Urban Essentials',
+                            'version': '1.0'}
             project = self.project_service.create_project(project_data)
             self.logger.info(f'Created project: {project.name}')
             return project.to_dict()
@@ -47,7 +47,7 @@ class LeatherworkingProjectWorkflow:
             raise
 
         @inject(MaterialService)
-        def track_project_progress(self, project_id: int):
+            def track_project_progress(self, project_id: int):
         """
         Track and log project progress and material usage.
 
@@ -56,19 +56,19 @@ class LeatherworkingProjectWorkflow:
         """
         try:
             project = self.project_service.get_project(project_id,
-                include_components=True)
+                                                       include_components=True)
             material_usage = (self.project_service.
-                analyze_project_material_usage(project_id))
+                              analyze_project_material_usage(project_id))
             self.logger.info(f'Project Progress: {project.name}')
             self.logger.info(f'Material Usage: {material_usage}')
             return {'project': project.to_dict(), 'material_usage':
-                material_usage}
+                    material_usage}
         except Exception as e:
             self.logger.error(f'Error tracking project progress: {e}')
             raise
 
         @inject(MaterialService)
-        def simulate_workflow(self):
+            def simulate_workflow(self):
         """
         Simulate a complete project workflow from creation to tracking.
         """
@@ -77,7 +77,7 @@ class LeatherworkingProjectWorkflow:
             project_id = created_project['id']
             progress_details = self.track_project_progress(project_id)
             self.project_service.update_project_status(project_id,
-                'in_progress')
+                                                       'in_progress')
             return progress_details
         except Exception as e:
             self.logger.error(f'Workflow simulation failed: {e}')
@@ -97,7 +97,7 @@ def main():
         material_service = MaterialService(material_repo)
         inventory_service = InventoryService(inventory_repo)
         workflow = LeatherworkingProjectWorkflow(project_service,
-            material_service, inventory_service)
+                                                 material_service, inventory_service)
         result = workflow.simulate_workflow()
         print('Workflow Simulation Result:', result)
     except Exception as e:

@@ -19,7 +19,7 @@ class ConfigManagementUI(tk.Tk):
     - Exporting/importing configurations
     """
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self):
         """
         Initialize the Configuration Management UI.
@@ -34,7 +34,7 @@ class ConfigManagementUI(tk.Tk):
         self._load_initial_configuration()
 
         @inject(MaterialService)
-        def _create_main_layout(self):
+            def _create_main_layout(self):
         """
         Create the main layout for the configuration management UI.
         """
@@ -44,8 +44,8 @@ class ConfigManagementUI(tk.Tk):
         env_frame.pack(fill=tk.X, pady=5)
         ttk.Label(env_frame, text='Environment:').pack(side=tk.LEFT)
         env_selector = ttk.Combobox(env_frame, textvariable=self.
-            current_environment, values=['development', 'production',
-            'testing'], state='readonly')
+                                    current_environment, values=['development', 'production',
+                                                                 'testing'], state='readonly')
         env_selector.pack(side=tk.LEFT, padx=5)
         env_selector.bind('<<ComboboxSelected>>', self._on_environment_change)
         notebook = ttk.Notebook(main_frame)
@@ -59,14 +59,14 @@ class ConfigManagementUI(tk.Tk):
         action_frame = ttk.Frame(main_frame)
         action_frame.pack(fill=tk.X, pady=5)
         ttk.Button(action_frame, text='Save Configuration', command=self.
-            _save_configuration).pack(side=tk.LEFT, padx=5)
+                   _save_configuration).pack(side=tk.LEFT, padx=5)
         ttk.Button(action_frame, text='Import Configuration', command=self.
-            _import_configuration).pack(side=tk.LEFT, padx=5)
+                   _import_configuration).pack(side=tk.LEFT, padx=5)
         ttk.Button(action_frame, text='Export Configuration', command=self.
-            _export_configuration).pack(side=tk.LEFT, padx=5)
+                   _export_configuration).pack(side=tk.LEFT, padx=5)
 
         @inject(MaterialService)
-        def _create_config_editor(self, parent):
+            def _create_config_editor(self, parent):
         """
         Create the configuration editor section.
 
@@ -75,7 +75,7 @@ class ConfigManagementUI(tk.Tk):
         """
         canvas = tk.Canvas(parent)
         scrollbar = ttk.Scrollbar(parent, orient='vertical', command=canvas
-            .yview)
+                                  .yview)
         scrollable_frame = ttk.Frame(canvas)
         scrollable_frame.bind('<Configure>', lambda e: canvas.configure(
             scrollregion=canvas.bbox('all')))
@@ -88,11 +88,11 @@ class ConfigManagementUI(tk.Tk):
             entry_frame = ttk.Frame(scrollable_frame)
             entry_frame.pack(fill=tk.X, pady=2)
             ttk.Label(entry_frame, text=key, width=30).pack(side=tk.LEFT,
-                padx=5)
+                                                            padx=5)
             if isinstance(value, bool):
                 var = tk.BooleanVar(value=value)
-                entry = ttk.Checkbutton(entry_frame, variable=var, onvalue=
-                    True, offvalue=False)
+                entry = ttk.Checkbutton(
+                    entry_frame, variable=var, onvalue=True, offvalue=False)
                 entry.pack(side=tk.LEFT, padx=5)
                 self.config_entries[key] = var
             elif isinstance(value, (int, float)):
@@ -107,13 +107,13 @@ class ConfigManagementUI(tk.Tk):
                 self.config_entries[key] = var
             elif isinstance(value, dict):
                 entry = ttk.Button(entry_frame, text='Edit Nested Config',
-                    command=lambda k=key: self._open_nested_config_editor(k,
-                    value))
+                                   command=lambda k=key: self._open_nested_config_editor(k,
+                                                                                         value))
                 entry.pack(side=tk.LEFT, padx=5)
                 self.config_entries[key] = entry
 
         @inject(MaterialService)
-        def _create_performance_metrics(self, parent):
+            def _create_performance_metrics(self, parent):
         """
         Create the performance metrics display section.
 
@@ -125,18 +125,18 @@ class ConfigManagementUI(tk.Tk):
         report = PERFORMANCE_TRACKER.generate_performance_report()
         metrics_text.insert(tk.END, report)
         metrics_text.config(state=tk.DISABLED)
-        refresh_btn = ttk.Button(parent, text='Refresh Metrics', command=lambda
-            : self._update_performance_metrics(metrics_text))
+        refresh_btn = ttk.Button(parent, text='Refresh Metrics',
+                                 command=lambda: self._update_performance_metrics(metrics_text))
         refresh_btn.pack(pady=5)
 
         @inject(MaterialService)
-        def _load_initial_configuration(self):
+            def _load_initial_configuration(self):
         """
         Load initial configuration for the selected environment.
         """
         try:
             self.current_config = CONFIG_TRACKER.load_environment_config(self
-                .current_environment.get())
+                                                                         .current_environment.get())
             for widget in self.winfo_children():
                 if isinstance(widget, ttk.Notebook):
                     config_frame = widget.winfo_children()[0]
@@ -147,14 +147,14 @@ class ConfigManagementUI(tk.Tk):
             messagebox.showerror('Configuration Load Error', str(e))
 
         @inject(MaterialService)
-        def _on_environment_change(self, event=None):
+            def _on_environment_change(self, event=None):
         """
         Handle environment selection change.
         """
         self._load_initial_configuration()
 
         @inject(MaterialService)
-        def _save_configuration(self):
+            def _save_configuration(self):
         """
         Save the current configuration.
         """
@@ -167,29 +167,29 @@ class ConfigManagementUI(tk.Tk):
                     try:
                         value = var.get()
                         updated_config[key] = int(value) if value.isdigit(
-                            ) else float(value) if '.' in value else value
+                        ) else float(value) if '.' in value else value
                     except ValueError:
                         updated_config[key] = var.get()
             env = self.current_environment.get()
             config_filename = f'config.{env}.json'
             config_path = os.path.join(CONFIG_TRACKER.base_config_dir,
-                config_filename)
+                                       config_filename)
             with open(config_path, 'w') as config_file:
                 json.dump(updated_config, config_file, indent=4)
             CONFIG_TRACKER.save_config_snapshot(updated_config, env)
             messagebox.showinfo('Configuration',
-                'Configuration saved successfully!')
+                                'Configuration saved successfully!')
         except Exception as e:
             messagebox.showerror('Save Error', str(e))
 
         @inject(MaterialService)
-        def _import_configuration(self):
+            def _import_configuration(self):
         """
         Import configuration from a JSON file.
         """
         try:
-            file_path = filedialog.askopenfilename(title=
-                'Import Configuration', filetypes=[('JSON files', '*.json')])
+            file_path = filedialog.askopenfilename(
+                title='Import Configuration', filetypes=[('JSON files', '*.json')])
             if not file_path:
                 return
             with open(file_path, 'r') as config_file:
@@ -202,18 +202,18 @@ class ConfigManagementUI(tk.Tk):
                         child.destroy()
                     self._create_config_editor(config_frame)
             messagebox.showinfo('Import',
-                'Configuration imported successfully!')
+                                'Configuration imported successfully!')
         except Exception as e:
             messagebox.showerror('Import Error', str(e))
 
         @inject(MaterialService)
-        def _export_configuration(self):
+            def _export_configuration(self):
         """
         Export current configuration to a JSON file.
         """
         try:
-            file_path = filedialog.asksaveasfilename(defaultextension=
-                '.json', filetypes=[('JSON files', '*.json')])
+            file_path = filedialog.asksaveasfilename(
+                defaultextension='.json', filetypes=[('JSON files', '*.json')])
             if not file_path:
                 return
             export_config = {}
@@ -224,18 +224,18 @@ class ConfigManagementUI(tk.Tk):
                     try:
                         value = var.get()
                         export_config[key] = int(value) if value.isdigit(
-                            ) else float(value) if '.' in value else value
+                        ) else float(value) if '.' in value else value
                     except ValueError:
                         export_config[key] = var.get()
             with open(file_path, 'w') as config_file:
                 json.dump(export_config, config_file, indent=4)
             messagebox.showinfo('Export',
-                'Configuration exported successfully!')
+                                'Configuration exported successfully!')
         except Exception as e:
             messagebox.showerror('Export Error', str(e))
 
         @inject(MaterialService)
-        def _update_performance_metrics(self, text_widget):
+            def _update_performance_metrics(self, text_widget):
         """
         Update performance metrics display.
 
@@ -252,7 +252,7 @@ class ConfigManagementUI(tk.Tk):
             messagebox.showerror('Metrics Update Error', str(e))
 
         @inject(MaterialService)
-        def _open_nested_config_editor(self, key, nested_config):
+            def _open_nested_config_editor(self, key, nested_config):
         """
         Open a nested configuration editor.
 
@@ -268,7 +268,7 @@ class ConfigManagementUI(tk.Tk):
             entry_frame = ttk.Frame(nested_window)
             entry_frame.pack(fill=tk.X, pady=2)
             ttk.Label(entry_frame, text=nested_key, width=30).pack(side=tk.
-                LEFT, padx=5)
+                                                                   LEFT, padx=5)
             if isinstance(nested_value, (int, float, str)):
                 var = tk.StringVar(value=str(nested_value))
                 entry = ttk.Entry(entry_frame, textvariable=var, width=40)
@@ -281,14 +281,14 @@ class ConfigManagementUI(tk.Tk):
                 try:
                     value = var.get()
                     updated_nested_config[nested_key] = int(value
-                        ) if value.isdigit() else float(value
-                        ) if '.' in value else value
+                                                            ) if value.isdigit() else float(value
+                                                                                            ) if '.' in value else value
                 except ValueError:
                     updated_nested_config[nested_key] = var.get()
             self.current_config[key].update(updated_nested_config)
             nested_window.destroy()
-        save_btn = ttk.Button(nested_window, text=
-            'Save Nested Configuration', command=save_nested_config)
+        save_btn = ttk.Button(
+            nested_window, text='Save Nested Configuration', command=save_nested_config)
         save_btn.pack(pady=10)
 
 

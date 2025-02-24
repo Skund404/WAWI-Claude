@@ -1,5 +1,11 @@
 from di.core import inject
-from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+from services.interfaces import (
+    MaterialService,
+    ProjectService,
+    InventoryService,
+    OrderService,
+)
+
 # F:\WAWI Homebrew\WAWI Claude\store_management\tools\dependency_migration.py
 
 import os
@@ -27,21 +33,22 @@ class SimpleASTTransformer:
             Transformed file content
         """
         # Remove existing imports if present
-        lines = content.split('\n')
+        lines = content.split("\n")
 
         # Remove specific imports
         filtered_lines = [
-            line for line in lines
+            line
+            for line in lines
             if not (
-                    line.strip().startswith('from di.core import inject') or
-                    line.strip().startswith('from services.interfaces import')
+                line.strip().startswith("from di.core import inject")
+                or line.strip().startswith("from services.interfaces import")
             )
         ]
 
         # Add new imports at the top
         new_imports = [
-            'from di.core import inject',
-            'from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService'
+            "from di.core import inject",
+            "from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService",
         ]
 
         # Insert imports after existing imports and before first non-import line
@@ -56,10 +63,9 @@ class SimpleASTTransformer:
                 continue
 
             # Check if we're still in the import block
-            is_import_line = (
-                    line.strip().startswith('import ') or
-                    line.strip().startswith('from ')
-            )
+            is_import_line = line.strip().startswith(
+                "import "
+            ) or line.strip().startswith("from ")
 
             if not import_block_ended and is_import_line:
                 final_lines.append(line)
@@ -73,7 +79,7 @@ class SimpleASTTransformer:
 
             final_lines.append(line)
 
-        return '\n'.join(final_lines)
+        return "\n".join(final_lines)
 
     @staticmethod
     def transform_methods(content: str) -> str:
@@ -86,19 +92,21 @@ class SimpleASTTransformer:
         Returns:
             Transformed file content
         """
-        lines = content.split('\n')
+        lines = content.split("\n")
         final_lines = []
 
         # Track method indentation and decorator state
         for i, line in enumerate(lines):
             # Look for method definitions
-            if re.match(r'^(\s*)def\s+\w+\(self', line):
+            if re.match(r"^(\s*)def\s+\w+\(self", line):
                 # Add inject decorator
-                final_lines.append(f'{" " * (len(line.split("def")[0]))}@inject(MaterialService)')
+                final_lines.append(
+                    f'{" " * (len(line.split("def")[0]))}@inject(MaterialService)'
+                )
 
             final_lines.append(line)
 
-        return '\n'.join(final_lines)
+        return "\n".join(final_lines)
 
 
 class DependencyMigrationTool:
@@ -107,7 +115,7 @@ class DependencyMigrationTool:
     """
 
     @inject(MaterialService)
-    def __init__(self, project_root: str):
+        def __init__(self, project_root: str):
         """
         Initialize the migration tool.
 
@@ -119,7 +127,7 @@ class DependencyMigrationTool:
         self.logger = logging.getLogger(__name__)
 
     @inject(MaterialService)
-    def find_python_files(self) -> List[str]:
+        def find_python_files(self) -> List[str]:
         """
         Find all Python files in the project.
 
@@ -128,13 +136,13 @@ class DependencyMigrationTool:
         """
         python_files = []
         ignore_dirs = {
-            '.venv',
-            'venv',
-            '__pycache__',
-            '.git',
-            'site-packages',
-            'build',
-            'dist'
+            ".venv",
+            "venv",
+            "__pycache__",
+            ".git",
+            "site-packages",
+            "build",
+            "dist",
         }
 
         for root, dirs, files in os.walk(self.project_root):
@@ -142,7 +150,7 @@ class DependencyMigrationTool:
             dirs[:] = [d for d in dirs if d not in ignore_dirs]
 
             for file in files:
-                if file.endswith('.py') and not file.startswith('__'):
+                if file.endswith(".py") and not file.startswith("__"):
                     full_path = os.path.join(root, file)
 
                     # Additional filter to ensure it's within project
@@ -152,7 +160,7 @@ class DependencyMigrationTool:
         return python_files
 
     @inject(MaterialService)
-    def migrate_file(self, file_path: str):
+        def migrate_file(self, file_path: str):
         """
         Migrate a single Python file.
 
@@ -161,7 +169,7 @@ class DependencyMigrationTool:
         """
         try:
             # Read file content
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
 
             # Transform imports
@@ -171,7 +179,7 @@ class DependencyMigrationTool:
             content = SimpleASTTransformer.transform_methods(content)
 
             # Write back to file
-            with open(file_path, 'w', encoding='utf-8') as f:
+            with open(file_path, "w", encoding="utf-8") as f:
                 f.write(content)
 
             self.logger.info(f"Migrated: {file_path}")
@@ -180,7 +188,7 @@ class DependencyMigrationTool:
             self.logger.error(f"Error migrating {file_path}: {e}")
 
     @inject(MaterialService)
-    def migrate_project(self):
+        def migrate_project(self):
         """
         Migrate entire project dependencies.
         """
@@ -194,7 +202,7 @@ class DependencyMigrationTool:
         self.logger.info("Dependency migration completed")
 
     @inject(MaterialService)
-    def register_services(self):
+        def register_services(self):
         """
         Generate service registration script.
         """
@@ -209,21 +217,20 @@ DependencyContainer.register(MaterialService, MaterialServiceImpl)
 DependencyContainer.register(ProjectService, ProjectServiceImpl)
 """
 
-        # Write registration script
-        registration_path = os.path.join(
-            self.project_root,
-            'store_management',
-            'services',
-            'service_registration.py'
-        )
 
-        # Ensure directory exists
-        os.makedirs(os.path.dirname(registration_path), exist_ok=True)
+# Write registration script
+registration_path = os.path.join(
+    self.project_root, "store_management", "services", "service_registration.py"
+)
 
-        with open(registration_path, 'w', encoding='utf-8') as f:
-            f.write(registration_script)
+# Ensure directory exists
+os.makedirs(os.path.dirname(registration_path), exist_ok=True)
 
-        self.logger.info(f"Service registration script created: {registration_path}")
+with open(registration_path, "w", encoding="utf-8") as f:
+    f.write(registration_script)
+
+    self.logger.info(
+        f"Service registration script created: {registration_path}")
 
 
 def main():
@@ -231,12 +238,11 @@ def main():
     Main entry point for dependency migration.
     """
     # Specify the exact project root
-    project_root = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), '..', '..')
-    )
+    project_root = os.path.abspath(os.path.join(
+        os.path.dirname(__file__), "..", ".."))
 
     # Validate project root
-    if not os.path.exists(os.path.join(project_root, 'store_management')):
+    if not os.path.exists(os.path.join(project_root, "store_management")):
         print(f"Invalid project root: {project_root}")
         print("Please ensure the script is run from the correct location.")
         return

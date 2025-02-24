@@ -16,7 +16,7 @@ class PerformanceTracker:
     and provides detailed performance insights.
     """
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, log_level=logging.INFO):
         """
         Initialize Performance Tracker.
@@ -26,12 +26,12 @@ class PerformanceTracker:
         """
         self.logger = logging.getLogger('performance_tracker')
         self.logger.setLevel(log_level)
-        self.method_metrics = defaultdict(lambda : {'total_calls': 0,
-            'total_time': 0.0, 'avg_time': 0.0, 'cache_hits': 0,
-            'cache_misses': 0})
+        self.method_metrics = defaultdict(lambda: {'total_calls': 0,
+                                                   'total_time': 0.0, 'avg_time': 0.0, 'cache_hits': 0,
+                                                   'cache_misses': 0})
 
         @inject(MaterialService)
-        def track_performance(self, cache_enabled: bool=False):
+            def track_performance(self, cache_enabled: bool = False):
         """
         Decorator to track method performance and optional caching.
 
@@ -42,7 +42,7 @@ class PerformanceTracker:
             Callable: Decorated method with performance tracking
         """
 
-        def decorator(func: Callable) ->Callable:
+        def decorator(func: Callable) -> Callable:
             if cache_enabled:
                 cache = {}
 
@@ -67,7 +67,7 @@ class PerformanceTracker:
                     if execution_time > 0.1:
                         self.logger.warning(
                             f'Slow method: {func.__name__} took {execution_time:.4f} seconds'
-                            )
+                        )
                     if cache_enabled:
                         cache[cache_key] = result
                     return result
@@ -78,7 +78,7 @@ class PerformanceTracker:
         return decorator
 
         @inject(MaterialService)
-        def get_method_metrics(self, method_name: str=None) ->Dict[str, Any]:
+            def get_method_metrics(self, method_name: str = None) -> Dict[str, Any]:
         """
         Retrieve performance metrics for a specific method or all methods.
 
@@ -93,7 +93,7 @@ class PerformanceTracker:
         return dict(self.method_metrics)
 
         @inject(MaterialService)
-        def reset_metrics(self, method_name: str=None):
+            def reset_metrics(self, method_name: str = None):
         """
         Reset performance metrics.
 
@@ -107,7 +107,7 @@ class PerformanceTracker:
             self.method_metrics.clear()
 
         @inject(MaterialService)
-        def generate_performance_report(self) ->str:
+            def generate_performance_report(self) -> str:
         """
         Generate a comprehensive performance report.
 

@@ -2,6 +2,8 @@
 
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+
+
 class ProjectRepository(BaseRepository):
     """
     Advanced repository for managing project-related database operations.
@@ -10,7 +12,7 @@ class ProjectRepository(BaseRepository):
     leatherworking projects with complex querying capabilities.
     """
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, session: Session):
         """
         Initialize the ProjectRepository with a database session.
@@ -21,7 +23,7 @@ class ProjectRepository(BaseRepository):
         super().__init__(session, Project)
 
         @inject(MaterialService)
-        def get_project_with_details(self, project_id: int) ->Optional[Project]:
+            def get_project_with_details(self, project_id: int) -> Optional[Project]:
         """
         Retrieve a project with all its associated components and relationships.
 
@@ -33,15 +35,15 @@ class ProjectRepository(BaseRepository):
         """
         try:
             return self.session.query(Project).options(joinedload(Project.
-                components).joinedload(ProjectComponent.material),
-                joinedload(Project.components).joinedload(ProjectComponent.
-                hardware)).filter(Project.id == project_id).first()
+                                                                  components).joinedload(ProjectComponent.material),
+                                                       joinedload(Project.components).joinedload(ProjectComponent.
+                                                                                                 hardware)).filter(Project.id == project_id).first()
         except Exception as e:
             raise DatabaseError(f'Error retrieving project details: {str(e)}')
 
         @inject(MaterialService)
-        def search_projects(self, search_params: Dict[str, Any]=None, limit: int=50
-        ) ->List[Project]:
+            def search_projects(self, search_params: Dict[str, Any] = None, limit: int = 50
+                            ) -> List[Project]:
         """
         Advanced search for projects with multiple filtering options.
 
@@ -66,7 +68,7 @@ class ProjectRepository(BaseRepository):
                 except ValueError:
                     raise ValidationError(
                         f"Invalid project type: {search_params['project_type']}"
-                        )
+                    )
             if search_params.get('skill_level'):
                 try:
                     skill_level = SkillLevel(search_params['skill_level'])
@@ -82,17 +84,17 @@ class ProjectRepository(BaseRepository):
                     raise ValidationError(
                         f"Invalid project status: {search_params['status']}")
             if search_params.get('start_date') and search_params.get('end_date'
-                ):
+                                                                     ):
                 conditions.append(Project.created_at.between(search_params[
                     'start_date'], search_params['end_date']))
             if search_params.get('min_complexity'):
                 conditions.append(Project.complexity >= float(search_params
-                    ['min_complexity']))
+                                                              ['min_complexity']))
             if conditions:
                 query = query.filter(and_(*conditions))
             if search_params.get('include_components', False):
                 query = query.options(joinedload(Project.components).
-                    joinedload(ProjectComponent.material), joinedload(
+                                      joinedload(ProjectComponent.material), joinedload(
                     Project.components).joinedload(ProjectComponent.hardware))
             query = query.order_by(Project.created_at.desc()).limit(limit)
             return query.all()
@@ -102,7 +104,7 @@ class ProjectRepository(BaseRepository):
             raise DatabaseError(f'Error searching projects: {str(e)}')
 
         @inject(MaterialService)
-        def get_project_material_usage(self, project_id: int) ->Dict[str, Any]:
+            def get_project_material_usage(self, project_id: int) -> Dict[str, Any]:
         """
         Analyze material usage for a specific project.
 
@@ -114,25 +116,27 @@ class ProjectRepository(BaseRepository):
         """
         try:
             material_usage = self.session.query(ProjectComponent.
-                material_id, Material.name.label('material_name'), func.sum
-                (ProjectComponent.material_quantity).label('total_used'),
-                func.avg(ProjectComponent.material_efficiency).label(
-                'avg_efficiency')).join(Material, ProjectComponent.
-                material_id == Material.id).filter(ProjectComponent.
-                project_id == project_id).group_by(ProjectComponent.
-                material_id, Material.name).all()
+                                                material_id, Material.name.label(
+                                                    'material_name'), func.sum
+                                                (ProjectComponent.material_quantity).label(
+                                                    'total_used'),
+                                                func.avg(ProjectComponent.material_efficiency).label(
+                                                    'avg_efficiency')).join(Material, ProjectComponent.
+                                                                            material_id == Material.id).filter(ProjectComponent.
+                                                                                                               project_id == project_id).group_by(ProjectComponent.
+                                                                                                                                                  material_id, Material.name).all()
             usage_details = [{'material_id': usage.material_id,
-                'material_name': usage.material_name, 'total_used': float(
-                usage.total_used), 'avg_efficiency': float(usage.
-                avg_efficiency)} for usage in material_usage]
+                              'material_name': usage.material_name, 'total_used': float(
+                                  usage.total_used), 'avg_efficiency': float(usage.
+                                                                             avg_efficiency)} for usage in material_usage]
             return {'project_id': project_id, 'material_usage':
-                usage_details, 'total_materials_used': len(usage_details)}
+                    usage_details, 'total_materials_used': len(usage_details)}
         except Exception as e:
             raise DatabaseError(
                 f'Error retrieving project material usage: {str(e)}')
 
         @inject(MaterialService)
-        def generate_project_complexity_report(self) ->Dict[str, Any]:
+            def generate_project_complexity_report(self) -> Dict[str, Any]:
         """
         Generate a comprehensive project complexity report.
 
@@ -141,31 +145,32 @@ class ProjectRepository(BaseRepository):
         """
         try:
             complexity_metrics = self.session.query(func.count(Project.id).
-                label('total_projects'), func.avg(Project.complexity).label
-                ('avg_complexity'), func.max(Project.complexity).label(
+                                                    label('total_projects'), func.avg(
+                                                        Project.complexity).label
+                                                    ('avg_complexity'), func.max(Project.complexity).label(
                 'max_complexity'), func.min(Project.complexity).label(
                 'min_complexity'), label('complexity_distribution', func.
-                percentile_cont(0.5).within_group(Project.complexity))).first()
+                                         percentile_cont(0.5).within_group(Project.complexity))).first()
             type_distribution = self.session.query(Project.project_type,
-                func.count(Project.id).label('project_count'), func.avg(
-                Project.complexity).label('avg_complexity')).group_by(Project
-                .project_type).all()
+                                                   func.count(Project.id).label('project_count'), func.avg(
+                                                       Project.complexity).label('avg_complexity')).group_by(Project
+                                                                                                             .project_type).all()
             type_metrics = [{'project_type': metric.project_type,
-                'project_count': metric.project_count, 'avg_complexity':
-                float(metric.avg_complexity)} for metric in type_distribution]
+                             'project_count': metric.project_count, 'avg_complexity':
+                             float(metric.avg_complexity)} for metric in type_distribution]
             return {'total_projects': complexity_metrics.total_projects,
-                'average_complexity': float(complexity_metrics.
-                avg_complexity), 'max_complexity': float(complexity_metrics
-                .max_complexity), 'min_complexity': float(
-                complexity_metrics.min_complexity), 'complexity_median':
-                float(complexity_metrics.complexity_distribution),
-                'complexity_by_type': type_metrics}
+                    'average_complexity': float(complexity_metrics.
+                                                avg_complexity), 'max_complexity': float(complexity_metrics
+                                                                                         .max_complexity), 'min_complexity': float(
+                        complexity_metrics.min_complexity), 'complexity_median':
+                    float(complexity_metrics.complexity_distribution),
+                    'complexity_by_type': type_metrics}
         except Exception as e:
             raise DatabaseError(
                 f'Error generating project complexity report: {str(e)}')
 
         @inject(MaterialService)
-        def create(self, project: Project) ->Project:
+            def create(self, project: Project) -> Project:
         """
         Create a new project with associated components.
 
@@ -198,7 +203,7 @@ class ProjectRepository(BaseRepository):
             raise DatabaseError(f'Error creating project: {str(e)}')
 
         @inject(MaterialService)
-        def update(self, project_id: int, project: Project) ->Project:
+            def update(self, project_id: int, project: Project) -> Project:
         """
         Update an existing project with new information.
 
@@ -217,7 +222,7 @@ class ProjectRepository(BaseRepository):
             existing_project = self.get(project_id)
             if not existing_project:
                 raise ValidationError(f'Project with ID {project_id} not found'
-                    )
+                                      )
             if not project.components:
                 raise ValidationError(
                     'Project must have at least one component')

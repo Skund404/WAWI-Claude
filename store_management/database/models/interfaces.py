@@ -15,10 +15,10 @@ class IModel(ABC):
     Defines common methods that all models should implement.
     """
 
-        @abstractmethod
+    @abstractmethod
     @inject(MaterialService)
-    def to_dict(self, exclude_fields: Optional[List[str]]=None) ->Dict[str, Any
-        ]:
+        def to_dict(self, exclude_fields: Optional[List[str]] = None) -> Dict[str, Any
+                                                                          ]:
         """
         Convert the model to a dictionary.
 
@@ -38,9 +38,9 @@ class IProject(IModel):
     Defines methods that project models should implement.
     """
 
-        @abstractmethod
+    @abstractmethod
     @inject(MaterialService)
-    def calculate_complexity(self) ->float:
+        def calculate_complexity(self) -> float:
         """
         Calculate the complexity score of the project.
 
@@ -51,7 +51,7 @@ class IProject(IModel):
 
         @abstractmethod
     @inject(MaterialService)
-    def calculate_total_cost(self) ->float:
+        def calculate_total_cost(self) -> float:
         """
         Calculate the total cost of the project.
 
@@ -62,7 +62,7 @@ class IProject(IModel):
 
         @abstractmethod
     @inject(MaterialService)
-    def update_status(self, new_status) ->None:
+        def update_status(self, new_status) -> None:
         """
         Update the project status.
 
@@ -73,7 +73,7 @@ class IProject(IModel):
 
         @abstractmethod
     @inject(MaterialService)
-    def validate(self) ->List[str]:
+        def validate(self) -> List[str]:
         """
         Validate the project data.
 

@@ -15,7 +15,7 @@ class SupplierRepository(BaseRepository):
     This class provides specialized operations for the Supplier model.
     """
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, session: Session):
         """
         Initialize a new SupplierRepository instance.
@@ -26,8 +26,8 @@ class SupplierRepository(BaseRepository):
         super().__init__(session, Supplier)
 
         @inject(MaterialService)
-        def search(self, search_term: str, fields: List[str], limit: Optional[
-        int]=None) ->List[Supplier]:
+            def search(self, search_term: str, fields: List[str], limit: Optional[
+                int] = None) -> List[Supplier]:
         """
         Search for suppliers by a search term in specified fields.
 
@@ -57,12 +57,12 @@ class SupplierRepository(BaseRepository):
         except SQLAlchemyError as e:
             logger.error(
                 f"Error searching suppliers for '{search_term}' in {fields}: {str(e)}"
-                )
+            )
             return []
 
         @inject(MaterialService)
-        def get_supplier_orders(self, supplier_id: int, start_date: Optional[
-        datetime]=None, end_date: Optional[datetime]=None) ->List[Any]:
+            def get_supplier_orders(self, supplier_id: int, start_date: Optional[
+                datetime] = None, end_date: Optional[datetime] = None) -> List[Any]:
         """
         Get orders for a supplier.
 
@@ -88,17 +88,17 @@ class SupplierRepository(BaseRepository):
                 if end_date:
                     conditions.append(Order.created_at <= end_date)
                 return self.session.query(Order).filter(and_(Order.
-                    supplier_id == supplier_id, *conditions)).all()
+                                                             supplier_id == supplier_id, *conditions)).all()
             return supplier.orders
         except (SQLAlchemyError, NameError) as e:
             logger.error(
                 f'Error getting orders for supplier ID {supplier_id}: {str(e)}'
-                )
+            )
             return []
 
         @inject(MaterialService)
-        def get_top_suppliers(self, limit: int=10, performance_metric: str='rating'
-        ) ->List[Supplier]:
+            def get_top_suppliers(self, limit: int = 10, performance_metric: str = 'rating'
+                              ) -> List[Supplier]:
         """
         Get top suppliers based on a performance metric.
 
@@ -116,15 +116,15 @@ class SupplierRepository(BaseRepository):
                 performance_metric = 'rating'
             metric_attr = getattr(Supplier, performance_metric)
             return self.session.query(Supplier).filter(Supplier.is_active ==
-                True).order_by(desc(metric_attr)).limit(limit).all()
+                                                       True).order_by(desc(metric_attr)).limit(limit).all()
         except SQLAlchemyError as e:
             logger.error(
                 f'Error getting top suppliers by {performance_metric}: {str(e)}'
-                )
+            )
             return []
 
         @inject(MaterialService)
-        def create(self, data: Dict[str, Any]) ->Optional[Supplier]:
+            def create(self, data: Dict[str, Any]) -> Optional[Supplier]:
         """
         Create a new supplier.
 
@@ -148,8 +148,8 @@ class SupplierRepository(BaseRepository):
             return None
 
         @inject(MaterialService)
-        def update(self, supplier_id: int, data: Dict[str, Any]) ->Optional[
-        Supplier]:
+            def update(self, supplier_id: int, data: Dict[str, Any]) -> Optional[
+                Supplier]:
         """
         Update a supplier.
 
@@ -179,7 +179,7 @@ class SupplierRepository(BaseRepository):
             return None
 
         @inject(MaterialService)
-        def delete(self, supplier_id: int) ->bool:
+            def delete(self, supplier_id: int) -> bool:
         """
         Delete a supplier.
 

@@ -15,7 +15,7 @@ class ProductRepository(BaseRepository):
     This class provides specialized operations for the Product model.
     """
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, session: Session):
         """
         Initialize a new ProductRepository instance.
@@ -26,7 +26,7 @@ class ProductRepository(BaseRepository):
         super().__init__(session, Product)
 
         @inject(MaterialService)
-        def get_by_id(self, product_id: int) ->Optional[Product]:
+            def get_by_id(self, product_id: int) -> Optional[Product]:
         """
         Get a product by ID.
 
@@ -44,8 +44,8 @@ class ProductRepository(BaseRepository):
             return None
 
         @inject(MaterialService)
-        def get_all(self, limit: Optional[int]=None, offset: Optional[int]=None
-        ) ->List[Product]:
+            def get_all(self, limit: Optional[int] = None, offset: Optional[int] = None
+                    ) -> List[Product]:
         """
         Get all products.
 
@@ -68,7 +68,7 @@ class ProductRepository(BaseRepository):
             return []
 
         @inject(MaterialService)
-        def search_by_name(self, name: str) ->List[Product]:
+            def search_by_name(self, name: str) -> List[Product]:
         """
         Search for products by name.
 
@@ -83,11 +83,11 @@ class ProductRepository(BaseRepository):
                 f'%{name}%')).all()
         except SQLAlchemyError as e:
             logger.error(f"Error searching products by name '{name}': {str(e)}"
-                )
+                         )
             return []
 
         @inject(MaterialService)
-        def get_active_products(self) ->List[Product]:
+            def get_active_products(self) -> List[Product]:
         """
         Get active products.
 
@@ -96,14 +96,14 @@ class ProductRepository(BaseRepository):
         """
         try:
             return self.session.query(Product).filter(Product.is_active == True
-                ).all()
+                                                      ).all()
         except SQLAlchemyError as e:
             logger.error(f'Error retrieving active products: {str(e)}')
             return []
 
         @inject(MaterialService)
-        def get_low_stock_products(self, include_zero_stock: bool=True) ->List[
-        Product]:
+            def get_low_stock_products(self, include_zero_stock: bool = True) -> List[
+                Product]:
         """
         Get products with low stock.
 
@@ -115,7 +115,7 @@ class ProductRepository(BaseRepository):
         """
         try:
             query = self.session.query(Product).filter(Product.
-                stock_quantity <= Product.reorder_point)
+                                                       stock_quantity <= Product.reorder_point)
             if not include_zero_stock:
                 query = query.filter(Product.stock_quantity > 0)
             return query.all()
@@ -124,7 +124,7 @@ class ProductRepository(BaseRepository):
             return []
 
         @inject(MaterialService)
-        def get_products_by_category(self, category: str) ->List[Product]:
+            def get_products_by_category(self, category: str) -> List[Product]:
         """
         Get products by material type (category).
 
@@ -136,15 +136,15 @@ class ProductRepository(BaseRepository):
         """
         try:
             return self.session.query(Product).filter(Product.material_type ==
-                category).all()
+                                                      category).all()
         except SQLAlchemyError as e:
             logger.error(
                 f"Error retrieving products by category '{category}': {str(e)}"
-                )
+            )
             return []
 
         @inject(MaterialService)
-        def get_product_sales_summary(self) ->Dict[str, Any]:
+            def get_product_sales_summary(self) -> Dict[str, Any]:
         """
         Get a summary of product sales.
 
@@ -154,17 +154,17 @@ class ProductRepository(BaseRepository):
         try:
             total_products = self.session.query(Product).count()
             active_products = self.session.query(Product).filter(Product.
-                is_active == True).count()
+                                                                 is_active == True).count()
             low_stock_products = self.session.query(Product).filter(Product
-                .stock_quantity <= Product.reorder_point).count()
+                                                                    .stock_quantity <= Product.reorder_point).count()
             products = self.session.query(Product).all()
             total_margin = sum(product.calculate_profit_margin() for
-                product in products) if products else 0
+                               product in products) if products else 0
             avg_margin = total_margin / len(products) if products else 0
             return {'total_products': total_products, 'active_products':
-                active_products, 'low_stock_products': low_stock_products,
-                'average_profit_margin': round(avg_margin, 2)}
+                    active_products, 'low_stock_products': low_stock_products,
+                    'average_profit_margin': round(avg_margin, 2)}
         except SQLAlchemyError as e:
             logger.error(f'Error generating product sales summary: {str(e)}')
             return {'total_products': 0, 'active_products': 0,
-                'low_stock_products': 0, 'average_profit_margin': 0}
+                    'low_stock_products': 0, 'average_profit_margin': 0}

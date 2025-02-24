@@ -19,12 +19,12 @@ class OrderModelResolver:
     _order_item_model: Optional[Any] = None
 
         @classmethod
-    def set_supplier_model(cls, supplier_model: Any) ->None:
+    def set_supplier_model(cls, supplier_model: Any) -> None:
         """Set the Supplier model class for lazy loading."""
         cls._supplier_model = supplier_model
 
         @classmethod
-    def set_order_item_model(cls, order_item_model: Any) ->None:
+    def set_order_item_model(cls, order_item_model: Any) -> None:
         """Set the OrderItem model class for lazy loading."""
         cls._order_item_model = order_item_model
 
@@ -58,7 +58,6 @@ def create_order_model(base_classes):
         type: Dynamically created Order model class.
     """
 
-
     class Order(*base_classes):
         """
         Represents a customer order in the system.
@@ -73,17 +72,17 @@ def create_order_model(base_classes):
         payment_status: Mapped[PaymentStatus] = mapped_column(Enum(
             PaymentStatus), default=PaymentStatus.UNPAID)
         total_amount: Mapped[float] = mapped_column(Float, default=0.0)
-        created_at: Mapped[datetime] = mapped_column(DateTime, default=
-            datetime.utcnow)
-        updated_at: Mapped[datetime] = mapped_column(DateTime, default=
-            datetime.utcnow, onupdate=datetime.utcnow)
+        created_at: Mapped[datetime] = mapped_column(
+            DateTime, default=datetime.utcnow)
+        updated_at: Mapped[datetime] = mapped_column(
+            DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
         supplier_id: Mapped[Optional[int]] = mapped_column(Integer,
             nullable=True)
         supplier = OrderModelResolver.get_supplier_relationship()
         items = OrderModelResolver.get_order_items_relationship()
 
                 @inject(MaterialService)
-                def __init__(self, order_number: str, customer_name: Optional[str]=None
+                    def __init__(self, order_number: str, customer_name: Optional[str] = None
             ):
             """
             Initialize an Order instance.
@@ -100,7 +99,7 @@ def create_order_model(base_classes):
             self.items = []
 
                 @inject(MaterialService)
-                def add_item(self, order_item) ->None:
+                    def add_item(self, order_item) ->None:
             """
             Add an item to the order.
 
@@ -112,7 +111,7 @@ def create_order_model(base_classes):
             self.calculate_total_amount()
 
                 @inject(MaterialService)
-                def remove_item(self, order_item) ->None:
+                    def remove_item(self, order_item) ->None:
             """
             Remove an item from the order.
 
@@ -125,7 +124,7 @@ def create_order_model(base_classes):
                 self.calculate_total_amount()
 
                 @inject(MaterialService)
-                def calculate_total_amount(self) ->float:
+                    def calculate_total_amount(self) ->float:
             """
             Calculate the total amount of the order.
 
@@ -137,7 +136,7 @@ def create_order_model(base_classes):
             return self.total_amount
 
                 @inject(MaterialService)
-                def update_status(self, new_status: OrderStatus) ->None:
+                    def update_status(self, new_status: OrderStatus) ->None:
             """
             Update the order status.
 
@@ -147,7 +146,7 @@ def create_order_model(base_classes):
             self.status = new_status
 
                 @inject(MaterialService)
-                def update_payment_status(self, new_payment_status: PaymentStatus
+                    def update_payment_status(self, new_payment_status: PaymentStatus
             ) ->None:
             """
             Update the payment status of the order.
@@ -158,7 +157,7 @@ def create_order_model(base_classes):
             self.payment_status = new_payment_status
 
                 @inject(MaterialService)
-                def to_dict(self, exclude_fields: Optional[List[str]]=None,
+                    def to_dict(self, exclude_fields: Optional[List[str]]=None,
             include_relationships: bool=False) ->Dict[str, Any]:
             """
             Convert Order to dictionary representation.

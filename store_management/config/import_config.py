@@ -2,12 +2,14 @@
 
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+
+
 class ImportConfig:
     """
     Centralized configuration for managing Python import paths.
     """
 
-        @staticmethod
+    @staticmethod
     def setup_project_path():
         """
         Automatically add project root and key directories to Python path.
@@ -17,15 +19,15 @@ class ImportConfig:
         project_root = os.path.abspath(os.path.join(os.path.dirname(
             __file__), '..'))
         key_dirs = [project_root, os.path.join(project_root,
-            'store_management'), os.path.join(project_root,
-            'store_management', 'database'), os.path.join(project_root,
-            'store_management', 'services')]
+                                               'store_management'), os.path.join(project_root,
+                                                                                 'store_management', 'database'), os.path.join(project_root,
+                                                                                                                               'store_management', 'services')]
         for directory in key_dirs:
             if directory not in sys.path:
                 sys.path.insert(0, directory)
 
         @staticmethod
-    def get_project_root() ->str:
+    def get_project_root() -> str:
         """
         Get the absolute path to the project root.
 
@@ -35,7 +37,7 @@ class ImportConfig:
         return os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
         @staticmethod
-    def list_python_modules(directory: str) ->List[str]:
+    def list_python_modules(directory: str) -> List[str]:
         """
         List all Python modules in a given directory.
 

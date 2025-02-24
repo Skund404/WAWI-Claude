@@ -2,6 +2,8 @@
 
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+
+
 class OrderRepository(BaseRepository):
     """
     Repository for managing order-related database operations.
@@ -10,7 +12,7 @@ class OrderRepository(BaseRepository):
     orders with advanced querying capabilities.
     """
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, session: Session):
         """
         Initialize the OrderRepository with a database session.
@@ -21,7 +23,7 @@ class OrderRepository(BaseRepository):
         super().__init__(session, Order)
 
         @inject(MaterialService)
-        def get_with_items(self, order_id: int) ->Optional[Order]:
+            def get_with_items(self, order_id: int) -> Optional[Order]:
         """
         Retrieve an order with its associated items in a single query.
 
@@ -33,13 +35,13 @@ class OrderRepository(BaseRepository):
         """
         try:
             return self.session.query(Order).options(joinedload(Order.
-                order_items)).options(joinedload(Order.supplier)).filter(
+                                                                order_items)).options(joinedload(Order.supplier)).filter(
                 Order.id == order_id).first()
         except Exception as e:
             raise DatabaseError(f'Error retrieving order with items: {str(e)}')
 
         @inject(MaterialService)
-        def get_by_status(self, status: OrderStatus) ->List[Order]:
+            def get_by_status(self, status: OrderStatus) -> List[Order]:
         """
         Retrieve orders filtered by their current status.
 
@@ -51,13 +53,13 @@ class OrderRepository(BaseRepository):
         """
         try:
             return self.session.query(Order).options(joinedload(Order.
-                order_items)).options(joinedload(Order.supplier)).filter(
+                                                                order_items)).options(joinedload(Order.supplier)).filter(
                 Order.status == status).all()
         except Exception as e:
             raise DatabaseError(f'Error retrieving orders by status: {str(e)}')
 
         @inject(MaterialService)
-        def get_by_supplier(self, supplier_id: int) ->List[Order]:
+            def get_by_supplier(self, supplier_id: int) -> List[Order]:
         """
         Retrieve all orders for a specific supplier.
 
@@ -69,15 +71,15 @@ class OrderRepository(BaseRepository):
         """
         try:
             return self.session.query(Order).options(joinedload(Order.
-                order_items)).options(joinedload(Order.supplier)).filter(
+                                                                order_items)).options(joinedload(Order.supplier)).filter(
                 Order.supplier_id == supplier_id).all()
         except Exception as e:
             raise DatabaseError(
                 f'Error retrieving orders for supplier: {str(e)}')
 
         @inject(MaterialService)
-        def get_by_date_range(self, start_date: datetime, end_date: datetime
-        ) ->List[Order]:
+            def get_by_date_range(self, start_date: datetime, end_date: datetime
+                              ) -> List[Order]:
         """
         Retrieve orders within a specific date range.
 
@@ -90,15 +92,15 @@ class OrderRepository(BaseRepository):
         """
         try:
             return self.session.query(Order).options(joinedload(Order.
-                order_items)).options(joinedload(Order.supplier)).filter(Order
-                .order_date.between(start_date, end_date)).all()
+                                                                order_items)).options(joinedload(Order.supplier)).filter(Order
+                                                                                                                         .order_date.between(start_date, end_date)).all()
         except Exception as e:
             raise DatabaseError(
                 f'Error retrieving orders by date range: {str(e)}')
 
         @inject(MaterialService)
-        def search(self, search_term: str, fields: List[str]=None, limit: int=10
-        ) ->List[Order]:
+            def search(self, search_term: str, fields: List[str] = None, limit: int = 10
+                   ) -> List[Order]:
         """
         Search for orders using a flexible search across multiple fields.
 
@@ -118,21 +120,21 @@ class OrderRepository(BaseRepository):
             for field in fields:
                 if field == 'order_number':
                     search_conditions.append(func.lower(Order.order_number)
-                        .like(normalized_term))
+                                             .like(normalized_term))
                 elif field == 'notes':
                     search_conditions.append(func.lower(Order.notes).like(
                         normalized_term))
             supplier_subquery = self.session.query(Supplier).filter(func.
-                lower(Supplier.name).like(normalized_term)).subquery()
+                                                                    lower(Supplier.name).like(normalized_term)).subquery()
             query = self.session.query(Order).options(joinedload(Order.
-                order_items)).options(joinedload(Order.supplier)).filter(or_
-                (*search_conditions)).limit(limit)
+                                                                 order_items)).options(joinedload(Order.supplier)).filter(or_
+                                                                                                                          (*search_conditions)).limit(limit)
             return query.all()
         except Exception as e:
             raise DatabaseError(f'Error searching orders: {str(e)}')
 
         @inject(MaterialService)
-        def create(self, order: Order) ->Order:
+            def create(self, order: Order) -> Order:
         """
         Create a new order with associated items.
 
@@ -163,7 +165,7 @@ class OrderRepository(BaseRepository):
             raise DatabaseError(f'Error creating order: {str(e)}')
 
         @inject(MaterialService)
-        def update(self, order_id: int, order: Order) ->Order:
+            def update(self, order_id: int, order: Order) -> Order:
         """
         Update an existing order with new information.
 
@@ -202,7 +204,7 @@ class OrderRepository(BaseRepository):
             raise DatabaseError(f'Error updating order: {str(e)}')
 
         @inject(MaterialService)
-        def delete(self, order_id: int) ->bool:
+            def delete(self, order_id: int) -> bool:
         """
         Delete an order and its associated items.
 

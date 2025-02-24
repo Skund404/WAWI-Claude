@@ -2,6 +2,8 @@
 
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+
+
 class ImportOptimizer:
     """
     Advanced import management and optimization utility.
@@ -10,7 +12,7 @@ class ImportOptimizer:
     _dependency_graph: Dict[str, Set[str]] = {}
     _circular_imports: Set[tuple] = set()
 
-        @classmethod
+    @classmethod
     def optimize_imports(cls, project_root: str):
         """
         Optimize import paths and detect potential issues.
@@ -19,16 +21,16 @@ class ImportOptimizer:
             project_root (str): Root directory of the project
         """
         key_dirs = [project_root, os.path.join(project_root,
-            'store_management'), os.path.join(project_root,
-            'store_management', 'database'), os.path.join(project_root,
-            'store_management', 'services')]
+                                               'store_management'), os.path.join(project_root,
+                                                                                 'store_management', 'database'), os.path.join(project_root,
+                                                                                                                               'store_management', 'services')]
         for directory in key_dirs:
             if directory not in sys.path:
                 sys.path.insert(0, directory)
 
         @classmethod
-    def safe_import(cls, module_path: str, class_name: Optional[str]=None
-        ) ->Any:
+    def safe_import(cls, module_path: str, class_name: Optional[str] = None
+                    ) -> Any:
         """
         Safely import a module or class with advanced caching.
 
@@ -73,7 +75,7 @@ class ImportOptimizer:
             print(f'Error tracking dependencies for {module_path}: {e}')
 
         @classmethod
-    def get_dependency_report(cls) ->Dict:
+    def get_dependency_report(cls) -> Dict:
         """
         Generate a report of module dependencies and potential issues.
 
@@ -81,9 +83,9 @@ class ImportOptimizer:
             Dict containing dependency and import information
         """
         return {'dependency_graph': cls._dependency_graph,
-            'circular_imports': list(cls._circular_imports),
-            'cached_imports': list(cls._import_cache.keys())}
+                'circular_imports': list(cls._circular_imports),
+                'cached_imports': list(cls._import_cache.keys())}
 
 
 ImportOptimizer.optimize_imports(os.path.abspath(os.path.join(os.path.
-    dirname(__file__), '..', '..')))
+                                                              dirname(__file__), '..', '..')))

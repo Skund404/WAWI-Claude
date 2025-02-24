@@ -2,15 +2,17 @@
 
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+
+
 class IHardwareService(ABC):
     """
     Interface for Hardware Service in the Leatherworking Management System.
     Defines the contract for hardware-related operations.
     """
 
-        @abstractmethod
+    @abstractmethod
     @inject(MaterialService)
-    def create_hardware(self, hardware_data: Dict[str, Any]) ->Hardware:
+        def create_hardware(self, hardware_data: Dict[str, Any]) -> Hardware:
         """
         Create a new hardware item.
 
@@ -24,7 +26,7 @@ class IHardwareService(ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def get_hardware(self, hardware_id: int) ->Optional[Hardware]:
+        def get_hardware(self, hardware_id: int) -> Optional[Hardware]:
         """
         Retrieve a hardware item by ID.
 
@@ -38,8 +40,8 @@ class IHardwareService(ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def update_hardware(self, hardware_id: int, update_data: Dict[str, Any]
-        ) ->Optional[Hardware]:
+        def update_hardware(self, hardware_id: int, update_data: Dict[str, Any]
+                        ) -> Optional[Hardware]:
         """
         Update an existing hardware item.
 
@@ -54,7 +56,7 @@ class IHardwareService(ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def delete_hardware(self, hardware_id: int) ->bool:
+        def delete_hardware(self, hardware_id: int) -> bool:
         """
         Delete a hardware item.
 
@@ -68,8 +70,8 @@ class IHardwareService(ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def get_low_stock_hardware(self, include_zero_stock: bool=False) ->List[
-        Hardware]:
+        def get_low_stock_hardware(self, include_zero_stock: bool = False) -> List[
+            Hardware]:
         """
         Retrieve hardware items with low stock.
 
@@ -83,7 +85,7 @@ class IHardwareService(ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def generate_hardware_performance_report(self) ->List[Dict[str, Any]]:
+        def generate_hardware_performance_report(self) -> List[Dict[str, Any]]:
         """
         Generate a performance report for hardware items.
 

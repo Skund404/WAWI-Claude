@@ -1,16 +1,23 @@
 from di.core import inject
-from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+from services.interfaces import (
+    MaterialService,
+    ProjectService,
+    InventoryService,
+    OrderService,
+)
+
 """
 F:/WAWI Homebrew/WAWI Claude/store_management/tools/setup_migrations_improved.py
 
 Improved script to set up Alembic migrations.
 """
-logging.basicConfig(level=logging.INFO, format=
-    '%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 
-def find_project_root() ->Path:
+def find_project_root() -> Path:
     """
     Find the project root directory.
 
@@ -19,8 +26,9 @@ def find_project_root() ->Path:
     """
     current_dir = Path(__file__).resolve().parent
     while current_dir != current_dir.parent:
-        if (current_dir / 'pyproject.toml').exists() or (current_dir /
-            'setup.py').exists():
+        if (current_dir / "pyproject.toml").exists() or (
+            current_dir / "setup.py"
+        ).exists():
             return current_dir
         current_dir = current_dir.parent
     return Path(__file__).resolve().parent.parent
@@ -29,9 +37,9 @@ def find_project_root() ->Path:
 def create_env_py():
     """Create the env.py file for Alembic."""
     project_root = find_project_root()
-    env_py_path = project_root / 'database' / 'migrations' / 'env.py'
+    env_py_path = project_root / "database" / "migrations" / "env.py"
     if env_py_path.exists():
-        logger.info(f'env.py already exists at {env_py_path}')
+        logger.info(f"env.py already exists at {env_py_path}")
         return
     env_py_content = """""\"
 F:/WAWI Homebrew/WAWI Claude/store_management/database/migrations/env.py
@@ -93,10 +101,10 @@ def run_migrations_offline():
     ""\"
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
-        url=url,
-        target_metadata=target_metadata,
-        literal_binds=True,
-        dialect_opts={"paramstyle": "named"},
+    url=url,
+    target_metadata=target_metadata,
+    literal_binds=True,
+    dialect_opts={"paramstyle": "named"},
     )
 
     with context.begin_transaction():
@@ -111,14 +119,14 @@ def run_migrations_online():
     and associate a connection with the context.
     ""\"
     connectable = engine_from_config(
-        config.get_section(config.config_ini_section),
-        prefix="sqlalchemy.",
-        poolclass=pool.NullPool,
+    config.get_section(config.config_ini_section),
+    prefix="sqlalchemy.",
+    poolclass=pool.NullPool,
     )
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, target_metadata=target_metadata
+        connection=connection, target_metadata=target_metadata
         )
 
         with context.begin_transaction():
@@ -130,19 +138,20 @@ if context.is_offline_mode():
 else:
     run_migrations_online()
 """
-    os.makedirs(os.path.dirname(env_py_path), exist_ok=True)
-    with open(env_py_path, 'w') as f:
-        f.write(env_py_content)
-    logger.info(f'Created env.py at {env_py_path}')
+
+
+os.makedirs(os.path.dirname(env_py_path), exist_ok=True)
+with open(env_py_path, "w") as f:
+    f.write(env_py_content)
+    logger.info(f"Created env.py at {env_py_path}")
 
 
 def create_script_py_mako():
     """Create the script.py.mako file for Alembic."""
     project_root = find_project_root()
-    script_py_mako_path = (project_root / 'database' / 'migrations' /
-        'script.py.mako')
+    script_py_mako_path = project_root / "database" / "migrations" / "script.py.mako"
     if script_py_mako_path.exists():
-        logger.info(f'script.py.mako already exists at {script_py_mako_path}')
+        logger.info(f"script.py.mako already exists at {script_py_mako_path}")
         return
     script_py_mako_content = """""\"${message}
 
@@ -169,49 +178,51 @@ def upgrade():
 def downgrade():
     ${downgrades if downgrades else "pass"}
 """
-    os.makedirs(os.path.dirname(script_py_mako_path), exist_ok=True)
-    with open(script_py_mako_path, 'w') as f:
-        f.write(script_py_mako_content)
-    logger.info(f'Created script.py.mako at {script_py_mako_path}')
+
+
+os.makedirs(os.path.dirname(script_py_mako_path), exist_ok=True)
+with open(script_py_mako_path, "w") as f:
+    f.write(script_py_mako_content)
+    logger.info(f"Created script.py.mako at {script_py_mako_path}")
 
 
 def create_versions_directory():
     """Create the versions directory for Alembic."""
     project_root = find_project_root()
-    versions_dir = project_root / 'database' / 'migrations' / 'versions'
+    versions_dir = project_root / "database" / "migrations" / "versions"
     if not versions_dir.exists():
         os.makedirs(versions_dir, exist_ok=True)
-        logger.info(f'Created versions directory at {versions_dir}')
+        logger.info(f"Created versions directory at {versions_dir}")
     else:
-        logger.info(f'versions directory already exists at {versions_dir}')
-    init_py_path = versions_dir / '__init__.py'
+        logger.info(f"versions directory already exists at {versions_dir}")
+    init_py_path = versions_dir / "__init__.py"
     if not init_py_path.exists():
-        with open(init_py_path, 'w') as f:
+        with open(init_py_path, "w") as f:
             f.write('"""Alembic migrations package."""\n')
-        logger.info(f'Created __init__.py at {init_py_path}')
+        logger.info(f"Created __init__.py at {init_py_path}")
 
 
 def verify_alembic_ini():
     """Verify that alembic.ini exists and has the correct content."""
     project_root = find_project_root()
-    alembic_ini_path = project_root / 'alembic.ini'
+    alembic_ini_path = project_root / "alembic.ini"
     if not alembic_ini_path.exists():
-        logger.warning(f'alembic.ini does not exist at {alembic_ini_path}')
+        logger.warning(f"alembic.ini does not exist at {alembic_ini_path}")
         logger.info(
-            'Please make sure to create alembic.ini with the correct content.')
+            "Please make sure to create alembic.ini with the correct content.")
     else:
-        logger.info(f'alembic.ini exists at {alembic_ini_path}')
+        logger.info(f"alembic.ini exists at {alembic_ini_path}")
 
 
 def main():
     """Main entry point for migration setup."""
-    logger.info('Setting up Alembic migrations...')
+    logger.info("Setting up Alembic migrations...")
     create_versions_directory()
     create_env_py()
     create_script_py_mako()
     verify_alembic_ini()
-    logger.info('Migration setup complete')
+    logger.info("Migration setup complete")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

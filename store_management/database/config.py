@@ -15,13 +15,13 @@ class DatabaseConfig:
     This class provides methods for getting database configuration settings.
     """
     _default_config = {'dialect': 'sqlite', 'database_name':
-        'store_management.db', 'host': None, 'port': None, 'username': None,
-        'password': None, 'echo': False, 'pool_size': 5, 'max_overflow': 10,
-        'pool_timeout': 30, 'pool_recycle': 3600, 'connect_args': {
-        'check_same_thread': False}}
+                       'store_management.db', 'host': None, 'port': None, 'username': None,
+                       'password': None, 'echo': False, 'pool_size': 5, 'max_overflow': 10,
+                       'pool_timeout': 30, 'pool_recycle': 3600, 'connect_args': {
+                           'check_same_thread': False}}
 
-        @classmethod
-    def _find_project_root(cls) ->Path:
+    @classmethod
+    def _find_project_root(cls) -> Path:
         """
         Find the project root directory.
 
@@ -31,13 +31,13 @@ class DatabaseConfig:
         current_dir = Path(__file__).resolve().parent
         while current_dir != current_dir.parent:
             if (current_dir / 'pyproject.toml').exists() or (current_dir /
-                'setup.py').exists():
+                                                             'setup.py').exists():
                 return current_dir
             current_dir = current_dir.parent
         return Path(__file__).resolve().parent.parent
 
         @classmethod
-    def get_database_path(cls) ->str:
+    def get_database_path(cls) -> str:
         """
         Get the full path to the SQLite database file.
 
@@ -50,7 +50,7 @@ class DatabaseConfig:
         return str(db_path)
 
         @classmethod
-    def get_database_url(cls, config: Optional[Dict[str, Any]]=None) ->str:
+    def get_database_url(cls, config: Optional[Dict[str, Any]] = None) -> str:
         """
         Get the database URL from the config or generate a default SQLite URL.
 
@@ -80,11 +80,11 @@ class DatabaseConfig:
             port_str = f':{port}' if port else ''
             return (
                 f'{dialect}://{username}:{password}@{host}{port_str}/{database}'
-                )
+            )
 
         @classmethod
-    def get_engine_config(cls, config: Optional[Dict[str, Any]]=None) ->Dict[
-        str, Any]:
+    def get_engine_config(cls, config: Optional[Dict[str, Any]] = None) -> Dict[
+            str, Any]:
         """
         Get the SQLAlchemy engine configuration.
 
@@ -98,14 +98,14 @@ class DatabaseConfig:
         result = {}
         for key, default_value in cls._default_config.items():
             if key in ['dialect', 'host', 'port', 'username', 'password',
-                'database_name']:
+                       'database_name']:
                 continue
             result[key] = config.get(key, default_value)
         return result
 
         @classmethod
-    def get_database_config(cls, env_config: Optional[Dict[str, Any]]=None
-        ) ->Dict[str, Any]:
+    def get_database_config(cls, env_config: Optional[Dict[str, Any]] = None
+                            ) -> Dict[str, Any]:
         """
         Get the complete database configuration.
 

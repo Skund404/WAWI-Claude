@@ -17,7 +17,7 @@ class StorageModelResolver:
     _product_model: Optional[Any] = None
 
         @classmethod
-    def set_product_model(cls, product_model: Any) ->None:
+    def set_product_model(cls, product_model: Any) -> None:
         """Set the Product model class for lazy loading."""
         cls._product_model = product_model
 
@@ -42,7 +42,6 @@ def create_storage_model(base_classes):
         type: Dynamically created Storage model class.
     """
 
-
     class Storage(*base_classes):
         """
         Represents a storage location in the inventory system.
@@ -54,15 +53,15 @@ def create_storage_model(base_classes):
         description: Mapped[Optional[str]] = mapped_column(String(500))
         capacity: Mapped[float] = mapped_column(Float, nullable=False)
         current_occupancy: Mapped[float] = mapped_column(Float, default=0.0)
-        created_at: Mapped[datetime] = mapped_column(DateTime, default=
-            datetime.utcnow)
-        updated_at: Mapped[datetime] = mapped_column(DateTime, default=
-            datetime.utcnow, onupdate=datetime.utcnow)
+        created_at: Mapped[datetime] = mapped_column(
+            DateTime, default=datetime.utcnow)
+        updated_at: Mapped[datetime] = mapped_column(
+            DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
         products = StorageModelResolver.get_products_relationship()
 
                 @inject(MaterialService)
-                def __init__(self, name: str, location: str, capacity: float,
-            description: Optional[str]=None):
+                    def __init__(self, name: str, location: str, capacity: float,
+            description: Optional[str] = None):
             """
             Initialize a Storage instance.
 
@@ -80,7 +79,7 @@ def create_storage_model(base_classes):
             self.products = []
 
                 @inject(MaterialService)
-                def occupancy_percentage(self) ->float:
+                    def occupancy_percentage(self) ->float:
             """
             Calculate the storage occupancy percentage.
 
@@ -91,7 +90,7 @@ def create_storage_model(base_classes):
                 capacity > 0 else 0.0)
 
                 @inject(MaterialService)
-                def add_product(self, product, quantity: float) ->None:
+                    def add_product(self, product, quantity: float) ->None:
             """
             Add a product to the storage location.
 
@@ -109,7 +108,7 @@ def create_storage_model(base_classes):
                 self.products.append(product)
 
                 @inject(MaterialService)
-                def remove_product(self, product, quantity: float) ->None:
+                    def remove_product(self, product, quantity: float) ->None:
             """
             Remove a product from the storage location.
 
@@ -127,7 +126,7 @@ def create_storage_model(base_classes):
                 self.products.remove(product)
 
                 @inject(MaterialService)
-                def to_dict(self, exclude_fields: Optional[List[str]]=None,
+                    def to_dict(self, exclude_fields: Optional[List[str]]=None,
             include_relationships: bool=False) ->Dict[str, Any]:
             """
             Convert Storage to dictionary representation.

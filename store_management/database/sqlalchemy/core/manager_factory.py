@@ -1,12 +1,17 @@
 from di.core import inject
-from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
-T = TypeVar('T')
+from services.interfaces import (
+    MaterialService,
+    ProjectService,
+    InventoryService,
+    OrderService,
+)
+
+T = TypeVar("T")
 _manager_cache = {}
 _specialized_managers = {}
 
 
-def register_specialized_manager(model_class: Type, manager_class: Type[
-    BaseManager]):
+def register_specialized_manager(model_class: Type, manager_class: Type[BaseManager]):
     """Register a specialized manager for a specific model class.
 
     Args:
@@ -16,8 +21,11 @@ def register_specialized_manager(model_class: Type, manager_class: Type[
     _specialized_managers[model_class] = manager_class
 
 
-def get_manager(model_class: Type[T], session_factory: Optional[Callable[[],
-    Session]]=None, force_new: bool=False) ->BaseManager[T]:
+def get_manager(
+    model_class: Type[T],
+    session_factory: Optional[Callable[[], Session]] = None,
+    force_new: bool = False,
+) -> BaseManager[T]:
     """Get or create a manager for the specified model class.
 
     This factory ensures only one manager is created per model class,
@@ -40,8 +48,9 @@ def get_manager(model_class: Type[T], session_factory: Optional[Callable[[],
     return manager
 
 
-def _create_manager(model_class: Type[T], session_factory: Optional[
-    Callable[[], Session]]=None) ->BaseManager[T]:
+def _create_manager(
+    model_class: Type[T], session_factory: Optional[Callable[[], Session]] = None
+) -> BaseManager[T]:
     """Create a new manager instance for the specified model class.
 
     Args:
@@ -53,6 +62,7 @@ def _create_manager(model_class: Type[T], session_factory: Optional[
     """
     if session_factory is None:
         from database.sqlalchemy.session import get_db_session
+
         session_factory = get_db_session
     if model_class in _specialized_managers:
         manager_class = _specialized_managers[model_class]

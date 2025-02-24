@@ -1,118 +1,145 @@
+# Relative path: store_management/services/interfaces/material_service.py
+
+"""
+Material Service Interface Module
+
+Defines the abstract base interface for material-related operations.
+"""
+
+from abc import ABC, abstractmethod
+from typing import Dict, Any, Optional, List, Type
+
+from database.models import Part
 
 
-from di.core import inject
-from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
-class IMaterialService(ABC):
+class MaterialService(ABC):
     """
-    Interface defining the contract for Material Service operations.
+    Abstract base class defining the interface for material-related operations.
 
-    Extends the base service interface with material-specific methods.
+    This service provides methods for managing materials,
+    including validation, creation, and manipulation.
     """
 
-        @abstractmethod
-    @inject(MaterialService)
-    def update_stock(self, material_id: Any, quantity_change: float,
-        transaction_type: str, notes: Optional[str]=None) ->Material:
+    @abstractmethod
+    def validate_model_creation(
+        self,
+        model_name: str,
+        data: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """
-        Update the stock of a material.
+        Validate data before model creation.
 
         Args:
-            material_id (Any): ID of the material
-            quantity_change (float): Quantity to add or subtract
-            transaction_type (str): Type of stock transaction
-            notes (Optional[str], optional): Additional notes for the transaction
+            model_name (str): Name of the model being created.
+            data (Dict[str, Any]): Data to be validated.
 
         Returns:
-            Material: Updated material
+            Dict[str, Any]: Validated and potentially modified data.
+
+        Raises:
+            ValueError: If data validation fails.
         """
         pass
 
-        @abstractmethod
-    @inject(MaterialService)
-    def get_low_stock_materials(self, include_zero_stock: bool=False) ->List[
-        Material]:
+    @abstractmethod
+    def get_material_by_name(self, name: str) -> Optional[Part]:
         """
-        Retrieve materials with low stock.
+        Retrieve a material by its name.
 
         Args:
-            include_zero_stock (bool, optional): Whether to include materials
-                with zero stock. Defaults to False.
+            name (str): Name of the material to retrieve.
 
         Returns:
-            List[Material]: List of low stock materials
+            Optional[Part]: The material if found, None otherwise.
         """
         pass
 
-        @abstractmethod
-    @inject(MaterialService)
-    def search_materials(self, search_params: Dict[str, Any]) ->List[Material]:
+    @abstractmethod
+    def create_material(
+        self,
+        name: str,
+        **kwargs
+    ) -> Part:
         """
-                Search materials based on multiple criteria.
-
-                Args:
-                    search_params (Dict[str, Any]): Search criteria
-
-                Returns:
-                    List[Material]: List of matching materials
-                """
-        pass
-
-        @abstractmethod
-    @inject(MaterialService)
-    def generate_material_usage_report(self, start_date: Optional[str]=None,
-        end_date: Optional[str]=None) ->Dict[str, Any]:
-        """
-        Generate a comprehensive material usage report.
+        Create a new material.
 
         Args:
-            start_date (Optional[str], optional): Start date for the report
-            end_date (Optional[str], optional): End date for the report
+            name (str): Name of the material.
+            **kwargs: Additional material attributes.
 
         Returns:
-            Dict[str, Any]: Material usage report
+            Part: The newly created material.
+
+        Raises:
+            ValueError: If material creation fails validation.
         """
         pass
 
-        @abstractmethod
-    @inject(MaterialService)
-    def deactivate_material(self, material_id: Any) ->Material:
+    @abstractmethod
+    def update_material(
+        self,
+        material: Part,
+        **kwargs
+    ) -> Part:
         """
-        Deactivate a material, preventing further use.
+        Update an existing material.
 
         Args:
-            material_id (Any): ID of the material to deactivate
+            material (Part): The material to update.
+            **kwargs: Attributes to update.
 
         Returns:
-            Material: The deactivated material
+            Part: The updated material.
+
+        Raises:
+            ValueError: If material update fails validation.
         """
         pass
 
-        @abstractmethod
-    @inject(MaterialService)
-    def activate_material(self, material_id: Any) ->Material:
+    @abstractmethod
+    def list_materials(
+        self,
+        filter_criteria: Optional[Dict[str, Any]] = None
+    ) -> List[Part]:
         """
-        Reactivate a previously deactivated material.
+        List materials with optional filtering.
 
         Args:
-            material_id (Any): ID of the material to activate
+            filter_criteria (Optional[Dict[str, Any]], optional):
+                Filtering parameters. Defaults to None.
 
         Returns:
-            Material: The activated material
+            List[Part]: List of materials matching the criteria.
         """
         pass
 
-        @abstractmethod
-    @inject(MaterialService)
-    def validate_material_substitution(self, original_material_id: Any,
-        substitute_material_id: Any) ->bool:
+    @abstractmethod
+    def delete_material(self, material: Part) -> bool:
         """
-        Check if one material can be substituted for another.
+        Delete a material.
 
         Args:
-            original_material_id (Any): ID of the original material
-            substitute_material_id (Any): ID of the potential substitute material
+            material (Part): The material to delete.
 
         Returns:
-            bool: True if substitution is possible, False otherwise
+            bool: True if deletion was successful, False otherwise.
+        """
+        pass
+
+    @abstractmethod
+    def validate_material_quantity(
+        self,
+        material: Part,
+        quantity: float
+    ) -> bool:
+        """
+        Validate if a given quantity is valid for a material.
+
+        Args:
+            material (Part): The material to validate.
+            quantity (float): Quantity to check.
+
+        Returns:
+            bool: True if the quantity is valid, False otherwise.
         """
         pass

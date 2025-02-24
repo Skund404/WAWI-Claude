@@ -1,27 +1,34 @@
 from di.core import inject
-from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+from services.interfaces import (
+    MaterialService,
+    ProjectService,
+    InventoryService,
+    OrderService,
+)
+
 """
 Fix for the base_view.py file to correct the syntax error.
 """
-logging.basicConfig(level=logging.INFO, format=
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger('base_view_fix')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger("base_view_fix")
 
 
 def fix_base_view():
     """Fix the base_view.py file."""
-    base_view_path = os.path.join('gui', 'base_view.py')
+    base_view_path = os.path.join("gui", "base_view.py")
     if not os.path.exists(base_view_path):
-        logger.error(f'Base view file not found at {base_view_path}')
+        logger.error(f"Base view file not found at {base_view_path}")
         return False
-    backup_path = base_view_path + '.bak'
+    backup_path = base_view_path + ".bak"
     try:
-        with open(base_view_path, 'r') as src:
-            with open(backup_path, 'w') as dst:
+        with open(base_view_path, "r") as src:
+            with open(backup_path, "w") as dst:
                 dst.write(src.read())
-        logger.info(f'Created backup of base view at {backup_path}')
+        logger.info(f"Created backup of base view at {backup_path}")
     except Exception as e:
-        logger.error(f'Failed to create backup: {str(e)}')
+        logger.error(f"Failed to create backup: {str(e)}")
         return False
     new_content = """
 # Path: gui/base_view.py
@@ -41,7 +48,7 @@ class BaseView(ttk.Frame):
     ""\"
 
     @inject(MaterialService)
-    def __init__(self, parent, app):
+        def __init__(self, parent, app):
         ""\"
         Initialize the base view.
 
@@ -57,7 +64,7 @@ class BaseView(ttk.Frame):
         logger.debug(f"BaseView initialized with app: {app}")
 
     @inject(MaterialService)
-    def get_service(self, service_type):
+        def get_service(self, service_type):
         ""\"
         Get a service from the application.
 
@@ -80,27 +87,27 @@ class BaseView(ttk.Frame):
             return None
 
     @inject(MaterialService)
-    def load_data(self):
+        def load_data(self):
         ""\"Load data for the view. To be implemented by subclasses.""\"
         pass
 
     @inject(MaterialService)
-    def save(self):
+        def save(self):
         ""\"Save data from the view. To be implemented by subclasses.""\"
         pass
 
     @inject(MaterialService)
-    def undo(self):
+        def undo(self):
         ""\"Undo the last action. To be implemented by subclasses.""\"
         pass
 
     @inject(MaterialService)
-    def redo(self):
+        def redo(self):
         ""\"Redo the last undone action. To be implemented by subclasses.""\"
         pass
 
     @inject(MaterialService)
-    def show_error(self, title, message):
+        def show_error(self, title, message):
         ""\"
         Show an error message.
 
@@ -112,7 +119,7 @@ class BaseView(ttk.Frame):
         logger.error(f"Error: {title} - {message}")
 
     @inject(MaterialService)
-    def show_info(self, title, message):
+        def show_info(self, title, message):
         ""\"
         Show an information message.
 
@@ -124,7 +131,7 @@ class BaseView(ttk.Frame):
         logger.info(f"Info: {title} - {message}")
 
     @inject(MaterialService)
-    def show_warning(self, title, message):
+        def show_warning(self, title, message):
         ""\"
         Show a warning message.
 
@@ -136,7 +143,7 @@ class BaseView(ttk.Frame):
         logger.warning(f"Warning: {title} - {message}")
 
     @inject(MaterialService)
-    def confirm(self, title, message):
+        def confirm(self, title, message):
         ""\"
         Show a confirmation dialog.
 
@@ -150,7 +157,7 @@ class BaseView(ttk.Frame):
         return messagebox.askyesno(title, message)
 
     @inject(MaterialService)
-    def set_status(self, message):
+        def set_status(self, message):
         ""\"
         Set the status message in the status bar.
 
@@ -167,19 +174,19 @@ class BaseView(ttk.Frame):
             logger.warning(f"Could not set status: {str(e)}")
 """
     try:
-        with open(base_view_path, 'w') as f:
+        with open(base_view_path, "w") as f:
             f.write(new_content.strip())
-        logger.info(f'Updated base view at {base_view_path}')
+        logger.info(f"Updated base view at {base_view_path}")
         return True
     except Exception as e:
-        logger.error(f'Failed to update base view: {str(e)}')
+        logger.error(f"Failed to update base view: {str(e)}")
         return False
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     if fix_base_view():
         logger.info(
-            'Base view fixed successfully. Run the application to see the changes.'
-            )
+            "Base view fixed successfully. Run the application to see the changes."
+        )
     else:
-        logger.error('Failed to fix base view.')
+        logger.error("Failed to fix base view.")

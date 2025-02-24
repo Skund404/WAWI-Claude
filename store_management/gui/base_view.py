@@ -9,8 +9,8 @@ class BaseView(ttk.Frame, ABC):
     Provides common functionality and interface for views.
     """
 
-        @inject(MaterialService)
-        def __init__(self, parent: tk.Widget, app: Any) ->None:
+    @inject(MaterialService)
+        def __init__(self, parent: tk.Widget, app: Any) -> None:
         """
         Initialize the base view.
 
@@ -22,11 +22,11 @@ class BaseView(ttk.Frame, ABC):
         self.parent = parent
         self.app = app
         self.logger = logging.getLogger(f'{__name__}.{self.__class__.__name__}'
-            )
+                                        )
         self.setup_ui()
 
         @inject(MaterialService)
-        def get_service(self, service_type: Type) ->Any:
+            def get_service(self, service_type: Type) -> Any:
         """
         Get a service instance from the application container.
 
@@ -44,18 +44,18 @@ class BaseView(ttk.Frame, ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def setup_ui(self) ->None:
+        def setup_ui(self) -> None:
         """Set up the user interface elements. Must be implemented by subclasses."""
         pass
 
         @abstractmethod
     @inject(MaterialService)
-    def load_data(self) ->None:
+        def load_data(self) -> None:
         """Load data into the view. Must be implemented by subclasses."""
         pass
 
         @inject(MaterialService)
-        def show_error(self, title: str, message: str) ->None:
+            def show_error(self, title: str, message: str) -> None:
         """
         Display an error message dialog.
 
@@ -67,7 +67,7 @@ class BaseView(ttk.Frame, ABC):
         messagebox.showerror(title, message)
 
         @inject(MaterialService)
-        def show_info(self, title: str, message: str) ->None:
+            def show_info(self, title: str, message: str) -> None:
         """
         Display an information message dialog.
 
@@ -78,7 +78,7 @@ class BaseView(ttk.Frame, ABC):
         messagebox.showinfo(title, message)
 
         @inject(MaterialService)
-        def show_warning(self, title: str, message: str) ->None:
+            def show_warning(self, title: str, message: str) -> None:
         """
         Display a warning message dialog.
 
@@ -90,7 +90,7 @@ class BaseView(ttk.Frame, ABC):
         messagebox.showwarning(title, message)
 
         @inject(MaterialService)
-        def confirm(self, title: str, message: str) ->bool:
+            def confirm(self, title: str, message: str) -> bool:
         """
         Display a confirmation dialog.
 
@@ -104,22 +104,22 @@ class BaseView(ttk.Frame, ABC):
         return messagebox.askyesno(title, message)
 
         @inject(MaterialService)
-        def refresh(self) ->None:
+            def refresh(self) -> None:
         """Refresh the view's data and update the display."""
         try:
             self.load_data()
         except Exception as e:
             self.logger.error(f'Error refreshing view: {e}')
             self.show_error('Refresh Error',
-                f'Failed to refresh view: {str(e)}')
+                            f'Failed to refresh view: {str(e)}')
 
         @inject(MaterialService)
-        def cleanup(self) ->None:
+            def cleanup(self) -> None:
         """Perform cleanup operations before view is destroyed."""
         pass
 
         @inject(MaterialService)
-        def set_status(self, message: str) ->None:
+            def set_status(self, message: str) -> None:
         """Sets the status message in the main window's status bar.
 
         Args:
@@ -130,4 +130,4 @@ class BaseView(ttk.Frame, ABC):
         else:
             logger.warning(
                 f'Parent does not have set_status method. Message was: {message}'
-                )
+            )

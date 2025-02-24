@@ -2,6 +2,8 @@
 
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+
+
 class AddDialog(tk.Toplevel):
     """
     A flexible dialog for adding new entries with dynamic field generation.
@@ -15,10 +17,10 @@ class AddDialog(tk.Toplevel):
         _entries: Dictionary to store entry widgets
     """
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, parent: tk.Tk, save_callback: Callable[[Dict[str,
-        Any]], None], fields: List[Tuple[str, str, bool, str]]=[], title:
-        str='Add Entry'):
+                                                                    Any]], None], fields: List[Tuple[str, str, bool, str]] = [], title:
+                 str = 'Add Entry'):
         """
         Initialize the add dialog.
 
@@ -40,14 +42,14 @@ class AddDialog(tk.Toplevel):
         self._save_callback = save_callback
         self._fields = fields
         self._entries: Dict[str, Union[tk.Entry, tk.Text, ttk.Checkbutton]] = {
-            }
+        }
         self.title(title)
         self.geometry('400x500')
         self.resizable(False, False)
         self._create_ui()
 
         @inject(MaterialService)
-        def _create_ui(self) ->None:
+            def _create_ui(self) -> None:
         """
         Create dialog user interface with dynamic fields.
         """
@@ -55,7 +57,7 @@ class AddDialog(tk.Toplevel):
         main_frame.pack(fill=tk.BOTH, expand=True)
         main_frame.columnconfigure(1, weight=1)
         for i, (field_name, display_name, required, field_type) in enumerate(
-            self._fields):
+                self._fields):
             label = ttk.Label(main_frame, text=f'{display_name}:')
             label.grid(row=i, column=0, sticky=tk.W, padx=5, pady=5)
             if field_type == 'string':
@@ -81,16 +83,16 @@ class AddDialog(tk.Toplevel):
                 self._entries[field_name] = var
         buttons_frame = ttk.Frame(main_frame)
         buttons_frame.grid(row=len(self._fields), column=0, columnspan=2,
-            sticky=tk.EW, pady=10)
+                           sticky=tk.EW, pady=10)
         save_btn = ttk.Button(buttons_frame, text='Save', command=self._on_save
-            )
+                              )
         save_btn.pack(side=tk.RIGHT, padx=5)
         cancel_btn = ttk.Button(buttons_frame, text='Cancel', command=self.
-            destroy)
+                                destroy)
         cancel_btn.pack(side=tk.RIGHT)
 
         @inject(MaterialService)
-        def _on_save(self) ->None:
+            def _on_save(self) -> None:
         """
         Handle save action, validate and process form data.
         """
@@ -106,20 +108,20 @@ class AddDialog(tk.Toplevel):
                     value = float(entry.get())
                 except ValueError:
                     messagebox.showerror('Invalid Input',
-                        f'Invalid float value for {field_name}')
+                                         f'Invalid float value for {field_name}')
                     return
             elif field_type == 'int':
                 try:
                     value = int(entry.get())
                 except ValueError:
                     messagebox.showerror('Invalid Input',
-                        f'Invalid integer value for {field_name}')
+                                         f'Invalid integer value for {field_name}')
                     return
             elif field_type == 'boolean':
                 value = entry.get()
             if required and not value:
                 messagebox.showerror('Missing Input',
-                    f'{field_name} is required')
+                                     f'{field_name} is required')
                 return
             form_data[field_name] = value
         if 'id' not in form_data:

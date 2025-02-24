@@ -37,7 +37,7 @@ class Pattern(Base):
     __tablename__ = 'patterns'
     created_at = Column(DateTime, default=sa.func.now(), nullable=False)
     updated_at = Column(DateTime, default=sa.func.now(), onupdate=sa.func.
-        now(), nullable=False)
+                        now(), nullable=False)
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False)
     description = Column(String)
@@ -53,12 +53,12 @@ class Pattern(Base):
     version = Column(String, default='1.0')
     complexity_score = Column(Float, default=0.0)
     pattern_files = relationship('PatternFile', back_populates='pattern',
-        cascade='all, delete-orphan')
+                                 cascade='all, delete-orphan')
     components = relationship('ProjectComponent', back_populates='pattern',
-        cascade='all, delete-orphan')
+                              cascade='all, delete-orphan')
 
-        @inject(MaterialService)
-        def __repr__(self) ->str:
+    @inject(MaterialService)
+        def __repr__(self) -> str:
         """
         String representation of the pattern.
 
@@ -67,10 +67,10 @@ class Pattern(Base):
         """
         return (
             f"<Pattern(id={self.id}, name='{self.name}', type={self.project_type}, skill_level={self.skill_level})>"
-            )
+        )
 
         @inject(MaterialService)
-        def calculate_complexity(self) ->float:
+            def calculate_complexity(self) -> float:
         """
         Calculate the complexity of the pattern.
 
@@ -82,8 +82,8 @@ class Pattern(Base):
         complexity = 0.0
         complexity += len(self.components) * 0.5
         skill_level_multipliers = {SkillLevel.BEGINNER: 1.0, SkillLevel.
-            INTERMEDIATE: 1.5, SkillLevel.ADVANCED: 2.0, SkillLevel.EXPERT: 2.5
-            }
+                                   INTERMEDIATE: 1.5, SkillLevel.ADVANCED: 2.0, SkillLevel.EXPERT: 2.5
+                                   }
         complexity *= skill_level_multipliers.get(self.skill_level, 1.0)
         if self.stitch_type:
             complexity += 0.5
@@ -93,7 +93,7 @@ class Pattern(Base):
         return max(0.1, min(complexity, 10.0))
 
         @inject(MaterialService)
-        def validate_pattern(self) ->bool:
+            def validate_pattern(self) -> bool:
         """
         Validate the pattern's data integrity.
 
@@ -106,7 +106,7 @@ class Pattern(Base):
                 return False
         try:
             if (self.estimated_labor_hours < 0 or self.complexity_score < 0 or
-                self.complexity_score > 10):
+                    self.complexity_score > 10):
                 return False
         except (TypeError, ValueError):
             return False
@@ -120,8 +120,8 @@ class Pattern(Base):
         return True
 
         @inject(MaterialService)
-        def to_dict(self, exclude_fields: Optional[List[str]]=None) ->Dict[str, Any
-        ]:
+            def to_dict(self, exclude_fields: Optional[List[str]] = None) -> Dict[str, Any
+                                                                              ]:
         """
         Convert the pattern to a comprehensive dictionary representation.
 
@@ -133,28 +133,28 @@ class Pattern(Base):
         """
         exclude_fields = exclude_fields or []
         pattern_dict = {'id': self.id, 'name': self.name, 'description':
-            self.description, 'skill_level': self.skill_level.name if self.
-            skill_level else None, 'project_type': self.project_type.name if
-            self.project_type else None, 'stitch_type': self.stitch_type.
-            name if self.stitch_type else None, 'edge_finish_type': self.
-            edge_finish_type.name if self.edge_finish_type else None,
-            'pattern_pieces': self.pattern_pieces, 'leather_specifications':
-            self.leather_specifications, 'hardware_requirements': self.
-            hardware_requirements, 'estimated_labor_hours': self.
-            estimated_labor_hours, 'is_template': self.is_template,
-            'version': self.version, 'complexity_score': self.
-            calculate_complexity(), 'components': [component.to_dict() for
-            component in self.components], 'pattern_files': [pf.to_dict() for
-            pf in self.pattern_files]}
+                        self.description, 'skill_level': self.skill_level.name if self.
+                        skill_level else None, 'project_type': self.project_type.name if
+                        self.project_type else None, 'stitch_type': self.stitch_type.
+                        name if self.stitch_type else None, 'edge_finish_type': self.
+                        edge_finish_type.name if self.edge_finish_type else None,
+                        'pattern_pieces': self.pattern_pieces, 'leather_specifications':
+                        self.leather_specifications, 'hardware_requirements': self.
+                        hardware_requirements, 'estimated_labor_hours': self.
+                        estimated_labor_hours, 'is_template': self.is_template,
+                        'version': self.version, 'complexity_score': self.
+                        calculate_complexity(), 'components': [component.to_dict() for
+                                                               component in self.components], 'pattern_files': [pf.to_dict() for
+                                                                                                                pf in self.pattern_files]}
         for field in exclude_fields:
             pattern_dict.pop(field, None)
         return pattern_dict
 
         @classmethod
     def create_template(cls, name: str, project_type: ProjectType,
-        skill_level: SkillLevel, estimated_labor_hours: float=0.0,
-        description: Optional[str]=None, stitch_type: Optional[StitchType]=
-        None, edge_finish_type: Optional[EdgeFinishType]=None) ->'Pattern':
+                        skill_level: SkillLevel, estimated_labor_hours: float = 0.0,
+                        description: Optional[str] = None, stitch_type: Optional[StitchType] =
+                        None, edge_finish_type: Optional[EdgeFinishType] = None) -> 'Pattern':
         """
         Create a pattern template with comprehensive specifications.
 
@@ -170,11 +170,8 @@ class Pattern(Base):
         Returns:
             Pattern: Created pattern template
         """
-        return cls(name=name, project_type=project_type, skill_level=
-            skill_level, estimated_labor_hours=estimated_labor_hours,
-            description=description, is_template=True, stitch_type=
-            stitch_type, edge_finish_type=edge_finish_type, pattern_pieces=
-            {}, leather_specifications={}, hardware_requirements={})
+        return cls(name=name, project_type=project_type, skill_level=skill_level, estimated_labor_hours=estimated_labor_hours,
+                   description=description, is_template=True, stitch_type=stitch_type, edge_finish_type=edge_finish_type, pattern_pieces={}, leather_specifications={}, hardware_requirements={})
 
 
 class PatternFile(Base):
@@ -196,7 +193,7 @@ class PatternFile(Base):
     __tablename__ = 'pattern_files'
     created_at = Column(DateTime, default=sa.func.now(), nullable=False)
     updated_at = Column(DateTime, default=sa.func.now(), onupdate=sa.func.
-        now(), nullable=False)
+                        now(), nullable=False)
     id = Column(Integer, primary_key=True)
     pattern_id = Column(Integer, sa.ForeignKey('patterns.id'), nullable=False)
     pattern = relationship('Pattern', back_populates='pattern_files')
@@ -205,8 +202,8 @@ class PatternFile(Base):
     file_type = Column(String)
     description = Column(String)
 
-        @inject(MaterialService)
-        def to_dict(self) ->Dict[str, Any]:
+    @inject(MaterialService)
+        def to_dict(self) -> Dict[str, Any]:
         """
         Convert the pattern file to a dictionary representation.
 
@@ -214,5 +211,5 @@ class PatternFile(Base):
             Dict[str, Any]: Dictionary of pattern file attributes
         """
         return {'id': self.id, 'pattern_id': self.pattern_id, 'filename':
-            self.filename, 'file_path': self.file_path, 'file_type': self.
-            file_type, 'description': self.description}
+                self.filename, 'file_path': self.file_path, 'file_type': self.
+                file_type, 'description': self.description}

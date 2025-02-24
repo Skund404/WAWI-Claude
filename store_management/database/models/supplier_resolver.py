@@ -22,7 +22,7 @@ class SupplierModelResolver:
     _order_model: Optional[Any] = None
 
         @classmethod
-    def set_product_model(cls, product_model: Any) ->None:
+    def set_product_model(cls, product_model: Any) -> None:
         """
         Set the Product model class for lazy loading.
 
@@ -32,7 +32,7 @@ class SupplierModelResolver:
         cls._product_model = product_model
 
         @classmethod
-    def set_order_model(cls, order_model: Any) ->None:
+    def set_order_model(cls, order_model: Any) -> None:
         """
         Set the Order model class for lazy loading.
 
@@ -81,7 +81,6 @@ def create_supplier_model(base_classes):
         type: Dynamically created Supplier model class.
     """
 
-
     class Supplier(*base_classes):
         """
         Represents a supplier in the system with comprehensive tracking.
@@ -103,9 +102,9 @@ def create_supplier_model(base_classes):
         orders = SupplierModelResolver.get_orders_relationship()
 
                 @inject(MaterialService)
-                def __init__(self, name: str, contact_name: Optional[str]=None,
-            email: Optional[str]=None, phone: Optional[str]=None, address:
-            Optional[str]=None, tax_id: Optional[str]=None):
+                    def __init__(self, name: str, contact_name: Optional[str] = None,
+            email: Optional[str] = None, phone: Optional[str] = None, address:
+            Optional[str] = None, tax_id: Optional[str] = None):
             """
             Initialize a Supplier instance.
 
@@ -128,7 +127,7 @@ def create_supplier_model(base_classes):
             self.credit_limit = 0.0
 
                 @inject(MaterialService)
-                def validate(self) ->bool:
+                    def validate(self) ->bool:
             """
             Validate supplier data.
 
@@ -144,7 +143,7 @@ def create_supplier_model(base_classes):
             return True
 
                 @inject(MaterialService)
-                def update_rating(self, new_rating: float) ->None:
+                    def update_rating(self, new_rating: float) ->None:
             """
             Update supplier rating.
 
@@ -159,21 +158,21 @@ def create_supplier_model(base_classes):
             self.rating = new_rating
 
                 @inject(MaterialService)
-                def activate(self) ->None:
+                    def activate(self) ->None:
             """
             Activate the supplier.
             """
             self.is_active = True
 
                 @inject(MaterialService)
-                def deactivate(self) ->None:
+                    def deactivate(self) ->None:
             """
             Deactivate the supplier.
             """
             self.is_active = False
 
                 @inject(MaterialService)
-                def to_dict(self, exclude_fields: Optional[List[str]]=None,
+                    def to_dict(self, exclude_fields: Optional[List[str]]=None,
             include_relationships: bool=False) ->Dict[str, Any]:
             """
             Convert Supplier to dictionary representation.

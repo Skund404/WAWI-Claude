@@ -15,8 +15,8 @@ class TimestampMixin:
     This mixin provides methods for updating timestamps on model changes.
     """
 
-        @inject(MaterialService)
-        def update_timestamp(self) ->None:
+    @inject(MaterialService)
+        def update_timestamp(self) -> None:
         """
         Update the updated_at timestamp.
 
@@ -33,9 +33,9 @@ class ValidationMixin:
     This mixin provides methods for validating model data.
     """
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def validate_required_fields(self, data: Dict[str, Any],
-        required_fields: set) ->None:
+                                 required_fields: set) -> None:
         """
         Validate that all required fields are present and not None.
 
@@ -51,8 +51,8 @@ class ValidationMixin:
                 raise ValueError(f"Field '{field}' is required")
 
         @inject(MaterialService)
-        def validate_numeric_range(self, value: float, min_val: float, max_val:
-        float) ->None:
+            def validate_numeric_range(self, value: float, min_val: float, max_val:
+                                   float) -> None:
         """
         Validate that a numeric value is within the specified range.
 
@@ -69,8 +69,8 @@ class ValidationMixin:
                 f'Value {value} must be between {min_val} and {max_val}')
 
         @inject(MaterialService)
-        def validate_string_format(self, value: str, min_length: int,
-        max_length: int, pattern: Optional[str]=None) ->None:
+            def validate_string_format(self, value: str, min_length: int,
+                                   max_length: int, pattern: Optional[str] = None) -> None:
         """
         Validate that a string value meets the format requirements.
 
@@ -86,11 +86,11 @@ class ValidationMixin:
         if len(value) < min_length:
             raise ValueError(
                 f'String length {len(value)} is less than minimum {min_length}'
-                )
+            )
         if len(value) > max_length:
             raise ValueError(
                 f'String length {len(value)} is greater than maximum {max_length}'
-                )
+            )
         if pattern and not re.match(pattern, value):
             raise ValueError(
                 f"String '{value}' does not match pattern '{pattern}'")
@@ -103,8 +103,8 @@ class CostingMixin:
     This mixin provides methods for calculating costs.
     """
 
-        @inject(MaterialService)
-        def calculate_labor_cost(self, hours: float, rate: float) ->float:
+    @inject(MaterialService)
+        def calculate_labor_cost(self, hours: float, rate: float) -> float:
         """
         Calculate the labor cost.
 
@@ -118,8 +118,8 @@ class CostingMixin:
         return hours * rate
 
         @inject(MaterialService)
-        def calculate_overhead_cost(self, base_cost: float, overhead_rate: float
-        ) ->float:
+            def calculate_overhead_cost(self, base_cost: float, overhead_rate: float
+                                    ) -> float:
         """
         Calculate the overhead cost.
 
@@ -133,8 +133,8 @@ class CostingMixin:
         return base_cost * (overhead_rate / 100)
 
         @inject(MaterialService)
-        def calculate_total_cost(self, materials_cost: float, labor_hours:
-        float, labor_rate: float, overhead_rate: float) ->float:
+            def calculate_total_cost(self, materials_cost: float, labor_hours:
+                                 float, labor_rate: float, overhead_rate: float) -> float:
         """
         Calculate the total cost including materials, labor, and overhead.
 

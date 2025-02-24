@@ -16,9 +16,9 @@ class ManagerFactory:
     _managers: Dict[Type, Any] = {}
     _specialized_managers: Dict[Type, Type] = {}
 
-        @classmethod
+    @classmethod
     def register_specialized_manager(cls, model_class: Type, manager_class:
-        Type):
+                                     Type):
         """
         Register a specialized manager for a specific model class.
 
@@ -30,8 +30,8 @@ class ManagerFactory:
 
         @classmethod
     @lru_cache(maxsize=None)
-    def get_manager(cls, model_class: Type[T], session_factory: Any, mixins:
-        tuple=(), force_new: bool=False) ->Any:
+        def get_manager(cls, model_class: Type[T], session_factory: Any, mixins:
+                    tuple = (), force_new: bool = False) -> Any:
         """
         Get or create a manager for a specific model class.
 
@@ -55,7 +55,7 @@ class ManagerFactory:
         for mixin in mixins:
             manager.__class__ = type(
                 f'{mixin.__name__}{manager.__class__.__name__}', (mixin,
-                manager.__class__), {})
+                                                                  manager.__class__), {})
         if not force_new:
             cls._managers[model_class] = manager
         return manager

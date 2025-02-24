@@ -1,9 +1,69 @@
-from di.core import inject
-from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
-setup(name='store-management', version='0.1.0', description=
-    'Store Management Application', author='Your Name', author_email=
-    'your.email@example.com', packages=find_namespace_packages(include=[
-    'store_management*']), install_requires=['sqlalchemy>=2.0.19',
-    'alembic>=1.11.1', 'python-dotenv>=1.0.0', 'sqlalchemy-utils>=0.41.1'],
-    entry_points={'console_scripts': [
-    'store-management=store_management.main:main']}, python_requires='>=3.9')
+# File: setup.py
+# Relative path: ./setup.py
+
+import sys
+import subprocess
+from pathlib import Path
+
+
+def check_python_version():
+    """
+    Ensure the script is run with a compatible Python version.
+
+    Raises:
+        SystemExit: If Python version is incompatible.
+    """
+    min_version = (3, 9)
+    if sys.version_info < min_version:
+        print(f"Python {'.'.join(map(str, min_version))}+ is required.")
+        sys.exit(1)
+
+
+def install_dependencies():
+    """
+    Install project dependencies using pip.
+
+    Raises:
+        subprocess.CalledProcessError: If pip installation fails.
+    """
+    try:
+        print("Installing project dependencies...")
+        subprocess.check_call(
+            [sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
+        print("Dependencies installed successfully.")
+    except subprocess.CalledProcessError:
+        print("Failed to install dependencies. Please check your pip configuration.")
+        sys.exit(1)
+
+
+def create_virtual_environment():
+    """
+    Create a virtual environment for the project.
+
+    Raises:
+        subprocess.CalledProcessError: If venv creation fails.
+    """
+    venv_path = Path(".venv")
+    if not venv_path.exists():
+        try:
+            print("Creating virtual environment...")
+            subprocess.check_call(
+                [sys.executable, "-m", "venv", str(venv_path)])
+            print("Virtual environment created successfully.")
+        except subprocess.CalledProcessError:
+            print("Failed to create virtual environment.")
+            sys.exit(1)
+
+
+def main():
+    """
+    Main setup script to prepare the project environment.
+    """
+    check_python_version()
+    create_virtual_environment()
+    install_dependencies()
+    print("Project setup complete!")
+
+
+if __name__ == "__main__":
+    main()

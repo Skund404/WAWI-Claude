@@ -2,6 +2,8 @@
 
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+
+
 class OrderService(Service, IOrderService):
     """
     Implementation of the Order Service.
@@ -9,8 +11,8 @@ class OrderService(Service, IOrderService):
     Provides methods for managing order-related operations.
     """
 
-        @inject(MaterialService)
-        def __init__(self, session: Optional[Session]=None):
+    @inject(MaterialService)
+        def __init__(self, session: Optional[Session] = None):
         """
         Initialize the Order Service.
 
@@ -22,7 +24,7 @@ class OrderService(Service, IOrderService):
         self._logger = logging.getLogger(__name__)
 
         @inject(MaterialService)
-        def get_all_orders(self) ->List[Dict[str, Any]]:
+            def get_all_orders(self) -> List[Dict[str, Any]]:
         """
         Retrieve all orders.
 
@@ -37,7 +39,7 @@ class OrderService(Service, IOrderService):
             raise
 
         @inject(MaterialService)
-        def get_order_by_id(self, order_id: int) ->Optional[Dict[str, Any]]:
+            def get_order_by_id(self, order_id: int) -> Optional[Dict[str, Any]]:
         """
         Retrieve a specific order by ID.
 
@@ -59,7 +61,7 @@ class OrderService(Service, IOrderService):
             raise
 
         @inject(MaterialService)
-        def create_order(self, order_data: Dict[str, Any]) ->Dict[str, Any]:
+            def create_order(self, order_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Create a new order.
 
@@ -83,10 +85,10 @@ class OrderService(Service, IOrderService):
                 raise ResourceNotFoundError('Supplier', str(order_data[
                     'supplier_id']))
             order = Order(order_number=order_data['order_number'],
-                supplier_id=order_data['supplier_id'],
-                expected_delivery_date=order_data.get(
+                          supplier_id=order_data['supplier_id'],
+                          expected_delivery_date=order_data.get(
                 'expected_delivery_date'), status=order_data.get('status',
-                OrderStatus.PENDING))
+                                                                 OrderStatus.PENDING))
             if 'order_items' in order_data:
                 for item_data in order_data['order_items']:
                     order_item = OrderItem(product_id=item_data[
@@ -103,8 +105,8 @@ class OrderService(Service, IOrderService):
             raise
 
         @inject(MaterialService)
-        def update_order(self, order_id: int, order_data: Dict[str, Any]) ->Dict[
-        str, Any]:
+            def update_order(self, order_id: int, order_data: Dict[str, Any]) -> Dict[
+                str, Any]:
         """
         Update an existing order.
 
@@ -143,7 +145,7 @@ class OrderService(Service, IOrderService):
             raise
 
         @inject(MaterialService)
-        def delete_order(self, order_id: int) ->bool:
+            def delete_order(self, order_id: int) -> bool:
         """
         Delete an order.
 
@@ -169,7 +171,7 @@ class OrderService(Service, IOrderService):
             raise
 
         @inject(MaterialService)
-        def get_orders_by_status(self, status: OrderStatus) ->List[Dict[str, Any]]:
+            def get_orders_by_status(self, status: OrderStatus) -> List[Dict[str, Any]]:
         """
         Retrieve orders by their status.
 
@@ -181,7 +183,7 @@ class OrderService(Service, IOrderService):
         """
         try:
             orders = self._session.query(Order).filter(Order.status == status
-                ).all()
+                                                       ).all()
             return [order.to_dict(include_items=True) for order in orders]
         except SQLAlchemyError as e:
             self._logger.error(
@@ -189,8 +191,8 @@ class OrderService(Service, IOrderService):
             raise
 
         @inject(MaterialService)
-        def get_orders_by_date_range(self, start_date: datetime, end_date: datetime
-        ) ->List[Dict[str, Any]]:
+            def get_orders_by_date_range(self, start_date: datetime, end_date: datetime
+                                     ) -> List[Dict[str, Any]]:
         """
         Retrieve orders within a specific date range.
 
@@ -203,14 +205,14 @@ class OrderService(Service, IOrderService):
         """
         try:
             orders = self._session.query(Order).filter(Order.order_date.
-                between(start_date, end_date)).all()
+                                                       between(start_date, end_date)).all()
             return [order.to_dict(include_items=True) for order in orders]
         except SQLAlchemyError as e:
             self._logger.error(f'Error retrieving orders by date range: {e}')
             raise
 
         @inject(MaterialService)
-        def get_supplier_orders(self, supplier_id: int) ->List[Dict[str, Any]]:
+            def get_supplier_orders(self, supplier_id: int) -> List[Dict[str, Any]]:
         """
         Retrieve all orders for a specific supplier.
 
@@ -228,7 +230,7 @@ class OrderService(Service, IOrderService):
             if not supplier:
                 raise ResourceNotFoundError('Supplier', str(supplier_id))
             orders = self._session.query(Order).filter(Order.supplier_id ==
-                supplier_id).all()
+                                                       supplier_id).all()
             return [order.to_dict(include_items=True) for order in orders]
         except SQLAlchemyError as e:
             self._logger.error(
@@ -236,8 +238,8 @@ class OrderService(Service, IOrderService):
             raise
 
         @inject(MaterialService)
-        def generate_order_report(self, start_date: datetime, end_date: datetime
-        ) ->Dict[str, Any]:
+            def generate_order_report(self, start_date: datetime, end_date: datetime
+                                  ) -> Dict[str, Any]:
         """
         Generate a comprehensive order report for a given period.
 
@@ -250,19 +252,19 @@ class OrderService(Service, IOrderService):
         """
         try:
             orders = self._session.query(Order).filter(Order.order_date.
-                between(start_date, end_date)).all()
+                                                       between(start_date, end_date)).all()
             report = {'total_orders': len(orders), 'total_revenue': sum(
                 order.total_amount for order in orders), 'orders_by_status':
                 {}, 'top_suppliers': {}}
             for status in OrderStatus:
                 report['orders_by_status'][status.value] = sum(1 for order in
-                    orders if order.status == status)
+                                                               orders if order.status == status)
             supplier_totals = {}
             for order in orders:
                 supplier_totals[order.supplier_id] = supplier_totals.get(order
-                    .supplier_id, 0) + order.total_amount
+                                                                         .supplier_id, 0) + order.total_amount
             report['top_suppliers'] = dict(sorted(supplier_totals.items(),
-                key=lambda x: x[1], reverse=True)[:5])
+                                                  key=lambda x: x[1], reverse=True)[:5])
             return report
         except SQLAlchemyError as e:
             self._logger.error(f'Error generating order report: {e}')

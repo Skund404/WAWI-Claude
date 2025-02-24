@@ -2,6 +2,8 @@
 
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+
+
 class BaseTransaction(BaseModel):
     """
     Base class for all transaction models.
@@ -20,9 +22,9 @@ class BaseTransaction(BaseModel):
     notes = Column(String(500))
     timestamp = Column(DateTime, default=datetime.utcnow, nullable=False)
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, transaction_type: TransactionType, notes: Optional[
-        str]=None):
+            str] = None):
         """
         Initialize a new transaction.
 
@@ -34,14 +36,14 @@ class BaseTransaction(BaseModel):
         self.notes = notes
 
         @inject(MaterialService)
-        def __repr__(self) ->str:
+            def __repr__(self) -> str:
         """Return string representation of the transaction."""
         return (
             f'<{self.__class__.__name__}(id={self.id}, type={self.transaction_type}, timestamp={self.timestamp})>'
-            )
+        )
 
         @inject(MaterialService)
-        def to_dict(self) ->Dict[str, Any]:
+            def to_dict(self) -> Dict[str, Any]:
         """
         Convert transaction to dictionary representation.
 
@@ -49,5 +51,5 @@ class BaseTransaction(BaseModel):
             Dictionary containing transaction data
         """
         return {'id': self.id, 'transaction_type': self.transaction_type.
-            name, 'notes': self.notes, 'timestamp': self.timestamp.
-            isoformat() if self.timestamp else None}
+                name, 'notes': self.notes, 'timestamp': self.timestamp.
+                isoformat() if self.timestamp else None}

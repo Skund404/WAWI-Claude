@@ -2,6 +2,8 @@
 
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+
+
 class IMaterialRepository(IBaseRepository[Material]):
     """
     Interface defining the contract for Material Repository operations.
@@ -9,10 +11,10 @@ class IMaterialRepository(IBaseRepository[Material]):
     Extends the base repository interface with material-specific methods.
     """
 
-        @abstractmethod
+    @abstractmethod
     @inject(MaterialService)
-    def update_stock(self, material_id: Any, quantity_change: float,
-        transaction_type: str, notes: Optional[str]=None) ->Material:
+        def update_stock(self, material_id: Any, quantity_change: float,
+                     transaction_type: str, notes: Optional[str] = None) -> Material:
         """
         Update the stock of a material.
 
@@ -29,8 +31,8 @@ class IMaterialRepository(IBaseRepository[Material]):
 
         @abstractmethod
     @inject(MaterialService)
-    def get_low_stock_materials(self, include_zero_stock: bool=False) ->List[
-        Material]:
+        def get_low_stock_materials(self, include_zero_stock: bool = False) -> List[
+            Material]:
         """
         Retrieve materials with low stock.
 
@@ -45,7 +47,7 @@ class IMaterialRepository(IBaseRepository[Material]):
 
         @abstractmethod
     @inject(MaterialService)
-    def search_materials(self, search_params: Dict[str, Any]) ->List[Material]:
+        def search_materials(self, search_params: Dict[str, Any]) -> List[Material]:
         """
         Search materials based on multiple criteria.
 
@@ -59,8 +61,8 @@ class IMaterialRepository(IBaseRepository[Material]):
 
         @abstractmethod
     @inject(MaterialService)
-    def generate_material_usage_report(self, start_date: Optional[str]=None,
-        end_date: Optional[str]=None) ->Dict[str, Any]:
+        def generate_material_usage_report(self, start_date: Optional[str] = None,
+                                       end_date: Optional[str] = None) -> Dict[str, Any]:
         """
         Generate a comprehensive material usage report.
 
@@ -75,8 +77,8 @@ class IMaterialRepository(IBaseRepository[Material]):
 
         @abstractmethod
     @inject(MaterialService)
-    def validate_material_substitution(self, original_material_id: Any,
-        substitute_material_id: Any) ->bool:
+        def validate_material_substitution(self, original_material_id: Any,
+                                       substitute_material_id: Any) -> bool:
         """
         Check if one material can be substituted for another.
 

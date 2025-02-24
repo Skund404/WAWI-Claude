@@ -6,13 +6,13 @@ logger = logging.getLogger(__name__)
 class ShoppingListService(IShoppingListService):
     """Implementation of shopping list management service."""
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, session_factory):
         """Initialize with session factory."""
         self.session_factory = session_factory
 
         @inject(MaterialService)
-        def get_all_shopping_lists(self) ->List[ShoppingList]:
+            def get_all_shopping_lists(self) -> List[ShoppingList]:
         """Get all shopping lists."""
         try:
             with self.session_factory() as session:
@@ -22,19 +22,19 @@ class ShoppingListService(IShoppingListService):
             raise ApplicationError('Failed to retrieve shopping lists', str(e))
 
         @inject(MaterialService)
-        def get_shopping_list_by_id(self, list_id: int) ->Optional[ShoppingList]:
+            def get_shopping_list_by_id(self, list_id: int) -> Optional[ShoppingList]:
         """Get shopping list by ID."""
         try:
             with self.session_factory() as session:
                 return session.query(ShoppingList).filter(ShoppingList.id ==
-                    list_id).first()
+                                                          list_id).first()
         except Exception as e:
             logger.error(f'Failed to get shopping list {list_id}: {str(e)}')
             raise ApplicationError(
                 f'Failed to retrieve shopping list {list_id}', str(e))
 
         @inject(MaterialService)
-        def create_shopping_list(self, list_data: Dict[str, Any]) ->ShoppingList:
+            def create_shopping_list(self, list_data: Dict[str, Any]) -> ShoppingList:
         """Create new shopping list."""
         try:
             with self.session_factory() as session:
@@ -56,8 +56,8 @@ class ShoppingListService(IShoppingListService):
             raise ApplicationError('Failed to create shopping list', str(e))
 
         @inject(MaterialService)
-        def update_shopping_list(self, list_id: int, list_data: Dict[str, Any]
-        ) ->Optional[ShoppingList]:
+            def update_shopping_list(self, list_id: int, list_data: Dict[str, Any]
+                                 ) -> Optional[ShoppingList]:
         """Update existing shopping list."""
         try:
             with self.session_factory() as session:
@@ -77,10 +77,10 @@ class ShoppingListService(IShoppingListService):
         except Exception as e:
             logger.error(f'Failed to update shopping list {list_id}: {str(e)}')
             raise ApplicationError(f'Failed to update shopping list {list_id}',
-                str(e))
+                                   str(e))
 
         @inject(MaterialService)
-        def delete_shopping_list(self, list_id: int) ->bool:
+            def delete_shopping_list(self, list_id: int) -> bool:
         """Delete shopping list."""
         try:
             with self.session_factory() as session:
@@ -94,11 +94,11 @@ class ShoppingListService(IShoppingListService):
         except Exception as e:
             logger.error(f'Failed to delete shopping list {list_id}: {str(e)}')
             raise ApplicationError(f'Failed to delete shopping list {list_id}',
-                str(e))
+                                   str(e))
 
         @inject(MaterialService)
-        def add_item_to_list(self, list_id: int, item_data: Dict[str, Any]
-        ) ->ShoppingListItem:
+            def add_item_to_list(self, list_id: int, item_data: Dict[str, Any]
+                             ) -> ShoppingListItem:
         """Add item to shopping list."""
         try:
             with self.session_factory() as session:
@@ -122,7 +122,7 @@ class ShoppingListService(IShoppingListService):
             raise ApplicationError(f'Failed to add item to list', str(e))
 
         @inject(MaterialService)
-        def remove_item_from_list(self, list_id: int, item_id: int) ->bool:
+            def remove_item_from_list(self, list_id: int, item_id: int) -> bool:
         """Remove item from shopping list."""
         try:
             with self.session_factory() as session:
@@ -137,12 +137,12 @@ class ShoppingListService(IShoppingListService):
         except Exception as e:
             logger.error(
                 f'Failed to remove item {item_id} from list {list_id}: {str(e)}'
-                )
+            )
             raise ApplicationError('Failed to remove item from list', str(e))
 
         @inject(MaterialService)
-        def mark_item_purchased(self, list_id: int, item_id: int, quantity: float
-        ) ->bool:
+            def mark_item_purchased(self, list_id: int, item_id: int, quantity: float
+                                ) -> bool:
         """Mark item as purchased."""
         try:
             with self.session_factory() as session:
@@ -161,52 +161,52 @@ class ShoppingListService(IShoppingListService):
             raise ApplicationError('Failed to mark item as purchased', str(e))
 
         @inject(MaterialService)
-        def get_active_lists(self) ->List[ShoppingList]:
+            def get_active_lists(self) -> List[ShoppingList]:
         """Get active shopping lists."""
         try:
             with self.session_factory() as session:
                 return session.query(ShoppingList).filter(ShoppingList.
-                    status == ShoppingListStatus.ACTIVE).all()
+                                                          status == ShoppingListStatus.ACTIVE).all()
         except Exception as e:
             logger.error(f'Failed to get active shopping lists: {str(e)}')
             raise ApplicationError('Failed to retrieve active lists', str(e))
 
         @inject(MaterialService)
-        def get_pending_items(self) ->List[ShoppingListItem]:
+            def get_pending_items(self) -> List[ShoppingListItem]:
         """Get pending items."""
         try:
             with self.session_factory() as session:
                 return session.query(ShoppingListItem).filter(ShoppingListItem
-                    .purchase_date.is_(None)).all()
+                                                              .purchase_date.is_(None)).all()
         except Exception as e:
             logger.error(f'Failed to get pending items: {str(e)}')
             raise ApplicationError('Failed to retrieve pending items', str(e))
 
         @inject(MaterialService)
-        def get_lists_by_status(self, status: str) ->List[ShoppingList]:
+            def get_lists_by_status(self, status: str) -> List[ShoppingList]:
         """Get lists by status."""
         try:
             with self.session_factory() as session:
                 return session.query(ShoppingList).filter(ShoppingList.
-                    status == status).all()
+                                                          status == status).all()
         except Exception as e:
             logger.error(f'Failed to get lists by status {status}: {str(e)}')
             raise ApplicationError(
                 f'Failed to retrieve lists with status {status}', str(e))
 
         @inject(MaterialService)
-        def search_shopping_lists(self, search_term: str) ->List[ShoppingList]:
+            def search_shopping_lists(self, search_term: str) -> List[ShoppingList]:
         """Search shopping lists."""
         try:
             with self.session_factory() as session:
                 return session.query(ShoppingList).filter(ShoppingList.name
-                    .ilike(f'%{search_term}%')).all()
+                                                          .ilike(f'%{search_term}%')).all()
         except Exception as e:
             logger.error(f'Failed to search shopping lists: {str(e)}')
             raise ApplicationError('Failed to search shopping lists', str(e))
 
         @inject(MaterialService)
-        def _validate_shopping_list_data(self, list_data: Dict[str, Any]) ->None:
+            def _validate_shopping_list_data(self, list_data: Dict[str, Any]) -> None:
         """Validate shopping list data."""
         errors = []
         if 'name' not in list_data or not list_data['name']:
@@ -215,7 +215,7 @@ class ShoppingListService(IShoppingListService):
             raise ValidationError('Shopping list validation failed', errors)
 
         @inject(MaterialService)
-        def _validate_item_data(self, item_data: Dict[str, Any]) ->None:
+            def _validate_item_data(self, item_data: Dict[str, Any]) -> None:
         """Validate shopping list item data."""
         errors = []
         if 'name' not in item_data or not item_data['name']:
@@ -229,4 +229,4 @@ class ShoppingListService(IShoppingListService):
                 errors.append('Invalid quantity value')
         if errors:
             raise ValidationError('Shopping list item validation failed',
-                errors)
+                                  errors)

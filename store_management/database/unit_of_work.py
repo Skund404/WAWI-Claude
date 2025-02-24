@@ -15,27 +15,27 @@ class IUnitOfWork(ABC):
     This interface defines the methods that all unit of work implementations must provide.
     """
 
-        @abstractmethod
+    @abstractmethod
     @inject(MaterialService)
-    def __enter__(self):
+        def __enter__(self):
         """Enter the context manager."""
         pass
 
         @abstractmethod
     @inject(MaterialService)
-    def __exit__(self, exc_type, exc_val, exc_tb):
+        def __exit__(self, exc_type, exc_val, exc_tb):
         """Exit the context manager."""
         pass
 
         @abstractmethod
     @inject(MaterialService)
-    def commit(self):
+        def commit(self):
         """Commit the transaction."""
         pass
 
         @abstractmethod
     @inject(MaterialService)
-    def rollback(self):
+        def rollback(self):
         """Rollback the transaction."""
         pass
 
@@ -47,8 +47,8 @@ class SQLAlchemyUnitOfWork(IUnitOfWork):
     This class provides methods for transaction management using SQLAlchemy sessions.
     """
 
-        @inject(MaterialService)
-        def __init__(self, session_factory: Callable[[], Session]=None):
+    @inject(MaterialService)
+        def __init__(self, session_factory: Callable[[], Session] = None):
         """
         Initialize a new SQLAlchemyUnitOfWork instance.
 
@@ -60,7 +60,7 @@ class SQLAlchemyUnitOfWork(IUnitOfWork):
         self.session = None
 
         @inject(MaterialService)
-        def __enter__(self) ->'SQLAlchemyUnitOfWork':
+            def __enter__(self) -> 'SQLAlchemyUnitOfWork':
         """
         Enter the context manager.
 
@@ -71,7 +71,7 @@ class SQLAlchemyUnitOfWork(IUnitOfWork):
         return self
 
         @inject(MaterialService)
-        def __exit__(self, exc_type, exc_val, exc_tb):
+            def __exit__(self, exc_type, exc_val, exc_tb):
         """
         Exit the context manager.
 
@@ -86,7 +86,7 @@ class SQLAlchemyUnitOfWork(IUnitOfWork):
             self.session.close()
 
         @inject(MaterialService)
-        def commit(self) ->None:
+            def commit(self) -> None:
         """
         Commit the transaction.
 
@@ -104,7 +104,7 @@ class SQLAlchemyUnitOfWork(IUnitOfWork):
             raise
 
         @inject(MaterialService)
-        def rollback(self) ->None:
+            def rollback(self) -> None:
         """
         Rollback the transaction.
 
@@ -121,7 +121,7 @@ class SQLAlchemyUnitOfWork(IUnitOfWork):
             raise
 
 
-def run_in_transaction(func, *args, **kwargs) ->Any:
+def run_in_transaction(func, *args, **kwargs) -> Any:
     """
     Run a function within a transaction.
 

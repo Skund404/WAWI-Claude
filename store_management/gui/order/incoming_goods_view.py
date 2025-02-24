@@ -2,12 +2,14 @@
 
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+
+
 class IncomingGoodsView(BaseView):
     """
     View for managing incoming goods and orders
     """
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, parent, session: Session):
         """
         Initialize Incoming Goods View
@@ -27,30 +29,30 @@ class IncomingGoodsView(BaseView):
         self._load_initial_data()
 
         @inject(MaterialService)
-        def _setup_ui(self):
+            def _setup_ui(self):
         """Setup the entire user interface"""
         self._create_toolbar()
         self._create_content_area()
         self._create_status_bar()
 
         @inject(MaterialService)
-        def _create_toolbar(self):
+            def _create_toolbar(self):
         """Create the main toolbar with action buttons"""
         toolbar_actions = [('Add Order', self.show_add_order_dialog), (
             'Search', self.show_search_dialog), ('Filter', self.
-            show_filter_dialog), ('Finish Order', self.finish_order), (
+                                                 show_filter_dialog), ('Finish Order', self.finish_order), (
             'Export', self.show_export_dialog), ('Import', self.
-            show_import_dialog), ('Undo', self.undo_action), ('Redo', self.
-            redo_action), ('Save', self.save_changes), ('Reset View', self.
-            reset_view)]
+                                                 show_import_dialog), ('Undo', self.undo_action), ('Redo', self.
+                                                                                                   redo_action), ('Save', self.save_changes), ('Reset View', self.
+                                                                                                                                               reset_view)]
         toolbar = ttk.Frame(self)
         toolbar.pack(fill=tk.X, padx=5, pady=5)
         for text, command in toolbar_actions:
             ttk.Button(toolbar, text=text, command=command).pack(side=tk.
-                LEFT, padx=2)
+                                                                 LEFT, padx=2)
 
         @inject(MaterialService)
-        def _create_content_area(self):
+            def _create_content_area(self):
         """Create main content area with orders and details tables"""
         paned_window = ttk.PanedWindow(self, orient=tk.VERTICAL)
         paned_window.pack(expand=True, fill='both', padx=5, pady=5)
@@ -62,9 +64,9 @@ class IncomingGoodsView(BaseView):
         details_frame = ttk.LabelFrame(paned_window, text='Order Details')
         details_frame.pack(expand=True, fill='both')
         ttk.Button(details_frame, text='Add Item', command=self.
-            show_add_item_dialog).pack(side=tk.TOP, pady=5)
+                   show_add_item_dialog).pack(side=tk.TOP, pady=5)
         self.details_tree = self._create_treeview(details_frame, ['Article',
-            'Unique ID', 'Price', 'Amount', 'Total', 'Notes'])
+                                                                  'Unique ID', 'Price', 'Amount', 'Total', 'Notes'])
         paned_window.add(details_frame, weight=1)
 
         @staticmethod
@@ -85,7 +87,7 @@ class IncomingGoodsView(BaseView):
             tree.heading(col, text=col)
             tree.column(col, anchor='center')
         scrollbar = ttk.Scrollbar(parent, orient=tk.VERTICAL, command=tree.
-            yview)
+                                  yview)
         tree.configure(yscroll=scrollbar.set)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         tree.pack(expand=True, fill='both')
@@ -94,7 +96,7 @@ class IncomingGoodsView(BaseView):
         return tree
 
         @inject(MaterialService)
-        def _load_initial_data(self):
+            def _load_initial_data(self):
         """Load initial orders data"""
         try:
             orders = self.order_manager.get_all_orders()
@@ -103,7 +105,7 @@ class IncomingGoodsView(BaseView):
             messagebox.showerror('Load Error', str(e))
 
         @inject(MaterialService)
-        def _populate_orders_tree(self, orders):
+            def _populate_orders_tree(self, orders):
         """
         Populate orders treeview
 
@@ -114,13 +116,13 @@ class IncomingGoodsView(BaseView):
             self.orders_tree.delete(item)
         for order in orders:
             values = (order.order_number, order.supplier, order.
-                date_of_order.strftime('%Y-%m-%d'), order.status.value,
-                order.payed.value, f'${order.total_amount:.2f}')
+                      date_of_order.strftime('%Y-%m-%d'), order.status.value,
+                      order.payed.value, f'${order.total_amount:.2f}')
             self.orders_tree.insert('', 'end', values=values, tags=(str(
                 order.id),))
 
         @inject(MaterialService)
-        def _on_order_select(self, event):
+            def _on_order_select(self, event):
         """Handle order selection in treeview"""
         selection = self.orders_tree.selection()
         if not selection:
@@ -134,7 +136,7 @@ class IncomingGoodsView(BaseView):
             messagebox.showerror('Selection Error', str(e))
 
         @inject(MaterialService)
-        def _load_order_details(self, order_id: int):
+            def _load_order_details(self, order_id: int):
         """
         Load details for a specific order
 
@@ -147,20 +149,20 @@ class IncomingGoodsView(BaseView):
             details = self.order_manager.get_order_details(order_id)
             for detail in details:
                 values = (detail.article, detail.unique_id,
-                    f'${detail.price:.2f}', detail.amount,
-                    f'${detail.total:.2f}', detail.notes or '')
+                          f'${detail.price:.2f}', detail.amount,
+                          f'${detail.total:.2f}', detail.notes or '')
                 self.details_tree.insert('', 'end', values=values, tags=(
                     str(detail.id),))
         except Exception as e:
             messagebox.showerror('Details Load Error', str(e))
 
         @inject(MaterialService)
-        def cleanup(self):
+            def cleanup(self):
         """Cleanup resources and handle unsaved changes"""
         try:
             if self.modified:
                 if messagebox.askyesno('Save Changes',
-                    'Unsaved changes exist. Save now?'):
+                                       'Unsaved changes exist. Save now?'):
                     self.save_changes()
                 else:
                     self.session.rollback()

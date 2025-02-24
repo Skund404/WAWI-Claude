@@ -13,8 +13,8 @@ class PartManager(BaseManager):
     and stock-related queries.
     """
 
-        @inject(MaterialService)
-        def get_part_with_transactions(self, part_id: int) ->Optional[Part]:
+    @inject(MaterialService)
+        def get_part_with_transactions(self, part_id: int) -> Optional[Part]:
         """
         Retrieve a part with its associated transactions.
 
@@ -35,8 +35,8 @@ class PartManager(BaseManager):
             return None
 
         @inject(MaterialService)
-        def update_part_stock(self, part_id: int, quantity_change: float,
-        transaction_type: TransactionType, notes: Optional[str]=None) ->bool:
+            def update_part_stock(self, part_id: int, quantity_change: float,
+                              transaction_type: TransactionType, notes: Optional[str] = None) -> bool:
         """
         Update part stock and create a corresponding transaction.
 
@@ -57,8 +57,7 @@ class PartManager(BaseManager):
                     return False
                 part.stock += quantity_change
                 transaction = InventoryTransaction(part_id=part_id,
-                    quantity_change=quantity_change, transaction_type=
-                    transaction_type, notes=notes)
+                                                   quantity_change=quantity_change, transaction_type=transaction_type, notes=notes)
                 session.add(transaction)
                 return True
         except Exception as e:
@@ -66,8 +65,8 @@ class PartManager(BaseManager):
             return False
 
         @inject(MaterialService)
-        def get_low_stock_parts(self, include_out_of_stock: bool=False) ->List[Part
-        ]:
+            def get_low_stock_parts(self, include_out_of_stock: bool = False) -> List[Part
+                                                                                  ]:
         """
         Retrieve parts with low stock.
 
@@ -92,7 +91,7 @@ class PartManager(BaseManager):
             return []
 
         @inject(MaterialService)
-        def get_by_supplier(self, supplier_id: int) ->List[Part]:
+            def get_by_supplier(self, supplier_id: int) -> List[Part]:
         """
         Retrieve parts associated with a specific supplier.
 
@@ -105,7 +104,7 @@ class PartManager(BaseManager):
         try:
             with self.session_scope() as session:
                 return session.query(Part).filter(Part.supplier_id ==
-                    supplier_id).all()
+                                                  supplier_id).all()
         except Exception as e:
             self._logger.error(f'Error retrieving parts by supplier: {e}')
             return []

@@ -18,8 +18,8 @@ class BaseModel:
     - Basic validation helpers
     """
 
-        @inject(MaterialService)
-        def __repr__(self) ->str:
+    @inject(MaterialService)
+        def __repr__(self) -> str:
         """
         Generate a string representation of the model instance.
 
@@ -31,7 +31,7 @@ class BaseModel:
         return f'<{self.__class__.__name__}{pk_repr}>'
 
         @inject(MaterialService)
-        def get_primary_key_value(self) ->Any:
+            def get_primary_key_value(self) -> Any:
         """
         Retrieve the primary key value of the model instance.
 
@@ -44,7 +44,7 @@ class BaseModel:
         return None
 
         @inject(MaterialService)
-        def to_dict(self, exclude_fields: list=None) ->Dict[str, Any]:
+            def to_dict(self, exclude_fields: list = None) -> Dict[str, Any]:
         """
         Convert the model instance to a dictionary representation.
 
@@ -56,11 +56,11 @@ class BaseModel:
         """
         exclude_fields = exclude_fields or []
         return {column.name: getattr(self, column.name) for column in self.
-            __table__.columns if column.name not in exclude_fields and
-            hasattr(self, column.name)}
+                __table__.columns if column.name not in exclude_fields and
+                hasattr(self, column.name)}
 
         @inject(MaterialService)
-        def update(self, **kwargs):
+            def update(self, **kwargs):
         """
         Update model instance attributes.
 

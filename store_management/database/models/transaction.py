@@ -2,6 +2,8 @@
 
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+
+
 class BaseTransaction(BaseModel):
     """Base class for all transaction models.
 
@@ -19,9 +21,9 @@ class BaseTransaction(BaseModel):
     notes = Column(String, nullable=True)
     timestamp = Column(DateTime, default=datetime.utcnow)
     __mapper_args__ = {'polymorphic_identity': 'base_transaction',
-        'polymorphic_on': transaction_type}
+                       'polymorphic_on': transaction_type}
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, transaction_type, notes):
         """Initialize a new transaction.
 
@@ -33,19 +35,19 @@ class BaseTransaction(BaseModel):
         self.notes = notes
 
         @inject(MaterialService)
-        def __repr__(self):
+            def __repr__(self):
         return f'<BaseTransaction(id={self.id}, type={self.transaction_type})>'
 
         @inject(MaterialService)
-        def to_dict(self):
+            def to_dict(self):
         """Convert transaction to dictionary representation.
 
         Returns:
             Dictionary containing transaction data
         """
         return {'id': self.id, 'transaction_type': str(self.
-            transaction_type), 'notes': self.notes, 'timestamp': self.
-            timestamp.isoformat()}
+                                                       transaction_type), 'notes': self.notes, 'timestamp': self.
+                timestamp.isoformat()}
 
 
 class InventoryTransaction(BaseTransaction):
@@ -57,17 +59,17 @@ class InventoryTransaction(BaseTransaction):
     part = relationship('Part', back_populates='transactions')
     __mapper_args__ = {'polymorphic_identity': 'inventory_transaction'}
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, part_id, quantity_change, transaction_type, notes):
         super().__init__(transaction_type, notes)
         self.part_id = part_id
         self.quantity_change = quantity_change
 
         @inject(MaterialService)
-        def to_dict(self):
+            def to_dict(self):
         data = super().to_dict()
         data.update({'part_id': self.part_id, 'quantity_change': self.
-            quantity_change})
+                     quantity_change})
         return data
 
 
@@ -81,22 +83,22 @@ class LeatherTransaction(BaseTransaction):
     leather = relationship('Leather', back_populates='transactions')
     __mapper_args__ = {'polymorphic_identity': 'leather_transaction'}
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, leather_id, area_change, transaction_type, notes,
-        wastage=0.0):
+                 wastage=0.0):
         super().__init__(transaction_type, notes)
         self.leather_id = leather_id
         self.area_change = area_change
         self.wastage = wastage
 
         @inject(MaterialService)
-        def to_dict(self):
+            def to_dict(self):
         data = super().to_dict()
         data.update({'leather_id': self.leather_id, 'area_change': self.
-            area_change, 'wastage': self.wastage})
+                     area_change, 'wastage': self.wastage})
         return data
 
         @inject(MaterialService)
-        def net_area_change(self):
+            def net_area_change(self):
         """Calculates the net change in area, including wastage."""
         return self.area_change - (self.wastage or 0)

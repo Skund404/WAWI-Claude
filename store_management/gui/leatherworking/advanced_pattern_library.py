@@ -2,6 +2,8 @@
 
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+
+
 class AdvancedPatternLibrary(BaseView):
     """
     Advanced Pattern Library UI for managing leatherworking patterns.
@@ -11,7 +13,7 @@ class AdvancedPatternLibrary(BaseView):
     """
 
         @inject(MaterialService)
-        def __init__(self, parent: tk.Widget, app: Any):
+            def __init__(self, parent: tk.Widget, app: Any):
         """
         Initialize the AdvancedPatternLibrary.
 
@@ -27,7 +29,7 @@ class AdvancedPatternLibrary(BaseView):
         self.setup_ui()
 
         @inject(MaterialService)
-        def setup_ui(self) ->None:
+            def setup_ui(self) -> None:
         """Set up the main user interface components."""
         self.notebook = ttk.Notebook(self)
         self.notebook.pack(fill=tk.BOTH, expand=True)
@@ -39,7 +41,7 @@ class AdvancedPatternLibrary(BaseView):
         self.setup_test_suite()
 
         @inject(MaterialService)
-        def setup_pattern_library(self) ->None:
+            def setup_pattern_library(self) -> None:
         """Set up the pattern library interface."""
         self.pattern_frame.columnconfigure(1, weight=1)
         self.pattern_frame.rowconfigure(0, weight=1)
@@ -52,12 +54,12 @@ class AdvancedPatternLibrary(BaseView):
             padx=5, pady=5)
         self.setup_pattern_details()
         self.toolbar = ttk.Frame(self.pattern_frame)
-        self.toolbar.grid(row=1, column=0, columnspan=2, sticky='ew', padx=
-            5, pady=5)
+        self.toolbar.grid(row=1, column=0, columnspan=2,
+                          sticky='ew', padx=5, pady=5)
         self.setup_toolbar()
 
         @inject(MaterialService)
-        def setup_pattern_list(self) ->None:
+            def setup_pattern_list(self) -> None:
         """Set up the pattern list treeview."""
         self.pattern_tree = ttk.Treeview(self.pattern_list_frame, columns=(
             'name', 'type'), show='headings')
@@ -69,7 +71,7 @@ class AdvancedPatternLibrary(BaseView):
         self.pattern_tree.bind('<<TreeviewSelect>>', self.on_pattern_select)
 
         @inject(MaterialService)
-        def setup_pattern_details(self) ->None:
+            def setup_pattern_details(self) -> None:
         """Set up the pattern details display area."""
         self.details_canvas = tk.Canvas(self.pattern_details_frame, bg='white')
         self.details_canvas.pack(fill=tk.BOTH, expand=True)
@@ -94,7 +96,7 @@ class AdvancedPatternLibrary(BaseView):
         self.materials_tree.pack(fill='x', pady=10)
 
         @inject(MaterialService)
-        def setup_toolbar(self) ->None:
+            def setup_toolbar(self) -> None:
         """Set up the toolbar with action buttons."""
         ttk.Button(self.toolbar, text='Add Pattern', command=self.add_pattern
             ).pack(side='left', padx=5)
@@ -108,16 +110,16 @@ class AdvancedPatternLibrary(BaseView):
             export_patterns).pack(side='left', padx=5)
 
         @inject(MaterialService)
-        def setup_test_suite(self) ->None:
+            def setup_test_suite(self) -> None:
         """Set up the test suite interface."""
         self.test_output = tk.Text(self.test_frame, wrap=tk.WORD)
         self.test_output.pack(fill=tk.BOTH, expand=True)
-        self.run_tests_button = ttk.Button(self.test_frame, text=
-            'Run Tests', command=self.run_tests)
+        self.run_tests_button = ttk.Button(
+            self.test_frame, text='Run Tests', command=self.run_tests)
         self.run_tests_button.pack(pady=10)
 
         @inject(MaterialService)
-        def load_data(self) ->None:
+            def load_data(self) -> None:
         """Load pattern data from the project service."""
         try:
             self.patterns = self.project_service.get_all_patterns()
@@ -128,7 +130,7 @@ class AdvancedPatternLibrary(BaseView):
                 f'Failed to load pattern data: {str(e)}')
 
         @inject(MaterialService)
-        def update_pattern_list(self) ->None:
+            def update_pattern_list(self) -> None:
         """Update the pattern list in the treeview."""
         self.pattern_tree.delete(*self.pattern_tree.get_children())
         for pattern_id, pattern in self.patterns.items():
@@ -136,7 +138,7 @@ class AdvancedPatternLibrary(BaseView):
                 ['name'], pattern['type']))
 
         @inject(MaterialService)
-        def on_pattern_select(self, event: tk.Event) ->None:
+            def on_pattern_select(self, event: tk.Event) -> None:
         """Handle pattern selection in the treeview."""
         selected_items = self.pattern_tree.selection()
         if selected_items:
@@ -144,7 +146,7 @@ class AdvancedPatternLibrary(BaseView):
             self.display_pattern_details(self.current_pattern)
 
         @inject(MaterialService)
-        def display_pattern_details(self, pattern_id: str) ->None:
+            def display_pattern_details(self, pattern_id: str) -> None:
         """Display details of the selected pattern."""
         pattern = self.patterns[pattern_id]
         self.pattern_name_var.set(pattern['name'])
@@ -163,7 +165,7 @@ class AdvancedPatternLibrary(BaseView):
             self.materials_tree.insert('', 'end', values=(material, quantity))
 
         @inject(MaterialService)
-        def add_pattern(self) ->None:
+            def add_pattern(self) -> None:
         """Open dialog to add a new pattern."""
         dialog = PatternDialog(self, 'Add Pattern')
         if dialog.result:
@@ -179,7 +181,7 @@ class AdvancedPatternLibrary(BaseView):
                     f'Failed to add pattern: {str(e)}')
 
         @inject(MaterialService)
-        def edit_pattern(self) ->None:
+            def edit_pattern(self) -> None:
         """Open dialog to edit the selected pattern."""
         if not self.current_pattern:
             messagebox.showwarning('Warning',
@@ -202,7 +204,7 @@ class AdvancedPatternLibrary(BaseView):
                     f'Failed to update pattern: {str(e)}')
 
         @inject(MaterialService)
-        def delete_pattern(self) ->None:
+            def delete_pattern(self) -> None:
         """Delete the selected pattern."""
         if not self.current_pattern:
             messagebox.showwarning('Warning',
@@ -223,7 +225,7 @@ class AdvancedPatternLibrary(BaseView):
                     f'Failed to delete pattern: {str(e)}')
 
         @inject(MaterialService)
-        def clear_pattern_details(self) ->None:
+            def clear_pattern_details(self) -> None:
         """Clear the pattern details display."""
         self.pattern_name_var.set('')
         self.pattern_type_var.set('')
@@ -232,7 +234,7 @@ class AdvancedPatternLibrary(BaseView):
         self.materials_tree.delete(*self.materials_tree.get_children())
 
         @inject(MaterialService)
-        def import_patterns(self) ->None:
+            def import_patterns(self) -> None:
         """Import patterns from a JSON file."""
         file_path = filedialog.askopenfilename(filetypes=[('JSON Files',
             '*.json')])
@@ -254,7 +256,7 @@ class AdvancedPatternLibrary(BaseView):
                     f'Failed to import patterns: {str(e)}')
 
         @inject(MaterialService)
-        def export_patterns(self) ->None:
+            def export_patterns(self) -> None:
         """Export patterns to a JSON file."""
         file_path = filedialog.asksaveasfilename(defaultextension='.json',
             filetypes=[('JSON Files', '*.json')])
@@ -271,7 +273,7 @@ class AdvancedPatternLibrary(BaseView):
                     f'Failed to export patterns: {str(e)}')
 
         @inject(MaterialService)
-        def run_tests(self) ->None:
+            def run_tests(self) -> None:
         """Run the test suite for ProjectWorkflowManager."""
         self.test_output.delete('1.0', tk.END)
         suite = unittest.TestLoader().loadTestsFromTestCase(
@@ -297,8 +299,8 @@ class PatternDialog(tk.Toplevel):
     """Dialog for adding or editing a pattern."""
 
         @inject(MaterialService)
-        def __init__(self, parent: tk.Widget, title: str, pattern: Optional[
-        Dict[str, Any]]=None):
+            def __init__(self, parent: tk.Widget, title: str, pattern: Optional[
+        Dict[str, Any]] = None):
         """
         Initialize the PatternDialog.
 
@@ -314,7 +316,7 @@ class PatternDialog(tk.Toplevel):
         self.setup_ui()
 
         @inject(MaterialService)
-        def setup_ui(self) ->None:
+            def setup_ui(self) -> None:
         """Set up the user interface for the dialog."""
         self.columnconfigure(1, weight=1)
         ttk.Label(self, text='Name:').grid(row=0, column=0, sticky='e',
@@ -327,24 +329,24 @@ class PatternDialog(tk.Toplevel):
         self.type_entry = ttk.Entry(self)
         self.type_entry.grid(row=1, column=1, sticky='ew', padx=5, pady=5)
         self.type_entry.insert(0, self.pattern.get('type', ''))
-        ttk.Label(self, text='Description:').grid(row=2, column=0, sticky=
-            'e', padx=5, pady=5)
+        ttk.Label(self, text='Description:').grid(
+            row=2, column=0, sticky='e', padx=5, pady=5)
         self.desc_entry = ttk.Entry(self)
         self.desc_entry.grid(row=2, column=1, sticky='ew', padx=5, pady=5)
         self.desc_entry.insert(0, self.pattern.get('description', ''))
         ttk.Button(self, text='Select Image', command=self.select_image).grid(
             row=3, column=0, columnspan=2, pady=10)
         self.materials_frame = ttk.LabelFrame(self, text='Materials')
-        self.materials_frame.grid(row=4, column=0, columnspan=2, sticky=
-            'nsew', padx=5, pady=5)
+        self.materials_frame.grid(
+            row=4, column=0, columnspan=2, sticky='nsew', padx=5, pady=5)
         self.setup_materials_ui()
-        ttk.Button(self, text='Save', command=self.save).grid(row=5, column
-            =0, pady=10)
+        ttk.Button(self, text='Save', command=self.save).grid(
+            row=5, column=0, pady=10)
         ttk.Button(self, text='Cancel', command=self.cancel).grid(row=5,
             column=1, pady=10)
 
         @inject(MaterialService)
-        def setup_materials_ui(self) ->None:
+            def setup_materials_ui(self) -> None:
         """Set up the materials UI within the dialog."""
         self.materials: List[Dict[str, Any]] = self.pattern.get('materials', []
             )
@@ -358,11 +360,11 @@ class PatternDialog(tk.Toplevel):
                 material['quantity']))
         ttk.Button(self.materials_frame, text='Add Material', command=self.
             add_material).pack(side='left', padx=5)
-        ttk.Button(self.materials_frame, text='Remove Material', command=
-            self.remove_material).pack(side='left', padx=5)
+        ttk.Button(self.materials_frame, text='Remove Material',
+                   command=self.remove_material).pack(side='left', padx=5)
 
         @inject(MaterialService)
-        def add_material(self) ->None:
+            def add_material(self) -> None:
         """Open a dialog to add a new material to the pattern."""
         dialog = MaterialDialog(self)
         if dialog.result:
@@ -371,7 +373,7 @@ class PatternDialog(tk.Toplevel):
                 'name'], dialog.result['quantity']))
 
         @inject(MaterialService)
-        def remove_material(self) ->None:
+            def remove_material(self) -> None:
         """Remove the selected material from the pattern."""
         selected_item = self.materials_tree.selection()
         if selected_item:
@@ -380,7 +382,7 @@ class PatternDialog(tk.Toplevel):
             self.materials_tree.delete(selected_item)
 
         @inject(MaterialService)
-        def select_image(self) ->None:
+            def select_image(self) -> None:
         """Open a file dialog to select an image for the pattern."""
         file_path = filedialog.askopenfilename(filetypes=[('Image Files',
             '*.png *.jpg *.jpeg *.gif')])
@@ -389,7 +391,7 @@ class PatternDialog(tk.Toplevel):
                 self.pattern['image'] = file.read()
 
         @inject(MaterialService)
-        def save(self) ->None:
+            def save(self) -> None:
         """Save the pattern data and close the dialog."""
         self.result = {'name': self.name_entry.get(), 'type': self.
             type_entry.get(), 'description': self.desc_entry.get(),
@@ -399,16 +401,15 @@ class PatternDialog(tk.Toplevel):
         self.destroy()
 
         @inject(MaterialService)
-        def cancel(self) ->None:
+            def cancel(self) -> None:
         """Cancel the dialog without saving."""
         self.destroy()
-
 
     class MaterialDialog(tk.Toplevel):
         """Dialog for adding a material to a pattern."""
 
                 @inject(MaterialService)
-                def __init__(self, parent: tk.Widget):
+                    def __init__(self, parent: tk.Widget):
             """
             Initialize the MaterialDialog.
 
@@ -421,7 +422,7 @@ class PatternDialog(tk.Toplevel):
             self.setup_ui()
 
                 @inject(MaterialService)
-                def setup_ui(self) ->None:
+                    def setup_ui(self) ->None:
             """Set up the user interface for the material dialog."""
             ttk.Label(self, text='Material Name:').grid(row=0, column=0,
                 sticky='e', padx=5, pady=5)
@@ -438,7 +439,7 @@ class PatternDialog(tk.Toplevel):
                 column=1, pady=10)
 
                 @inject(MaterialService)
-                def save(self) ->None:
+                    def save(self) ->None:
             """Save the material data and close the dialog."""
             try:
                 self.result = {'name': self.name_entry.get(), 'quantity':
@@ -448,7 +449,7 @@ class PatternDialog(tk.Toplevel):
                 messagebox.showerror('Error', 'Quantity must be a number.')
 
                 @inject(MaterialService)
-                def cancel(self) ->None:
+                    def cancel(self) ->None:
             """Cancel the dialog without saving."""
             self.destroy()
     if __name__ == '__main__':

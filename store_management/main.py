@@ -1,70 +1,79 @@
-from di.core import inject
-from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+# File: main.py
+"""
+Primary entry point for the Store Management Application
+"""
+import sys
+import os
+import logging
+
+logging.basicConfig(level=logging.DEBUG, filename="env_debug.log")
+
+logging.debug("Starting application with the following environment:")
+for key, value in os.environ.items():
+    logging.debug(f"{key}={value}")
+
+
+# Ensure the project root is in the Python path
+project_root = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, project_root)
 
+# Configure basic logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler('app.log')
+    ]
+)
+logger = logging.getLogger(__name__)
 
-def setup_exception_handler(root: Optional[tk.Tk]=None):
+
+def initialize_application():
     """
-    Set up a global exception handler to log and display unhandled exceptions.
-
-    Args:
-        root (Optional[tk.Tk]): The root Tkinter window to display error messages.
-    """
-
-    def handle_exception(exc_type, exc_value, exc_traceback):
-        logging.error('Uncaught exception', exc_info=(exc_type, exc_value,
-            exc_traceback))
-        error_msg = ''.join(traceback.format_exception(exc_type, exc_value,
-            exc_traceback))
-        if root:
-            from tkinter import messagebox
-            messagebox.showerror('Unhandled Exception', error_msg)
-        print(error_msg)
-        sys.exit(1)
-    sys.excepthook = handle_exception
-
-
-def initialize_app() ->Application:
-    """
-    Initialize the application services and create the application instance.
+    Initialize the store management application.
 
     Returns:
-        Application: Configured application instance
+        bool: True if initialization is successful, False otherwise
     """
     try:
-        configure_application_services()
-        return Application()
+        logger.info("Starting Store Management Application")
+
+        # Import and initialize critical components
+        from services.service_registration import register_services
+        from database.initialize import initialize_database
+
+        # Register services
+        register_services()
+
+        # Initialize database
+        initialize_database()
+
+        logger.info("Application initialization complete")
+        return True
     except Exception as e:
-        logging.error(f'Failed to initialize application: {e}')
-        raise
+        logger.error(f"Application initialization failed: {e}", exc_info=True)
+        return False
 
 
 def main():
     """
     Main entry point for the application.
-    Sets up logging, exception handling, and launches the GUI.
     """
     try:
-        log_path = get_log_path()
-        setup_logging(log_level=logging.INFO, log_dir=os.path.dirname(log_path)
-            )
-        db_path = get_database_path()
-        logging.info(f'Using database at: {db_path}')
-        root = tk.Tk()
-        root.title('Store Management System')
-        root.geometry('1200x800')
-        setup_exception_handler(root)
-        app = initialize_app()
-        main_window = MainWindow(root, app)
-        main_window.pack(fill=tk.BOTH, expand=True)
-        root.mainloop()
+        # Initialize the application
+        if not initialize_application():
+            logger.critical("Failed to initialize application")
+            sys.exit(1)
+
+        # Import and launch the main GUI
+        from gui.main_window import launch_main_window
+        launch_main_window()
+
     except Exception as e:
-        logging.error(f'Application startup failed: {e}')
-        logging.error(traceback.format_exc())
-        import tkinter.messagebox as messagebox
-        messagebox.showerror('Startup Error', str(e))
+        logger.critical(f"Unhandled exception in main: {e}", exc_info=True)
+        sys.exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

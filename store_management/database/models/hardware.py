@@ -2,6 +2,8 @@
 
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+
+
 class HardwareType(Enum):
     """Enumeration of hardware types."""
     BUCKLE = 'buckle'
@@ -50,18 +52,18 @@ class Hardware(BaseModel):
     location = Column(String(50))
     notes = Column(String(500))
     supplier = relationship('Supplier', back_populates='hardware_items')
-    project_components = relationship('ProjectComponent', back_populates=
-        'hardware')
+    project_components = relationship(
+        'ProjectComponent', back_populates='hardware')
 
-        @inject(MaterialService)
-        def __repr__(self) ->str:
+    @inject(MaterialService)
+        def __repr__(self) -> str:
         """String representation of the Hardware item."""
         return (
             f"<Hardware(id={self.id}, name='{self.name}', type={self.hardware_type})>"
-            )
+        )
 
         @inject(MaterialService)
-        def is_low_stock(self) ->bool:
+            def is_low_stock(self) -> bool:
         """
         Check if the hardware item is at or below its reorder point.
 
@@ -71,7 +73,7 @@ class Hardware(BaseModel):
         return self.quantity <= self.reorder_point
 
         @inject(MaterialService)
-        def update_stock(self, quantity_change: int) ->None:
+            def update_stock(self, quantity_change: int) -> None:
         """
         Update the hardware stock level.
 
@@ -85,13 +87,13 @@ class Hardware(BaseModel):
         if new_quantity < 0:
             raise ValueError(
                 f'Cannot reduce stock below zero. Current stock: {self.quantity}'
-                )
+            )
         self.quantity = new_quantity
         if self.is_low_stock():
             pass
 
         @inject(MaterialService)
-        def to_dict(self) ->Dict[str, Any]:
+            def to_dict(self) -> Dict[str, Any]:
         """
         Convert the hardware item to a dictionary.
 
@@ -100,5 +102,5 @@ class Hardware(BaseModel):
         """
         base_dict = super().to_dict()
         base_dict.update({'hardware_type': self.hardware_type.value,
-            'material': self.material.value})
+                          'material': self.material.value})
         return base_dict

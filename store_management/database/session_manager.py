@@ -16,8 +16,8 @@ class SessionManager:
     This class provides context managers for session management.
     """
 
-        @inject(MaterialService)
-        def __init__(self, session_factory: Callable[[], Session]=None):
+    @inject(MaterialService)
+        def __init__(self, session_factory: Callable[[], Session] = None):
         """
         Initialize a new SessionManager.
 
@@ -29,7 +29,7 @@ class SessionManager:
 
         @contextmanager
     @inject(MaterialService)
-    def session_scope(self) ->Iterator[Session]:
+        def session_scope(self) -> Iterator[Session]:
         """
         Provide a transactional scope around a series of operations.
 
@@ -47,13 +47,13 @@ class SessionManager:
             session.rollback()
             logger.error(f'Database transaction error: {str(e)}')
             raise TransactionError(operation='session_scope', details=str(e)
-                ) from e
+                                   ) from e
         finally:
             session.close()
 
         @contextmanager
     @inject(MaterialService)
-    def read_only_session_scope(self) ->Iterator[Session]:
+        def read_only_session_scope(self) -> Iterator[Session]:
         """
         Provide a read-only transactional scope.
 
@@ -72,12 +72,12 @@ class SessionManager:
             session.rollback()
             logger.error(f'Database read transaction error: {str(e)}')
             raise TransactionError(operation='read_only_session_scope',
-                details=str(e)) from e
+                                   details=str(e)) from e
         finally:
             session.close()
 
         @inject(MaterialService)
-        def execute_in_transaction(self, operation: Callable[[Session], T]) ->T:
+            def execute_in_transaction(self, operation: Callable[[Session], T]) -> T:
         """
         Execute an operation in a transaction.
 
@@ -94,7 +94,7 @@ class SessionManager:
             return operation(session)
 
         @inject(MaterialService)
-        def execute_read_only(self, operation: Callable[[Session], T]) ->T:
+            def execute_read_only(self, operation: Callable[[Session], T]) -> T:
         """
         Execute a read-only operation.
 
@@ -111,7 +111,7 @@ class SessionManager:
             return operation(session)
 
         @inject(MaterialService)
-        def execute_bulk_operation(self, operation: Callable[[Session], T]) ->T:
+            def execute_bulk_operation(self, operation: Callable[[Session], T]) -> T:
         """
         Execute a bulk operation in a transaction.
 

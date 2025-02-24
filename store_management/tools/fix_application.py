@@ -1,27 +1,34 @@
 from di.core import inject
-from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+from services.interfaces import (
+    MaterialService,
+    ProjectService,
+    InventoryService,
+    OrderService,
+)
+
 """
 Fix for the application class to ensure services are properly registered and used.
 """
-logging.basicConfig(level=logging.INFO, format=
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger('application_fix')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger("application_fix")
 
 
 def fix_application():
     """Fix the application implementation."""
-    app_path = 'application.py'
+    app_path = "application.py"
     if not os.path.exists(app_path):
-        logger.error(f'Application file not found at {app_path}')
+        logger.error(f"Application file not found at {app_path}")
         return False
-    backup_path = app_path + '.bak'
+    backup_path = app_path + ".bak"
     try:
-        with open(app_path, 'r') as src:
-            with open(backup_path, 'w') as dst:
+        with open(app_path, "r") as src:
+            with open(backup_path, "w") as dst:
                 dst.write(src.read())
-        logger.info(f'Created backup of application at {backup_path}')
+        logger.info(f"Created backup of application at {backup_path}")
     except Exception as e:
-        logger.error(f'Failed to create backup: {str(e)}')
+        logger.error(f"Failed to create backup: {str(e)}")
         return False
     new_content = """
 # Path: application.py
@@ -55,7 +62,7 @@ class Application:
     ""\"
 
     @inject(MaterialService)
-    def __init__(self):
+        def __init__(self):
         ""\"Initialize the application.""\"
         self.container = DependencyContainer()
         self.root = None
@@ -64,7 +71,7 @@ class Application:
         logger.info("Application initialized")
 
     @inject(MaterialService)
-    def _register_services(self):
+        def _register_services(self):
         ""\"Register all services in the dependency container.""\"
         try:
             # Register all services
@@ -81,7 +88,7 @@ class Application:
             raise
 
     @inject(MaterialService)
-    def get_service(self, service_type: Type):
+        def get_service(self, service_type: Type):
         ""\"
         Get a service from the container.
 
@@ -104,7 +111,7 @@ class Application:
             return None
 
     @inject(MaterialService)
-    def run(self):
+        def run(self):
         ""\"Run the application.""\"
         try:
             # Create the main window
@@ -122,7 +129,7 @@ class Application:
             raise
 
     @inject(MaterialService)
-    def quit(self):
+        def quit(self):
         ""\"Quit the application.""\"
         try:
             # Perform cleanup
@@ -134,19 +141,19 @@ class Application:
             raise
 """
     try:
-        with open(app_path, 'w') as f:
+        with open(app_path, "w") as f:
             f.write(new_content.strip())
-        logger.info(f'Updated application at {app_path}')
+        logger.info(f"Updated application at {app_path}")
         return True
     except Exception as e:
-        logger.error(f'Failed to update application: {str(e)}')
+        logger.error(f"Failed to update application: {str(e)}")
         return False
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     if fix_application():
         logger.info(
-            'Application fixed successfully. Run the application to see the changes.'
-            )
+            "Application fixed successfully. Run the application to see the changes."
+        )
     else:
-        logger.error('Failed to fix application.')
+        logger.error("Failed to fix application.")

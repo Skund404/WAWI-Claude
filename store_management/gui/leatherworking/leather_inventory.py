@@ -19,7 +19,7 @@ class LeatherInventoryView(tk.Frame):
     - Quality tracking
     """
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, parent, app):
         """
         Initialize the Leather Inventory View.
@@ -38,30 +38,30 @@ class LeatherInventoryView(tk.Frame):
         self._load_initial_leather_data()
 
         @inject(MaterialService)
-        def _setup_layout(self):
+            def _setup_layout(self):
         """
         Configure the overall layout of the view.
         """
         self.grid_columnconfigure(0, weight=2)
         self.grid_columnconfigure(1, weight=1)
         self.inventory_frame = ttk.LabelFrame(self, text='Leather Inventory')
-        self.inventory_frame.grid(row=0, column=0, padx=10, pady=10, sticky
-            ='nsew')
+        self.inventory_frame.grid(
+            row=0, column=0, padx=10, pady=10, sticky='nsew')
         self.analytics_frame = ttk.LabelFrame(self, text='Inventory Analytics')
-        self.analytics_frame.grid(row=0, column=1, padx=10, pady=10, sticky
-            ='nsew')
+        self.analytics_frame.grid(
+            row=0, column=1, padx=10, pady=10, sticky='nsew')
         self.action_frame = ttk.Frame(self)
-        self.action_frame.grid(row=1, column=0, columnspan=2, padx=10, pady
-            =10, sticky='ew')
+        self.action_frame.grid(row=1, column=0, columnspan=2,
+                               padx=10, pady=10, sticky='ew')
 
         @inject(MaterialService)
-        def _create_inventory_list(self):
+            def _create_inventory_list(self):
         """
         Create a treeview to display leather inventory.
         """
         columns = 'ID', 'Type', 'Color', 'Area', 'Quality', 'Status'
-        self.inventory_tree = ttk.Treeview(self.inventory_frame, columns=
-            columns, show='headings')
+        self.inventory_tree = ttk.Treeview(
+            self.inventory_frame, columns=columns, show='headings')
         for col in columns:
             self.inventory_tree.heading(col, text=col)
             self.inventory_tree.column(col, width=100, anchor='center')
@@ -70,7 +70,7 @@ class LeatherInventoryView(tk.Frame):
         self.inventory_tree.bind('<Button-3>', self._show_context_menu)
 
         @inject(MaterialService)
-        def _create_analytics_section(self):
+            def _create_analytics_section(self):
         """
         Create a section for inventory analytics and visualization.
         """
@@ -80,34 +80,34 @@ class LeatherInventoryView(tk.Frame):
         self.canvas_widget.pack(expand=True, fill='both')
 
         @inject(MaterialService)
-        def _create_action_buttons(self):
+            def _create_action_buttons(self):
         """
         Create action buttons for leather inventory management.
         """
-        add_btn = ttk.Button(self.action_frame, text='Add Leather', command
-            =self._add_leather_dialog)
+        add_btn = ttk.Button(
+            self.action_frame, text='Add Leather', command=self._add_leather_dialog)
         add_btn.pack(side=tk.LEFT, padx=5)
         update_btn = ttk.Button(self.action_frame, text='Update Leather',
-            command=self._update_leather_dialog)
+                                command=self._update_leather_dialog)
         update_btn.pack(side=tk.LEFT, padx=5)
         delete_btn = ttk.Button(self.action_frame, text='Delete Leather',
-            command=self._delete_leather)
+                                command=self._delete_leather)
         delete_btn.pack(side=tk.LEFT, padx=5)
         report_btn = ttk.Button(self.action_frame, text='Generate Report',
-            command=self._generate_leather_report)
+                                command=self._generate_leather_report)
         report_btn.pack(side=tk.LEFT, padx=5)
 
         @inject(MaterialService)
-        def _add_leather_dialog(self):
+            def _add_leather_dialog(self):
         """
         Open a dialog to add new leather to the inventory.
         """
         from gui.leatherworking.leather_dialog import LeatherDetailsDialog
         dialog = LeatherDetailsDialog(self, callback=self._add_leather,
-            initial_data=None)
+                                      initial_data=None)
 
         @inject(MaterialService)
-        def _add_leather(self, leather_data):
+            def _add_leather(self, leather_data):
         """
         Add a new leather item to the inventory.
 
@@ -117,32 +117,32 @@ class LeatherInventoryView(tk.Frame):
         leather_data['id'] = f'LTH-{len(self.leather_inventory) + 1:03d}'
         if not self._validate_leather_data(leather_data):
             messagebox.showerror('Invalid Data',
-                'Please fill in all required fields')
+                                 'Please fill in all required fields')
             return
         self.leather_inventory.append(leather_data)
         self._update_inventory_tree()
         self._update_analytics()
 
         @inject(MaterialService)
-        def _update_leather_dialog(self):
+            def _update_leather_dialog(self):
         """
         Open a dialog to update selected leather item.
         """
         selected_item = self.inventory_tree.selection()
         if not selected_item:
             messagebox.showwarning('No Selection',
-                'Please select a leather item to update')
+                                   'Please select a leather item to update')
             return
         values = self.inventory_tree.item(selected_item[0])['values']
         current_leather = next((l for l in self.leather_inventory if l['id'
-            ] == values[0]), None)
+                                                                       ] == values[0]), None)
         if current_leather:
             from gui.leatherworking.leather_dialog import LeatherDetailsDialog
             dialog = LeatherDetailsDialog(self, callback=self.
-                _update_leather, initial_data=current_leather)
+                                          _update_leather, initial_data=current_leather)
 
         @inject(MaterialService)
-        def _update_leather(self, updated_data):
+            def _update_leather(self, updated_data):
         """
         Update an existing leather item in the inventory.
 
@@ -157,17 +157,17 @@ class LeatherInventoryView(tk.Frame):
         self._update_analytics()
 
         @inject(MaterialService)
-        def _delete_leather(self):
+            def _delete_leather(self):
         """
         Delete selected leather item from inventory.
         """
         selected_item = self.inventory_tree.selection()
         if not selected_item:
             messagebox.showwarning('No Selection',
-                'Please select a leather item to delete')
+                                   'Please select a leather item to delete')
             return
         if not messagebox.askyesno('Confirm Deletion',
-            'Are you sure you want to delete this leather item?'):
+                                   'Are you sure you want to delete this leather item?'):
             return
         values = self.inventory_tree.item(selected_item[0])['values']
         leather_id = values[0]
@@ -177,7 +177,7 @@ class LeatherInventoryView(tk.Frame):
         self._update_analytics()
 
         @inject(MaterialService)
-        def _validate_leather_data(self, leather_data):
+            def _validate_leather_data(self, leather_data):
         """
         Validate leather data before adding/updating.
 
@@ -191,7 +191,7 @@ class LeatherInventoryView(tk.Frame):
         return all(leather_data.get(field) for field in required_fields)
 
         @inject(MaterialService)
-        def _update_inventory_tree(self):
+            def _update_inventory_tree(self):
         """
         Update the inventory treeview with current leather items.
         """
@@ -199,12 +199,13 @@ class LeatherInventoryView(tk.Frame):
             self.inventory_tree.delete(item)
         for leather in self.leather_inventory:
             self.inventory_tree.insert('', 'end', values=(leather.get('id',
-                ''), leather.get('type', ''), leather.get('color', ''),
-                leather.get('area', ''), leather.get('quality', ''),
-                leather.get('status', 'Available')))
+                                                                      ''), leather.get('type', ''), leather.get('color', ''),
+                                                          leather.get('area', ''), leather.get(
+                                                              'quality', ''),
+                                                          leather.get('status', 'Available')))
 
         @inject(MaterialService)
-        def _update_analytics(self):
+            def _update_analytics(self):
         """
         Update analytics visualization based on current inventory.
         """
@@ -220,7 +221,7 @@ class LeatherInventoryView(tk.Frame):
         self.canvas.draw()
 
         @inject(MaterialService)
-        def _show_leather_details(self, event):
+            def _show_leather_details(self, event):
         """
         Display detailed information for selected leather item.
 
@@ -232,14 +233,14 @@ class LeatherInventoryView(tk.Frame):
             return
         values = self.inventory_tree.item(selected_item[0])['values']
         leather = next((l for l in self.leather_inventory if l['id'] ==
-            values[0]), None)
+                        values[0]), None)
         if leather:
             details = '\n'.join(f'{key.capitalize()}: {value}' for key,
-                value in leather.items())
+                                value in leather.items())
             messagebox.showinfo('Leather Details', details)
 
         @inject(MaterialService)
-        def _show_context_menu(self, event):
+            def _show_context_menu(self, event):
         """
         Show context menu for leather inventory.
 
@@ -250,16 +251,16 @@ class LeatherInventoryView(tk.Frame):
         if iid:
             self.inventory_tree.selection_set(iid)
             context_menu = tk.Menu(self, tearoff=0)
-            context_menu.add_command(label='View Details', command=lambda :
-                self._show_leather_details(event))
+            context_menu.add_command(label='View Details', command=lambda:
+                                     self._show_leather_details(event))
             context_menu.add_command(label='Update', command=self.
-                _update_leather_dialog)
+                                     _update_leather_dialog)
             context_menu.add_command(label='Delete', command=self.
-                _delete_leather)
+                                     _delete_leather)
             context_menu.post(event.x_root, event.y_root)
 
         @inject(MaterialService)
-        def _generate_leather_report(self):
+            def _generate_leather_report(self):
         """
         Generate a comprehensive report of leather inventory.
         """
@@ -278,28 +279,28 @@ class LeatherInventoryView(tk.Frame):
             report += f'{leather_type}: {count} items\n'
         report += f'\nTotal Leather Area: {total_area:.2f} sq units\n'
         filename = tk.filedialog.asksaveasfilename(defaultextension='.txt',
-            filetypes=[('Text files', '*.txt'), ('All files', '*.*')])
+                                                   filetypes=[('Text files', '*.txt'), ('All files', '*.*')])
         if filename:
             try:
                 with open(filename, 'w') as f:
                     f.write(report)
                 messagebox.showinfo('Report Generated',
-                    f'Leather inventory report saved to {filename}')
+                                    f'Leather inventory report saved to {filename}')
             except Exception as e:
                 messagebox.showerror('Error',
-                    f'Could not save report: {str(e)}')
+                                     f'Could not save report: {str(e)}')
 
         @inject(MaterialService)
-        def _load_initial_leather_data(self):
+            def _load_initial_leather_data(self):
         """
         Load initial leather inventory data (mock data for demonstration).
         """
         initial_data = [{'id': 'LTH-001', 'type': 'Full Grain', 'color':
-            'Brown', 'area': '5.5', 'quality': 'Premium', 'status':
-            'Available'}, {'id': 'LTH-002', 'type': 'Top Grain', 'color':
-            'Black', 'area': '3.2', 'quality': 'Standard', 'status':
-            'Available'}, {'id': 'LTH-003', 'type': 'Suede', 'color': 'Tan',
-            'area': '4.1', 'quality': 'Good', 'status': 'Reserved'}]
+                         'Brown', 'area': '5.5', 'quality': 'Premium', 'status':
+                         'Available'}, {'id': 'LTH-002', 'type': 'Top Grain', 'color':
+                                        'Black', 'area': '3.2', 'quality': 'Standard', 'status':
+                                        'Available'}, {'id': 'LTH-003', 'type': 'Suede', 'color': 'Tan',
+                                                       'area': '4.1', 'quality': 'Good', 'status': 'Reserved'}]
         self.leather_inventory.extend(initial_data)
         self._update_inventory_tree()
         self._update_analytics()
@@ -312,7 +313,6 @@ def main():
     root = tk.Tk()
     root.title('Leather Inventory')
     root.geometry('1000x700')
-
 
     class DummyApp:
         pass

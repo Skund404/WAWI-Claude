@@ -6,8 +6,8 @@ Path: tools/rename_project_files.py
 Script to systematically rename files and update references in a leatherworking project,
 replacing generic 'pattern' terminology with more specific project-related terms.
 """
-logging.basicConfig(level=logging.INFO, format=
-    '%(asctime)s - %(levelname)s: %(message)s')
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - %(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)
 
 
@@ -16,7 +16,7 @@ class ProjectRenamer:
     A comprehensive renaming utility for leatherworking project files and references.
     """
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, project_root: str):
         """
         Initialize the renaming utility with the project's root directory.
@@ -26,18 +26,18 @@ class ProjectRenamer:
         """
         self.project_root = os.path.abspath(project_root)
         self.renames: Dict[str, str] = {'pattern_service.py':
-            'project_service.py', 'recipe_repository.py':
-            'project_repository.py', 'recipe_view.py': 'project_view.py',
-            'Project': 'Project', 'ProjectComponent': 'ProjectComponent'}
+                                        'project_service.py', 'recipe_repository.py':
+                                        'project_repository.py', 'recipe_view.py': 'project_view.py',
+                                        'Project': 'Project', 'ProjectComponent': 'ProjectComponent'}
         self.replacements: List[Tuple[str, str]] = [('\\bRecipe\\b',
-            'Project'), ('\\bRecipeItem\\b', 'ProjectComponent'), (
+                                                     'Project'), ('\\bRecipeItem\\b', 'ProjectComponent'), (
             '\\brecipe_\\b', 'project_'), ('\\bget_recipe\\b',
-            'get_project'), ('\\bcreate_recipe\\b', 'create_project'), (
+                                           'get_project'), ('\\bcreate_recipe\\b', 'create_project'), (
             '\\bupdate_recipe\\b', 'update_project'), (
             '\\bdelete_recipe\\b', 'delete_project')]
 
         @inject(MaterialService)
-        def _find_files(self, pattern: str='.*\\.py$') ->List[str]:
+            def _find_files(self, pattern: str = '.*\\.py$') -> List[str]:
         """
         Find all Python files in the project recursively.
 
@@ -56,7 +56,7 @@ class ProjectRenamer:
         return matches
 
         @inject(MaterialService)
-        def rename_files(self):
+            def rename_files(self):
         """
         Rename files according to the predefined mapping.
         """
@@ -73,7 +73,7 @@ class ProjectRenamer:
                         logger.error(f'Error renaming {old_path}: {e}')
 
         @inject(MaterialService)
-        def update_file_contents(self):
+            def update_file_contents(self):
         """
         Update file contents by replacing specific terms and references.
         """
@@ -96,7 +96,7 @@ class ProjectRenamer:
                 logger.error(f'Error processing {filepath}: {e}')
 
         @inject(MaterialService)
-        def run(self):
+            def run(self):
         """
         Execute the full renaming process.
         """

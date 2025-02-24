@@ -2,12 +2,14 @@
 
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+
+
 class MigrationManager:
     """Handles database migrations and schema updates."""
 
-        @inject(MaterialService)
-        def __init__(self, database_url: str, migrations_path: Optional[Path]=None
-        ):
+    @inject(MaterialService)
+        def __init__(self, database_url: str, migrations_path: Optional[Path] = None
+                 ):
         """Initialize migration manager.
 
         Args:
@@ -16,21 +18,21 @@ class MigrationManager:
         """
         self.database_url = database_url
         self.migrations_path = migrations_path or Path(__file__
-            ).parent / 'versions'
+                                                       ).parent / 'versions'
         self.engine = create_engine(database_url)
         self.alembic_cfg = self._create_alembic_config()
 
         @inject(MaterialService)
-        def _create_alembic_config(self) ->alembic.config.Config:
+            def _create_alembic_config(self) -> alembic.config.Config:
         """Create Alembic configuration."""
         cfg = alembic.config.Config()
         cfg.set_main_option('script_location', str(self.migrations_path.parent)
-            )
+                            )
         cfg.set_main_option('sqlalchemy.url', self.database_url)
         return cfg
 
         @inject(MaterialService)
-        def check_current_version(self) ->str:
+            def check_current_version(self) -> str:
         """Get current database version.
 
         Returns:
@@ -41,7 +43,7 @@ class MigrationManager:
             return context.get_current_revision() or 'base'
 
         @inject(MaterialService)
-        def get_pending_migrations(self) ->List[str]:
+            def get_pending_migrations(self) -> List[str]:
         """Get list of pending migrations.
 
         Returns:
@@ -58,7 +60,7 @@ class MigrationManager:
         return pending
 
         @inject(MaterialService)
-        def create_backup(self) ->Path:
+            def create_backup(self) -> Path:
         """Create database backup before migration.
 
         Returns:
@@ -77,7 +79,7 @@ class MigrationManager:
         return backup_path
 
         @inject(MaterialService)
-        def run_migrations(self, target: Optional[str]='head') ->None:
+            def run_migrations(self, target: Optional[str] = 'head') -> None:
         """Run pending migrations.
 
         Args:
@@ -96,7 +98,7 @@ class MigrationManager:
             raise DatabaseError(f'Failed to run migrations: {str(e)}')
 
         @inject(MaterialService)
-        def revert_migration(self, revision: str) ->None:
+            def revert_migration(self, revision: str) -> None:
         """Revert to a specific migration.
 
         Args:
@@ -112,7 +114,7 @@ class MigrationManager:
             raise DatabaseError(f'Failed to revert migration: {str(e)}')
 
         @inject(MaterialService)
-        def verify_migration(self) ->bool:
+            def verify_migration(self) -> bool:
         """Verify database schema matches models.
 
         Returns:
@@ -129,9 +131,9 @@ class MigrationManager:
                 return False
             for table_name in expected_tables:
                 expected_columns = {c.name: c for c in Base.metadata.tables
-                    [table_name].columns}
+                                    [table_name].columns}
                 actual_columns = {c['name']: c for c in inspector.
-                    get_columns(table_name)}
+                                  get_columns(table_name)}
                 missing_columns = set(expected_columns) - set(actual_columns)
                 if missing_columns:
                     logger.warning(

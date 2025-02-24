@@ -2,6 +2,8 @@
 
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+
+
 class SearchMixin:
     """Mixin providing advanced search functionality for managers.
 
@@ -9,8 +11,8 @@ class SearchMixin:
     - model_class attribute (SQLAlchemy model class)
     """
 
-        @inject(MaterialService)
-        def search(self, search_term: str, fields: List[str]=None) ->List[Any]:
+    @inject(MaterialService)
+        def search(self, search_term: str, fields: List[str] = None) -> List[Any]:
         """Search for records across multiple fields.
 
         Args:
@@ -24,8 +26,8 @@ class SearchMixin:
         with get_db_session() as session:
             if not fields:
                 fields = [column.name for column in model_class.__table__.
-                    columns if str(column.type).startswith(('VARCHAR',
-                    'TEXT', 'String'))]
+                          columns if str(column.type).startswith(('VARCHAR',
+                                                                  'TEXT', 'String'))]
             conditions = []
             for field in fields:
                 column = getattr(model_class, field)
@@ -34,7 +36,7 @@ class SearchMixin:
             return list(session.execute(query).scalars().all())
 
         @inject(MaterialService)
-        def advanced_search(self, criteria: Dict[str, Any]) ->List[Any]:
+            def advanced_search(self, criteria: Dict[str, Any]) -> List[Any]:
         """Perform an advanced search with multiple criteria.
 
         Args:

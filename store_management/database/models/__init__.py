@@ -19,6 +19,7 @@ class ModelRegistry:
 
     Provides methods to register and retrieve model classes by name.
     """
+
     _models: Dict[str, Type] = {}
 
     @classmethod
@@ -69,10 +70,11 @@ def _safe_import(module_name: str, class_name: str) -> Optional[Type]:
         Type or None: The imported class, or None if import failed
     """
     try:
-        module = importlib.import_module(f'database.models.{module_name}')
+        module = importlib.import_module(f"database.models.{module_name}")
         return getattr(module, class_name)
     except (ImportError, AttributeError) as e:
-        logger.warning(f"Failed to import {class_name} from {module_name}: {e}")
+        logger.warning(
+            f"Failed to import {class_name} from {module_name}: {e}")
         return None
 
 
@@ -90,11 +92,11 @@ def _register_models() -> None:
     # Register core models
     # These should be imported in dependency order
     model_imports = [
-        ('enums', 'ProjectStatus'),
-        ('enums', 'ProjectType'),
-        ('enums', 'SkillLevel'),
-        ('enums', 'MaterialType'),
-        ('project', 'Project'),
+        ("enums", "ProjectStatus"),
+        ("enums", "ProjectType"),
+        ("enums", "SkillLevel"),
+        ("enums", "MaterialType"),
+        ("project", "Project"),
         # Add other models here
     ]
 
@@ -108,4 +110,4 @@ def _register_models() -> None:
 _register_models()
 
 # Export the registry
-__all__ = ['ModelRegistry']
+__all__ = ["ModelRegistry"]

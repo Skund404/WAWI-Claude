@@ -13,9 +13,9 @@ class PatternService(IPatternService):
     Optimized Pattern Service with advanced configuration and caching mechanisms.
     """
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, pattern_repository: IPatternRepository,
-        material_service: MaterialService):
+                 material_service: MaterialService):
         """
         Initialize the Pattern Service with dependencies and performance optimizations.
 
@@ -29,9 +29,9 @@ class PatternService(IPatternService):
 
         @lru_cache(maxsize=100)
     @inject(MaterialService)
-    def get_by_complexity(self, skill_level: SkillLevel, min_complexity:
-        Optional[float]=None, max_complexity: Optional[float]=None) ->List[
-        Pattern]:
+        def get_by_complexity(self, skill_level: SkillLevel, min_complexity:
+                          Optional[float] = None, max_complexity: Optional[float] = None) -> List[
+            Pattern]:
         """
         Retrieve patterns with advanced filtering and complexity-based sorting.
 
@@ -50,16 +50,16 @@ class PatternService(IPatternService):
             patterns = self._pattern_repository.search_by_criteria(criteria)
             if max_complexity is not None:
                 patterns = [p for p in patterns if p.complexity <=
-                    max_complexity]
+                            max_complexity]
             return sorted(patterns, key=lambda p: p.complexity)
         except Exception as e:
             logger.error(f'Error retrieving patterns by complexity: {e}')
             return []
 
         @inject(MaterialService)
-        def calculate_material_requirements(self, pattern_id: int,
-        override_waste_factor: Optional[float]=None) ->Dict[MaterialType,
-        Decimal]:
+            def calculate_material_requirements(self, pattern_id: int,
+                                            override_waste_factor: Optional[float] = None) -> Dict[MaterialType,
+                                                                                                   Decimal]:
         """
         Calculate precise material requirements with configurable waste factors.
 
@@ -78,13 +78,13 @@ class PatternService(IPatternService):
             material_requirements = {}
             for component in pattern.components:
                 waste_factor = (override_waste_factor or self._config.
-                    get_waste_factor(component.material_type.name.lower()))
+                                get_waste_factor(component.material_type.name.lower()))
                 required_area = component.calculate_area()
                 adjusted_area = required_area * (1 + waste_factor)
                 material_type = component.material_type
                 material_requirements[material_type
-                    ] = material_requirements.get(material_type, Decimal('0')
-                    ) + Decimal(str(adjusted_area))
+                                      ] = material_requirements.get(material_type, Decimal('0')
+                                                                    ) + Decimal(str(adjusted_area))
             return material_requirements
         except Exception as e:
             logger.error(f'Error calculating material requirements: {e}')
@@ -92,8 +92,8 @@ class PatternService(IPatternService):
                 f'Could not calculate material requirements: {e}')
 
         @inject(MaterialService)
-        def validate_pattern_components(self, pattern_id: int, strict_mode:
-        bool=False) ->Dict[str, Any]:
+            def validate_pattern_components(self, pattern_id: int, strict_mode:
+                                        bool = False) -> Dict[str, Any]:
         """
         Comprehensive validation of pattern components with detailed reporting.
 
@@ -110,7 +110,7 @@ class PatternService(IPatternService):
         try:
             pattern = self._pattern_repository.get_by_id(pattern_id)
             validation_results = {'is_valid': True, 'warnings': [],
-                'errors': []}
+                                  'errors': []}
             for component in pattern.components:
                 try:
                     component.validate_component()
@@ -121,12 +121,12 @@ class PatternService(IPatternService):
                     component.material_type)
                 required_area = component.calculate_area()
                 waste_factor = self._config.get_waste_factor(component.
-                    material_type.name.lower())
+                                                             material_type.name.lower())
                 adjusted_area = required_area * (1 + waste_factor)
                 if material.stock < adjusted_area:
                     warning = (
                         f'Insufficient {component.material_type.name} for component {component.name}. Required: {adjusted_area:.2f}, Available: {material.stock:.2f}'
-                        )
+                    )
                     if strict_mode:
                         validation_results['errors'].append(warning)
                         validation_results['is_valid'] = False
@@ -143,8 +143,8 @@ class PatternService(IPatternService):
             raise ValidationError(f'Pattern validation error: {e}')
 
         @inject(MaterialService)
-        def duplicate_pattern(self, pattern_id: int, new_name: Optional[str]=
-        None, increment_complexity: bool=True) ->Pattern:
+            def duplicate_pattern(self, pattern_id: int, new_name: Optional[str] =
+                              None, increment_complexity: bool = True) -> Pattern:
         """
         Advanced pattern duplication with optional complexity adjustment.
 
@@ -159,14 +159,12 @@ class PatternService(IPatternService):
         try:
             original_pattern = self._pattern_repository.get_by_id(pattern_id)
             duplicated_pattern = Pattern(name=new_name or
-                f'{original_pattern.name} (Copy)', skill_level=
-                original_pattern.skill_level, complexity=original_pattern.
-                complexity * 1.1 if increment_complexity else
-                original_pattern.complexity)
+                                         f'{original_pattern.name} (Copy)', skill_level=original_pattern.skill_level, complexity=original_pattern.
+                                         complexity * 1.1 if increment_complexity else
+                                         original_pattern.complexity)
             for component in original_pattern.components:
                 duplicated_component = component.__class__(name=component.
-                    name, material_type=component.material_type, quantity=
-                    component.quantity)
+                                                           name, material_type=component.material_type, quantity=component.quantity)
                 duplicated_pattern.components.append(duplicated_component)
             return self._pattern_repository.add(duplicated_pattern)
         except Exception as e:
@@ -174,7 +172,7 @@ class PatternService(IPatternService):
             raise ApplicationError(f'Could not duplicate pattern: {e}')
 
         @inject(MaterialService)
-        def generate_complexity_report(self) ->Dict[str, Any]:
+            def generate_complexity_report(self) -> Dict[str, Any]:
         """
         Generate a comprehensive report on pattern complexity distribution.
 
@@ -184,17 +182,17 @@ class PatternService(IPatternService):
         try:
             all_patterns = self._pattern_repository.search_by_criteria({})
             complexity_report = {'total_patterns': len(all_patterns),
-                'complexity_distribution': {'low': 0, 'medium': 0, 'high': 
-                0, 'very_high': 0}, 'avg_complexity': 0, 'median_complexity': 0
-                }
+                                 'complexity_distribution': {'low': 0, 'medium': 0, 'high':
+                                                             0, 'very_high': 0}, 'avg_complexity': 0, 'median_complexity': 0
+                                 }
             complexities = [p.complexity for p in all_patterns]
             complexity_report['avg_complexity'] = sum(complexities) / len(
                 complexities)
             sorted_complexities = sorted(complexities)
             mid = len(sorted_complexities) // 2
             complexity_report['median_complexity'] = sorted_complexities[mid
-                ] if len(sorted_complexities) % 2 else (sorted_complexities
-                [mid - 1] + sorted_complexities[mid]) / 2
+                                                                         ] if len(sorted_complexities) % 2 else (sorted_complexities
+                                                                                                                 [mid - 1] + sorted_complexities[mid]) / 2
             for complexity in complexities:
                 if complexity < 3:
                     complexity_report['complexity_distribution']['low'] += 1
@@ -204,9 +202,9 @@ class PatternService(IPatternService):
                     complexity_report['complexity_distribution']['high'] += 1
                 else:
                     complexity_report['complexity_distribution']['very_high'
-                        ] += 1
+                                                                 ] += 1
             return complexity_report
         except Exception as e:
             logger.error(f'Error generating complexity report: {e}')
             raise ApplicationError(f'Could not generate complexity report: {e}'
-                )
+                                   )

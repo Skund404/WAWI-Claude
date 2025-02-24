@@ -2,6 +2,8 @@
 
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+
+
 class ProjectType(Enum):
     """Enumeration of different project types"""
     LEATHER_BAG = 'leather_bag'
@@ -24,9 +26,9 @@ class IProjectService(ABC):
     Handles project creation, management, and analysis functionality.
     """
 
-        @abstractmethod
+    @abstractmethod
     @inject(MaterialService)
-    def create_project(self, project_data: Dict) ->Dict:
+        def create_project(self, project_data: Dict) -> Dict:
         """
         Create a new project with the given data.
 
@@ -48,8 +50,8 @@ class IProjectService(ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def get_project(self, project_id: int, include_components: bool=False
-        ) ->Dict:
+        def get_project(self, project_id: int, include_components: bool = False
+                    ) -> Dict:
         """
         Retrieve project details by ID.
 
@@ -67,7 +69,7 @@ class IProjectService(ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def update_project(self, project_id: int, project_data: Dict) ->Dict:
+        def update_project(self, project_id: int, project_data: Dict) -> Dict:
         """
         Update an existing project.
 
@@ -86,7 +88,7 @@ class IProjectService(ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def delete_project(self, project_id: int) ->bool:
+        def delete_project(self, project_id: int) -> bool:
         """
         Delete a project by ID.
 
@@ -103,7 +105,7 @@ class IProjectService(ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def search_projects(self, search_params: Dict) ->List[Dict]:
+        def search_projects(self, search_params: Dict) -> List[Dict]:
         """
         Search projects based on given parameters.
 
@@ -122,7 +124,7 @@ class IProjectService(ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def get_complex_projects(self, complexity_threshold: float) ->List[Dict]:
+        def get_complex_projects(self, complexity_threshold: float) -> List[Dict]:
         """
         Get projects above specified complexity threshold.
 
@@ -136,7 +138,7 @@ class IProjectService(ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def analyze_project_material_usage(self, project_id: int) ->Dict:
+        def analyze_project_material_usage(self, project_id: int) -> Dict:
         """
         Analyze material usage for a specific project.
 
@@ -157,7 +159,7 @@ class IProjectService(ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def generate_project_complexity_report(self) ->Dict:
+        def generate_project_complexity_report(self) -> Dict:
         """
         Generate a report on project complexities across the system.
 
@@ -171,7 +173,7 @@ class IProjectService(ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def update_project_status(self, project_id: int, new_status: str) ->Dict:
+        def update_project_status(self, project_id: int, new_status: str) -> Dict:
         """
         Update the status of a project.
 

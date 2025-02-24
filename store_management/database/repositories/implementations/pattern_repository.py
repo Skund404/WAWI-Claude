@@ -13,7 +13,7 @@ class PatternRepository(IPatternRepository, IBaseRepository):
     Optimized Pattern Repository with caching and performance enhancements.
     """
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, session: Session):
         """
         Initialize the Pattern Repository with database session and caching.
@@ -26,7 +26,7 @@ class PatternRepository(IPatternRepository, IBaseRepository):
         self._cache = SimpleCache() if PATTERN_CONFIG.cache_enabled else None
 
         @inject(MaterialService)
-        def _create_indexes(self):
+            def _create_indexes(self):
         """
         Create database indexes for performance optimization.
         """
@@ -41,7 +41,7 @@ class PatternRepository(IPatternRepository, IBaseRepository):
 
         @lru_cache(maxsize=PATTERN_CONFIG.cache_max_size)
     @inject(MaterialService)
-    def get_by_id(self, pattern_id: int) ->Pattern:
+        def get_by_id(self, pattern_id: int) -> Pattern:
         """
         Retrieve a pattern by its unique identifier with caching and prefetching.
 
@@ -65,15 +65,15 @@ class PatternRepository(IPatternRepository, IBaseRepository):
                 raise ApplicationError(
                     f'Pattern with ID {pattern_id} not found')
             if self._cache:
-                self._cache.set(f'pattern_{pattern_id}', pattern, timeout=
-                    PATTERN_CONFIG.cache_ttl_seconds)
+                self._cache.set(
+                    f'pattern_{pattern_id}', pattern, timeout=PATTERN_CONFIG.cache_ttl_seconds)
             return pattern
         except Exception as e:
             logger.error(f'Error retrieving pattern: {e}')
             raise ApplicationError(f'Could not retrieve pattern: {e}')
 
         @inject(MaterialService)
-        def get_by_skill_level(self, skill_level: SkillLevel) ->List[Pattern]:
+            def get_by_skill_level(self, skill_level: SkillLevel) -> List[Pattern]:
         """
         Retrieve patterns matching a specific skill level with pagination and caching.
 
@@ -90,18 +90,18 @@ class PatternRepository(IPatternRepository, IBaseRepository):
                 return cached_patterns
         try:
             patterns = self._session.query(Pattern).filter(Pattern.
-                skill_level == skill_level).options(joinedload(Pattern.
-                components)).limit(PATTERN_CONFIG.query_prefetch_limit).all()
+                                                           skill_level == skill_level).options(joinedload(Pattern.
+                                                                                                          components)).limit(PATTERN_CONFIG.query_prefetch_limit).all()
             if self._cache:
                 self._cache.set(cache_key, patterns, timeout=PATTERN_CONFIG
-                    .cache_ttl_seconds)
+                                .cache_ttl_seconds)
             return patterns
         except Exception as e:
             logger.error(f'Error retrieving patterns by skill level: {e}')
             return []
 
         @inject(MaterialService)
-        def search_by_criteria(self, criteria: Dict[str, Any]) ->List[Pattern]:
+            def search_by_criteria(self, criteria: Dict[str, Any]) -> List[Pattern]:
         """
         Search patterns using flexible criteria with performance optimizations.
 
@@ -133,14 +133,14 @@ class PatternRepository(IPatternRepository, IBaseRepository):
                 PATTERN_CONFIG.query_prefetch_limit).all()
             if self._cache:
                 self._cache.set(cache_key, results, timeout=PATTERN_CONFIG.
-                    cache_ttl_seconds)
+                                cache_ttl_seconds)
             return results
         except Exception as e:
             logger.error(f'Error searching patterns: {e}')
             return []
 
         @inject(MaterialService)
-        def add(self, pattern: Pattern) ->Pattern:
+            def add(self, pattern: Pattern) -> Pattern:
         """
         Add a new pattern to the database with cache invalidation.
 
@@ -170,7 +170,7 @@ class PatternRepository(IPatternRepository, IBaseRepository):
             raise ApplicationError(f'Could not add pattern: {e}')
 
         @inject(MaterialService)
-        def _validate_pattern(self, pattern: Pattern) ->None:
+            def _validate_pattern(self, pattern: Pattern) -> None:
         """
         Validate pattern data before database operations with enhanced complexity checks.
 
@@ -187,14 +187,14 @@ class PatternRepository(IPatternRepository, IBaseRepository):
         if complexity_calc < 0 or complexity_calc > 10:
             errors.append(
                 f'Calculated complexity {complexity_calc} is out of acceptable range'
-                )
+            )
         if pattern.skill_level is None:
             errors.append('Skill level must be specified')
         if errors:
             raise ValidationError('\n'.join(errors))
 
         @inject(MaterialService)
-        def _calculate_pattern_complexity(self, pattern: Pattern) ->float:
+            def _calculate_pattern_complexity(self, pattern: Pattern) -> float:
         """
         Calculate pattern complexity using configurable weights.
 
@@ -206,14 +206,14 @@ class PatternRepository(IPatternRepository, IBaseRepository):
         """
         config = PATTERN_CONFIG
         components_complexity = len(pattern.components
-            ) * config.complexity_components_weight
+                                    ) * config.complexity_components_weight
         skill_level_map = {SkillLevel.BEGINNER: 1, SkillLevel.INTERMEDIATE:
-            5, SkillLevel.ADVANCED: 8, SkillLevel.EXPERT: 10}
+                           5, SkillLevel.ADVANCED: 8, SkillLevel.EXPERT: 10}
         skill_level_complexity = skill_level_map.get(pattern.skill_level, 1
-            ) * config.complexity_skill_level_weight
+                                                     ) * config.complexity_skill_level_weight
         material_types = set(component.material_type for component in
-            pattern.components)
+                             pattern.components)
         material_diversity = len(material_types
-            ) * config.complexity_material_diversity_weight
+                                 ) * config.complexity_material_diversity_weight
         return (components_complexity + skill_level_complexity +
-            material_diversity)
+                material_diversity)

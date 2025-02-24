@@ -1,11 +1,17 @@
 from di.core import inject
-from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+from services.interfaces import (
+    MaterialService,
+    ProjectService,
+    InventoryService,
+    OrderService,
+)
+
 """
 Script to fix validation_mixing.py syntax issues.
 """
 
 
-def fix_validation_mixing(project_root: Path) ->bool:
+def fix_validation_mixing(project_root: Path) -> bool:
     """
     Fix the validation_mixing.py file.
 
@@ -15,16 +21,18 @@ def fix_validation_mixing(project_root: Path) ->bool:
     Returns:
         bool: True if fix was successful
     """
-    file_path = (project_root / 'database' / 'sqlalchemy' / 'mixins' /
-        'validation_mixing.py')
+    file_path = (
+        project_root / "database" / "sqlalchemy" / "mixins" / "validation_mixing.py"
+    )
     if not file_path.exists():
-        print(f'Error: {file_path} not found')
+        print(f"Error: {file_path} not found")
         return False
-    backup_path = (file_path.parent /
-        f"{file_path.stem}_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.py"
-        )
+    backup_path = (
+        file_path.parent
+        / f"{file_path.stem}_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.py"
+    )
     shutil.copy2(file_path, backup_path)
-    print(f'Created backup at {backup_path}')
+    print(f"Created backup at {backup_path}")
     fixed_content = """# database/sqlalchemy/mixins/validation_mixing.py
 
 ""\"
@@ -50,7 +58,7 @@ class ValidationMixin(ABC):
     ""\"
 
     @inject(MaterialService)
-    def validate_required_fields(self, data: Dict[str, Any], required_fields: List[str]) -> bool:
+        def validate_required_fields(self, data: Dict[str, Any], required_fields: List[str]) -> bool:
         ""\"
         Validate that all required fields are present and not None.
 
@@ -152,7 +160,7 @@ class ValidationMixin(ABC):
             data: Dictionary containing field values
             field_pairs: List of field name tuples to compare
             comparison_func: Optional function to use for comparison
-                           Default is to check if first value <= second value
+                            Default is to check if first value <= second value
 
         Returns:
             bool: True if all field pairs pass validation
@@ -169,7 +177,7 @@ class ValidationMixin(ABC):
 
     @abstractmethod
     @inject(MaterialService)
-    def validate(self) -> bool:
+        def validate(self) -> bool:
         ""\"
         Validate the entire object.
 
@@ -182,7 +190,7 @@ class ValidationMixin(ABC):
         pass
 
     @inject(MaterialService)
-    def _validate_type(self, value: Any, expected_type: Type) -> bool:
+        def _validate_type(self, value: Any, expected_type: Type) -> bool:
         ""\"
         Internal helper to validate type of a value.
 
@@ -196,7 +204,7 @@ class ValidationMixin(ABC):
         return isinstance(value, expected_type)
 
     @inject(MaterialService)
-    def _validate_enum(self, value: Any, valid_values: List[Any]) -> bool:
+        def _validate_enum(self, value: Any, valid_values: List[Any]) -> bool:
         ""\"
         Internal helper to validate enum-like values.
 
@@ -210,16 +218,16 @@ class ValidationMixin(ABC):
         return value in valid_values
 """
     try:
-        with open(file_path, 'w', encoding='utf-8') as f:
+        with open(file_path, "w", encoding="utf-8") as f:
             f.write(fixed_content)
-        print(f'Successfully fixed {file_path}')
+        print(f"Successfully fixed {file_path}")
         return True
     except Exception as e:
-        print(f'Error writing fixed content: {e}')
+        print(f"Error writing fixed content: {e}")
         return False
 
 
-def main() ->None:
+def main() -> None:
     """Main entry point."""
     try:
         if len(sys.argv) > 1:
@@ -229,9 +237,9 @@ def main() ->None:
         success = fix_validation_mixing(project_root)
         sys.exit(0 if success else 1)
     except Exception as e:
-        print(f'Error: {e}')
+        print(f"Error: {e}")
         sys.exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

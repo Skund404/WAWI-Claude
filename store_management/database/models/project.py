@@ -23,13 +23,13 @@ class Project(Base, BaseModel, IProject, metaclass=ModelMetaclass):
     description = Column(Text, nullable=True)
     estimated_hours = Column(Float, nullable=False, default=0.0)
     material_budget = Column(Float, nullable=False, default=0.0)
-    status = Column(SQLAEnum(ProjectStatus), nullable=False, default=
-        ProjectStatus.PLANNED)
+    status = Column(SQLAEnum(ProjectStatus), nullable=False,
+                    default=ProjectStatus.PLANNED)
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, name: str, project_type: ProjectType, skill_level:
-        SkillLevel, description: Optional[str]=None, estimated_hours: float
-        =0.0, material_budget: float=0.0) ->None:
+                 SkillLevel, description: Optional[str] = None, estimated_hours: float
+                 = 0.0, material_budget: float = 0.0) -> None:
         """
         Initialize a new Project instance.
 
@@ -50,7 +50,7 @@ class Project(Base, BaseModel, IProject, metaclass=ModelMetaclass):
         self.status = ProjectStatus.PLANNED
 
         @inject(MaterialService)
-        def calculate_complexity(self) ->float:
+            def calculate_complexity(self) -> float:
         """
         Calculate the complexity score of the project.
 
@@ -61,14 +61,14 @@ class Project(Base, BaseModel, IProject, metaclass=ModelMetaclass):
             float: The calculated complexity score
         """
         complexity_map = {SkillLevel.BEGINNER: 1.0, SkillLevel.INTERMEDIATE:
-            2.0, SkillLevel.ADVANCED: 3.0, SkillLevel.EXPERT: 4.0}
+                          2.0, SkillLevel.ADVANCED: 3.0, SkillLevel.EXPERT: 4.0}
         base_complexity = complexity_map.get(self.skill_level, 1.0)
         hours_factor = min(1.0, self.estimated_hours / 10)
         component_factor = 1.0
         return base_complexity * (1 + hours_factor) * component_factor
 
         @inject(MaterialService)
-        def calculate_total_cost(self) ->float:
+            def calculate_total_cost(self) -> float:
         """
         Calculate the total cost of the project.
 
@@ -85,7 +85,7 @@ class Project(Base, BaseModel, IProject, metaclass=ModelMetaclass):
         return materials_cost + labor_cost
 
         @inject(MaterialService)
-        def update_status(self, new_status: ProjectStatus) ->None:
+            def update_status(self, new_status: ProjectStatus) -> None:
         """
         Update the project status.
 
@@ -95,7 +95,7 @@ class Project(Base, BaseModel, IProject, metaclass=ModelMetaclass):
         self.status = new_status
 
         @inject(MaterialService)
-        def validate(self) ->List[str]:
+            def validate(self) -> List[str]:
         """
         Validate the project data.
 
@@ -118,7 +118,7 @@ class Project(Base, BaseModel, IProject, metaclass=ModelMetaclass):
         return errors
 
         @inject(MaterialService)
-        def to_dict(self, exclude_fields: List[str]=None) ->Dict[str, Any]:
+            def to_dict(self, exclude_fields: List[str] = None) -> Dict[str, Any]:
         """
         Convert the project to a dictionary representation.
 
@@ -130,17 +130,17 @@ class Project(Base, BaseModel, IProject, metaclass=ModelMetaclass):
         """
         if exclude_fields is None:
             exclude_fields = []
-        project_dict = {'id': self.id, 'name': self.name, 'project_type': 
-            self.project_type.name if self.project_type else None,
-            'skill_level': self.skill_level.name if self.skill_level else
-            None, 'description': self.description, 'estimated_hours': self.
-            estimated_hours, 'material_budget': self.material_budget,
-            'status': self.status.name if self.status else None,
-            'complexity': self.calculate_complexity()}
+        project_dict = {'id': self.id, 'name': self.name, 'project_type':
+                        self.project_type.name if self.project_type else None,
+                        'skill_level': self.skill_level.name if self.skill_level else
+                        None, 'description': self.description, 'estimated_hours': self.
+                        estimated_hours, 'material_budget': self.material_budget,
+                        'status': self.status.name if self.status else None,
+                        'complexity': self.calculate_complexity()}
         if 'components' not in exclude_fields and hasattr(self, 'components'
-            ) and self.components:
+                                                          ) and self.components:
             project_dict['components'] = [comp.to_dict() for comp in self.
-                components]
+                                          components]
         for field in exclude_fields:
             if field in project_dict:
                 del project_dict[field]

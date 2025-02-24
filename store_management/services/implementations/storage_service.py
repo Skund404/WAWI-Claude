@@ -19,7 +19,7 @@ class StorageService(Service, IStorageService):
         _storage_repository (StorageRepository): Repository for storage-related database operations
     """
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, container):
         """
         Initialize the StorageService with a dependency injection container.
@@ -32,7 +32,7 @@ class StorageService(Service, IStorageService):
         self._logger = logging.getLogger(__name__)
 
         @inject(MaterialService)
-        def get_all_storage_locations(self) ->List[Dict[str, Any]]:
+            def get_all_storage_locations(self) -> List[Dict[str, Any]]:
         """
         Retrieve all storage locations from the system.
 
@@ -48,10 +48,10 @@ class StorageService(Service, IStorageService):
         except Exception as e:
             self._logger.error(f'Error retrieving storage locations: {str(e)}')
             raise ApplicationError('Failed to retrieve storage locations'
-                ) from e
+                                   ) from e
 
         @inject(MaterialService)
-        def get_storage_by_id(self, storage_id: int) ->Optional[Dict[str, Any]]:
+            def get_storage_by_id(self, storage_id: int) -> Optional[Dict[str, Any]]:
         """
         Retrieve a specific storage location by its unique identifier.
 
@@ -80,8 +80,8 @@ class StorageService(Service, IStorageService):
                 f'Failed to retrieve storage location {storage_id}') from e
 
         @inject(MaterialService)
-        def create_storage_location(self, storage_data: Dict[str, Any]) ->Dict[
-        str, Any]:
+            def create_storage_location(self, storage_data: Dict[str, Any]) -> Dict[
+                str, Any]:
         """
         Create a new storage location in the system.
 
@@ -99,7 +99,7 @@ class StorageService(Service, IStorageService):
             self._validate_storage_data(storage_data)
             new_storage = self._storage_repository.create(storage_data)
             self._logger.info(f'Created new storage location: {new_storage.id}'
-                )
+                              )
             return self._to_dict(new_storage)
         except ValidationError:
             raise
@@ -108,8 +108,8 @@ class StorageService(Service, IStorageService):
             raise ApplicationError('Failed to create storage location') from e
 
         @inject(MaterialService)
-        def update_storage_location(self, storage_id: int, storage_data: Dict[
-        str, Any]) ->Dict[str, Any]:
+            def update_storage_location(self, storage_id: int, storage_data: Dict[
+                str, Any]) -> Dict[str, Any]:
         """
         Update an existing storage location.
 
@@ -129,7 +129,7 @@ class StorageService(Service, IStorageService):
                 raise ValidationError('Invalid storage ID')
             self._validate_storage_data(storage_data, is_update=True)
             updated_storage = self._storage_repository.update(storage_id,
-                storage_data)
+                                                              storage_data)
             if not updated_storage:
                 raise ApplicationError(
                     f'Storage location {storage_id} not found')
@@ -144,7 +144,7 @@ class StorageService(Service, IStorageService):
                 f'Failed to update storage location {storage_id}') from e
 
         @inject(MaterialService)
-        def delete_storage_location(self, storage_id: int) ->bool:
+            def delete_storage_location(self, storage_id: int) -> bool:
         """
         Delete a storage location from the system.
 
@@ -175,8 +175,8 @@ class StorageService(Service, IStorageService):
                 f'Failed to delete storage location {storage_id}') from e
 
         @inject(MaterialService)
-        def search_storage_locations(self, search_term: str) ->List[Dict[str, Any]
-        ]:
+            def search_storage_locations(self, search_term: str) -> List[Dict[str, Any]
+                                                                     ]:
         """
         Search for storage locations based on a search term.
 
@@ -203,7 +203,7 @@ class StorageService(Service, IStorageService):
             raise ApplicationError('Failed to search storage locations') from e
 
         @inject(MaterialService)
-        def get_storage_status(self, storage_id: int) ->Optional[Dict[str, Any]]:
+            def get_storage_status(self, storage_id: int) -> Optional[Dict[str, Any]]:
         """
         Get the current status of a specific storage location.
 
@@ -235,7 +235,7 @@ class StorageService(Service, IStorageService):
                 f'Failed to retrieve storage status for {storage_id}') from e
 
         @inject(MaterialService)
-        def _to_dict(self, storage) ->Dict[str, Any]:
+            def _to_dict(self, storage) -> Dict[str, Any]:
         """
         Convert a storage model instance to a dictionary.
 
@@ -246,13 +246,13 @@ class StorageService(Service, IStorageService):
             Dict[str, Any]: Dictionary representation of the storage
         """
         return {'id': storage.id, 'name': storage.name, 'location': storage
-            .location, 'capacity': storage.capacity, 'current_occupancy':
-            storage.current_occupancy, 'type': storage.type, 'description':
-            storage.description, 'status': storage.status}
+                .location, 'capacity': storage.capacity, 'current_occupancy':
+                storage.current_occupancy, 'type': storage.type, 'description':
+                storage.description, 'status': storage.status}
 
         @inject(MaterialService)
-        def _validate_storage_data(self, storage_data: Dict[str, Any],
-        is_update: bool=False):
+            def _validate_storage_data(self, storage_data: Dict[str, Any],
+                                   is_update: bool = False):
         """
         Validate storage location data before creation or update.
 

@@ -6,7 +6,7 @@ T = TypeVar('T')
 class Service(abc.ABC, Generic[T]):
     """Base class for services that use dependency injection."""
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, container: DependencyContainer):
         """
         Initialize the service with a dependency container.
@@ -17,7 +17,7 @@ class Service(abc.ABC, Generic[T]):
         self._container = container
 
         @inject(MaterialService)
-        def get_dependency(self, dependency_type: Type[T]) ->T:
+            def get_dependency(self, dependency_type: Type[T]) -> T:
         """
         Get a dependency from the container.
 

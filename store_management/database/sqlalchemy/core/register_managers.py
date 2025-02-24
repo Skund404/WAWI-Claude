@@ -1,5 +1,11 @@
 from di.core import inject
-from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+from services.interfaces import (
+    MaterialService,
+    ProjectService,
+    InventoryService,
+    OrderService,
+)
+
 """
 database/sqlalchemy/core/register_managers.py
 Registers specialized managers for models.

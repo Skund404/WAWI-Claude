@@ -2,6 +2,8 @@
 
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+
+
 class SupplierService(Service, ISupplierService):
     """
     Implementation of the Supplier Service.
@@ -9,8 +11,8 @@ class SupplierService(Service, ISupplierService):
     Provides methods for managing supplier-related operations.
     """
 
-        @inject(MaterialService)
-        def __init__(self, session: Optional[Session]=None):
+    @inject(MaterialService)
+        def __init__(self, session: Optional[Session] = None):
         """
         Initialize the Supplier Service.
 
@@ -22,7 +24,7 @@ class SupplierService(Service, ISupplierService):
         self._logger = logging.getLogger(__name__)
 
         @inject(MaterialService)
-        def get_all_suppliers(self) ->List[Dict[str, Any]]:
+            def get_all_suppliers(self) -> List[Dict[str, Any]]:
         """
         Retrieve all suppliers.
 
@@ -37,7 +39,7 @@ class SupplierService(Service, ISupplierService):
             raise
 
         @inject(MaterialService)
-        def get_supplier_by_id(self, supplier_id: int) ->Optional[Dict[str, Any]]:
+            def get_supplier_by_id(self, supplier_id: int) -> Optional[Dict[str, Any]]:
         """
         Retrieve a specific supplier by ID.
 
@@ -55,7 +57,7 @@ class SupplierService(Service, ISupplierService):
             raise
 
         @inject(MaterialService)
-        def create_supplier(self, supplier_data: Dict[str, Any]) ->Dict[str, Any]:
+            def create_supplier(self, supplier_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Create a new supplier.
 
@@ -80,8 +82,8 @@ class SupplierService(Service, ISupplierService):
             raise
 
         @inject(MaterialService)
-        def update_supplier(self, supplier_id: int, supplier_data: Dict[str, Any]
-        ) ->Dict[str, Any]:
+            def update_supplier(self, supplier_id: int, supplier_data: Dict[str, Any]
+                            ) -> Dict[str, Any]:
         """
         Update an existing supplier.
 
@@ -107,7 +109,7 @@ class SupplierService(Service, ISupplierService):
             raise
 
         @inject(MaterialService)
-        def delete_supplier(self, supplier_id: int) ->bool:
+            def delete_supplier(self, supplier_id: int) -> bool:
         """
         Delete a supplier.
 
@@ -130,8 +132,8 @@ class SupplierService(Service, ISupplierService):
             raise
 
         @inject(MaterialService)
-        def get_supplier_performance(self, supplier_id: int, start_date:
-        datetime, end_date: datetime) ->Dict[str, Any]:
+            def get_supplier_performance(self, supplier_id: int, start_date:
+                                     datetime, end_date: datetime) -> Dict[str, Any]:
         """
         Get performance metrics for a specific supplier.
 
@@ -159,7 +161,7 @@ class SupplierService(Service, ISupplierService):
             raise
 
         @inject(MaterialService)
-        def generate_supplier_report(self) ->List[Dict[str, Any]]:
+            def generate_supplier_report(self) -> List[Dict[str, Any]]:
         """
         Generate a comprehensive report of all suppliers.
 
@@ -173,7 +175,7 @@ class SupplierService(Service, ISupplierService):
                 end_date = datetime.now()
                 start_date = end_date - timedelta(days=30)
                 performance = self.get_supplier_performance(supplier.id,
-                    start_date, end_date)
+                                                            start_date, end_date)
                 supplier_report = supplier.to_dict()
                 supplier_report.update(performance)
                 report.append(supplier_report)
@@ -183,7 +185,7 @@ class SupplierService(Service, ISupplierService):
             raise
 
         @inject(MaterialService)
-        def _calculate_on_time_delivery(self, orders: List['Order']) ->float:
+            def _calculate_on_time_delivery(self, orders: List['Order']) -> float:
         """
         Calculate on-time delivery rate for a set of orders.
 
@@ -196,5 +198,5 @@ class SupplierService(Service, ISupplierService):
         if not orders:
             return 0.0
         on_time_deliveries = sum(1 for order in orders if order.
-            delivery_date <= order.expected_delivery_date)
+                                 delivery_date <= order.expected_delivery_date)
         return on_time_deliveries / len(orders) * 100

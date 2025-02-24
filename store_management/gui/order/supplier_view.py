@@ -2,20 +2,22 @@
 
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+
+
 class SupplierView(ttk.Frame):
 
         @inject(MaterialService)
-        def handle_return(self, event=None):
+            def handle_return(self, event=None):
         """Handle Return key press"""
         pass
 
         @inject(MaterialService)
-        def handle_escape(self, event=None):
+            def handle_escape(self, event=None):
         """Handle Escape key press"""
         pass
 
         @inject(MaterialService)
-        def show_search_dialog(self):
+            def show_search_dialog(self):
         """Open dialog to search suppliers"""
         try:
             search_dialog = tk.Toplevel(self)
@@ -65,8 +67,8 @@ class SupplierView(ttk.Frame):
                 finally:
                     self.db.disconnect()
             button_frame = ttk.Frame(search_dialog)
-            button_frame.grid(row=len(search_fields), column=0, columnspan=
-                2, pady=10)
+            button_frame.grid(row=len(search_fields),
+                              column=0, columnspan=2, pady=10)
             ttk.Button(button_frame, text='Search', command=perform_search
                 ).pack(side=tk.LEFT, padx=5)
             ttk.Button(button_frame, text='Cancel', command=search_dialog.
@@ -77,7 +79,7 @@ class SupplierView(ttk.Frame):
             ErrorHandler.show_error('Dialog Error', error_msg, e)
 
         @inject(MaterialService)
-        def show_filter_dialog(self):
+            def show_filter_dialog(self):
         """Open dialog to filter suppliers"""
         try:
             filter_dialog = tk.Toplevel(self)
@@ -106,8 +108,8 @@ class SupplierView(ttk.Frame):
                 label = ttk.Label(filter_dialog, text=field.replace('_',
                     ' ').title())
                 label.grid(row=row, column=0, padx=5, pady=5, sticky='w')
-                combo = ttk.Combobox(filter_dialog, values=options, state=
-                    'readonly', width=30)
+                combo = ttk.Combobox(
+                    filter_dialog, values=options, state='readonly', width=30)
                 combo.set('All')
                 combo.grid(row=row, column=1, padx=5, pady=5)
                 filter_widgets[field] = combo
@@ -169,7 +171,7 @@ class SupplierView(ttk.Frame):
 
         @check_database_connection
     @inject(MaterialService)
-    def save_table(self):
+        def save_table(self):
         """Save the current table data to a file"""
         try:
             file_path = filedialog.asksaveasfilename(defaultextension=
@@ -195,7 +197,7 @@ class SupplierView(ttk.Frame):
             ErrorHandler.show_error('Save Error', error_msg, e)
 
         @inject(MaterialService)
-        def __init__(self, parent):
+            def __init__(self, parent):
         try:
             super().__init__(parent)
             self.db = DatabaseManager(get_database_path())
@@ -226,7 +228,7 @@ class SupplierView(ttk.Frame):
             raise
 
         @inject(MaterialService)
-        def setup_toolbar(self):
+            def setup_toolbar(self):
         """Create the toolbar with all buttons"""
         toolbar = ttk.Frame(self)
         toolbar.pack(fill=tk.X, padx=5, pady=5)
@@ -252,7 +254,7 @@ class SupplierView(ttk.Frame):
             ).pack(side=tk.RIGHT, padx=2)
 
         @inject(MaterialService)
-        def setup_table(self):
+            def setup_table(self):
         """Create the main table view"""
         table_frame = ttk.Frame(self)
         table_frame.pack(expand=True, fill='both', padx=5, pady=5)
@@ -284,7 +286,7 @@ class SupplierView(ttk.Frame):
 
         @check_database_connection
     @inject(MaterialService)
-    def load_data(self):
+        def load_data(self):
         """Load supplier data from the database and populate the treeview"""
         try:
             logger.debug('Loading supplier data')
@@ -310,12 +312,12 @@ class SupplierView(ttk.Frame):
             raise
 
         @inject(MaterialService)
-        def load_table(self):
+            def load_table(self):
         """Alias for load_data method"""
         self.load_data()
 
         @inject(MaterialService)
-        def reset_view(self):
+            def reset_view(self):
         """Reset the view to show all suppliers"""
         try:
             logger.debug('Resetting view')
@@ -327,7 +329,7 @@ class SupplierView(ttk.Frame):
             ErrorHandler.show_error('Reset Error', error_msg, e)
 
         @inject(MaterialService)
-        def show_add_dialog(self):
+            def show_add_dialog(self):
         """Open dialog to add a new supplier"""
         try:
             add_dialog = tk.Toplevel(self)
@@ -401,7 +403,7 @@ class SupplierView(ttk.Frame):
 
         @check_database_connection
     @inject(MaterialService)
-    def delete_selected(self, event=None):
+        def delete_selected(self, event=None):
         """Delete selected supplier(s)"""
         try:
             selected_items = self.tree.selection()
@@ -440,7 +442,7 @@ class SupplierView(ttk.Frame):
             ErrorHandler.show_error('Delete Error', error_msg, e)
 
         @inject(MaterialService)
-        def on_double_click(self, event):
+            def on_double_click(self, event):
         """Handle double-click event for editing"""
         try:
             selected_item = self.tree.selection()
@@ -457,7 +459,7 @@ class SupplierView(ttk.Frame):
             ErrorHandler.show_error('Edit Error', error_msg, e)
 
         @inject(MaterialService)
-        def start_cell_edit(self, item, column):
+            def start_cell_edit(self, item, column):
         """Start editing a cell"""
         try:
             current_value = self.tree.set(item, column)
@@ -509,7 +511,7 @@ class SupplierView(ttk.Frame):
             ErrorHandler.show_error('Edit Error', error_msg, e)
 
         @inject(MaterialService)
-        def undo(self):
+            def undo(self):
         """Undo last action"""
         try:
             if not self.undo_stack:
@@ -551,7 +553,7 @@ class SupplierView(ttk.Frame):
             self.db.disconnect()
 
         @inject(MaterialService)
-        def redo(self):
+            def redo(self):
         """Redo last undone action"""
         try:
             if not self.redo_stack:
@@ -590,7 +592,7 @@ class SupplierView(ttk.Frame):
             self.db.disconnect()
 
         @inject(MaterialService)
-        def sort_column(self, column):
+            def sort_column(self, column):
         """Sort tree contents when a column header is clicked"""
         try:
             logger.debug(f'Sorting by column: {column}')

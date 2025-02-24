@@ -2,12 +2,14 @@
 
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+
+
 class IPatternService(ABC):
     """Interface for pattern management service."""
 
-        @abstractmethod
+    @abstractmethod
     @inject(MaterialService)
-    def get_all_patterns(self) ->List[Any]:
+        def get_all_patterns(self) -> List[Any]:
         """
         Get all available patterns.
 
@@ -18,7 +20,7 @@ class IPatternService(ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def get_pattern_by_id(self, pattern_id: int) ->Optional[Any]:
+        def get_pattern_by_id(self, pattern_id: int) -> Optional[Any]:
         """
         Get pattern by ID.
 
@@ -32,7 +34,7 @@ class IPatternService(ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def create_pattern(self, pattern_data: Dict[str, Any]) ->Any:
+        def create_pattern(self, pattern_data: Dict[str, Any]) -> Any:
         """
         Create a new pattern.
 
@@ -46,8 +48,8 @@ class IPatternService(ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def update_pattern(self, pattern_id: int, pattern_data: Dict[str, Any]
-        ) ->Optional[Any]:
+        def update_pattern(self, pattern_id: int, pattern_data: Dict[str, Any]
+                       ) -> Optional[Any]:
         """
         Update existing pattern.
 
@@ -62,7 +64,7 @@ class IPatternService(ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def delete_pattern(self, pattern_id: int) ->bool:
+        def delete_pattern(self, pattern_id: int) -> bool:
         """
         Delete pattern by ID.
 
@@ -76,8 +78,8 @@ class IPatternService(ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def search_patterns(self, search_term: str, search_fields: List[str]
-        ) ->List[Any]:
+        def search_patterns(self, search_term: str, search_fields: List[str]
+                        ) -> List[Any]:
         """
         Search patterns based on criteria.
 
@@ -92,8 +94,8 @@ class IPatternService(ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def calculate_material_requirements(self, pattern_id: int, quantity: int=1
-        ) ->Dict[str, float]:
+        def calculate_material_requirements(self, pattern_id: int, quantity: int = 1
+                                        ) -> Dict[str, float]:
         """
         Calculate material requirements for pattern.
 
@@ -108,7 +110,7 @@ class IPatternService(ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def validate_pattern(self, pattern_id: int) ->Dict[str, Any]:
+        def validate_pattern(self, pattern_id: int) -> Dict[str, Any]:
         """
         Validate pattern data and requirements.
 

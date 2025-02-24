@@ -9,9 +9,9 @@ class TransactionMixin:
     This mixin provides methods to run operations in transactions and handle errors.
     """
 
-        @contextmanager
+    @contextmanager
     @inject(MaterialService)
-    def run_in_transaction(self):
+        def run_in_transaction(self):
         """Run operations in a transaction with error handling.
 
         Usage:
@@ -25,8 +25,8 @@ class TransactionMixin:
             yield session
 
         @inject(MaterialService)
-        def execute_with_result(self, operation: Callable, *args, **kwargs) ->Dict[
-        str, Any]:
+            def execute_with_result(self, operation: Callable, *args, **kwargs) -> Dict[
+                str, Any]:
         """Execute an operation in a transaction and return a standard result.
 
         Args:

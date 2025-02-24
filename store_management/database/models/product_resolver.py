@@ -19,7 +19,7 @@ class ProductModelResolver:
     _storage_model = None
 
         @classmethod
-    def set_supplier_model(cls, supplier_model: Type) ->None:
+    def set_supplier_model(cls, supplier_model: Type) -> None:
         """
         Set the supplier model class to be used in relationships.
 
@@ -29,7 +29,7 @@ class ProductModelResolver:
         cls._supplier_model = supplier_model
 
         @classmethod
-    def set_order_item_model(cls, order_item_model: Type) ->None:
+    def set_order_item_model(cls, order_item_model: Type) -> None:
         """
         Set the order item model class to be used in relationships.
 
@@ -39,7 +39,7 @@ class ProductModelResolver:
         cls._order_item_model = order_item_model
 
         @classmethod
-    def set_storage_model(cls, storage_model: Type) ->None:
+    def set_storage_model(cls, storage_model: Type) -> None:
         """
         Set the storage model class to be used in relationships.
 
@@ -49,7 +49,7 @@ class ProductModelResolver:
         cls._storage_model = storage_model
 
         @classmethod
-    def get_supplier_relationship(cls) ->relationship:
+    def get_supplier_relationship(cls) -> relationship:
         """
         Get the relationship to the supplier model.
 
@@ -65,7 +65,7 @@ class ProductModelResolver:
             back_populates='products')
 
         @classmethod
-    def get_order_items_relationship(cls) ->relationship:
+    def get_order_items_relationship(cls) -> relationship:
         """
         Get the relationship to the order items model.
 
@@ -77,11 +77,10 @@ class ProductModelResolver:
         """
         if cls._order_item_model is None:
             return relationship('OrderItem', back_populates='product')
-        return relationship(cls._order_item_model.__name__, back_populates=
-            'product')
+        return relationship(cls._order_item_model.__name__, back_populates='product')
 
         @classmethod
-    def get_storage_relationship(cls) ->relationship:
+    def get_storage_relationship(cls) -> relationship:
         """
         Get the relationship to the storage model.
 
@@ -92,13 +91,11 @@ class ProductModelResolver:
             RuntimeError: If the storage model has not been set.
         """
         if cls._storage_model is None:
-            return relationship('Storage', foreign_keys=
-                'Product.storage_id', back_populates='products')
-        return relationship(cls._storage_model.__name__, foreign_keys=
-            'Product.storage_id', back_populates='products')
+            return relationship('Storage', foreign_keys='Product.storage_id', back_populates='products')
+        return relationship(cls._storage_model.__name__, foreign_keys='Product.storage_id', back_populates='products')
 
 
-def create_product_model(base_classes: Tuple[Type, ...]) ->Type:
+def create_product_model(base_classes: Tuple[Type, ...]) -> Type:
     """
     Create a Product model class with the given base classes.
 
@@ -108,7 +105,6 @@ def create_product_model(base_classes: Tuple[Type, ...]) ->Type:
     Returns:
         The created Product model class.
     """
-
 
     class Product(*base_classes):
         """
@@ -142,9 +138,9 @@ def create_product_model(base_classes: Tuple[Type, ...]) ->Type:
             onupdate=datetime.datetime.utcnow)
 
                 @inject(MaterialService)
-                def __init__(self, name: str, price: float, cost_price: float,
-            description: Optional[str]=None, sku: Optional[str]=None,
-            material_type: Optional[str]=None) ->None:
+                    def __init__(self, name: str, price: float, cost_price: float,
+            description: Optional[str] = None, sku: Optional[str] = None,
+            material_type: Optional[str] = None) -> None:
             """
             Initialize a new Product instance.
 
@@ -167,7 +163,7 @@ def create_product_model(base_classes: Tuple[Type, ...]) ->Type:
             self.is_featured = False
 
                 @inject(MaterialService)
-                def __repr__(self) ->str:
+                    def __repr__(self) ->str:
             """
             Get a string representation of the product.
 
@@ -179,7 +175,7 @@ def create_product_model(base_classes: Tuple[Type, ...]) ->Type:
                 )
 
                 @inject(MaterialService)
-                def update_stock(self, quantity_change: int, transaction_type: str=
+                    def update_stock(self, quantity_change: int, transaction_type: str=
             'manual', notes: Optional[str]=None) ->None:
             """
             Update the product stock quantity.
@@ -201,7 +197,7 @@ def create_product_model(base_classes: Tuple[Type, ...]) ->Type:
             self.update_timestamp()
 
                 @inject(MaterialService)
-                def is_low_stock(self) ->bool:
+                    def is_low_stock(self) ->bool:
             """
             Check if the product stock is below the reorder point.
 
@@ -211,7 +207,7 @@ def create_product_model(base_classes: Tuple[Type, ...]) ->Type:
             return self.stock_quantity <= self.reorder_point
 
                 @inject(MaterialService)
-                def calculate_profit_margin(self) ->float:
+                    def calculate_profit_margin(self) ->float:
             """
             Calculate the profit margin percentage for this product.
 
@@ -225,19 +221,19 @@ def create_product_model(base_classes: Tuple[Type, ...]) ->Type:
             return round(margin, 2)
 
                 @inject(MaterialService)
-                def activate(self) ->None:
+                    def activate(self) ->None:
             """Activate this product."""
             self.is_active = True
             self.update_timestamp()
 
                 @inject(MaterialService)
-                def deactivate(self) ->None:
+                    def deactivate(self) ->None:
             """Deactivate this product."""
             self.is_active = False
             self.update_timestamp()
 
                 @inject(MaterialService)
-                def to_dict(self, include_details: bool=False) ->Dict[str, Any]:
+                    def to_dict(self, include_details: bool=False) ->Dict[str, Any]:
             """
             Convert the product instance to a dictionary.
 

@@ -17,8 +17,8 @@ class ModelMetaclass(DeclarativeBase.__class__, ABCMeta):
     and Python's ABC (Abstract Base Class) without conflict.
     """
 
-        def __new__(mcs, name: str, bases: Tuple[Type, ...], attrs: Dict[str, Any]
-        ) ->Type:
+    def __new__(mcs, name: str, bases: Tuple[Type, ...], attrs: Dict[str, Any]
+                ) -> Type:
         """
         Create a new class with this metaclass.
 
@@ -42,7 +42,7 @@ class BaseModel(DeclarativeBase, metaclass=ModelMetaclass):
     SQLAlchemy ORM features and ABC features.
     """
 
-        @classmethod
+    @classmethod
     def __subclasshook__(cls, C):
         """
         Special method to customize the behavior of issubclass() calls.
@@ -53,6 +53,6 @@ class BaseModel(DeclarativeBase, metaclass=ModelMetaclass):
 
         Returns:
             bool or NotImplemented: True if C is considered a subclass, False if not,
-                                   NotImplemented if the hook cannot decide
+            NotImplemented if the hook cannot decide
         """
         return NotImplemented

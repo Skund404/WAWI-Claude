@@ -3,8 +3,8 @@ from services.interfaces import MaterialService, ProjectService, InventoryServic
 """
 Shopping list view implementation that displays shopping lists.
 """
-logging.basicConfig(level=logging.INFO, format=
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 
@@ -13,7 +13,7 @@ class ShoppingListView(BaseView):
     View for displaying and managing shopping lists.
     """
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, parent, app):
         """
         Initialize the shopping list view.
@@ -30,11 +30,11 @@ class ShoppingListView(BaseView):
         self.load_data()
 
         @inject(MaterialService)
-        def _find_database_file(self):
+            def _find_database_file(self):
         """Find the SQLite database file."""
         possible_locations = ['store_management.db',
-            'data/store_management.db', 'database/store_management.db',
-            'config/database/store_management.db']
+                              'data/store_management.db', 'database/store_management.db',
+                              'config/database/store_management.db']
         for location in possible_locations:
             if os.path.exists(location):
                 return location
@@ -48,28 +48,28 @@ class ShoppingListView(BaseView):
         return None
 
         @inject(MaterialService)
-        def setup_ui(self):
+            def setup_ui(self):
         """Set up the user interface components."""
         self.create_toolbar()
         self.create_treeview()
 
         @inject(MaterialService)
-        def create_toolbar(self):
+            def create_toolbar(self):
         """Create the toolbar with buttons."""
         toolbar = ttk.Frame(self)
         toolbar.pack(side=tk.TOP, fill=tk.X, padx=5, pady=5)
         ttk.Button(toolbar, text='Add List', command=self.show_add_dialog
-            ).pack(side=tk.LEFT, padx=2)
+                   ).pack(side=tk.LEFT, padx=2)
         ttk.Button(toolbar, text='Delete Selected', command=lambda e=None:
-            self.delete_selected(e)).pack(side=tk.LEFT, padx=2)
+                   self.delete_selected(e)).pack(side=tk.LEFT, padx=2)
         ttk.Button(toolbar, text='Search', command=self.show_search_dialog
-            ).pack(side=tk.LEFT, padx=2)
-        ttk.Button(toolbar, text='Refresh', command=self.load_data).pack(side
-            =tk.LEFT, padx=2)
+                   ).pack(side=tk.LEFT, padx=2)
+        ttk.Button(toolbar, text='Refresh', command=self.load_data).pack(
+            side=tk.LEFT, padx=2)
         logger.debug('Toolbar created')
 
         @inject(MaterialService)
-        def create_treeview(self):
+            def create_treeview(self):
         """Create the treeview for displaying shopping lists."""
         frame = ttk.Frame(self)
         frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
@@ -91,7 +91,7 @@ class ShoppingListView(BaseView):
         self.tree.column('total', width=100)
         vsb = ttk.Scrollbar(frame, orient='vertical', command=self.tree.yview)
         hsb = ttk.Scrollbar(frame, orient='horizontal', command=self.tree.xview
-            )
+                            )
         self.tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
         vsb.pack(side=tk.RIGHT, fill=tk.Y)
         hsb.pack(side=tk.BOTTOM, fill=tk.X)
@@ -100,7 +100,7 @@ class ShoppingListView(BaseView):
         logger.debug('Treeview created')
 
         @inject(MaterialService)
-        def load_data(self):
+            def load_data(self):
         """Load shopping lists from the database and display them."""
         try:
             logger.info('Loading shopping list data')
@@ -117,7 +117,7 @@ class ShoppingListView(BaseView):
                 SELECT name FROM sqlite_master 
                 WHERE type='table' AND name='shopping_list';
             """
-                )
+            )
             if not cursor.fetchone():
                 logger.info(
                     "Shopping list table doesn't exist. Creating sample data.")
@@ -125,18 +125,18 @@ class ShoppingListView(BaseView):
                     "Shopping list table doesn't exist - showing sample data")
                 today = datetime.now().strftime('%Y-%m-%d')
                 sample_data = [(1, 'Weekly Groceries', today, 'Active',
-                    'High', 15, '$125.50'), (2, 'Office Supplies', today,
-                    'Pending', 'Medium', 8, '$45.75'), (3, 'Party Supplies',
-                    today, 'Complete', 'Low', 12, '$78.25'), (4,
-                    'Emergency Items', today, 'Active', 'Urgent', 5,
-                    '$32.99'), (5, 'Home Improvement', today, 'Draft',
-                    'Low', 3, '$215.00')]
+                                'High', 15, '$125.50'), (2, 'Office Supplies', today,
+                                                         'Pending', 'Medium', 8, '$45.75'), (3, 'Party Supplies',
+                                                                                             today, 'Complete', 'Low', 12, '$78.25'), (4,
+                                                                                                                                       'Emergency Items', today, 'Active', 'Urgent', 5,
+                                                                                                                                       '$32.99'), (5, 'Home Improvement', today, 'Draft',
+                                                                                                                                                   'Low', 3, '$215.00')]
                 for shopping_list in sample_data:
                     self.tree.insert('', tk.END, values=shopping_list)
                 return
             cursor.execute(
                 'SELECT id, name, date, status, priority, items, total FROM shopping_list;'
-                )
+            )
             rows = cursor.fetchall()
             for row in rows:
                 self.tree.insert('', tk.END, values=row)
@@ -144,37 +144,37 @@ class ShoppingListView(BaseView):
             logger.info(f'Loaded {len(rows)} shopping lists')
         except Exception as e:
             logger.error(f'Error loading shopping list data: {str(e)}',
-                exc_info=True)
+                         exc_info=True)
             self.show_error('Data Load Error',
-                f'Failed to load shopping list data: {str(e)}')
+                            f'Failed to load shopping list data: {str(e)}')
         finally:
             if 'conn' in locals():
                 conn.close()
 
         @inject(MaterialService)
-        def show_add_dialog(self):
+            def show_add_dialog(self):
         """Show dialog to add a new shopping list."""
         logger.debug('Add dialog requested but not implemented')
         self.show_info('Not Implemented',
-            'Add shopping list functionality is not yet implemented.')
+                       'Add shopping list functionality is not yet implemented.')
 
         @inject(MaterialService)
-        def on_double_click(self, event):
+            def on_double_click(self, event):
         """Handle double-click on a shopping list item."""
         logger.debug('Double-click event received but not implemented')
         self.show_info('Not Implemented',
-            'Edit shopping list functionality is not yet implemented.')
+                       'Edit shopping list functionality is not yet implemented.')
 
         @inject(MaterialService)
-        def delete_selected(self, event):
+            def delete_selected(self, event):
         """Delete the selected shopping list."""
         logger.debug('Delete requested but not implemented')
         self.show_info('Not Implemented',
-            'Delete shopping list functionality is not yet implemented.')
+                       'Delete shopping list functionality is not yet implemented.')
 
         @inject(MaterialService)
-        def show_search_dialog(self):
+            def show_search_dialog(self):
         """Show search dialog."""
         logger.debug('Search requested but not implemented')
         self.show_info('Not Implemented',
-            'Search functionality is not yet implemented.')
+                       'Search functionality is not yet implemented.')

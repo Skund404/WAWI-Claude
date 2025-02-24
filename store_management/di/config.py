@@ -1,7 +1,7 @@
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
-logging.basicConfig(level=logging.INFO, format=
-    '%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 
@@ -15,7 +15,7 @@ class ServiceContainer:
     _instance = None
     _services: Dict[str, Any] = {}
 
-        def __new__(cls):
+    def __new__(cls):
         """
         Ensure only one instance of ServiceContainer is created.
 
@@ -29,7 +29,7 @@ class ServiceContainer:
 
         @classmethod
     def register_service(cls, interface: str, implementation: str,
-        singleton: bool=True) ->None:
+                         singleton: bool = True) -> None:
         """
         Register a service implementation for a given interface.
 
@@ -40,14 +40,14 @@ class ServiceContainer:
         """
         try:
             cls._services[interface] = {'implementation': implementation,
-                'singleton': singleton}
+                                        'singleton': singleton}
             logger.info(f'Registered service: {interface} -> {implementation}')
         except Exception as e:
             logger.error(f'Error registering service {interface}: {e}')
             raise
 
         @classmethod
-    def resolve(cls, interface: str) ->Any:
+    def resolve(cls, interface: str) -> Any:
         """
         Resolve and instantiate a service implementation for a given interface.
 
@@ -76,7 +76,7 @@ class ServiceContainer:
             if service_info.get('singleton', True):
                 if not hasattr(cls, f'_{class_name}_instance'):
                     setattr(cls, f'_{class_name}_instance',
-                        implementation_class())
+                            implementation_class())
                 return getattr(cls, f'_{class_name}_instance')
             return implementation_class()
         except (ImportError, AttributeError) as e:
@@ -84,7 +84,7 @@ class ServiceContainer:
             raise ValueError(f'Could not resolve service {interface}: {e}')
 
         @classmethod
-    def clear(cls) ->None:
+    def clear(cls) -> None:
         """
         Clear all registered services.
         """
@@ -92,7 +92,7 @@ class ServiceContainer:
         logger.info('All services cleared')
 
 
-def import_interface(module_path: str, interface_name: str) ->Type:
+def import_interface(module_path: str, interface_name: str) -> Type:
     """
     Dynamically import an interface class.
 
@@ -114,7 +114,7 @@ def import_interface(module_path: str, interface_name: str) ->Type:
         raise
 
 
-def configure_application_services() ->None:
+def configure_application_services() -> None:
     """
     Configure and register application services.
 

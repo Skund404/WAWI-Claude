@@ -14,9 +14,9 @@ class CircularImportResolver:
     """
     _registered_models: Dict[str, Type[DeclarativeBase]] = {}
 
-        @classmethod
+    @classmethod
     def register_model(cls, model_name: str, model_class: Type[DeclarativeBase]
-        ) ->None:
+                       ) -> None:
         """
         Register a model class with a given name.
 
@@ -27,7 +27,7 @@ class CircularImportResolver:
         cls._registered_models[model_name] = model_class
 
         @classmethod
-    def get_model(cls, model_name: str) ->Type[DeclarativeBase]:
+    def get_model(cls, model_name: str) -> Type[DeclarativeBase]:
         """
         Retrieve a registered model class.
 
@@ -45,7 +45,7 @@ class CircularImportResolver:
         return cls._registered_models[model_name]
 
         @classmethod
-    def clear_models(cls) ->None:
+    def clear_models(cls) -> None:
         """
         Clear all registered models.
         Useful for testing or resetting the resolver.
@@ -53,7 +53,7 @@ class CircularImportResolver:
         cls._registered_models.clear()
 
         @classmethod
-    def is_model_registered(cls, model_name: str) ->bool:
+    def is_model_registered(cls, model_name: str) -> bool:
         """
         Check if a model is registered.
 

@@ -2,19 +2,21 @@
 
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+
+
 class ShoppingListManager(BaseManager):
     """Specialized manager for ShoppingList model operations.
 
     This class extends BaseManager with shopping list-specific operations.
     """
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, session_factory):
         super().__init__(ShoppingList, session_factory)
 
         @inject(MaterialService)
-        def get_shopping_list_with_items(self, list_id: int) ->Optional[
-        ShoppingList]:
+            def get_shopping_list_with_items(self, list_id: int) -> Optional[
+                ShoppingList]:
         """Get shopping list with all its items.
 
         Args:
@@ -35,11 +37,11 @@ class ShoppingListManager(BaseManager):
                 return shopping_list
         except SQLAlchemyError as e:
             raise DatabaseError(f'Error getting shopping list with items: {e}'
-                ) from e
+                                ) from e
 
         @inject(MaterialService)
-        def create_shopping_list(self, data: Dict[str, Any], items: Optional[
-        List[Dict[str, Any]]]=None) ->ShoppingList:
+            def create_shopping_list(self, data: Dict[str, Any], items: Optional[
+                List[Dict[str, Any]]] = None) -> ShoppingList:
         """Create a new shopping list with optional items.
 
         Args:
@@ -61,7 +63,7 @@ class ShoppingListManager(BaseManager):
                 if items:
                     for item_data in items:
                         item = ShoppingListItem(**item_data,
-                            shopping_list_id=shopping_list.id)
+                                                shopping_list_id=shopping_list.id)
                         session.add(item)
                     session.commit()
                     session.refresh(shopping_list)
@@ -70,8 +72,8 @@ class ShoppingListManager(BaseManager):
             raise DatabaseError(f'Error creating shopping list: {e}') from e
 
         @inject(MaterialService)
-        def mark_item_purchased(self, item_id: int, purchase_data: Dict[str, Any]
-        ) ->None:
+            def mark_item_purchased(self, item_id: int, purchase_data: Dict[str, Any]
+                                ) -> None:
         """Mark a shopping list item as purchased.
 
         Args:
@@ -95,7 +97,7 @@ class ShoppingListManager(BaseManager):
             raise DatabaseError(f'Error marking item purchased: {e}') from e
 
         @inject(MaterialService)
-        def get_pending_items(self) ->List[ShoppingListItem]:
+            def get_pending_items(self) -> List[ShoppingListItem]:
         """Get all unpurchased shopping list items.
 
         Returns:
@@ -107,7 +109,7 @@ class ShoppingListManager(BaseManager):
         try:
             with self.session_scope() as session:
                 query = select(ShoppingListItem).where(ShoppingListItem.
-                    purchased == False)
+                                                       purchased == False)
                 result = session.execute(query)
                 pending_items = result.scalars().all()
                 return pending_items
@@ -115,7 +117,7 @@ class ShoppingListManager(BaseManager):
             raise DatabaseError(f'Error getting pending items: {e}') from e
 
         @inject(MaterialService)
-        def get_items_by_supplier(self, supplier_id: int) ->List[ShoppingListItem]:
+            def get_items_by_supplier(self, supplier_id: int) -> List[ShoppingListItem]:
         """Get shopping list items for a specific supplier.
 
         This is more complex as it needs to join through the part or leather
@@ -140,7 +142,7 @@ class ShoppingListManager(BaseManager):
             raise DatabaseError(f'Error getting supplier items: {e}') from e
 
         @inject(MaterialService)
-        def get_shopping_list_summary(self, list_id: int) ->Dict[str, Any]:
+            def get_shopping_list_summary(self, list_id: int) -> Dict[str, Any]:
         """Get a summary of a shopping list.
 
         Args:
@@ -157,11 +159,11 @@ class ShoppingListManager(BaseManager):
                 query = select(func.count(ShoppingListItem.id).label(
                     'total_items'), func.sum(ShoppingListItem.quantity).
                     label('total_quantity')).where(ShoppingListItem.
-                    shopping_list_id == list_id)
+                                                   shopping_list_id == list_id)
                 result = session.execute(query).one()
                 total_items, total_quantity = result
-                return {'total_items': total_items or 0, 'total_quantity': 
-                    total_quantity or 0}
+                return {'total_items': total_items or 0, 'total_quantity':
+                        total_quantity or 0}
         except SQLAlchemyError as e:
             raise DatabaseError(f'Error getting shopping list summary: {e}'
-                ) from e
+                                ) from e

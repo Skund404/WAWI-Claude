@@ -17,9 +17,9 @@ class BaseService(ABC, Generic[T]):
         _logger (logging.Logger): Logger for the service
     """
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, repository: IBaseRepository[T], unit_of_work:
-        Optional[IUnitOfWork]=None):
+                 Optional[IUnitOfWork] = None):
         """
         Initialize the base service with a repository and optional unit of work.
 
@@ -32,7 +32,7 @@ class BaseService(ABC, Generic[T]):
         self._logger = logging.getLogger(self.__class__.__name__)
 
         @inject(MaterialService)
-        def get_by_id(self, id: Any) ->Optional[T]:
+            def get_by_id(self, id: Any) -> Optional[T]:
         """
         Retrieve an entity by its unique identifier.
 
@@ -49,16 +49,16 @@ class BaseService(ABC, Generic[T]):
             entity = self._repository.get_by_id(id)
             if not entity:
                 raise NotFoundError(f'Entity with ID {id} not found', {'id':
-                    id})
+                                                                       id})
             return entity
         except Exception as e:
             self._logger.error(f'Error retrieving entity by ID {id}: {e}')
             raise ApplicationError(f'Failed to retrieve entity: {str(e)}',
-                {'id': id})
+                                   {'id': id})
 
         @inject(MaterialService)
-        def get_all(self, limit: Optional[int]=None, offset: Optional[int]=None
-        ) ->List[T]:
+            def get_all(self, limit: Optional[int] = None, offset: Optional[int] = None
+                    ) -> List[T]:
         """
         Retrieve all entities with optional pagination.
 
@@ -76,7 +76,7 @@ class BaseService(ABC, Generic[T]):
             raise ApplicationError('Failed to retrieve entities', {})
 
         @inject(MaterialService)
-        def create(self, data: Dict[str, Any]) ->T:
+            def create(self, data: Dict[str, Any]) -> T:
         """
         Create a new entity.
 
@@ -107,7 +107,7 @@ class BaseService(ABC, Generic[T]):
                 'input_data': data})
 
         @inject(MaterialService)
-        def update(self, id: Any, data: Dict[str, Any]) ->T:
+            def update(self, id: Any, data: Dict[str, Any]) -> T:
         """
         Update an existing entity.
 
@@ -140,7 +140,7 @@ class BaseService(ABC, Generic[T]):
                 'id': id, 'input_data': data})
 
         @inject(MaterialService)
-        def delete(self, id: Any) ->bool:
+            def delete(self, id: Any) -> bool:
         """
         Delete an entity by its identifier.
 
@@ -171,7 +171,7 @@ class BaseService(ABC, Generic[T]):
 
         @abstractmethod
     @inject(MaterialService)
-    def _validate_create_data(self, data: Dict[str, Any]) ->None:
+        def _validate_create_data(self, data: Dict[str, Any]) -> None:
         """
         Abstract method to validate data before entity creation.
 
@@ -187,8 +187,8 @@ class BaseService(ABC, Generic[T]):
 
         @abstractmethod
     @inject(MaterialService)
-    def _validate_update_data(self, existing_entity: T, update_data: Dict[
-        str, Any]) ->None:
+        def _validate_update_data(self, existing_entity: T, update_data: Dict[
+            str, Any]) -> None:
         """
         Abstract method to validate data before entity update.
 
@@ -204,8 +204,8 @@ class BaseService(ABC, Generic[T]):
         pass
 
         @inject(MaterialService)
-        def search(self, search_term: str, fields: Optional[List[str]]=None
-        ) ->List[T]:
+            def search(self, search_term: str, fields: Optional[List[str]] = None
+                   ) -> List[T]:
         """
         Search for entities based on a search term.
 
@@ -225,4 +225,4 @@ class BaseService(ABC, Generic[T]):
         except Exception as e:
             self._logger.error(f'Error searching entities: {e}')
             raise ApplicationError(f'Failed to search entities: {str(e)}',
-                {'search_term': search_term, 'fields': fields})
+                                   {'search_term': search_term, 'fields': fields})

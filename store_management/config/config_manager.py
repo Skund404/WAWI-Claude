@@ -2,6 +2,8 @@
 
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+
+
 class ConfigManager:
     """
     Centralized configuration management with environment support.
@@ -9,8 +11,8 @@ class ConfigManager:
     _config: Dict[str, Any] = {}
     _env: str = 'development'
 
-        @classmethod
-    def load_config(cls, config_path: Optional[str]=None):
+    @classmethod
+    def load_config(cls, config_path: Optional[str] = None):
         """
         Load configuration from file or environment.
 
@@ -19,7 +21,7 @@ class ConfigManager:
         """
         if not config_path:
             config_path = os.path.join(os.path.dirname(__file__),
-                f'{cls._env}_config.json')
+                                       f'{cls._env}_config.json')
         try:
             with open(config_path, 'r') as f:
                 cls._config = json.load(f)
@@ -32,7 +34,7 @@ class ConfigManager:
             cls._config = {}
 
         @classmethod
-    def get(cls, key: str, default: Any=None) ->Any:
+    def get(cls, key: str, default: Any = None) -> Any:
         """
         Get a configuration value.
 
@@ -66,7 +68,7 @@ class ConfigManager:
         cls.load_config()
 
         @classmethod
-    def get_database_path(cls) ->str:
+    def get_database_path(cls) -> str:
         """
         Get the database path from configuration.
 
@@ -76,7 +78,7 @@ class ConfigManager:
         db_path = cls.get('database.path')
         if not db_path:
             db_path = os.path.join(os.path.dirname(__file__), '..', 'data',
-                'store.db')
+                                   'store.db')
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
         return db_path
 

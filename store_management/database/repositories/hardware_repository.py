@@ -2,17 +2,19 @@
 
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+
+
 class HardwareRepository:
     """
     Repository for managing hardware with advanced querying capabilities.
     """
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, session: Session):
         self.session = session
 
         @inject(MaterialService)
-        def create_hardware(self, hardware_data: Dict[str, Any]) ->Hardware:
+            def create_hardware(self, hardware_data: Dict[str, Any]) -> Hardware:
         """
         Create a new hardware item with comprehensive validation.
 
@@ -36,7 +38,7 @@ class HardwareRepository:
         return hardware
 
         @inject(MaterialService)
-        def get_hardware_by_id(self, hardware_id: int) ->Optional[Hardware]:
+            def get_hardware_by_id(self, hardware_id: int) -> Optional[Hardware]:
         """
         Retrieve a hardware item by its ID.
 
@@ -47,14 +49,14 @@ class HardwareRepository:
             Optional[Hardware]: Retrieved hardware or None
         """
         return self.session.query(Hardware).filter(Hardware.id == hardware_id
-            ).first()
+                                                   ).first()
 
         @inject(MaterialService)
-        def search_hardware(self, hardware_type: Optional[HardwareType]=None,
-        material: Optional[HardwareMaterial]=None, finish: Optional[
-        HardwareFinish]=None, min_stock: Optional[int]=None, max_stock:
-        Optional[int]=None, min_load_capacity: Optional[float]=None,
-        max_load_capacity: Optional[float]=None) ->List[Hardware]:
+            def search_hardware(self, hardware_type: Optional[HardwareType] = None,
+                            material: Optional[HardwareMaterial] = None, finish: Optional[
+                HardwareFinish] = None, min_stock: Optional[int] = None, max_stock:
+                Optional[int] = None, min_load_capacity: Optional[float] = None,
+                max_load_capacity: Optional[float] = None) -> List[Hardware]:
         """
         Advanced search for hardware with multiple filtering options.
 
@@ -88,8 +90,8 @@ class HardwareRepository:
         return query.all()
 
         @inject(MaterialService)
-        def update_hardware(self, hardware_id: int, update_data: Dict[str, Any]
-        ) ->Optional[Hardware]:
+            def update_hardware(self, hardware_id: int, update_data: Dict[str, Any]
+                            ) -> Optional[Hardware]:
         """
         Update an existing hardware item.
 
@@ -116,7 +118,7 @@ class HardwareRepository:
         return hardware
 
         @inject(MaterialService)
-        def delete_hardware(self, hardware_id: int) ->bool:
+            def delete_hardware(self, hardware_id: int) -> bool:
         """
         Delete a hardware item.
 
@@ -139,8 +141,8 @@ class HardwareRepository:
             return False
 
         @inject(MaterialService)
-        def get_low_stock_hardware(self, include_zero_stock: bool=False) ->List[
-        Hardware]:
+            def get_low_stock_hardware(self, include_zero_stock: bool = False) -> List[
+                Hardware]:
         """
         Retrieve hardware items with low stock.
 
@@ -154,10 +156,10 @@ class HardwareRepository:
         if not include_zero_stock:
             query = query.filter(Hardware.current_stock > 0)
         return query.filter(Hardware.current_stock <= Hardware.
-            minimum_stock_level).all()
+                            minimum_stock_level).all()
 
         @inject(MaterialService)
-        def get_hardware_by_supplier(self, supplier_id: int) ->List[Hardware]:
+            def get_hardware_by_supplier(self, supplier_id: int) -> List[Hardware]:
         """
         Retrieve hardware items from a specific supplier.
 
@@ -168,10 +170,10 @@ class HardwareRepository:
             List[Hardware]: Hardware items from the specified supplier
         """
         return self.session.query(Hardware).filter(Hardware.supplier_id ==
-            supplier_id).all()
+                                                   supplier_id).all()
 
         @inject(MaterialService)
-        def generate_hardware_performance_report(self) ->List[Dict[str, Any]]:
+            def generate_hardware_performance_report(self) -> List[Dict[str, Any]]:
         """
         Generate a performance report for hardware items.
 
@@ -181,10 +183,10 @@ class HardwareRepository:
         hardware_report = []
         for hardware in self.session.query(Hardware).all():
             hardware_report.append({'hardware_id': hardware.id, 'name':
-                hardware.name, 'hardware_type': hardware.hardware_type.name,
-                'performance_score': hardware.
-                calculate_hardware_performance(), 'current_stock': hardware
-                .current_stock, 'load_capacity': hardware.load_capacity,
-                'corrosion_resistance': hardware.corrosion_resistance})
+                                    hardware.name, 'hardware_type': hardware.hardware_type.name,
+                                    'performance_score': hardware.
+                                    calculate_hardware_performance(), 'current_stock': hardware
+                                    .current_stock, 'load_capacity': hardware.load_capacity,
+                                    'corrosion_resistance': hardware.corrosion_resistance})
         return sorted(hardware_report, key=lambda x: x['performance_score'],
-            reverse=True)
+                      reverse=True)

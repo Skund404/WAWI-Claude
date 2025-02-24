@@ -13,7 +13,7 @@ class DatabaseError(Exception):
 class BaseManager:
     """Base manager class with common session and logging methods"""
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, session_factory):
         """
         Initialize base manager with session factory
@@ -26,7 +26,7 @@ class BaseManager:
 
         @contextmanager
     @inject(MaterialService)
-    def session_scope(self):
+        def session_scope(self):
         """
         Provide a transactional scope around a series of operations
 
@@ -47,7 +47,7 @@ class BaseManager:
 class DatabaseManagerSQLAlchemy:
     """Comprehensive database manager using SQLAlchemy ORM"""
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, database_url: str):
         """
         Initialize database manager with database URL
@@ -64,7 +64,7 @@ class DatabaseManagerSQLAlchemy:
 
         @property
     @inject(MaterialService)
-    def session(self) ->Session:
+        def session(self) -> Session:
         """
         Get current session or create a new one
 
@@ -77,7 +77,7 @@ class DatabaseManagerSQLAlchemy:
 
         @contextmanager
     @inject(MaterialService)
-    def session_scope(self):
+        def session_scope(self):
         """
         Provide a transactional scope around a series of operations
 
@@ -95,7 +95,7 @@ class DatabaseManagerSQLAlchemy:
             session.close()
 
         @inject(MaterialService)
-        def get_model_columns(self, model: Type[models.Base]) ->List[str]:
+            def get_model_columns(self, model: Type[models.Base]) -> List[str]:
         """
         Get column names for a specific model
 
@@ -108,8 +108,8 @@ class DatabaseManagerSQLAlchemy:
         return [column.key for column in inspect(model).columns]
 
         @inject(MaterialService)
-        def add_record(self, model: Type[models.Base], data: Dict[str, Any]
-        ) ->Optional[models.Base]:
+            def add_record(self, model: Type[models.Base], data: Dict[str, Any]
+                       ) -> Optional[models.Base]:
         """
         Add a new record to the database
 
@@ -131,8 +131,8 @@ class DatabaseManagerSQLAlchemy:
             raise DatabaseError(f'Failed to add record: {str(e)}')
 
         @inject(MaterialService)
-        def update_record(self, model: Type[Base], record_id: int, data: Dict[
-        str, Any]) ->Optional[Base]:
+            def update_record(self, model: Type[Base], record_id: int, data: Dict[
+                str, Any]) -> Optional[Base]:
         """
         Update an existing record
 
@@ -159,7 +159,7 @@ class DatabaseManagerSQLAlchemy:
             raise DatabaseError(f'Failed to update record: {str(e)}')
 
         @inject(MaterialService)
-        def delete_record(self, model: Type[Base], record_id: int) ->bool:
+            def delete_record(self, model: Type[Base], record_id: int) -> bool:
         """
         Delete a record from the database
 
@@ -182,7 +182,7 @@ class DatabaseManagerSQLAlchemy:
             raise DatabaseError(f'Failed to delete record: {str(e)}')
 
         @inject(MaterialService)
-        def get_record(self, model: Type[Base], record_id: int) ->Optional[Base]:
+            def get_record(self, model: Type[Base], record_id: int) -> Optional[Base]:
         """
         Get a single record by ID
 
@@ -200,7 +200,7 @@ class DatabaseManagerSQLAlchemy:
             raise DatabaseError(f'Failed to get record: {str(e)}')
 
         @inject(MaterialService)
-        def get_all_records(self, model: Type[Base], **filters) ->List[Base]:
+            def get_all_records(self, model: Type[Base], **filters) -> List[Base]:
         """
         Get all records of a model, optionally filtered
 
@@ -221,8 +221,8 @@ class DatabaseManagerSQLAlchemy:
             raise DatabaseError(f'Failed to get records: {str(e)}')
 
         @inject(MaterialService)
-        def search_records(self, model: Type[Base], search_term: str, *fields
-        ) ->List[Base]:
+            def search_records(self, model: Type[Base], search_term: str, *fields
+                           ) -> List[Base]:
         """
         Search for records across specified fields
 
@@ -246,8 +246,8 @@ class DatabaseManagerSQLAlchemy:
             raise DatabaseError(f'Failed to search records: {str(e)}')
 
         @inject(MaterialService)
-        def bulk_update(self, model: Type[Base], updates: List[Dict[str, Any]]
-        ) ->bool:
+            def bulk_update(self, model: Type[Base], updates: List[Dict[str, Any]]
+                        ) -> bool:
         """
         Perform bulk updates on records
 
@@ -274,8 +274,8 @@ class DatabaseManagerSQLAlchemy:
             raise DatabaseError(f'Failed to perform bulk update: {str(e)}')
 
         @inject(MaterialService)
-        def execute_query(self, query: str, params: Optional[tuple]=None) ->List[
-        Any]:
+            def execute_query(self, query: str, params: Optional[tuple] = None) -> List[
+                Any]:
         """
         Execute a raw SQL query
 

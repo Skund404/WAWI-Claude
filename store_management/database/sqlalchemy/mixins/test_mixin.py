@@ -15,12 +15,12 @@ class TestModel(TestBase):
 
 
 class TestModelManager(SearchMixin, FilterMixin, PaginationMixin,
-    TransactionMixin):
+                       TransactionMixin):
     """
     Test manager combining all mixins.
     """
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, model_class, session_factory):
         BaseMixin.__init__(self, model_class, session_factory)
         SearchMixin.__init__(self, model_class, session_factory)
@@ -62,10 +62,10 @@ def sample_data(test_manager):
     """
 
     def _populate(session):
-        sample_records = [TestModel(name='Apple', status='active', value=
-            100), TestModel(name='Banana', status='active', value=200),
-            TestModel(name='Cherry', status='inactive', value=300),
-            TestModel(name='Date', status='active', value=400)]
+        sample_records = [TestModel(name='Apple', status='active', value=100), TestModel(name='Banana', status='active', value=200),
+                          TestModel(name='Cherry',
+                                    status='inactive', value=300),
+                          TestModel(name='Date', status='active', value=400)]
         session.add_all(sample_records)
         session.commit()
     test_manager.run_in_transaction(_populate)
@@ -77,7 +77,7 @@ class TestSearchMixin:
     Test suite for SearchMixin functionality.
     """
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def test_basic_search(self, test_manager, sample_data):
         """
         Test basic search across all string fields.
@@ -87,12 +87,12 @@ class TestSearchMixin:
         assert results[0].name == 'Apple'
 
         @inject(MaterialService)
-        def test_advanced_search(self, test_manager, sample_data):
+            def test_advanced_search(self, test_manager, sample_data):
         """
         Test advanced search with multiple criteria.
         """
         results = test_manager.advanced_search({'name': {'op': 'like',
-            'value': '%a%'}, 'value': {'op': '>', 'value': 150}})
+                                                         'value': '%a%'}, 'value': {'op': '>', 'value': 150}})
         assert len(results) == 2
         assert all(result.name in ['Banana', 'Date'] for result in results)
 
@@ -102,7 +102,7 @@ class TestFilterMixin:
     Test suite for FilterMixin functionality.
     """
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def test_filter_by_multiple(self, test_manager, sample_data):
         """
         Test filtering by multiple exact match criteria.
@@ -112,7 +112,7 @@ class TestFilterMixin:
         assert all(result.status == 'active' for result in results)
 
         @inject(MaterialService)
-        def test_filter_with_or(self, test_manager, sample_data):
+            def test_filter_with_or(self, test_manager, sample_data):
         """
         Test filtering with OR conditions.
         """
@@ -121,19 +121,19 @@ class TestFilterMixin:
         assert set(result.name for result in results) == {'Apple', 'Cherry'}
 
         @inject(MaterialService)
-        def test_filter_complex(self, test_manager, sample_data):
+            def test_filter_complex(self, test_manager, sample_data):
         """
         Test complex filtering with multiple conditions.
         """
         and_results = test_manager.filter_complex([{'field': 'status', 'op':
-            '==', 'value': 'active'}, {'field': 'value', 'op': '>', 'value':
-            150}])
+                                                    '==', 'value': 'active'}, {'field': 'value', 'op': '>', 'value':
+                                                                               150}])
         assert len(and_results) == 2
         assert all(result.status == 'active' and result.value > 150 for
-            result in and_results)
+                   result in and_results)
         or_results = test_manager.filter_complex([{'field': 'name', 'op':
-            '==', 'value': 'Apple'}, {'field': 'name', 'op': '==', 'value':
-            'Cherry'}], join_type='or')
+                                                   '==', 'value': 'Apple'}, {'field': 'name', 'op': '==', 'value':
+                                                                             'Cherry'}], join_type='or')
         assert len(or_results) == 2
         assert set(result.name for result in or_results) == {'Apple', 'Cherry'}
 
@@ -143,7 +143,7 @@ class TestPaginationMixin:
     Test suite for PaginationMixin functionality.
     """
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def test_pagination_basic(self, test_manager, session_factory):
         """
         Test basic pagination functionality.
@@ -151,7 +151,7 @@ class TestPaginationMixin:
 
         def _populate_more(session):
             more_records = [TestModel(name=f'Record {i}', status='active',
-                value=i * 10) for i in range(5, 15)]
+                                      value=i * 10) for i in range(5, 15)]
             session.add_all(more_records)
             session.commit()
         test_manager.run_in_transaction(_populate_more)
@@ -163,12 +163,12 @@ class TestPaginationMixin:
         assert page_1['total_items'] == 13
 
         @inject(MaterialService)
-        def test_pagination_with_filters(self, test_manager, sample_data):
+            def test_pagination_with_filters(self, test_manager, sample_data):
         """
         Test pagination with filtering.
         """
-        result = test_manager.get_paginated(page=1, page_size=2, order_by=
-            'value', filters={'status': 'active'})
+        result = test_manager.get_paginated(
+            page=1, page_size=2, order_by='value', filters={'status': 'active'})
         assert len(result['items']) == 2
         assert result['items'][0].name == 'Apple'
         assert result['items'][1].name == 'Banana'
@@ -179,7 +179,7 @@ class TestTransactionMixin:
     Test suite for TransactionMixin functionality.
     """
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def test_run_in_transaction_success(self, test_manager):
         """
         Test successful transaction.
@@ -187,43 +187,43 @@ class TestTransactionMixin:
 
         def _test_transaction(session):
             new_record = TestModel(name='Transaction Test', status='active',
-                value=500)
+                                   value=500)
             session.add(new_record)
             return new_record
         result = test_manager.run_in_transaction(_test_transaction)
         assert result.name == 'Transaction Test'
         with test_manager.session_factory() as session:
-            verify_record = session.query(TestModel).filter_by(name=
-                'Transaction Test').first()
+            verify_record = session.query(TestModel).filter_by(
+                name='Transaction Test').first()
             assert verify_record is not None
 
         @inject(MaterialService)
-        def test_run_in_transaction_rollback(self, test_manager):
+            def test_run_in_transaction_rollback(self, test_manager):
         """
         Test transaction rollback on error.
         """
 
         def _failing_transaction(session):
             new_record = TestModel(name='Rollback Test', status='active',
-                value=600)
+                                   value=600)
             session.add(new_record)
             raise ValueError('Intentional error to test rollback')
         with pytest.raises(ValueError):
             test_manager.run_in_transaction(_failing_transaction)
         with test_manager.session_factory() as session:
-            verify_record = session.query(TestModel).filter_by(name=
-                'Rollback Test').first()
+            verify_record = session.query(TestModel).filter_by(
+                name='Rollback Test').first()
             assert verify_record is None
 
         @inject(MaterialService)
-        def test_execute_with_result(self, test_manager):
+            def test_execute_with_result(self, test_manager):
         """
         Test execute_with_result method.
         """
 
         def _success_operation(session):
             new_record = TestModel(name='Result Test', status='active',
-                value=700)
+                                   value=700)
             session.add(new_record)
             return new_record
         success_result = test_manager.execute_with_result(_success_operation)

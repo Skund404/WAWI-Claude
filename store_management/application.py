@@ -2,15 +2,17 @@
 
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+
+
 class Application:
     """
     Central application class managing core services and application state.
-    
+
     This class provides a centralized way to access and manage application-wide 
     services, configuration, and state.
     """
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self):
         """
         Initialize the application, setting up services and logging.
@@ -22,7 +24,7 @@ class Application:
         logging.info('Application setup completed successfully')
 
         @inject(MaterialService)
-        def _register_services(self):
+            def _register_services(self):
         """
         Register application services using the ServiceContainer.
         
@@ -40,7 +42,7 @@ class Application:
             raise
 
         @inject(MaterialService)
-        def get_service(self, service_type: Type):
+            def get_service(self, service_type: Type):
         """
         Retrieve a registered service by its type.
         
@@ -58,7 +60,7 @@ class Application:
         return self._services[service_type]
 
         @inject(MaterialService)
-        def run(self):
+            def run(self):
         """
         Start the application's main execution.
         
@@ -68,7 +70,7 @@ class Application:
         logging.info('Application running')
 
         @inject(MaterialService)
-        def quit(self):
+            def quit(self):
         """
         Perform cleanup and exit the application.
         

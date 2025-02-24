@@ -9,7 +9,7 @@ T = TypeVar('T')
 class BaseManager(Generic[T]):
     """
     A generic base manager for database operations.
-    
+
     Provides common CRUD (Create, Read, Update, Delete) operations 
     for different model types.
 
@@ -18,7 +18,7 @@ class BaseManager(Generic[T]):
         _model_class (Type[T]): The SQLAlchemy model class managed by this manager
     """
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, model_class: Type[T], session_factory: Any):
         """
         Initialize the BaseManager.
@@ -31,7 +31,7 @@ class BaseManager(Generic[T]):
         self._session_factory = session_factory
 
         @inject(MaterialService)
-        def _get_session(self) ->Session:
+            def _get_session(self) -> Session:
         """
         Retrieve a database session.
 
@@ -41,7 +41,7 @@ class BaseManager(Generic[T]):
         return self._session_factory()
 
         @inject(MaterialService)
-        def create(self, data: dict) ->T:
+            def create(self, data: dict) -> T:
         """
         Create a new record.
 
@@ -65,7 +65,7 @@ class BaseManager(Generic[T]):
             session.close()
 
         @inject(MaterialService)
-        def get(self, id: int) ->Optional[T]:
+            def get(self, id: int) -> Optional[T]:
         """
         Retrieve a record by its ID.
 
@@ -85,8 +85,8 @@ class BaseManager(Generic[T]):
             session.close()
 
         @inject(MaterialService)
-        def get_all(self, order_by: Optional[str]=None, limit: Optional[int]=None
-        ) ->List[T]:
+            def get_all(self, order_by: Optional[str] = None, limit: Optional[int] = None
+                    ) -> List[T]:
         """
         Retrieve all records, with optional ordering and limiting.
 
@@ -108,12 +108,12 @@ class BaseManager(Generic[T]):
         except SQLAlchemyError as e:
             raise ValueError(
                 f'Error retrieving {self._model_class.__name__} records: {str(e)}'
-                )
+            )
         finally:
             session.close()
 
         @inject(MaterialService)
-        def update(self, id: int, data: dict) ->Optional[T]:
+            def update(self, id: int, data: dict) -> Optional[T]:
         """
         Update an existing record.
 
@@ -141,7 +141,7 @@ class BaseManager(Generic[T]):
             session.close()
 
         @inject(MaterialService)
-        def delete(self, id: int) ->bool:
+            def delete(self, id: int) -> bool:
         """
         Delete a record by its ID.
 
@@ -168,7 +168,7 @@ class BaseManager(Generic[T]):
 
 
 def create_base_manager(model_class: Type[T], session_factory: Any
-    ) ->BaseManager[T]:
+                        ) -> BaseManager[T]:
     """
     Factory function to create a BaseManager for a specific model.
 

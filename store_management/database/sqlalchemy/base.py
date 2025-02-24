@@ -10,7 +10,7 @@ class CustomBase:
     Provides a consistent __repr__ and to_dict method for all models.
     """
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __repr__(self):
         """
         Generate a string representation of the model.
@@ -19,11 +19,11 @@ class CustomBase:
             str: A string representation of the model instance.
         """
         attrs = ', '.join(f'{k}={repr(v)}' for k, v in self.__dict__.items(
-            ) if not k.startswith('_') and not callable(v))
+        ) if not k.startswith('_') and not callable(v))
         return f'{self.__class__.__name__}({attrs})'
 
         @inject(MaterialService)
-        def to_dict(self):
+            def to_dict(self):
         """
         Convert the model instance to a dictionary.
 
@@ -31,4 +31,4 @@ class CustomBase:
             dict: A dictionary representation of the model instance.
         """
         return {column.name: getattr(self, column.name) for column in self.
-            __table__.columns}
+                __table__.columns}

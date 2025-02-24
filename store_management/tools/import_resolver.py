@@ -2,12 +2,14 @@
 
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+
+
 class ImportResolver:
     """
     Advanced import resolution and circular import management tool.
     """
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, project_root: str):
         """
         Initialize the import resolver.
@@ -21,7 +23,7 @@ class ImportResolver:
         self.import_suggestions: List[str] = []
 
         @inject(MaterialService)
-        def find_python_files(self) ->List[str]:
+            def find_python_files(self) -> List[str]:
         """
         Find all Python files in the project.
 
@@ -36,7 +38,7 @@ class ImportResolver:
         return python_files
 
         @inject(MaterialService)
-        def parse_imports(self, file_path: str) ->Dict[str, Set[str]]:
+            def parse_imports(self, file_path: str) -> Dict[str, Set[str]]:
         """
         Parse imports from a Python file.
 
@@ -53,7 +55,7 @@ class ImportResolver:
                 print(f'Syntax error in {file_path}')
                 return {}
         imports = {'import': set(), 'from_import': set(), 'relative_import':
-            set()}
+                   set()}
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
                 for n in node.names:
@@ -67,7 +69,7 @@ class ImportResolver:
         return imports
 
         @inject(MaterialService)
-        def build_import_graph(self):
+            def build_import_graph(self):
         """
         Build a comprehensive graph of import dependencies across the project.
         """
@@ -79,7 +81,7 @@ class ImportResolver:
             self.import_graph[module_path] = imports
 
         @inject(MaterialService)
-        def detect_circular_imports(self):
+            def detect_circular_imports(self):
         """
         Detect circular imports in the project.
 
@@ -93,7 +95,7 @@ class ImportResolver:
                 path = []
             path.append(module)
             for import_type, imported_modules in self.import_graph.get(module,
-                {}).items():
+                                                                       {}).items():
                 for imported in imported_modules:
                     if imported in path:
                         cycle_start = path.index(imported)
@@ -106,7 +108,7 @@ class ImportResolver:
             dfs_cycle_detect(module)
 
         @inject(MaterialService)
-        def generate_import_report(self) ->str:
+            def generate_import_report(self) -> str:
         """
         Generate a detailed report of import analysis.
 
@@ -132,7 +134,7 @@ class ImportResolver:
         return report
 
         @inject(MaterialService)
-        def suggest_import_fixes(self) ->List[str]:
+            def suggest_import_fixes(self) -> List[str]:
         """
         Generate suggestions for resolving import issues.
 
@@ -157,11 +159,11 @@ Suggested Fixes:
   - Avoid star imports
   - Group and organize imports
 """
-            )
+        )
         return suggestions
 
         @inject(MaterialService)
-        def fix_imports_in_file(self, file_path: str):
+            def fix_imports_in_file(self, file_path: str):
         """
         Attempt to automatically fix imports in a single file.
 
@@ -171,12 +173,12 @@ Suggested Fixes:
         with open(file_path, 'r', encoding='utf-8') as f:
             content = f.read()
         import_patterns = ['^import\\s+[\\w.]+',
-            '^from\\s+[\\w.]+\\s+import\\s+[\\w*.,\\s]+']
+                           '^from\\s+[\\w.]+\\s+import\\s+[\\w*.,\\s]+']
         imports = []
         other_content = []
         for line in content.split('\n'):
             if any(re.match(pattern, line.strip()) for pattern in
-                import_patterns):
+                   import_patterns):
                 imports.append(line)
             else:
                 other_content.append(line)
@@ -187,7 +189,7 @@ Suggested Fixes:
                 grouped_imports['stdlib'].append(imp)
             elif imp.startswith('import ') or imp.startswith('from '):
                 if imp.split()[1].startswith(('store_management',
-                    'database', 'services')):
+                                              'database', 'services')):
                     grouped_imports['local'].append(imp)
                 else:
                     grouped_imports['third_party'].append(imp)
@@ -201,7 +203,7 @@ Suggested Fixes:
             f.write('\n'.join(fixed_content))
 
         @inject(MaterialService)
-        def run(self):
+            def run(self):
         """
         Run comprehensive import analysis and fixes.
         """

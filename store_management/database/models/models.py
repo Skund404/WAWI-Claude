@@ -2,6 +2,8 @@
 
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+
+
 class MaterialType(Enum):
     """
     Enumeration of material types.
@@ -52,7 +54,7 @@ class Material(BaseModel, Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __repr__(self):
         """
         String representation of the Material instance.
@@ -62,10 +64,10 @@ class Material(BaseModel, Base):
         """
         return (
             f"<Material(id={self.id}, name='{self.name}', type={self.material_type}, stock={self.stock})>"
-            )
+        )
 
         @inject(MaterialService)
-        def update_stock(self, quantity_change: float) ->None:
+            def update_stock(self, quantity_change: float) -> None:
         """
         Update the stock quantity.
 
@@ -82,7 +84,7 @@ class Material(BaseModel, Base):
         self.stock = new_stock
 
         @inject(MaterialService)
-        def is_low_stock(self) ->bool:
+            def is_low_stock(self) -> bool:
         """
         Check if the material is below its minimum stock threshold.
 
@@ -92,7 +94,7 @@ class Material(BaseModel, Base):
         return self.stock <= self.minimum_stock
 
         @inject(MaterialService)
-        def to_dict(self, exclude_fields=None):
+            def to_dict(self, exclude_fields=None):
         """
         Convert material to dictionary representation.
 
@@ -104,11 +106,11 @@ class Material(BaseModel, Base):
         """
         exclude_fields = exclude_fields or []
         material_dict = {'id': self.id, 'name': self.name, 'material_type':
-            self.material_type.value, 'quality_grade': self.quality_grade.
-            value, 'stock': self.stock, 'minimum_stock': self.minimum_stock,
-            'unit_price': self.unit_price, 'supplier_id': self.supplier_id,
-            'description': self.description, 'created_at': self.created_at,
-            'updated_at': self.updated_at}
+                         self.material_type.value, 'quality_grade': self.quality_grade.
+                         value, 'stock': self.stock, 'minimum_stock': self.minimum_stock,
+                         'unit_price': self.unit_price, 'supplier_id': self.supplier_id,
+                         'description': self.description, 'created_at': self.created_at,
+                         'updated_at': self.updated_at}
         for field in exclude_fields:
             material_dict.pop(field, None)
         return material_dict

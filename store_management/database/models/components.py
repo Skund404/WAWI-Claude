@@ -2,8 +2,10 @@
 
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+
+
 class Component(BaseModel, Base, TimestampMixin, ValidationMixin, CostingMixin
-    ):
+                ):
     """
     Base class for components used in various contexts like projects and patterns.
     """
@@ -18,14 +20,14 @@ class Component(BaseModel, Base, TimestampMixin, ValidationMixin, CostingMixin
     project_id = Column(Integer, ForeignKey('projects.id'), nullable=True)
     pattern_id = Column(Integer, ForeignKey('patterns.id'), nullable=True)
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __repr__(self):
         return (
             f"<Component(id={self.id}, name='{self.name}', type='{self.component_type}')>"
-            )
+        )
 
         @inject(MaterialService)
-        def calculate_total_cost(self):
+            def calculate_total_cost(self):
         """
         Calculate the total cost of the component.
 
@@ -35,7 +37,7 @@ class Component(BaseModel, Base, TimestampMixin, ValidationMixin, CostingMixin
         return self.quantity * self.unit_cost
 
         @inject(MaterialService)
-        def validate_component(self):
+            def validate_component(self):
         """
         Validate the component's data.
 
@@ -43,12 +45,12 @@ class Component(BaseModel, Base, TimestampMixin, ValidationMixin, CostingMixin
             ValueError: If validation fails
         """
         self.validate_required_fields({'name': self.name, 'quantity': self.
-            quantity, 'unit_cost': self.unit_cost})
+                                       quantity, 'unit_cost': self.unit_cost})
         self.validate_numeric_range(self.quantity, 0, float('inf'))
         self.validate_numeric_range(self.unit_cost, 0, float('inf'))
 
         @inject(MaterialService)
-        def to_dict(self, exclude_fields=None):
+            def to_dict(self, exclude_fields=None):
         """
         Convert the component to a dictionary representation.
 
@@ -61,9 +63,9 @@ class Component(BaseModel, Base, TimestampMixin, ValidationMixin, CostingMixin
         if exclude_fields is None:
             exclude_fields = []
         data = {'id': self.id, 'name': self.name, 'description': self.
-            description, 'material_type': self.material_type, 'quantity':
-            self.quantity, 'unit_cost': self.unit_cost, 'component_type':
-            self.component_type, 'total_cost': self.calculate_total_cost()}
+                description, 'material_type': self.material_type, 'quantity':
+                self.quantity, 'unit_cost': self.unit_cost, 'component_type':
+                self.component_type, 'total_cost': self.calculate_total_cost()}
         for field in exclude_fields:
             data.pop(field, None)
         return data
@@ -78,9 +80,9 @@ class ProjectComponent(Component):
     actual_material_used = Column(Float, default=0)
     planned_material = Column(Float, default=0)
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def calculate_material_efficiency(self, actual_material_used=None,
-        planned_material=None):
+                                      planned_material=None):
         """
         Calculate material efficiency for the component.
 
@@ -98,7 +100,7 @@ class ProjectComponent(Component):
         return (planned - (actual - planned)) / planned * 100
 
         @inject(MaterialService)
-        def to_dict(self, exclude_fields=None):
+            def to_dict(self, exclude_fields=None):
         """
         Override to_dict to include project component specific fields.
 
@@ -110,8 +112,8 @@ class ProjectComponent(Component):
         """
         data = super().to_dict(exclude_fields)
         data.update({'actual_material_used': self.actual_material_used,
-            'planned_material': self.planned_material,
-            'material_efficiency': self.calculate_material_efficiency()})
+                     'planned_material': self.planned_material,
+                     'material_efficiency': self.calculate_material_efficiency()})
         return data
 
 
@@ -126,7 +128,7 @@ class PatternComponent(Component):
     stitch_type = Column(String(100))
     edge_finish_type = Column(String(100))
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def can_substitute(self, alternate_material_type):
         """
         Check if the component can be substituted with another material type.
@@ -138,10 +140,10 @@ class PatternComponent(Component):
             bool: Whether substitution is possible
         """
         return bool(self.substitutable
-            ) and self.material_type != alternate_material_type
+                    ) and self.material_type != alternate_material_type
 
         @inject(MaterialService)
-        def to_dict(self, exclude_fields=None):
+            def to_dict(self, exclude_fields=None):
         """
         Override to_dict to include pattern component specific fields.
 
@@ -153,6 +155,6 @@ class PatternComponent(Component):
         """
         data = super().to_dict(exclude_fields)
         data.update({'minimum_quantity': self.minimum_quantity,
-            'substitutable': bool(self.substitutable), 'stitch_type': self.
-            stitch_type, 'edge_finish_type': self.edge_finish_type})
+                     'substitutable': bool(self.substitutable), 'stitch_type': self.
+                     stitch_type, 'edge_finish_type': self.edge_finish_type})
         return data

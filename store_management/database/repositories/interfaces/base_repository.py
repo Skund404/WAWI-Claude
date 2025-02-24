@@ -15,9 +15,9 @@ class IBaseRepository(Generic[T], ABC):
     This interface defines the methods that all repositories must implement.
     """
 
-        @abstractmethod
+    @abstractmethod
     @inject(MaterialService)
-    def get_by_id(self, id: int) ->Optional[T]:
+        def get_by_id(self, id: int) -> Optional[T]:
         """
         Get an entity by ID.
 
@@ -31,8 +31,8 @@ class IBaseRepository(Generic[T], ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def get_all(self, limit: Optional[int]=None, offset: Optional[int]=None
-        ) ->List[T]:
+        def get_all(self, limit: Optional[int] = None, offset: Optional[int] = None
+                ) -> List[T]:
         """
         Get all entities.
 
@@ -47,7 +47,7 @@ class IBaseRepository(Generic[T], ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def create(self, data: Dict[str, Any]) ->Optional[T]:
+        def create(self, data: Dict[str, Any]) -> Optional[T]:
         """
         Create a new entity.
 
@@ -61,7 +61,7 @@ class IBaseRepository(Generic[T], ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def update(self, id: int, data: Dict[str, Any]) ->Optional[T]:
+        def update(self, id: int, data: Dict[str, Any]) -> Optional[T]:
         """
         Update an entity.
 
@@ -76,7 +76,7 @@ class IBaseRepository(Generic[T], ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def delete(self, id: int) ->bool:
+        def delete(self, id: int) -> bool:
         """
         Delete an entity.
 
@@ -90,7 +90,7 @@ class IBaseRepository(Generic[T], ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def exists(self, id: int) ->bool:
+        def exists(self, id: int) -> bool:
         """
         Check if an entity exists.
 
@@ -104,7 +104,7 @@ class IBaseRepository(Generic[T], ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def count(self) ->int:
+        def count(self) -> int:
         """
         Count the number of entities.
 
@@ -115,7 +115,7 @@ class IBaseRepository(Generic[T], ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def filter_by(self, **kwargs) ->List[T]:
+        def filter_by(self, **kwargs) -> List[T]:
         """
         Filter entities by attribute values.
 
@@ -129,7 +129,7 @@ class IBaseRepository(Generic[T], ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def search(self, search_term: str, fields: List[str]) ->List[T]:
+        def search(self, search_term: str, fields: List[str]) -> List[T]:
         """
         Search for entities by a search term in specified fields.
 

@@ -2,6 +2,8 @@
 
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+
+
 class OrderManager(BaseManager):
     """
     Specialized manager for Order model operations.
@@ -9,7 +11,7 @@ class OrderManager(BaseManager):
     This class extends BaseManager with order-specific operations.
     """
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, session_factory: Callable[[], Session]):
         """
         Initialize the OrderManager.
@@ -20,7 +22,7 @@ class OrderManager(BaseManager):
         super().__init__(Order, session_factory)
 
         @inject(MaterialService)
-        def create_order(self, order_data: Dict[str, Any]) ->Order:
+            def create_order(self, order_data: Dict[str, Any]) -> Order:
         """
         Create a new order.
 
@@ -37,7 +39,7 @@ class OrderManager(BaseManager):
             return order
 
         @inject(MaterialService)
-        def get_order_by_id(self, order_id: int) ->Optional[Order]:
+            def get_order_by_id(self, order_id: int) -> Optional[Order]:
         """
         Retrieve an order by its ID.
 
@@ -51,7 +53,7 @@ class OrderManager(BaseManager):
             return session.query(Order).filter(Order.id == order_id).first()
 
         @inject(MaterialService)
-        def get_all_orders(self) ->List[Order]:
+            def get_all_orders(self) -> List[Order]:
         """
         Retrieve all orders.
 

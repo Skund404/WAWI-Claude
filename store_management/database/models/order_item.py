@@ -25,10 +25,10 @@ class OrderItem(BaseModel):
     quantity = Column(Float, nullable=False)
     unit_price = Column(Float, nullable=False)
     order = relationship('Order', back_populates='items', lazy='subquery')
-    product = relationship('Product', back_populates='order_items', lazy=
-        'subquery')
+    product = relationship(
+        'Product', back_populates='order_items', lazy='subquery')
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, product_id: int, quantity: float, unit_price: float):
         """
         Initialize an OrderItem.
@@ -43,7 +43,7 @@ class OrderItem(BaseModel):
         self.unit_price = unit_price
 
         @inject(MaterialService)
-        def __repr__(self) ->str:
+            def __repr__(self) -> str:
         """
         String representation of the OrderItem.
 
@@ -52,10 +52,10 @@ class OrderItem(BaseModel):
         """
         return (
             f'<OrderItem(id={self.id}, product_id={self.product_id}, quantity={self.quantity}, unit_price={self.unit_price})>'
-            )
+        )
 
         @inject(MaterialService)
-        def update_quantity(self, new_quantity: float) ->None:
+            def update_quantity(self, new_quantity: float) -> None:
         """
         Update the quantity of the order item.
 
@@ -65,7 +65,7 @@ class OrderItem(BaseModel):
         self.quantity = new_quantity
 
         @inject(MaterialService)
-        def calculate_total_price(self) ->float:
+            def calculate_total_price(self) -> float:
         """
         Calculate the total price for this order item.
 
@@ -75,7 +75,7 @@ class OrderItem(BaseModel):
         return self.quantity * self.unit_price
 
         @inject(MaterialService)
-        def to_dict(self) ->dict:
+            def to_dict(self) -> dict:
         """
         Convert OrderItem to dictionary representation.
 
@@ -83,4 +83,4 @@ class OrderItem(BaseModel):
             dict: Dictionary containing OrderItem attributes.
         """
         return {'id': self.id, 'product_id': self.product_id, 'quantity':
-            self.quantity, 'unit_price': self.unit_price}
+                self.quantity, 'unit_price': self.unit_price}

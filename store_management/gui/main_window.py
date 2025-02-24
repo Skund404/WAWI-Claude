@@ -10,7 +10,7 @@ class MainWindow(ttk.Frame):
     a tabbed interface for different application functionalities.
     """
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, root: tk.Tk, app: 'Application'):
         """
         Initialize the main window with a tabbed interface.
@@ -29,7 +29,7 @@ class MainWindow(ttk.Frame):
         logging.info('Main window initialized')
 
         @inject(MaterialService)
-        def _setup_window(self):
+            def _setup_window(self):
         """
         Configure basic window settings.
         """
@@ -37,7 +37,7 @@ class MainWindow(ttk.Frame):
         self.root.minsize(800, 600)
 
         @inject(MaterialService)
-        def _create_menu(self):
+            def _create_menu(self):
         """
         Create the main application menu.
         """
@@ -59,15 +59,15 @@ class MainWindow(ttk.Frame):
         view_menu.add_command(label='Refresh', command=self._on_refresh)
 
         @inject(MaterialService)
-        def _create_notebook(self):
+            def _create_notebook(self):
         """
         Create a notebook (tabbed interface) with different application views.
         """
         self.notebook = ttk.Notebook(self)
         self.notebook.pack(fill=tk.BOTH, expand=True)
         views = [('Projects', LeatherworkingProjectView), ('Orders',
-            OrderView), ('Patterns', PatternView), ('Storage', StorageView),
-            ('Shopping Lists', ShoppingListView), ('Suppliers', SupplierView)]
+                                                           OrderView), ('Patterns', PatternView), ('Storage', StorageView),
+                 ('Shopping Lists', ShoppingListView), ('Suppliers', SupplierView)]
         for title, view_class in views:
             try:
                 view = view_class(self.notebook, self.app)
@@ -76,18 +76,18 @@ class MainWindow(ttk.Frame):
                 logging.error(f'Failed to load {title} view: {e}')
 
         @inject(MaterialService)
-        def _create_status_bar(self):
+            def _create_status_bar(self):
         """
         Create a status bar at the bottom of the window.
         """
         self.status_var = tk.StringVar()
         self.status_var.set('Ready')
-        status_bar = ttk.Label(self, textvariable=self.status_var, relief=
-            tk.SUNKEN, anchor=tk.W)
+        status_bar = ttk.Label(
+            self, textvariable=self.status_var, relief=tk.SUNKEN, anchor=tk.W)
         status_bar.pack(side=tk.BOTTOM, fill=tk.X)
 
         @inject(MaterialService)
-        def set_status(self, message: str):
+            def set_status(self, message: str):
         """
         Update the status bar message.
 
@@ -97,37 +97,37 @@ class MainWindow(ttk.Frame):
         self.status_var.set(message)
 
         @inject(MaterialService)
-        def _on_new(self):
+            def _on_new(self):
         """Handle New action"""
         logging.info('New action triggered')
 
         @inject(MaterialService)
-        def _on_open(self):
+            def _on_open(self):
         """Handle Open action"""
         logging.info('Open action triggered')
 
         @inject(MaterialService)
-        def _on_save(self):
+            def _on_save(self):
         """Handle Save action"""
         logging.info('Save action triggered')
 
         @inject(MaterialService)
-        def _on_undo(self):
+            def _on_undo(self):
         """Handle Undo action"""
         logging.info('Undo action triggered')
 
         @inject(MaterialService)
-        def _on_redo(self):
+            def _on_redo(self):
         """Handle Redo action"""
         logging.info('Redo action triggered')
 
         @inject(MaterialService)
-        def _on_refresh(self):
+            def _on_refresh(self):
         """Handle Refresh action"""
         logging.info('Refresh action triggered')
 
         @inject(MaterialService)
-        def _on_exit(self):
+            def _on_exit(self):
         """
         Handle application exit.
         Performs cleanup and closes the application.

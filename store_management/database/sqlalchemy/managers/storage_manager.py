@@ -13,7 +13,7 @@ class StorageManager(BaseManager[Storage]):
     Extends BaseManager with storage-specific queries and operations.
     """
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, session_factory: Callable[[], Session]):
         """
         Initialize StorageManager with session factory.
@@ -25,7 +25,7 @@ class StorageManager(BaseManager[Storage]):
         self.logger = logging.getLogger(self.__class__.__name__)
 
         @inject(MaterialService)
-        def get_all_storage_locations(self) ->List[Storage]:
+            def get_all_storage_locations(self) -> List[Storage]:
         """
         Get all storage locations from the database.
 
@@ -41,11 +41,11 @@ class StorageManager(BaseManager[Storage]):
         except Exception as e:
             self.logger.error(
                 f'Failed to retrieve all storage locations - Details: {str(e)}'
-                )
+            )
             raise
 
         @inject(MaterialService)
-        def add_storage_location(self, data: Dict[str, Any]) ->Storage:
+            def add_storage_location(self, data: Dict[str, Any]) -> Storage:
         """
         Add a new storage location.
 
@@ -61,8 +61,8 @@ class StorageManager(BaseManager[Storage]):
         return self.create(data)
 
         @inject(MaterialService)
-        def update_storage_location(self, location_id: Union[int, str], data:
-        Dict[str, Any]) ->Optional[Storage]:
+            def update_storage_location(self, location_id: Union[int, str], data:
+                                    Dict[str, Any]) -> Optional[Storage]:
         """
         Update an existing storage location.
 
@@ -79,7 +79,7 @@ class StorageManager(BaseManager[Storage]):
         return self.update(location_id, data)
 
         @inject(MaterialService)
-        def delete_storage_location(self, location_id: Union[int, str]) ->bool:
+            def delete_storage_location(self, location_id: Union[int, str]) -> bool:
         """
         Delete a storage location.
 
@@ -95,8 +95,8 @@ class StorageManager(BaseManager[Storage]):
         return self.delete(location_id)
 
         @inject(MaterialService)
-        def get_storage_with_items(self, storage_id: Union[int, str]) ->Optional[
-        Storage]:
+            def get_storage_with_items(self, storage_id: Union[int, str]) -> Optional[
+                Storage]:
         """
         Get a storage location with all its associated items.
 
@@ -112,15 +112,15 @@ class StorageManager(BaseManager[Storage]):
         try:
             with self.session_scope() as session:
                 return session.query(Storage).options(joinedload(Storage.
-                    products)).filter(Storage.id == storage_id).first()
+                                                                 products)).filter(Storage.id == storage_id).first()
         except Exception as e:
             self.logger.error(
                 f'Failed to get storage with id {storage_id} and its items - Details: {str(e)}'
-                )
+            )
             raise
 
         @inject(MaterialService)
-        def get_available_storage(self) ->List[Storage]:
+            def get_available_storage(self) -> List[Storage]:
         """
         Get storage locations that have available capacity.
 
@@ -133,15 +133,15 @@ class StorageManager(BaseManager[Storage]):
         try:
             with self.session_scope() as session:
                 return session.query(Storage).filter(Storage.capacity >
-                    Storage.used_capacity).all()
+                                                     Storage.used_capacity).all()
         except Exception as e:
             self.logger.error(
                 f'Failed to get available storage locations - Details: {str(e)}'
-                )
+            )
             raise
 
         @inject(MaterialService)
-        def search_storage(self, term: str) ->List[Storage]:
+            def search_storage(self, term: str) -> List[Storage]:
         """
         Search for storage locations by name or description.
 
@@ -160,14 +160,14 @@ class StorageManager(BaseManager[Storage]):
                 return session.query(Storage).filter(Storage.name.ilike(
                     search_pattern) | Storage.description.ilike(
                     search_pattern) | Storage.location.ilike(search_pattern)
-                    ).all()
+                ).all()
         except Exception as e:
             self.logger.error(
                 f'Failed to search storage locations - Details: {str(e)}')
             raise
 
         @inject(MaterialService)
-        def get_storage_status(self, storage_id: Union[int, str]) ->Dict[str, Any]:
+            def get_storage_status(self, storage_id: Union[int, str]) -> Dict[str, Any]:
         """
         Get detailed status information about a storage location.
 
@@ -186,24 +186,24 @@ class StorageManager(BaseManager[Storage]):
                 if not storage:
                     return {}
                 product_count = session.query(Product).filter(Product.
-                    storage_id == storage_id).count()
+                                                              storage_id == storage_id).count()
                 utilization = 0
                 if hasattr(storage, 'capacity') and storage.capacity > 0:
                     utilization = getattr(storage, 'used_capacity', 0
-                        ) / storage.capacity * 100
+                                          ) / storage.capacity * 100
                 return {'id': storage.id, 'name': storage.name, 'location':
-                    getattr(storage, 'location', ''), 'product_count':
-                    product_count, 'capacity': getattr(storage, 'capacity',
-                    0), 'used': getattr(storage, 'used_capacity', 0),
-                    'utilization': utilization, 'status': 'active'}
+                        getattr(storage, 'location', ''), 'product_count':
+                        product_count, 'capacity': getattr(storage, 'capacity',
+                                                           0), 'used': getattr(storage, 'used_capacity', 0),
+                        'utilization': utilization, 'status': 'active'}
         except Exception as e:
             self.logger.error(
                 f'Failed to get storage status for id {storage_id} - Details: {str(e)}'
-                )
+            )
             raise
 
         @inject(MaterialService)
-        def get_storage_utilization(self) ->List[Dict[str, Any]]:
+            def get_storage_utilization(self) -> List[Dict[str, Any]]:
         """
         Get utilization information for all storage locations.
 
@@ -221,12 +221,12 @@ class StorageManager(BaseManager[Storage]):
                     utilization = 0
                     if hasattr(storage, 'capacity') and storage.capacity > 0:
                         utilization = getattr(storage, 'used_capacity', 0
-                            ) / storage.capacity * 100
+                                              ) / storage.capacity * 100
                     result.append({'id': storage.id, 'name': storage.name,
-                        'location': getattr(storage, 'location', ''),
-                        'capacity': getattr(storage, 'capacity', 0), 'used':
-                        getattr(storage, 'used_capacity', 0), 'utilization':
-                        utilization})
+                                   'location': getattr(storage, 'location', ''),
+                                   'capacity': getattr(storage, 'capacity', 0), 'used':
+                                   getattr(storage, 'used_capacity', 0), 'utilization':
+                                   utilization})
                 return result
         except Exception as e:
             self.logger.error(
@@ -234,8 +234,8 @@ class StorageManager(BaseManager[Storage]):
             raise
 
         @inject(MaterialService)
-        def bulk_update_storage(self, updates: List[Dict[str, Any]]) ->List[Storage
-        ]:
+            def bulk_update_storage(self, updates: List[Dict[str, Any]]) -> List[Storage
+                                                                             ]:
         """
         Update multiple storage locations at once.
 

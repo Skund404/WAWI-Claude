@@ -15,8 +15,8 @@ class MigrationManager:
     This class provides methods for managing database migrations using Alembic.
     """
 
-        @inject(MaterialService)
-        def __init__(self, database_url: Optional[str]=None):
+    @inject(MaterialService)
+        def __init__(self, database_url: Optional[str] = None):
         """
         Initialize a new MigrationManager.
 
@@ -29,10 +29,10 @@ class MigrationManager:
         if not self.alembic_ini_path.exists():
             raise FileNotFoundError(
                 f'Alembic configuration file not found: {self.alembic_ini_path}'
-                )
+            )
 
         @inject(MaterialService)
-        def _find_project_root(self) ->Path:
+            def _find_project_root(self) -> Path:
         """
         Find the project root directory.
 
@@ -42,13 +42,13 @@ class MigrationManager:
         current_dir = Path(__file__).resolve().parent
         while current_dir != current_dir.parent:
             if (current_dir / 'pyproject.toml').exists() or (current_dir /
-                'setup.py').exists():
+                                                             'setup.py').exists():
                 return current_dir
             current_dir = current_dir.parent
         return Path(__file__).resolve().parent.parent.parent
 
         @inject(MaterialService)
-        def _create_alembic_config(self) ->Config:
+            def _create_alembic_config(self) -> Config:
         """
         Create an Alembic configuration object.
 
@@ -61,7 +61,7 @@ class MigrationManager:
         return config
 
         @inject(MaterialService)
-        def check_current_version(self) ->str:
+            def check_current_version(self) -> str:
         """
         Check the current database migration version.
 
@@ -81,14 +81,14 @@ class MigrationManager:
                 revision = script.get_revision(current_rev)
                 logger.info(
                     f'Current database version: {current_rev} ({revision.doc})'
-                    )
+                )
                 return current_rev
         except Exception as e:
             logger.error(f'Error checking migration version: {str(e)}')
             raise
 
         @inject(MaterialService)
-        def get_pending_migrations(self) ->List[dict]:
+            def get_pending_migrations(self) -> List[dict]:
         """
         Get pending migrations.
 
@@ -112,16 +112,16 @@ class MigrationManager:
                 for rev_old, rev_new in pending:
                     if rev_old == current_rev or rev_old is None:
                         result.append({'revision': rev_new.revision,
-                            'description': rev_new.doc, 'created_date': 
-                            rev_new.created_date.isoformat() if rev_new.
-                            created_date else None})
+                                       'description': rev_new.doc, 'created_date':
+                                       rev_new.created_date.isoformat() if rev_new.
+                                       created_date else None})
                 return result
         except Exception as e:
             logger.error(f'Error getting pending migrations: {str(e)}')
             raise
 
         @inject(MaterialService)
-        def create_backup(self) ->str:
+            def create_backup(self) -> str:
         """
         Create a database backup before running migrations.
 
@@ -147,7 +147,7 @@ class MigrationManager:
             raise
 
         @inject(MaterialService)
-        def run_migrations(self, target: str='head') ->bool:
+            def run_migrations(self, target: str = 'head') -> bool:
         """
         Run database migrations.
 
@@ -168,7 +168,7 @@ class MigrationManager:
             return False
 
         @inject(MaterialService)
-        def create_migration(self, message: str, autogenerate: bool=True) ->str:
+            def create_migration(self, message: str, autogenerate: bool = True) -> str:
         """
         Create a new migration.
 
@@ -183,7 +183,7 @@ class MigrationManager:
             config = self._create_alembic_config()
             if autogenerate:
                 revision = command.revision(config, message=message,
-                    autogenerate=True)
+                                            autogenerate=True)
             else:
                 revision = command.revision(config, message=message)
             logger.info(f'Created new migration: {revision}')
@@ -193,7 +193,7 @@ class MigrationManager:
             raise
 
         @inject(MaterialService)
-        def revert_migration(self, revision: str='-1') ->bool:
+            def revert_migration(self, revision: str = '-1') -> bool:
         """
         Revert the last migration or to a specific revision.
 
@@ -214,7 +214,7 @@ class MigrationManager:
             return False
 
         @inject(MaterialService)
-        def verify_migration(self) ->bool:
+            def verify_migration(self) -> bool:
         """
         Verify that the database schema matches the models.
 
@@ -235,7 +235,7 @@ class MigrationManager:
                 if current_rev != head_rev:
                     logger.warning(
                         f'Database schema is not up-to-date. Current: {current_rev}, Latest: {head_rev}'
-                        )
+                    )
                     return False
                 logger.info('Database schema is up-to-date')
                 return True
@@ -249,28 +249,28 @@ def main():
     Main entry point for migration management.
     """
     parser = argparse.ArgumentParser(description='Database Migration Manager')
-    subparsers = parser.add_subparsers(dest='command', help=
-        'Command to execute')
-    info_parser = subparsers.add_parser('info', help=
-        'Show migration information')
-    create_parser = subparsers.add_parser('create', help=
-        'Create a new migration')
+    subparsers = parser.add_subparsers(
+        dest='command', help='Command to execute')
+    info_parser = subparsers.add_parser(
+        'info', help='Show migration information')
+    create_parser = subparsers.add_parser(
+        'create', help='Create a new migration')
     create_parser.add_argument('message', help='Migration message/description')
     create_parser.add_argument('--no-autogenerate', action='store_true',
-        help='Disable autogeneration')
-    upgrade_parser = subparsers.add_parser('upgrade', help=
-        'Upgrade the database to a newer version')
-    upgrade_parser.add_argument('--revision', default='head', help=
-        'Target revision (default: head)')
-    downgrade_parser = subparsers.add_parser('downgrade', help=
-        'Downgrade the database to an older version')
-    downgrade_parser.add_argument('--revision', default='-1', help=
-        'Target revision (default: -1)')
-    verify_parser = subparsers.add_parser('verify', help=
-        'Verify that the database schema matches the models')
+                               help='Disable autogeneration')
+    upgrade_parser = subparsers.add_parser(
+        'upgrade', help='Upgrade the database to a newer version')
+    upgrade_parser.add_argument(
+        '--revision', default='head', help='Target revision (default: head)')
+    downgrade_parser = subparsers.add_parser(
+        'downgrade', help='Downgrade the database to an older version')
+    downgrade_parser.add_argument(
+        '--revision', default='-1', help='Target revision (default: -1)')
+    verify_parser = subparsers.add_parser(
+        'verify', help='Verify that the database schema matches the models')
     args = parser.parse_args()
-    logging.basicConfig(level=logging.INFO, format=
-        '%(asctime)s - %(levelname)s - %(message)s')
+    logging.basicConfig(level=logging.INFO,
+                        format='%(asctime)s - %(levelname)s - %(message)s')
     manager = MigrationManager()
     if args.command == 'info':
         current_version = manager.check_current_version()
@@ -280,10 +280,10 @@ def main():
         for migration in pending_migrations:
             print(
                 f"  {migration['revision']}: {migration['description']} ({migration['created_date']})"
-                )
+            )
     elif args.command == 'create':
         revision = manager.create_migration(args.message, not args.
-            no_autogenerate)
+                                            no_autogenerate)
         print(f'Created migration: {revision}')
     elif args.command == 'upgrade':
         success = manager.run_migrations(args.revision)

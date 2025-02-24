@@ -19,7 +19,7 @@ class CustomTestManager(BaseManager[FactoryTestModel]):
     """
 
         @inject(MaterialService)
-        def custom_method(self) ->str:
+            def custom_method(self) -> str:
         """
         Custom method to test specialized manager functionality.
 
@@ -36,7 +36,7 @@ class TestManagerFactory:
 
         @pytest.fixture(scope='function')
     @inject(MaterialService)
-    def test_engine(self):
+        def test_engine(self):
         """
         Create an in-memory SQLite database for testing.
         """
@@ -46,14 +46,14 @@ class TestManagerFactory:
 
         @pytest.fixture(scope='function')
     @inject(MaterialService)
-    def session_factory(self, test_engine):
+        def session_factory(self, test_engine):
         """
         Create a session factory for testing.
         """
         return sessionmaker(bind=test_engine)
 
         @inject(MaterialService)
-        def test_manager_cache(self, session_factory):
+            def test_manager_cache(self, session_factory):
         """
         Test manager caching mechanism.
         """
@@ -63,7 +63,7 @@ class TestManagerFactory:
         assert first_manager is second_manager
 
         @inject(MaterialService)
-        def test_specialized_manager_registration(self, session_factory):
+            def test_specialized_manager_registration(self, session_factory):
         """
         Test registering and using a specialized manager.
         """
@@ -73,7 +73,7 @@ class TestManagerFactory:
         assert manager.custom_method() == 'Custom Manager Method'
 
         @inject(MaterialService)
-        def test_force_new_manager(self, session_factory):
+            def test_force_new_manager(self, session_factory):
         """
         Test creating a new manager instance bypassing cache.
         """
@@ -84,16 +84,15 @@ class TestManagerFactory:
         assert first_manager is not second_manager
 
         @inject(MaterialService)
-        def test_manager_with_mixins(self, session_factory):
+            def test_manager_with_mixins(self, session_factory):
         """
         Test creating a manager with additional mixins.
         """
 
-
         class TestMixin:
 
                         @inject(MaterialService)
-                        def test_mixin_method(self):
+                            def test_mixin_method(self):
                 return 'Mixin Method'
         manager = get_manager(FactoryTestModel, session_factory, mixins=[
             TestMixin])
@@ -101,7 +100,7 @@ class TestManagerFactory:
         assert manager.test_mixin_method() == 'Mixin Method'
 
         @inject(MaterialService)
-        def test_invalid_mixin(self, session_factory):
+            def test_invalid_mixin(self, session_factory):
         """
         Test handling of invalid mixins.
         """
@@ -110,7 +109,7 @@ class TestManagerFactory:
         class InvalidMixin:
 
                         @inject(MaterialService)
-                        def some_method(self):
+                            def some_method(self):
                 pass
         manager = get_manager(FactoryTestModel, session_factory, mixins=[
             InvalidMixin])
@@ -124,7 +123,7 @@ class TestManagerPerformance:
 
         @pytest.fixture(scope='function')
     @inject(MaterialService)
-    def large_dataset_manager(self, session_factory):
+        def large_dataset_manager(self, session_factory):
         """
         Create a manager with a large dataset.
         """
@@ -135,7 +134,7 @@ class TestManagerPerformance:
         return manager
 
         @inject(MaterialService)
-        def test_large_dataset_retrieval(self, large_dataset_manager):
+            def test_large_dataset_retrieval(self, large_dataset_manager):
         """
         Test performance of retrieving large datasets.
         """
@@ -143,7 +142,7 @@ class TestManagerPerformance:
         assert len(all_records) == 1000
 
         @inject(MaterialService)
-        def test_large_dataset_filtering(self, large_dataset_manager):
+            def test_large_dataset_filtering(self, large_dataset_manager):
         """
         Test filtering performance on large datasets.
         """

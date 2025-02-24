@@ -18,7 +18,7 @@ class CircularImportResolver:
     """
     A utility class to manage and resolve circular import dependencies.
 
-    This class provides methods to dynamically import modules and resolve 
+    This class provides methods to dynamically import modules and resolve
     potential circular import issues by lazy loading and caching imported modules.
     """
 
@@ -44,7 +44,8 @@ class CircularImportResolver:
 
         # Prevent recursive import attempts
         if cls._import_lock.get(module_path, False):
-            logger.warning(f"Potential circular import detected for {module_path}")
+            logger.warning(
+                f"Potential circular import detected for {module_path}")
             return None
 
         try:
@@ -68,11 +69,7 @@ class CircularImportResolver:
             cls._import_lock.pop(module_path, None)
 
     @classmethod
-    def get_class(
-            cls,
-            module_path: str,
-            class_name: str
-    ) -> Optional[Type[Any]]:
+    def get_class(cls, module_path: str, class_name: str) -> Optional[Type[Any]]:
         """
         Dynamically retrieve a class from a module.
 
@@ -94,12 +91,14 @@ class CircularImportResolver:
             requested_class = getattr(module, class_name, None)
 
             if requested_class is None:
-                logger.error(f"Class {class_name} not found in module {module_path}")
+                logger.error(
+                    f"Class {class_name} not found in module {module_path}")
 
             return requested_class
 
         except (ImportError, AttributeError) as e:
-            logger.error(f"Error retrieving class {class_name} from {module_path}: {e}")
+            logger.error(
+                f"Error retrieving class {class_name} from {module_path}: {e}")
             return None
 
     @classmethod

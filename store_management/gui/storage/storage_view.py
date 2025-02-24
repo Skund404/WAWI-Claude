@@ -4,8 +4,8 @@ from services.interfaces import MaterialService, ProjectService, InventoryServic
 Storage view implementation that displays storage locations.
 This is a simplified version that directly accesses the database.
 """
-logging.basicConfig(level=logging.INFO, format=
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 
@@ -14,7 +14,7 @@ class StorageView(BaseView):
     View for displaying and managing storage locations.
     """
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, parent, app):
         """
         Initialize the storage view.
@@ -30,11 +30,11 @@ class StorageView(BaseView):
         self.load_data()
 
         @inject(MaterialService)
-        def _find_database_file(self):
+            def _find_database_file(self):
         """Find the SQLite database file."""
         possible_locations = ['store_management.db',
-            'data/store_management.db', 'database/store_management.db',
-            'config/database/store_management.db']
+                              'data/store_management.db', 'database/store_management.db',
+                              'config/database/store_management.db']
         for location in possible_locations:
             if os.path.exists(location):
                 return location
@@ -48,33 +48,33 @@ class StorageView(BaseView):
         return None
 
         @inject(MaterialService)
-        def setup_ui(self):
+            def setup_ui(self):
         """Set up the user interface components."""
         self.create_toolbar()
         self.create_treeview()
 
         @inject(MaterialService)
-        def create_toolbar(self):
+            def create_toolbar(self):
         """Create the toolbar with buttons."""
         toolbar = ttk.Frame(self)
         toolbar.pack(side=tk.TOP, fill=tk.X, padx=5, pady=5)
         ttk.Button(toolbar, text='Add Storage', command=self.show_add_dialog
-            ).pack(side=tk.LEFT, padx=2)
+                   ).pack(side=tk.LEFT, padx=2)
         ttk.Button(toolbar, text='Delete Selected', command=lambda e=None:
-            self.delete_selected(e)).pack(side=tk.LEFT, padx=2)
+                   self.delete_selected(e)).pack(side=tk.LEFT, padx=2)
         ttk.Button(toolbar, text='Search', command=self.show_search_dialog
-            ).pack(side=tk.LEFT, padx=2)
-        ttk.Button(toolbar, text='Refresh', command=self.load_data).pack(side
-            =tk.LEFT, padx=2)
+                   ).pack(side=tk.LEFT, padx=2)
+        ttk.Button(toolbar, text='Refresh', command=self.load_data).pack(
+            side=tk.LEFT, padx=2)
         logger.debug('Toolbar created')
 
         @inject(MaterialService)
-        def create_treeview(self):
+            def create_treeview(self):
         """Create the treeview for displaying storage locations."""
         frame = ttk.Frame(self)
         frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         columns = ('id', 'name', 'location', 'capacity', 'occupancy',
-            'type', 'status')
+                   'type', 'status')
         self.tree = ttk.Treeview(frame, columns=columns, show='headings')
         self.tree.heading('id', text='ID')
         self.tree.heading('name', text='Name')
@@ -92,7 +92,7 @@ class StorageView(BaseView):
         self.tree.column('status', width=100)
         vsb = ttk.Scrollbar(frame, orient='vertical', command=self.tree.yview)
         hsb = ttk.Scrollbar(frame, orient='horizontal', command=self.tree.xview
-            )
+                            )
         self.tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
         vsb.pack(side=tk.RIGHT, fill=tk.Y)
         hsb.pack(side=tk.BOTTOM, fill=tk.X)
@@ -101,7 +101,7 @@ class StorageView(BaseView):
         logger.debug('Treeview created')
 
         @inject(MaterialService)
-        def load_data(self):
+            def load_data(self):
         """Load storage locations from the database and display them."""
         try:
             logger.info('Loading storage data directly from database')
@@ -118,7 +118,7 @@ class StorageView(BaseView):
                 SELECT name FROM sqlite_master 
                 WHERE type='table' AND name='storage';
             """
-                )
+            )
             if not cursor.fetchone():
                 logger.error("Storage table doesn't exist in the database")
                 self.set_status('Error: Storage table not found')
@@ -126,11 +126,11 @@ class StorageView(BaseView):
             try:
                 cursor.execute(
                     'SELECT id, name, location, capacity, current_occupancy, type, status FROM storage;'
-                    )
+                )
             except sqlite3.OperationalError:
                 logger.warning(
                     'Error with expected columns, trying to get available columns'
-                    )
+                )
                 cursor.execute('PRAGMA table_info(storage);')
                 columns = cursor.fetchall()
                 column_names = [col[1] for col in columns]
@@ -141,7 +141,7 @@ class StorageView(BaseView):
                 else:
                     select_columns.append("'N/A' as id")
                 for col in ['name', 'location', 'capacity',
-                    'current_occupancy', 'type', 'status']:
+                            'current_occupancy', 'type', 'status']:
                     if col in column_names:
                         select_columns.append(col)
                     elif col == 'current_occupancy':
@@ -158,37 +158,37 @@ class StorageView(BaseView):
             logger.info(f'Loaded {len(rows)} storage locations')
         except Exception as e:
             logger.error(f'Error loading storage data: {str(e)}', exc_info=True
-                )
+                         )
             self.show_error('Data Load Error',
-                f'Failed to load storage data: {str(e)}')
+                            f'Failed to load storage data: {str(e)}')
         finally:
             if 'conn' in locals():
                 conn.close()
 
         @inject(MaterialService)
-        def show_add_dialog(self):
+            def show_add_dialog(self):
         """Show dialog to add a new storage location."""
         logger.debug('Add dialog requested but not implemented')
         self.show_info('Not Implemented',
-            'Add storage functionality is not yet implemented.')
+                       'Add storage functionality is not yet implemented.')
 
         @inject(MaterialService)
-        def on_double_click(self, event):
+            def on_double_click(self, event):
         """Handle double-click on a storage item."""
         logger.debug('Double-click event received but not implemented')
         self.show_info('Not Implemented',
-            'Edit storage functionality is not yet implemented.')
+                       'Edit storage functionality is not yet implemented.')
 
         @inject(MaterialService)
-        def delete_selected(self, event):
+            def delete_selected(self, event):
         """Delete the selected storage location."""
         logger.debug('Delete requested but not implemented')
         self.show_info('Not Implemented',
-            'Delete storage functionality is not yet implemented.')
+                       'Delete storage functionality is not yet implemented.')
 
         @inject(MaterialService)
-        def show_search_dialog(self):
+            def show_search_dialog(self):
         """Show search dialog."""
         logger.debug('Search requested but not implemented')
         self.show_info('Not Implemented',
-            'Search functionality is not yet implemented.')
+                       'Search functionality is not yet implemented.')

@@ -2,20 +2,22 @@
 
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+
+
 class OrderManager(BaseManager[Order]):
     """
     Enhanced order manager implementing specialized order operations
     while leveraging base manager functionality.
     """
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, session_factory):
         """Initialize OrderManager with session factory."""
         super().__init__(session_factory, Order)
 
         @inject(MaterialService)
-        def create_order(self, order_data: Dict[str, Any], items: List[Dict[str,
-        Any]]) ->Order:
+            def create_order(self, order_data: Dict[str, Any], items: List[Dict[str,
+                                                                            Any]]) -> Order:
         """
         Create a new order with items.
 
@@ -32,18 +34,18 @@ class OrderManager(BaseManager[Order]):
         try:
             required_fields = ['supplier_id', 'order_date', 'status']
             missing_fields = [field for field in required_fields if field
-                 not in order_data]
+                              not in order_data]
             if missing_fields:
                 raise DatabaseError(
                     f"Missing required order fields: {', '.join(missing_fields)}"
-                    )
+                )
             with self.session_scope() as session:
                 order = Order(**order_data)
                 session.add(order)
                 session.flush()
                 for item_data in items:
                     if not all(k in item_data for k in ['item_type',
-                        'item_id', 'quantity']):
+                                                        'item_id', 'quantity']):
                         raise DatabaseError('Invalid order item data')
                     order_item = OrderItem(order_id=order.id, **item_data)
                     session.add(order_item)
@@ -53,7 +55,7 @@ class OrderManager(BaseManager[Order]):
             raise DatabaseError(f'Failed to create order: {str(e)}')
 
         @inject(MaterialService)
-        def get_order_with_items(self, order_id: int) ->Optional[Order]:
+            def get_order_with_items(self, order_id: int) -> Optional[Order]:
         """
         Get order with all its items.
 
@@ -70,8 +72,8 @@ class OrderManager(BaseManager[Order]):
             return result
 
         @inject(MaterialService)
-        def update_order_status(self, order_id: int, status: str) ->Optional[Order
-        ]:
+            def update_order_status(self, order_id: int, status: str) -> Optional[Order
+                                                                              ]:
         """
         Update order status with proper validation.
 
@@ -83,16 +85,16 @@ class OrderManager(BaseManager[Order]):
             Updated Order instance or None if not found
         """
         valid_statuses = ['pending', 'approved', 'processing', 'shipped',
-            'delivered', 'cancelled']
+                          'delivered', 'cancelled']
         if status not in valid_statuses:
             raise DatabaseError(
                 f"Invalid status. Must be one of: {', '.join(valid_statuses)}")
         return self.update(order_id, {'status': status, 'modified_at':
-            datetime.utcnow()})
+                                      datetime.utcnow()})
 
         @inject(MaterialService)
-        def add_order_items(self, order_id: int, items: List[Dict[str, Any]]
-        ) ->Order:
+            def add_order_items(self, order_id: int, items: List[Dict[str, Any]]
+                            ) -> Order:
         """
         Add items to an existing order.
 
@@ -112,7 +114,7 @@ class OrderManager(BaseManager[Order]):
                 raise DatabaseError(f'Order {order_id} not found')
             for item_data in items:
                 if not all(k in item_data for k in ['item_type', 'item_id',
-                    'quantity']):
+                                                    'quantity']):
                     raise DatabaseError('Invalid order item data')
                 order_item = OrderItem(order_id=order_id, **item_data)
                 session.add(order_item)
@@ -120,7 +122,7 @@ class OrderManager(BaseManager[Order]):
             return order
 
         @inject(MaterialService)
-        def remove_order_item(self, order_id: int, item_id: int) ->bool:
+            def remove_order_item(self, order_id: int, item_id: int) -> bool:
         """
         Remove an item from an order.
 
@@ -133,14 +135,14 @@ class OrderManager(BaseManager[Order]):
         """
         with self.session_scope() as session:
             item = session.query(OrderItem).filter(and_(OrderItem.order_id ==
-                order_id, OrderItem.id == item_id)).first()
+                                                        order_id, OrderItem.id == item_id)).first()
             if item:
                 session.delete(item)
                 return True
             return False
 
         @inject(MaterialService)
-        def search_orders(self, search_term: str) ->List[Order]:
+            def search_orders(self, search_term: str) -> List[Order]:
         """
         Search orders by various fields.
 
@@ -157,8 +159,8 @@ class OrderManager(BaseManager[Order]):
             return list(session.execute(query).scalars())
 
         @inject(MaterialService)
-        def get_orders_by_date_range(self, start_date: datetime, end_date: datetime
-        ) ->List[Order]:
+            def get_orders_by_date_range(self, start_date: datetime, end_date: datetime
+                                     ) -> List[Order]:
         """
         Get orders within a date range.
 
@@ -169,13 +171,13 @@ class OrderManager(BaseManager[Order]):
         Returns:
             List of Order instances within the date range
         """
-        query = select(Order).filter(and_(Order.order_date >= start_date, 
-            Order.order_date <= end_date)).order_by(Order.order_date.desc())
+        query = select(Order).filter(and_(Order.order_date >= start_date,
+                                          Order.order_date <= end_date)).order_by(Order.order_date.desc())
         with self.session_scope() as session:
             return list(session.execute(query).scalars())
 
         @inject(MaterialService)
-        def get_supplier_orders(self, supplier_id: int) ->List[Order]:
+            def get_supplier_orders(self, supplier_id: int) -> List[Order]:
         """
         Get all orders for a specific supplier.
 
@@ -190,7 +192,7 @@ class OrderManager(BaseManager[Order]):
             return list(session.execute(query).scalars())
 
         @inject(MaterialService)
-        def calculate_order_total(self, order_id: int) ->float:
+            def calculate_order_total(self, order_id: int) -> float:
         """
         Calculate total value of an order.
 

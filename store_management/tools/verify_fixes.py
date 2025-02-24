@@ -17,7 +17,7 @@ Date: 2024-02-24
 class LogManager:
     """Manages log file handling and centralization."""
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, project_root: Path):
         self.project_root = project_root
         self.logs_dir = project_root / 'logs'
@@ -25,13 +25,12 @@ class LogManager:
         self.temp_log = project_root / 'temp_verification.log'
         self.file_handler = logging.FileHandler(self.temp_log)
         self.console_handler = logging.StreamHandler(sys.stdout)
-        logging.basicConfig(level=logging.INFO, format=
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-            handlers=[self.file_handler, self.console_handler])
+        logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                            handlers=[self.file_handler, self.console_handler])
         self.logger = logging.getLogger(__name__)
 
         @inject(MaterialService)
-        def cleanup_and_centralize(self) ->None:
+            def cleanup_and_centralize(self) -> None:
         """Cleanup logging and move logs to centralized location."""
         self.file_handler.close()
         logging.getLogger().removeHandler(self.file_handler)
@@ -60,7 +59,7 @@ class VerificationResult:
 class FixVerifier:
     """Verifies that project fixes were applied correctly."""
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, project_root: Path):
         """Initialize the verifier with project root path."""
         self.project_root = Path(project_root)
@@ -73,7 +72,7 @@ class FixVerifier:
         self.logger = logging.getLogger(__name__)
 
         @inject(MaterialService)
-        def verify_all(self) ->bool:
+            def verify_all(self) -> bool:
         """Run all verifications and return overall success."""
         self.logger.info('Starting fix verification...')
         try:
@@ -93,7 +92,7 @@ class FixVerifier:
             return False
 
         @inject(MaterialService)
-        def verify_log_centralization(self) ->None:
+            def verify_log_centralization(self) -> None:
         """Verify that all logs are in the centralized logs directory."""
         self.logger.info('Verifying log centralization...')
         scattered_logs = []
@@ -104,11 +103,10 @@ class FixVerifier:
                 scattered_logs.append(str(log_file))
         self.results['log_centralization'] = VerificationResult(passed=len(
             scattered_logs) == 0, message='All logs are centralized' if len
-            (scattered_logs) == 0 else 'Found scattered log files', details
-            ={'scattered_logs': scattered_logs})
+            (scattered_logs) == 0 else 'Found scattered log files', details={'scattered_logs': scattered_logs})
 
         @inject(MaterialService)
-        def verify_backup_consolidation(self) ->None:
+            def verify_backup_consolidation(self) -> None:
         """Verify that all backups are in the centralized backup directory."""
         self.logger.info('Verifying backup consolidation...')
         scattered_backups = []
@@ -116,14 +114,12 @@ class FixVerifier:
             for backup_file in self.project_root.rglob(pattern):
                 if 'backups' not in str(backup_file.parent).split(os.sep):
                     scattered_backups.append(str(backup_file))
-        self.results['backup_consolidation'] = VerificationResult(passed=
-            len(scattered_backups) == 0, message=
-            'All backups are consolidated' if len(scattered_backups) == 0 else
-            'Found scattered backup files', details={'scattered_backups':
-            scattered_backups})
+        self.results['backup_consolidation'] = VerificationResult(passed=len(scattered_backups) == 0, message='All backups are consolidated' if len(scattered_backups) == 0 else
+                                                                  'Found scattered backup files', details={'scattered_backups':
+                                                                                                           scattered_backups})
 
         @inject(MaterialService)
-        def verify_service_consolidation(self) ->None:
+            def verify_service_consolidation(self) -> None:
         """Verify service implementation consolidation."""
         self.logger.info('Verifying service consolidation...')
         services_dir = self.project_root / 'services'
@@ -134,7 +130,7 @@ class FixVerifier:
                 if service_file.parent == services_dir:
                     issues.append(
                         f'Service file outside implementations: {service_file}'
-                        )
+                    )
             impl_map: Dict[str, List[Path]] = {}
             if implementations_dir.exists():
                 for impl_file in implementations_dir.rglob('*.py'):
@@ -148,14 +144,13 @@ class FixVerifier:
                     if len(impls) > 1:
                         issues.append(
                             f'Multiple implementations for {base_name}: {[str(p) for p in impls]}'
-                            )
-        self.results['service_consolidation'] = VerificationResult(passed=
-            len(issues) == 0, message='Services are properly consolidated' if
-            len(issues) == 0 else 'Found service consolidation issues',
-            details={'issues': issues})
+                        )
+        self.results['service_consolidation'] = VerificationResult(passed=len(issues) == 0, message='Services are properly consolidated' if
+                                                                   len(issues) == 0 else 'Found service consolidation issues',
+                                                                   details={'issues': issues})
 
         @inject(MaterialService)
-        def verify_config_standardization(self) ->None:
+            def verify_config_standardization(self) -> None:
         """Verify configuration standardization."""
         self.logger.info('Verifying configuration standardization...')
         issues = []
@@ -171,31 +166,29 @@ class FixVerifier:
                     with open(central_config, 'r', encoding='utf-8') as f:
                         tree = ast.parse(f.read())
                     has_config_class = any(isinstance(node, ast.ClassDef) and
-                        node.name == 'Configuration' for node in ast.walk(tree)
-                        )
+                                           node.name == 'Configuration' for node in ast.walk(tree)
+                                           )
                     if not has_config_class:
                         issues.append(
                             'configuration.py missing Configuration class')
                 except Exception as e:
                     issues.append(f'Error analyzing configuration.py: {e}')
-        self.results['config_standardization'] = VerificationResult(passed=
-            len(issues) == 0, message=
-            'Configuration is properly standardized' if len(issues) == 0 else
-            'Found configuration issues', details={'issues': issues})
+        self.results['config_standardization'] = VerificationResult(passed=len(issues) == 0, message='Configuration is properly standardized' if len(issues) == 0 else
+                                                                    'Found configuration issues', details={'issues': issues})
 
         @inject(MaterialService)
-        def verify_code_cleanup(self) ->None:
+            def verify_code_cleanup(self) -> None:
         """Verify code cleanup and syntax fixes."""
         self.logger.info('Verifying code cleanup...')
         issues = []
         redundant_paths = [self.project_root / 'path', self.project_root /
-            'database/sqlalchemy/path']
+                           'database/sqlalchemy/path']
         for path in redundant_paths:
             if path.exists():
                 issues.append(f'Redundant path still exists: {path}')
         to_check = {'database/sqlalchemy/mixins/validation_mixing.py': self
-            ._check_validation_mixing, 'pyproject.toml.py': self.
-            _check_pyproject_toml}
+                    ._check_validation_mixing, 'pyproject.toml.py': self.
+                    _check_pyproject_toml}
         for rel_path, check_func in to_check.items():
             full_path = self.project_root / rel_path
             if full_path.exists():
@@ -206,11 +199,11 @@ class FixVerifier:
                 except Exception as e:
                     issues.append(f'Error checking {rel_path}: {e}')
         self.results['code_cleanup'] = VerificationResult(passed=len(issues
-            ) == 0, message='Code cleanup is complete' if len(issues) == 0 else
-            'Found code cleanup issues', details={'issues': issues})
+                                                                     ) == 0, message='Code cleanup is complete' if len(issues) == 0 else
+                                                          'Found code cleanup issues', details={'issues': issues})
 
         @inject(MaterialService)
-        def _check_validation_mixing(self, path: Path) ->bool:
+            def _check_validation_mixing(self, path: Path) -> bool:
         """Check validation_mixing.py syntax."""
         try:
             with open(path, 'r', encoding='utf-8') as f:
@@ -223,7 +216,7 @@ class FixVerifier:
             return False
 
         @inject(MaterialService)
-        def _check_pyproject_toml(self, path: Path) ->bool:
+            def _check_pyproject_toml(self, path: Path) -> bool:
         """Check pyproject.toml.py syntax."""
         try:
             with open(path, 'r', encoding='utf-8') as f:
@@ -236,7 +229,7 @@ class FixVerifier:
             return False
 
         @inject(MaterialService)
-        def _generate_report(self) ->None:
+            def _generate_report(self) -> None:
         """Generate a detailed verification report."""
         report_path = self.project_root / 'verification_report.md'
         with open(report_path, 'w', encoding='utf-8') as f:
@@ -259,7 +252,7 @@ class FixVerifier:
             self.logger.info(f'Verification report generated at {report_path}')
 
 
-def main() ->None:
+def main() -> None:
     """Main entry point for the verification script."""
     try:
         if len(sys.argv) > 1:

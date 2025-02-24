@@ -2,10 +2,12 @@
 
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+
+
 class TestStorageService(unittest.TestCase):
     """Test cases for StorageService"""
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def setUp(self):
         """Set up test service with mock repositories"""
         self.session = MagicMock(spec=Session)
@@ -22,13 +24,13 @@ class TestStorageService(unittest.TestCase):
         self.service = StorageService(self.session)
 
         @inject(MaterialService)
-        def tearDown(self):
+            def tearDown(self):
         """Clean up resources"""
         self.storage_repo_patcher.stop()
         self.product_repo_patcher.stop()
 
         @inject(MaterialService)
-        def test_assign_product_to_storage(self):
+            def test_assign_product_to_storage(self):
         """Test assigning a product to storage"""
         mock_storage = MagicMock(spec=Storage)
         mock_storage.id = 1
@@ -42,7 +44,7 @@ class TestStorageService(unittest.TestCase):
         self.session.commit.assert_called_once()
 
         @inject(MaterialService)
-        def test_assign_product_to_nonexistent_storage(self):
+            def test_assign_product_to_nonexistent_storage(self):
             """Test assigning a product to nonexistent storage"""
             self.storage_repo.get.return_value = None
             result = self.service.assign_product_to_storage(1, 1)
@@ -50,7 +52,7 @@ class TestStorageService(unittest.TestCase):
             self.session.commit.assert_not_called()
 
         @inject(MaterialService)
-        def test_get_storage_utilization(self):
+            def test_get_storage_utilization(self):
             """Test getting storage utilization metrics"""
             mock_storage1 = MagicMock(spec=Storage)
             mock_storage1.id = 1
@@ -61,7 +63,7 @@ class TestStorageService(unittest.TestCase):
             mock_storage2.location = 'Location B'
             mock_storage2.capacity = 50
             self.storage_repo.get_all.return_value = [mock_storage1,
-                mock_storage2]
+                                                      mock_storage2]
 
             def get_by_storage_side_effect(storage_id):
                 if storage_id == 1:
@@ -85,7 +87,7 @@ class TestStorageService(unittest.TestCase):
             self.assertEqual(result[1]['utilization_percent'], 80.0)
 
         @inject(MaterialService)
-        def test_create_storage_location(self):
+            def test_create_storage_location(self):
             """Test creating a storage location"""
             self.storage_repo.get_by_location.return_value = None
 
@@ -98,19 +100,19 @@ class TestStorageService(unittest.TestCase):
                 return storage
             self.storage_repo.create.side_effect = create_side_effect
             data = {'location': 'New Location', 'capacity': 200, 'status':
-                'available'}
+                    'available'}
             result = self.service.create_storage_location(data)
             self.assertIsNotNone(result)
             self.assertEqual(result.location, 'New Location')
             self.session.commit.assert_called_once()
 
         @inject(MaterialService)
-        def test_create_duplicate_storage_location(self):
+            def test_create_duplicate_storage_location(self):
             """Test creating a duplicate storage location"""
             mock_storage = MagicMock(spec=Storage)
             self.storage_repo.get_by_location.return_value = mock_storage
             data = {'location': 'Existing Location', 'capacity': 200,
-                'status': 'available'}
+                    'status': 'available'}
             result = self.service.create_storage_location(data)
             self.assertIsNone(result)
             self.storage_repo.create.assert_not_called()

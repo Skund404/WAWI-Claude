@@ -2,6 +2,8 @@
 
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+
+
 class FilterMixin:
     """Mixin providing advanced filtering functionality for managers.
 
@@ -9,8 +11,8 @@ class FilterMixin:
     - model_class attribute (SQLAlchemy model class)
     """
 
-        @inject(MaterialService)
-        def filter_by_multiple(self, filters: Dict[str, Any]) ->List[Any]:
+    @inject(MaterialService)
+        def filter_by_multiple(self, filters: Dict[str, Any]) -> List[Any]:
         """Filter records by multiple criteria (AND condition).
 
         Args:
@@ -28,7 +30,7 @@ class FilterMixin:
             return list(session.execute(query).scalars().all())
 
         @inject(MaterialService)
-        def filter_with_or(self, filters: Dict[str, List[Any]]) ->List[Any]:
+            def filter_with_or(self, filters: Dict[str, List[Any]]) -> List[Any]:
         """Filter records with OR conditions for each field.
 
         Args:
@@ -47,8 +49,8 @@ class FilterMixin:
             return list(session.execute(query).scalars().all())
 
         @inject(MaterialService)
-        def filter_complex(self, conditions: List[Dict[str, Any]], join_type:
-        str='and') ->List[Any]:
+            def filter_complex(self, conditions: List[Dict[str, Any]], join_type:
+                           str = 'and') -> List[Any]:
         """Execute a complex filter with custom conditions.
 
         Args:

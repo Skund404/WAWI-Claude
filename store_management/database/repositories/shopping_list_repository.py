@@ -2,15 +2,17 @@
 
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+
+
 class ShoppingListRepository(BaseRepository[ShoppingList]):
     """Repository for ShoppingList model operations"""
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, session: Session):
         super().__init__(session, ShoppingList)
 
         @inject(MaterialService)
-        def get_with_items(self, list_id: int) ->Optional[ShoppingList]:
+            def get_with_items(self, list_id: int) -> Optional[ShoppingList]:
         """
         Get shopping list with all items.
 
@@ -24,7 +26,7 @@ class ShoppingListRepository(BaseRepository[ShoppingList]):
             ShoppingList.items)).filter(ShoppingList.id == list_id).first()
 
         @inject(MaterialService)
-        def get_pending_items(self) ->List[ShoppingListItem]:
+            def get_pending_items(self) -> List[ShoppingListItem]:
         """
         Get all unpurchased shopping list items.
 
@@ -32,10 +34,10 @@ class ShoppingListRepository(BaseRepository[ShoppingList]):
             List of unpurchased shopping list items
         """
         return self.session.query(ShoppingListItem).filter(ShoppingListItem
-            .purchased == False).all()
+                                                           .purchased == False).all()
 
         @inject(MaterialService)
-        def get_items_by_supplier(self, supplier_id: int) ->List[ShoppingListItem]:
+            def get_items_by_supplier(self, supplier_id: int) -> List[ShoppingListItem]:
         """
         Get shopping list items for a supplier.
 
@@ -50,10 +52,10 @@ class ShoppingListRepository(BaseRepository[ShoppingList]):
         """
         from ..models.part import Part
         from ..models.leather import Leather
-        part_items = self.session.query(ShoppingListItem).join(Part, 
-            ShoppingListItem.part_id == Part.id).filter(Part.supplier_id ==
-            supplier_id).all()
-        leather_items = self.session.query(ShoppingListItem).join(Leather, 
-            ShoppingListItem.leather_id == Leather.id).filter(Leather.
-            supplier_id == supplier_id).all()
+        part_items = self.session.query(ShoppingListItem).join(Part,
+                                                               ShoppingListItem.part_id == Part.id).filter(Part.supplier_id ==
+                                                                                                           supplier_id).all()
+        leather_items = self.session.query(ShoppingListItem).join(Leather,
+                                                                  ShoppingListItem.leather_id == Leather.id).filter(Leather.
+                                                                                                                    supplier_id == supplier_id).all()
         return part_items + leather_items

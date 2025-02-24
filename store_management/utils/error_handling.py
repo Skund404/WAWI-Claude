@@ -2,15 +2,17 @@
 
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+
+
 class DatabaseError(Exception):
     """Custom exception for database-related errors.
 
     Provides detailed context about database operation failures.
     """
 
-        @inject(MaterialService)
-        def __init__(self, message: str, details: Optional[str]=None,
-        error_code: Optional[str]=None):
+    @inject(MaterialService)
+        def __init__(self, message: str, details: Optional[str] = None,
+                 error_code: Optional[str] = None):
         """Initialize a database error with detailed information.
 
         Args:
@@ -24,7 +26,7 @@ class DatabaseError(Exception):
         super().__init__(message)
 
         @inject(MaterialService)
-        def __str__(self) ->str:
+            def __str__(self) -> str:
         """Provide a comprehensive string representation of the error.
 
         Returns:
@@ -36,7 +38,7 @@ class DatabaseError(Exception):
 
 
 def handle_database_error(operation: str, error: Exception, context:
-    Optional[Dict[str, Any]]=None) ->DatabaseError:
+                          Optional[Dict[str, Any]] = None) -> DatabaseError:
     """Standardized handler for database-related errors.
 
     Args:
@@ -57,8 +59,8 @@ def handle_database_error(operation: str, error: Exception, context:
     return DatabaseError(error_message, tb)
 
 
-def log_database_action(action: str, details: Optional[Dict[str, Any]]=None,
-    level: str='info'):
+def log_database_action(action: str, details: Optional[Dict[str, Any]] = None,
+                        level: str = 'info'):
     """Log database-related actions with optional details.
 
     Args:

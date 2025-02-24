@@ -17,9 +17,8 @@ class PatternConfiguration:
     """
     base_waste_factor: float = 0.05
     complexity_waste_multiplier: float = 0.1
-    material_type_waste_factors: Dict[str, float] = field(default_factory=
-        lambda : {'full_grain': 0.08, 'top_grain': 0.06, 'genuine_leather':
-        0.04, 'suede': 0.1})
+    material_type_waste_factors: Dict[str, float] = field(default_factory=lambda: {'full_grain': 0.08, 'top_grain': 0.06, 'genuine_leather':
+                                                                                   0.04, 'suede': 0.1})
     complexity_components_weight: float = 0.4
     complexity_skill_level_weight: float = 0.3
     complexity_material_diversity_weight: float = 0.3
@@ -29,7 +28,7 @@ class PatternConfiguration:
     query_prefetch_limit: int = 50
     query_batch_size: int = 25
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __post_init__(self):
         """
         Post-initialization setup and validation.
@@ -37,7 +36,7 @@ class PatternConfiguration:
         self._validate_configuration()
 
         @inject(MaterialService)
-        def _validate_configuration(self):
+            def _validate_configuration(self):
         """
         Validate configuration parameters to ensure consistency.
 
@@ -50,13 +49,13 @@ class PatternConfiguration:
             raise ValueError(
                 'Complexity waste multiplier must be between 0 and 0.5')
         total_weights = (self.complexity_components_weight + self.
-            complexity_skill_level_weight + self.
-            complexity_material_diversity_weight)
+                         complexity_skill_level_weight + self.
+                         complexity_material_diversity_weight)
         if not 0.99 <= total_weights <= 1.01:
             raise ValueError('Complexity calculation weights must sum to 1')
 
         @inject(MaterialService)
-        def get_waste_factor(self, material_type: Optional[str]=None) ->float:
+            def get_waste_factor(self, material_type: Optional[str] = None) -> float:
         """
         Calculate waste factor with optional material-specific override.
 
@@ -71,8 +70,8 @@ class PatternConfiguration:
         return self.base_waste_factor
 
         @classmethod
-    def load_from_file(cls, config_path: Optional[str]=None
-        ) ->'PatternConfiguration':
+    def load_from_file(cls, config_path: Optional[str] = None
+                       ) -> 'PatternConfiguration':
         """
         Load configuration from a JSON file.
 
@@ -84,18 +83,18 @@ class PatternConfiguration:
         """
         if not config_path:
             config_path = os.path.join(os.path.dirname(__file__),
-                'pattern_config.json')
+                                       'pattern_config.json')
         try:
             with open(config_path, 'r') as config_file:
                 config_data = json.load(config_file)
                 return cls(**config_data)
         except (FileNotFoundError, json.JSONDecodeError) as e:
             print(f'Could not load configuration: {e}. Using default settings.'
-                )
+                  )
             return cls()
 
         @inject(MaterialService)
-        def save_to_file(self, config_path: Optional[str]=None):
+            def save_to_file(self, config_path: Optional[str] = None):
         """
         Save current configuration to a JSON file.
 
@@ -104,9 +103,9 @@ class PatternConfiguration:
         """
         if not config_path:
             config_path = os.path.join(os.path.dirname(__file__),
-                'pattern_config.json')
+                                       'pattern_config.json')
         config_dict = {k: v for k, v in self.__dict__.items() if not k.
-            startswith('_')}
+                       startswith('_')}
         with open(config_path, 'w') as config_file:
             json.dump(config_dict, config_file, indent=4)
 

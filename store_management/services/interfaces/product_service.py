@@ -2,6 +2,8 @@
 
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+
+
 class IProductService(ABC):
     """
     Abstract base class defining the interface for Product Service operations.
@@ -10,9 +12,9 @@ class IProductService(ABC):
     including creation, retrieval, updating, and deletion of products.
     """
 
-        @abstractmethod
+    @abstractmethod
     @inject(MaterialService)
-    def create_product(self, product_data: Dict[str, Any]) ->Dict[str, Any]:
+        def create_product(self, product_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Create a new product.
 
@@ -29,7 +31,7 @@ class IProductService(ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def get_product(self, product_id: int) ->Optional[Dict[str, Any]]:
+        def get_product(self, product_id: int) -> Optional[Dict[str, Any]]:
         """
         Retrieve a specific product by ID.
 
@@ -46,8 +48,8 @@ class IProductService(ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def update_product(self, product_id: int, product_data: Dict[str, Any]
-        ) ->Dict[str, Any]:
+        def update_product(self, product_id: int, product_data: Dict[str, Any]
+                       ) -> Dict[str, Any]:
         """
         Update an existing product.
 
@@ -66,7 +68,7 @@ class IProductService(ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def delete_product(self, product_id: int) ->bool:
+        def delete_product(self, product_id: int) -> bool:
         """
         Delete a product.
 
@@ -84,8 +86,8 @@ class IProductService(ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def search_products(self, search_params: Dict[str, Any]) ->List[Dict[
-        str, Any]]:
+        def search_products(self, search_params: Dict[str, Any]) -> List[Dict[
+            str, Any]]:
         """
         Search for products based on various criteria.
 
@@ -99,9 +101,9 @@ class IProductService(ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def update_product_stock(self, product_id: int, quantity_change: float,
-        transaction_type: str='ADJUSTMENT', notes: Optional[str]=None) ->Dict[
-        str, Any]:
+        def update_product_stock(self, product_id: int, quantity_change: float,
+                             transaction_type: str = 'ADJUSTMENT', notes: Optional[str] = None) -> Dict[
+            str, Any]:
         """
         Update the stock of a product.
 
@@ -122,7 +124,7 @@ class IProductService(ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def generate_product_report(self) ->Dict[str, Any]:
+        def generate_product_report(self) -> Dict[str, Any]:
         """
         Generate a comprehensive product report.
 

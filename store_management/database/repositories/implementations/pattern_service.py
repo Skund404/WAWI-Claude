@@ -16,7 +16,7 @@ class PatternRepository(IPatternRepository, IBaseRepository):
     Provides methods for CRUD operations and specialized pattern queries.
     """
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, session: Session):
         """
         Initialize the Pattern Repository with a database session.
@@ -27,7 +27,7 @@ class PatternRepository(IPatternRepository, IBaseRepository):
         self._session = session
 
         @inject(MaterialService)
-        def get_by_id(self, pattern_id: int) ->Pattern:
+            def get_by_id(self, pattern_id: int) -> Pattern:
         """
         Retrieve a pattern by its unique identifier.
 
@@ -42,7 +42,7 @@ class PatternRepository(IPatternRepository, IBaseRepository):
         """
         try:
             pattern = self._session.query(Pattern).filter(Pattern.id ==
-                pattern_id).first()
+                                                          pattern_id).first()
             if not pattern:
                 raise ApplicationError(
                     f'Pattern with ID {pattern_id} not found')
@@ -52,7 +52,7 @@ class PatternRepository(IPatternRepository, IBaseRepository):
             raise ApplicationError(f'Could not retrieve pattern: {e}')
 
         @inject(MaterialService)
-        def get_by_skill_level(self, skill_level: SkillLevel) ->List[Pattern]:
+            def get_by_skill_level(self, skill_level: SkillLevel) -> List[Pattern]:
         """
         Retrieve patterns matching a specific skill level.
 
@@ -64,13 +64,13 @@ class PatternRepository(IPatternRepository, IBaseRepository):
         """
         try:
             return self._session.query(Pattern).filter(Pattern.skill_level ==
-                skill_level).all()
+                                                       skill_level).all()
         except Exception as e:
             logger.error(f'Error retrieving patterns by skill level: {e}')
             return []
 
         @inject(MaterialService)
-        def get_with_components(self, pattern_id: int) ->Pattern:
+            def get_with_components(self, pattern_id: int) -> Pattern:
         """
         Retrieve a pattern with its associated components.
 
@@ -85,7 +85,7 @@ class PatternRepository(IPatternRepository, IBaseRepository):
         """
         try:
             pattern = self._session.query(Pattern).filter(Pattern.id ==
-                pattern_id).options(joinedload(Pattern.components)).first()
+                                                          pattern_id).options(joinedload(Pattern.components)).first()
             if not pattern:
                 raise ApplicationError(
                     f'Pattern with ID {pattern_id} not found')
@@ -96,7 +96,7 @@ class PatternRepository(IPatternRepository, IBaseRepository):
                 f'Could not retrieve pattern components: {e}')
 
         @inject(MaterialService)
-        def search_by_criteria(self, criteria: Dict[str, Any]) ->List[Pattern]:
+            def search_by_criteria(self, criteria: Dict[str, Any]) -> List[Pattern]:
         """
         Search patterns using flexible criteria.
 
@@ -125,7 +125,7 @@ class PatternRepository(IPatternRepository, IBaseRepository):
             return []
 
         @inject(MaterialService)
-        def add(self, pattern: Pattern) ->Pattern:
+            def add(self, pattern: Pattern) -> Pattern:
         """
         Add a new pattern to the database.
 
@@ -152,7 +152,7 @@ class PatternRepository(IPatternRepository, IBaseRepository):
             raise ApplicationError(f'Could not add pattern: {e}')
 
         @inject(MaterialService)
-        def update(self, pattern: Pattern) ->Pattern:
+            def update(self, pattern: Pattern) -> Pattern:
         """
         Update an existing pattern.
 
@@ -182,7 +182,7 @@ class PatternRepository(IPatternRepository, IBaseRepository):
             raise ApplicationError(f'Could not update pattern: {e}')
 
         @inject(MaterialService)
-        def delete(self, pattern_id: int) ->bool:
+            def delete(self, pattern_id: int) -> bool:
         """
         Delete a pattern by its ID.
 
@@ -206,7 +206,7 @@ class PatternRepository(IPatternRepository, IBaseRepository):
             raise ApplicationError(f'Could not delete pattern: {e}')
 
         @inject(MaterialService)
-        def _validate_pattern(self, pattern: Pattern) ->None:
+            def _validate_pattern(self, pattern: Pattern) -> None:
         """
         Validate pattern data before database operations.
 

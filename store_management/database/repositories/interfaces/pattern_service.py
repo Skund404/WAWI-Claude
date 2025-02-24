@@ -2,6 +2,8 @@
 
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+
+
 class RecipeStatus(Enum):
     """Enumeration of recipe statuses"""
     DRAFT = 'draft'
@@ -16,9 +18,9 @@ class IRecipeService(ABC):
     Handles recipe creation, management, and analysis functionality.
     """
 
-        @abstractmethod
+    @abstractmethod
     @inject(MaterialService)
-    def get_all_recipes(self) ->List[Dict]:
+        def get_all_recipes(self) -> List[Dict]:
         """
         Retrieve all recipes.
 
@@ -29,7 +31,7 @@ class IRecipeService(ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def get_recipe_by_id(self, recipe_id: int) ->Dict:
+        def get_recipe_by_id(self, recipe_id: int) -> Dict:
         """
         Retrieve recipe details by ID.
 
@@ -46,7 +48,7 @@ class IRecipeService(ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def get_recipe_by_number(self, recipe_number: str) ->Dict:
+        def get_recipe_by_number(self, recipe_number: str) -> Dict:
         """
         Retrieve recipe by its unique number.
 
@@ -63,7 +65,7 @@ class IRecipeService(ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def create_recipe(self, recipe_data: Dict) ->Dict:
+        def create_recipe(self, recipe_data: Dict) -> Dict:
         """
         Create a new recipe.
 
@@ -86,7 +88,7 @@ class IRecipeService(ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def update_recipe(self, recipe_id: int, recipe_data: Dict) ->Dict:
+        def update_recipe(self, recipe_id: int, recipe_data: Dict) -> Dict:
         """
         Update an existing recipe.
 
@@ -105,7 +107,7 @@ class IRecipeService(ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def delete_recipe(self, recipe_id: int) ->bool:
+        def delete_recipe(self, recipe_id: int) -> bool:
         """
         Delete a recipe by ID.
 
@@ -122,7 +124,7 @@ class IRecipeService(ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def add_recipe_item(self, recipe_id: int, item_data: Dict) ->Dict:
+        def add_recipe_item(self, recipe_id: int, item_data: Dict) -> Dict:
         """
         Add an item to an existing recipe.
 
@@ -145,7 +147,7 @@ class IRecipeService(ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def remove_recipe_item(self, recipe_id: int, item_id: int) ->Dict:
+        def remove_recipe_item(self, recipe_id: int, item_id: int) -> Dict:
         """
         Remove an item from a recipe.
 
@@ -163,8 +165,8 @@ class IRecipeService(ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def check_materials_availability(self, recipe_id: int, quantity: int=1
-        ) ->Dict:
+        def check_materials_availability(self, recipe_id: int, quantity: int = 1
+                                     ) -> Dict:
         """
         Check if all materials for a recipe are available.
 
@@ -182,8 +184,8 @@ class IRecipeService(ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def calculate_recipe_cost(self, recipe_id: int, include_labor: bool=True
-        ) ->Dict:
+        def calculate_recipe_cost(self, recipe_id: int, include_labor: bool = True
+                              ) -> Dict:
         """
         Calculate the total cost of a recipe.
 
@@ -204,7 +206,7 @@ class IRecipeService(ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def duplicate_recipe(self, recipe_id: int, new_name: str) ->Dict:
+        def duplicate_recipe(self, recipe_id: int, new_name: str) -> Dict:
         """
         Create a duplicate of an existing recipe.
 
@@ -223,7 +225,7 @@ class IRecipeService(ABC):
 
         @abstractmethod
     @inject(MaterialService)
-    def search_recipes(self, search_params: Dict) ->List[Dict]:
+        def search_recipes(self, search_params: Dict) -> List[Dict]:
         """
         Search recipes based on given parameters.
 

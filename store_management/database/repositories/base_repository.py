@@ -17,7 +17,7 @@ class BaseRepository(Generic[T], IBaseRepository[T]):
     the IBaseRepository interface.
     """
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, session: Session, model_class: Type):
         """
         Initialize a new BaseRepository instance.
@@ -30,7 +30,7 @@ class BaseRepository(Generic[T], IBaseRepository[T]):
         self.model_class = model_class
 
         @inject(MaterialService)
-        def get_by_id(self, id: int) ->Optional[Any]:
+            def get_by_id(self, id: int) -> Optional[Any]:
         """
         Get a model instance by ID.
 
@@ -45,12 +45,12 @@ class BaseRepository(Generic[T], IBaseRepository[T]):
         except SQLAlchemyError as e:
             logger.error(
                 f'Error retrieving {self.model_class.__name__} with ID {id}: {str(e)}'
-                )
+            )
             return None
 
         @inject(MaterialService)
-        def get_all(self, limit: Optional[int]=None, offset: Optional[int]=None
-        ) ->List[Any]:
+            def get_all(self, limit: Optional[int] = None, offset: Optional[int] = None
+                    ) -> List[Any]:
         """
         Get all model instances.
 
@@ -74,7 +74,7 @@ class BaseRepository(Generic[T], IBaseRepository[T]):
             return []
 
         @inject(MaterialService)
-        def create(self, data: Dict[str, Any]) ->Optional[Any]:
+            def create(self, data: Dict[str, Any]) -> Optional[Any]:
         """
         Create a new model instance.
 
@@ -96,7 +96,7 @@ class BaseRepository(Generic[T], IBaseRepository[T]):
             return None
 
         @inject(MaterialService)
-        def update(self, id: int, data: Dict[str, Any]) ->Optional[Any]:
+            def update(self, id: int, data: Dict[str, Any]) -> Optional[Any]:
         """
         Update a model instance.
 
@@ -112,7 +112,7 @@ class BaseRepository(Generic[T], IBaseRepository[T]):
             if instance is None:
                 logger.warning(
                     f'{self.model_class.__name__} with ID {id} not found for update'
-                    )
+                )
                 return None
             for key, value in data.items():
                 if hasattr(instance, key):
@@ -122,12 +122,12 @@ class BaseRepository(Generic[T], IBaseRepository[T]):
         except SQLAlchemyError as e:
             logger.error(
                 f'Error updating {self.model_class.__name__} with ID {id}: {str(e)}'
-                )
+            )
             self.session.rollback()
             return None
 
         @inject(MaterialService)
-        def delete(self, id: int) ->bool:
+            def delete(self, id: int) -> bool:
         """
         Delete a model instance.
 
@@ -142,7 +142,7 @@ class BaseRepository(Generic[T], IBaseRepository[T]):
             if instance is None:
                 logger.warning(
                     f'{self.model_class.__name__} with ID {id} not found for deletion'
-                    )
+                )
                 return False
             self.session.delete(instance)
             self.session.flush()
@@ -150,12 +150,12 @@ class BaseRepository(Generic[T], IBaseRepository[T]):
         except SQLAlchemyError as e:
             logger.error(
                 f'Error deleting {self.model_class.__name__} with ID {id}: {str(e)}'
-                )
+            )
             self.session.rollback()
             return False
 
         @inject(MaterialService)
-        def exists(self, id: int) ->bool:
+            def exists(self, id: int) -> bool:
         """
         Check if a model instance exists.
 
@@ -167,15 +167,15 @@ class BaseRepository(Generic[T], IBaseRepository[T]):
         """
         try:
             return self.session.query(self.model_class).filter_by(id=id).first(
-                ) is not None
+            ) is not None
         except SQLAlchemyError as e:
             logger.error(
                 f'Error checking existence of {self.model_class.__name__} with ID {id}: {str(e)}'
-                )
+            )
             return False
 
         @inject(MaterialService)
-        def count(self) ->int:
+            def count(self) -> int:
         """
         Count the number of model instances.
 
@@ -187,11 +187,11 @@ class BaseRepository(Generic[T], IBaseRepository[T]):
         except SQLAlchemyError as e:
             logger.error(
                 f'Error counting {self.model_class.__name__} instances: {str(e)}'
-                )
+            )
             return 0
 
         @inject(MaterialService)
-        def filter_by(self, **kwargs) ->List[Any]:
+            def filter_by(self, **kwargs) -> List[Any]:
         """
         Filter model instances by attribute values.
 
@@ -203,15 +203,15 @@ class BaseRepository(Generic[T], IBaseRepository[T]):
         """
         try:
             return self.session.query(self.model_class).filter_by(**kwargs
-                ).all()
+                                                                  ).all()
         except SQLAlchemyError as e:
             logger.error(
                 f'Error filtering {self.model_class.__name__} by {kwargs}: {str(e)}'
-                )
+            )
             return []
 
         @inject(MaterialService)
-        def search(self, search_term: str, fields: List[str]) ->List[Any]:
+            def search(self, search_term: str, fields: List[str]) -> List[Any]:
         """
         Search for model instances by a search term in specified fields.
 
@@ -234,9 +234,9 @@ class BaseRepository(Generic[T], IBaseRepository[T]):
             if not conditions:
                 return []
             return self.session.query(self.model_class).filter(or_(*conditions)
-                ).all()
+                                                               ).all()
         except SQLAlchemyError as e:
             logger.error(
                 f"Error searching {self.model_class.__name__} for '{search_term}' in {fields}: {str(e)}"
-                )
+            )
             return []

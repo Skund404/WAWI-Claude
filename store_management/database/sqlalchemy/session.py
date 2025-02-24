@@ -1,52 +1,85 @@
-from di.core import inject
-from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+# Relative path: store_management/database/sqlalchemy/session.py
+
 """
-Database session management.
+Database Session Management Module
+
+Provides utilities for managing database sessions and connections.
 """
-logger = logging.getLogger(__name__)
-_session_factory = None
-_engine = None
+
+import contextlib
+from typing import Generator
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.pool import NullPool
+
+from config.settings import get_database_path
+from utils.logger import get_logger
+
+# Configure logging
+logger = get_logger(__name__)
+
+# Create engine with connection pooling disabled for better resource management
+engine = create_engine(
+    f'sqlite:///{get_database_path()}',
+    connect_args={'check_same_thread': False},
+    poolclass=NullPool
+)
+
+# Create a configured "Session" class
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine
+)
 
 
-def init_database() ->Engine:
+@contextlib.contextmanager
+def get_db_session() -> Generator[Session, None, None]:
     """
-    Initialize database engine and session factory.
+    Provide a transactional scope around a series of operations.
 
-    Returns:
-        SQLAlchemy engine instance
+    Yields:
+        Session: A database session that will be rolled back if an exception occurs.
+
+    Raises:
+        Exception: Any database-related exceptions.
     """
-    global _session_factory, _engine
+    session = SessionLocal()
     try:
-        db_url = get_database_url()
-        logger.debug(f'Initializing database with URL: {db_url}')
-        _engine = create_engine(db_url, echo=False, pool_pre_ping=True,
-            pool_recycle=3600)
-        session_factory = sessionmaker(bind=_engine, autocommit=False,
-            autoflush=False)
-        _session_factory = scoped_session(session_factory)
-        return _engine
+        yield session
+        session.commit()
     except Exception as e:
-        logger.error(f'Failed to initialize database: {str(e)}')
+        session.rollback()
+        logger.error(f"Database session error: {e}")
+        raise
+    finally:
+        session.close()
+
+
+def init_database():
+    """
+    Initialize the database, creating all tables defined in the models.
+    """
+    try:
+        from database.models import Base
+        Base.metadata.create_all(bind=engine)
+        logger.info("Database initialized successfully")
+    except Exception as e:
+        logger.error(f"Error initializing database: {e}")
         raise
 
 
-def get_db_session():
+def drop_database():
     """
-    Get a database session.
+    Drop all tables in the database.
 
-    Returns:
-        Scoped session instance
-
-    Raises:
-        RuntimeError: If database is not initialized
+    Warning: This will delete all data!
     """
-    if _session_factory is None:
-        raise RuntimeError(
-            'Database not initialized. Call init_database() first.')
-    return _session_factory()
-
-
-def close_db_session() ->None:
-    """Close all sessions and clean up."""
-    if _session_factory is not None:
-        _session_factory.remove()
+    try:
+        from database.models import Base
+        Base.metadata.drop_all(bind=engine)
+        logger.info("All database tables dropped successfully")
+    except Exception as e:
+        logger.error(f"Error dropping database: {e}")
+        raise

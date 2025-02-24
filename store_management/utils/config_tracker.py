@@ -16,9 +16,9 @@ class ConfigurationTracker:
     and supports environment-specific configurations.
     """
 
-        @inject(MaterialService)
-        def __init__(self, base_config_dir: Optional[str]=None, log_dir:
-        Optional[str]=None):
+    @inject(MaterialService)
+        def __init__(self, base_config_dir: Optional[str] = None, log_dir:
+                 Optional[str] = None):
         """
         Initialize Configuration Tracker.
 
@@ -27,15 +27,15 @@ class ConfigurationTracker:
             log_dir (Optional[str]): Directory for storing configuration logs
         """
         self.base_config_dir = base_config_dir or os.path.join(os.path.
-            dirname(__file__), '..', 'config')
+                                                               dirname(__file__), '..', 'config')
         self.log_dir = log_dir or os.path.join(os.path.dirname(__file__),
-            '..', 'logs', 'config')
+                                               '..', 'logs', 'config')
         os.makedirs(self.base_config_dir, exist_ok=True)
         os.makedirs(self.log_dir, exist_ok=True)
         self.logger = logging.getLogger('config_tracker')
         self.logger.setLevel(logging.INFO)
         log_file = os.path.join(self.log_dir,
-            f"config_changes_{datetime.now().strftime('%Y%m%d')}.log")
+                                f"config_changes_{datetime.now().strftime('%Y%m%d')}.log")
         file_handler = logging.FileHandler(log_file)
         file_handler.setFormatter(logging.Formatter(
             '%(asctime)s - %(levelname)s - %(message)s'))
@@ -46,8 +46,8 @@ class ConfigurationTracker:
         self.logger.addHandler(console_handler)
 
         @inject(MaterialService)
-        def load_environment_config(self, environment: str='development',
-        default_config: Optional[Dict[str, Any]]=None) ->Dict[str, Any]:
+            def load_environment_config(self, environment: str = 'development',
+                                    default_config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Load configuration for a specific environment.
 
@@ -66,16 +66,16 @@ class ConfigurationTracker:
                     config = json.load(config_file)
                     self.logger.info(
                         f'Loaded {environment} configuration from {config_filename}'
-                        )
+                    )
                     return config
             if default_config:
                 self.logger.warning(
                     f'No configuration found for {environment}. Using provided default configuration.'
-                    )
+                )
                 return default_config
             self.logger.error(
                 f'No configuration found for {environment} and no default provided.'
-                )
+            )
             return {}
         except json.JSONDecodeError:
             self.logger.error(f'Invalid JSON in {config_filename}')
@@ -85,8 +85,8 @@ class ConfigurationTracker:
             return default_config or {}
 
         @inject(MaterialService)
-        def track_config_change(self, config_name: str, old_value: Any,
-        new_value: Any, context: Optional[Dict[str, Any]]=None):
+            def track_config_change(self, config_name: str, old_value: Any,
+                                new_value: Any, context: Optional[Dict[str, Any]] = None):
         """
         Log configuration changes with detailed context.
 
@@ -104,8 +104,8 @@ class ConfigurationTracker:
         self.logger.info(f'Configuration Change: {json.dumps(change_log)}')
 
         @inject(MaterialService)
-        def save_config_snapshot(self, config: Dict[str, Any], environment: str
-        ='development'):
+            def save_config_snapshot(self, config: Dict[str, Any], environment: str
+                                 = 'development'):
         """
         Save a snapshot of the current configuration.
 

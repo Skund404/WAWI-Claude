@@ -15,7 +15,7 @@ Date: 2024-02-24
 class LogManager:
     """Manages log file handling and centralization."""
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, project_root: Path):
         self.project_root = project_root
         self.logs_dir = project_root / 'logs'
@@ -23,13 +23,12 @@ class LogManager:
         self.temp_log = project_root / 'temp_verification.log'
         self.file_handler = logging.FileHandler(self.temp_log)
         self.console_handler = logging.StreamHandler(sys.stdout)
-        logging.basicConfig(level=logging.INFO, format=
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-            handlers=[self.file_handler, self.console_handler])
+        logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                            handlers=[self.file_handler, self.console_handler])
         self.logger = logging.getLogger(__name__)
 
         @inject(MaterialService)
-        def cleanup_and_centralize(self) ->None:
+            def cleanup_and_centralize(self) -> None:
         """Cleanup logging and move logs to centralized location."""
         self.file_handler.close()
         logging.getLogger().removeHandler(self.file_handler)
@@ -59,7 +58,7 @@ class VerificationResult:
 class ProjectFixer:
     """Handles both verification and fixing of project issues."""
 
-        @inject(MaterialService)
+    @inject(MaterialService)
         def __init__(self, project_root: Path):
         self.project_root = Path(project_root)
         self.results: Dict[str, VerificationResult] = {}
@@ -72,7 +71,7 @@ class ProjectFixer:
         self.backup_path: Optional[Path] = None
 
         @inject(MaterialService)
-        def verify_and_fix(self) ->bool:
+            def verify_and_fix(self) -> bool:
         """Run all verifications and fix any issues found."""
         self.logger.info('Starting project verification and fixes...')
         try:
@@ -93,16 +92,16 @@ class ProjectFixer:
             return False
 
         @inject(MaterialService)
-        def _create_backup(self) ->None:
+            def _create_backup(self) -> None:
         """Create a backup of the project."""
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         self.backup_path = (self.project_root.parent /
-            f'{self.project_root.name}_backup_{timestamp}')
+                            f'{self.project_root.name}_backup_{timestamp}')
         shutil.copytree(self.project_root, self.backup_path)
         self.logger.info(f'Created backup at {self.backup_path}')
 
         @inject(MaterialService)
-        def _restore_backup(self) ->None:
+            def _restore_backup(self) -> None:
         """Restore from backup if available."""
         if self.backup_path and self.backup_path.exists():
             shutil.rmtree(self.project_root)
@@ -110,21 +109,21 @@ class ProjectFixer:
             self.logger.info('Restored from backup')
 
         @inject(MaterialService)
-        def _run_verifications(self) ->None:
+            def _run_verifications(self) -> None:
         """Run all verifications."""
         verifications = [('log_centralization', self._verify_logs, self.
-            _fix_logs), ('backup_consolidation', self._verify_backups, self
-            ._fix_backups), ('service_consolidation', self._verify_services,
-            self._fix_services), ('config_standardization', self.
-            _verify_config, self._fix_config), ('code_cleanup', self.
-            _verify_code, self._fix_code)]
+                          _fix_logs), ('backup_consolidation', self._verify_backups, self
+                         ._fix_backups), ('service_consolidation', self._verify_services,
+                                          self._fix_services), ('config_standardization', self.
+                                                                _verify_config, self._fix_config), ('code_cleanup', self.
+                                                                                                    _verify_code, self._fix_code)]
         for name, verify_func, fix_func in verifications:
             result = verify_func()
             result.fix_function = fix_func
             self.results[name] = result
 
         @inject(MaterialService)
-        def _fix_issues(self) ->None:
+            def _fix_issues(self) -> None:
         """Fix any issues found during verification."""
         for name, result in self.results.items():
             if not result.passed and result.fix_function:
@@ -135,7 +134,7 @@ class ProjectFixer:
                     self.logger.error(f'Error fixing {name}: {e}')
 
         @inject(MaterialService)
-        def _verify_logs(self) ->VerificationResult:
+            def _verify_logs(self) -> VerificationResult:
         """Verify log centralization."""
         scattered_logs = []
         for log_file in self.project_root.rglob('*.log'):
@@ -143,55 +142,53 @@ class ProjectFixer:
                 continue
             if 'logs' not in str(log_file.parent).split(os.sep):
                 scattered_logs.append(str(log_file))
-        return VerificationResult(passed=len(scattered_logs) == 0, message=
-            'All logs are centralized' if len(scattered_logs) == 0 else
-            'Found scattered log files', details={'scattered_logs':
-            scattered_logs})
+        return VerificationResult(passed=len(scattered_logs) == 0, message='All logs are centralized' if len(scattered_logs) == 0 else
+                                  'Found scattered log files', details={'scattered_logs':
+                                                                        scattered_logs})
 
         @inject(MaterialService)
-        def _fix_logs(self) ->None:
+            def _fix_logs(self) -> None:
         """Fix log centralization issues."""
         for log_file in self.project_root.rglob('*.log'):
             if 'logs' not in str(log_file.parent).split(os.sep):
                 try:
                     new_path = (self.logs_dir /
-                        f'{log_file.parent.name}_{log_file.name}')
+                                f'{log_file.parent.name}_{log_file.name}')
                     shutil.move(str(log_file), str(new_path))
                 except Exception as e:
                     self.logger.error(f'Error moving log file {log_file}: {e}')
 
         @inject(MaterialService)
-        def _verify_code(self) ->VerificationResult:
+            def _verify_code(self) -> VerificationResult:
         """Verify code cleanup."""
         issues = []
         mixing_path = (self.project_root /
-            'database/sqlalchemy/mixins/validation_mixing.py')
+                       'database/sqlalchemy/mixins/validation_mixing.py')
         if mixing_path.exists():
             with open(mixing_path, 'r', encoding='utf-8') as f:
                 content = f.read()
             if re.search('class\\s+\\w+\\s*:', content):
                 issues.append(
                     'Syntax check failed for database/sqlalchemy/mixins/validation_mixing.py'
-                    )
-        return VerificationResult(passed=len(issues) == 0, message=
-            'Code cleanup is complete' if len(issues) == 0 else
-            'Found code cleanup issues', details={'issues': issues})
+                )
+        return VerificationResult(passed=len(issues) == 0, message='Code cleanup is complete' if len(issues) == 0 else
+                                  'Found code cleanup issues', details={'issues': issues})
 
         @inject(MaterialService)
-        def _fix_code(self) ->None:
+            def _fix_code(self) -> None:
         """Fix code issues."""
         mixing_path = (self.project_root /
-            'database/sqlalchemy/mixins/validation_mixing.py')
+                       'database/sqlalchemy/mixins/validation_mixing.py')
         if mixing_path.exists():
             with open(mixing_path, 'r', encoding='utf-8') as f:
                 content = f.read()
             fixed_content = re.sub('class\\s+(\\w+)\\s*:',
-                'class \\1(object):', content)
+                                   'class \\1(object):', content)
             with open(mixing_path, 'w', encoding='utf-8') as f:
                 f.write(fixed_content)
 
         @inject(MaterialService)
-        def _verify_backups(self) ->VerificationResult:
+            def _verify_backups(self) -> VerificationResult:
         """Verify backup consolidation."""
         scattered_backups = []
         for pattern in ['*.bak', '*.backup', '*_backup_*']:
@@ -199,26 +196,26 @@ class ProjectFixer:
                 if 'backups' not in str(backup_file.parent).split(os.sep):
                     scattered_backups.append(str(backup_file))
         return VerificationResult(passed=len(scattered_backups) == 0,
-            message='All backups are consolidated' if len(scattered_backups
-            ) == 0 else 'Found scattered backup files', details={
+                                  message='All backups are consolidated' if len(scattered_backups
+                                                                                ) == 0 else 'Found scattered backup files', details={
             'scattered_backups': scattered_backups})
 
         @inject(MaterialService)
-        def _fix_backups(self) ->None:
+            def _fix_backups(self) -> None:
         """Fix backup consolidation issues."""
         for pattern in ['*.bak', '*.backup', '*_backup_*']:
             for backup_file in self.project_root.rglob(pattern):
                 if 'backups' not in str(backup_file.parent).split(os.sep):
                     try:
                         new_path = (self.backups_dir /
-                            f'{backup_file.parent.name}_{backup_file.name}')
+                                    f'{backup_file.parent.name}_{backup_file.name}')
                         shutil.move(str(backup_file), str(new_path))
                     except Exception as e:
                         self.logger.error(
                             f'Error moving backup file {backup_file}: {e}')
 
         @inject(MaterialService)
-        def _verify_services(self) ->VerificationResult:
+            def _verify_services(self) -> VerificationResult:
         """Verify service consolidation."""
         services_dir = self.project_root / 'services'
         implementations_dir = services_dir / 'implementations'
@@ -228,13 +225,12 @@ class ProjectFixer:
                 if service_file.parent == services_dir:
                     issues.append(
                         f'Service file outside implementations: {service_file}'
-                        )
-        return VerificationResult(passed=len(issues) == 0, message=
-            'Services are properly consolidated' if len(issues) == 0 else
-            'Found service consolidation issues', details={'issues': issues})
+                    )
+        return VerificationResult(passed=len(issues) == 0, message='Services are properly consolidated' if len(issues) == 0 else
+                                  'Found service consolidation issues', details={'issues': issues})
 
         @inject(MaterialService)
-        def _fix_services(self) ->None:
+            def _fix_services(self) -> None:
         """Fix service consolidation issues."""
         services_dir = self.project_root / 'services'
         implementations_dir = services_dir / 'implementations'
@@ -249,19 +245,18 @@ class ProjectFixer:
                         f'Error moving service file {service_file}: {e}')
 
         @inject(MaterialService)
-        def _verify_config(self) ->VerificationResult:
+            def _verify_config(self) -> VerificationResult:
         """Verify configuration standardization."""
         config_dir = self.project_root / 'config'
         central_config = config_dir / 'configuration.py'
         issues = []
         if not central_config.exists():
             issues.append('Missing centralized configuration file')
-        return VerificationResult(passed=len(issues) == 0, message=
-            'Configuration is properly standardized' if len(issues) == 0 else
-            'Found configuration issues', details={'issues': issues})
+        return VerificationResult(passed=len(issues) == 0, message='Configuration is properly standardized' if len(issues) == 0 else
+                                  'Found configuration issues', details={'issues': issues})
 
         @inject(MaterialService)
-        def _fix_config(self) ->None:
+            def _fix_config(self) -> None:
         """Fix configuration issues."""
         config_dir = self.project_root / 'config'
         config_dir.mkdir(exist_ok=True)
@@ -283,7 +278,7 @@ class Configuration:
                 f.write(config_template)
 
         @inject(MaterialService)
-        def _generate_report(self) ->None:
+            def _generate_report(self) -> None:
         """Generate verification and fix report."""
         report_path = self.project_root / 'verification_report.md'
         with open(report_path, 'w', encoding='utf-8') as f:
@@ -306,7 +301,7 @@ class Configuration:
         self.logger.info(f'Generated report at {report_path}')
 
         @inject(MaterialService)
-        def _open_report(self) ->None:
+            def _open_report(self) -> None:
         """Open the verification report."""
         report_path = self.project_root / 'verification_report.md'
         try:
@@ -320,7 +315,7 @@ class Configuration:
             self.logger.error(f'Error opening report: {e}')
 
 
-def main() ->None:
+def main() -> None:
     """Main entry point for the script."""
     try:
         if len(sys.argv) > 1:
