@@ -22,7 +22,7 @@ __all__ = [
 "ProductManager",
 "PartManager",
 "LeatherManager",
-"RecipeManager",
+"PatternManager",
 "OrderManager",
 "ShoppingListManager",
 ]

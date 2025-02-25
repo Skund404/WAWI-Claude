@@ -1,32 +1,42 @@
+# Relative path: store_management/service.py
+
+"""
+Base service class module.
+
+Provides the foundational service class that leverages dependency injection.
+"""
+
+import abc
+from typing import Generic, Type, TypeVar
+
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+from container import DependencyContainer
+
+# Type variable for generic dependency type
 T = TypeVar('T')
 
 
 class Service(abc.ABC, Generic[T]):
-    pass
-"""Base class for services that use dependency injection."""
+    """Base class for services that use dependency injection."""
 
-@inject(MaterialService)
-def __init__(self, container: DependencyContainer):
-    pass
-"""
-Initialize the service with a dependency container.
+    def __init__(self, container: DependencyContainer):
+        """
+        Initialize the service with a dependency container.
 
-Args:
-container: Dependency injection container
-"""
-self._container = container
+        Args:
+            container: Dependency injection container
+        """
+        self._container = container
 
-@inject(MaterialService)
-def get_dependency(self, dependency_type: Type[T]) -> T:
-"""
-Get a dependency from the container.
+    def get_dependency(self, dependency_type: Type[T]) -> T:
+        """
+        Get a dependency from the container.
 
-Args:
-dependency_type: Type of dependency to retrieve
+        Args:
+            dependency_type: Type of dependency to retrieve
 
-Returns:
-Instance of the requested dependency
-"""
-return self._container.resolve(dependency_type)
+        Returns:
+            Instance of the requested dependency
+        """
+        return self._container.resolve(dependency_type)

@@ -1,254 +1,238 @@
+#!/usr/bin/env python3
+# Path: base_service.py
+"""
+Base service implementation providing generic CRUD operations.
+
+This module contains the AbstractBaseService class which serves as a foundation
+for all service implementations in the application.
+"""
+
+import logging
+from abc import ABC, abstractmethod
+from typing import Any, Dict, Generic, List, Optional, TypeVar
+
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+from repositories.interfaces import IBaseRepository
+from infrastructure.unit_of_work import IUnitOfWork
+from exceptions import NotFoundError, ValidationError, ApplicationError
+
+# Generic type for entities
 T = TypeVar('T')
 
 
 class BaseService(ABC, Generic[T]):
-    pass
-"""
-Abstract base service providing a generic implementation of CRUD operations.
+    """
+    Abstract base service providing a generic implementation of CRUD operations.
 
-This service acts as an intermediate layer between the repository
-and the application logic, adding additional validation, error handling,
-and business logic capabilities.
+    This service acts as an intermediate layer between the repository
+    and the application logic, adding additional validation, error handling,
+    and business logic capabilities.
 
-Attributes:
-_repository (IBaseRepository): The repository for data access
-_unit_of_work (IUnitOfWork): Unit of work for transaction management
-_logger (logging.Logger): Logger for the service
-"""
+    Attributes:
+        _repository (IBaseRepository): The repository for data access
+        _unit_of_work (IUnitOfWork): Unit of work for transaction management
+        _logger (logging.Logger): Logger for the service
+    """
 
-@inject(MaterialService)
-def __init__(self, repository: IBaseRepository[T], unit_of_work:
-Optional[IUnitOfWork] = None):
-    pass
-"""
-Initialize the base service with a repository and optional unit of work.
+    def __init__(self, repository: IBaseRepository[T], unit_of_work: Optional[IUnitOfWork] = None):
+        """
+        Initialize the base service with a repository and optional unit of work.
 
-Args:
-repository (IBaseRepository[T]): Repository for data access
-unit_of_work (Optional[IUnitOfWork], optional): Unit of work for transactions
-"""
-self._repository = repository
-self._unit_of_work = unit_of_work
-self._logger = logging.getLogger(self.__class__.__name__)
+        Args:
+            repository (IBaseRepository[T]): Repository for data access
+            unit_of_work (Optional[IUnitOfWork], optional): Unit of work for transactions
+        """
+        self._repository = repository
+        self._unit_of_work = unit_of_work
+        self._logger = logging.getLogger(self.__class__.__name__)
 
-@inject(MaterialService)
-def get_by_id(self, id: Any) -> Optional[T]:
-"""
-Retrieve an entity by its unique identifier.
+    def get_by_id(self, id: Any) -> Optional[T]:
+        """
+        Retrieve an entity by its unique identifier.
 
-Args:
-id (Any): The unique identifier of the entity
+        Args:
+            id (Any): The unique identifier of the entity
 
-Returns:
-Optional[T]: The retrieved entity
+        Returns:
+            Optional[T]: The retrieved entity
 
-Raises:
-NotFoundError: If no entity is found with the given ID
-"""
-try:
-    pass
-entity = self._repository.get_by_id(id)
-if not entity:
-    pass
-raise NotFoundError(f'Entity with ID {id} not found', {'id':
-    pass
-id})
-return entity
-except Exception as e:
-    pass
-self._logger.error(f'Error retrieving entity by ID {id}: {e}')
-raise ApplicationError(f'Failed to retrieve entity: {str(e)}',
-{'id': id})
+        Raises:
+            NotFoundError: If no entity is found with the given ID
+            ApplicationError: If an error occurs during retrieval
+        """
+        try:
+            entity = self._repository.get_by_id(id)
+            if not entity:
+                raise NotFoundError(f'Entity with ID {id} not found', {'id': id})
+            return entity
+        except Exception as e:
+            self._logger.error(f'Error retrieving entity by ID {id}: {e}')
+            raise ApplicationError(f'Failed to retrieve entity: {str(e)}', {'id': id})
 
-@inject(MaterialService)
-def get_all(self, limit: Optional[int] = None, offset: Optional[int] = None
-) -> List[T]:
-"""
-Retrieve all entities with optional pagination.
+    def get_all(self, limit: Optional[int] = None, offset: Optional[int] = None) -> List[T]:
+        """
+        Retrieve all entities with optional pagination.
 
-Args:
-limit (Optional[int], optional): Maximum number of entities to return
-offset (Optional[int], optional): Number of entities to skip
+        Args:
+            limit (Optional[int], optional): Maximum number of entities to return
+            offset (Optional[int], optional): Number of entities to skip
 
-Returns:
-List[T]: A list of entities
-"""
-try:
-    pass
-return self._repository.get_all(limit=limit, offset=offset)
-except Exception as e:
-    pass
-self._logger.error(f'Error retrieving all entities: {e}')
-raise ApplicationError('Failed to retrieve entities', {})
+        Returns:
+            List[T]: A list of entities
 
-@inject(MaterialService)
-def create(self, data: Dict[str, Any]) -> T:
-"""
-Create a new entity.
+        Raises:
+            ApplicationError: If an error occurs during retrieval
+        """
+        try:
+            return self._repository.get_all(limit=limit, offset=offset)
+        except Exception as e:
+            self._logger.error(f'Error retrieving all entities: {e}')
+            raise ApplicationError('Failed to retrieve entities', {})
 
-Args:
-data (Dict[str, Any]): Data to create the entity
+    def create(self, data: Dict[str, Any]) -> T:
+        """
+        Create a new entity.
 
-Returns:
-T: The created entity
+        Args:
+            data (Dict[str, Any]): Data to create the entity
 
-Raises:
-ValidationError: If the data fails validation
-"""
-try:
-    pass
-self._validate_create_data(data)
-if self._unit_of_work:
-    pass
-with self._unit_of_work:
-    pass
-entity = self._repository.add(data)
-self._unit_of_work.commit()
-return entity
-else:
-return self._repository.add(data)
-except ValidationError as ve:
-    pass
-self._logger.warning(f'Validation error creating entity: {ve}')
-raise
-except Exception as e:
-    pass
-self._logger.error(f'Error creating entity: {e}')
-raise ApplicationError(f'Failed to create entity: {str(e)}', {
-'input_data': data})
+        Returns:
+            T: The created entity
 
-@inject(MaterialService)
-def update(self, id: Any, data: Dict[str, Any]) -> T:
-"""
-Update an existing entity.
+        Raises:
+            ValidationError: If the data fails validation
+            ApplicationError: If an error occurs during creation
+        """
+        try:
+            self._validate_create_data(data)
+            if self._unit_of_work:
+                with self._unit_of_work:
+                    entity = self._repository.add(data)
+                    self._unit_of_work.commit()
+                return entity
+            else:
+                return self._repository.add(data)
+        except ValidationError as ve:
+            self._logger.warning(f'Validation error creating entity: {ve}')
+            raise
+        except Exception as e:
+            self._logger.error(f'Error creating entity: {e}')
+            raise ApplicationError(f'Failed to create entity: {str(e)}', {'input_data': data})
 
-Args:
-id (Any): The unique identifier of the entity to update
-data (Dict[str, Any]): Updated data for the entity
+    def update(self, id: Any, data: Dict[str, Any]) -> T:
+        """
+        Update an existing entity.
 
-Returns:
-T: The updated entity
+        Args:
+            id (Any): The unique identifier of the entity to update
+            data (Dict[str, Any]): Updated data for the entity
 
-Raises:
-NotFoundError: If the entity doesn't exist
-ValidationError: If the update data is invalid
-"""
-try:
-    pass
-existing_entity = self.get_by_id(id)
-self._validate_update_data(existing_entity, data)
-if self._unit_of_work:
-    pass
-with self._unit_of_work:
-    pass
-updated_entity = self._repository.update(id, data)
-self._unit_of_work.commit()
-return updated_entity
-else:
-return self._repository.update(id, data)
-except (NotFoundError, ValidationError):
-    pass
-raise
-except Exception as e:
-    pass
-self._logger.error(f'Error updating entity {id}: {e}')
-raise ApplicationError(f'Failed to update entity: {str(e)}', {
-'id': id, 'input_data': data})
+        Returns:
+            T: The updated entity
 
-@inject(MaterialService)
-def delete(self, id: Any) -> bool:
-"""
-Delete an entity by its identifier.
+        Raises:
+            NotFoundError: If the entity doesn't exist
+            ValidationError: If the update data is invalid
+            ApplicationError: If an error occurs during update
+        """
+        try:
+            existing_entity = self.get_by_id(id)
+            self._validate_update_data(existing_entity, data)
+            if self._unit_of_work:
+                with self._unit_of_work:
+                    updated_entity = self._repository.update(id, data)
+                    self._unit_of_work.commit()
+                return updated_entity
+            else:
+                return self._repository.update(id, data)
+        except (NotFoundError, ValidationError):
+            raise
+        except Exception as e:
+            self._logger.error(f'Error updating entity {id}: {e}')
+            raise ApplicationError(f'Failed to update entity: {str(e)}', {'id': id, 'input_data': data})
 
-Args:
-id (Any): The unique identifier of the entity to delete
+    def delete(self, id: Any) -> bool:
+        """
+        Delete an entity by its identifier.
 
-Returns:
-bool: True if deletion was successful
+        Args:
+            id (Any): The unique identifier of the entity to delete
 
-Raises:
-NotFoundError: If the entity doesn't exist
-"""
-try:
-    pass
-self.get_by_id(id)
-if self._unit_of_work:
-    pass
-with self._unit_of_work:
-    pass
-result = self._repository.delete(id)
-self._unit_of_work.commit()
-return result
-else:
-return self._repository.delete(id)
-except NotFoundError:
-    pass
-raise
-except Exception as e:
-    pass
-self._logger.error(f'Error deleting entity {id}: {e}')
-raise ApplicationError(f'Failed to delete entity: {str(e)}', {
-'id': id})
+        Returns:
+            bool: True if deletion was successful
 
-@abstractmethod
-@inject(MaterialService)
-def _validate_create_data(self, data: Dict[str, Any]) -> None:
-"""
-Abstract method to validate data before entity creation.
+        Raises:
+            NotFoundError: If the entity doesn't exist
+            ApplicationError: If an error occurs during deletion
+        """
+        try:
+            self.get_by_id(id)  # Check if entity exists
+            if self._unit_of_work:
+                with self._unit_of_work:
+                    result = self._repository.delete(id)
+                    self._unit_of_work.commit()
+                return result
+            else:
+                return self._repository.delete(id)
+        except NotFoundError:
+            raise
+        except Exception as e:
+            self._logger.error(f'Error deleting entity {id}: {e}')
+            raise ApplicationError(f'Failed to delete entity: {str(e)}', {'id': id})
 
-Subclasses must implement specific validation logic.
+    @abstractmethod
+    def _validate_create_data(self, data: Dict[str, Any]) -> None:
+        """
+        Abstract method to validate data before entity creation.
 
-Args:
-data (Dict[str, Any]): Data to be validated
+        Subclasses must implement specific validation logic.
 
-Raises:
-ValidationError: If data is invalid
-"""
-pass
+        Args:
+            data (Dict[str, Any]): Data to be validated
 
-@abstractmethod
-@inject(MaterialService)
-def _validate_update_data(self, existing_entity: T, update_data: Dict[
-str, Any]) -> None:
-"""
-Abstract method to validate data before entity update.
+        Raises:
+            ValidationError: If data is invalid
+        """
+        pass
 
-Subclasses must implement specific validation logic.
+    @abstractmethod
+    def _validate_update_data(self, existing_entity: T, update_data: Dict[str, Any]) -> None:
+        """
+        Abstract method to validate data before entity update.
 
-Args:
-existing_entity (T): The existing entity
-update_data (Dict[str, Any]): Data to be validated
+        Subclasses must implement specific validation logic.
 
-Raises:
-ValidationError: If data is invalid
-"""
-pass
+        Args:
+            existing_entity (T): The existing entity
+            update_data (Dict[str, Any]): Data to be validated
 
-@inject(MaterialService)
-def search(self, search_term: str, fields: Optional[List[str]] = None
-) -> List[T]:
-"""
-Search for entities based on a search term.
+        Raises:
+            ValidationError: If data is invalid
+        """
+        pass
 
-Args:
-search_term (str): Term to search for
-fields (Optional[List[str]], optional): Fields to search in
+    def search(self, search_term: str, fields: Optional[List[str]] = None) -> List[T]:
+        """
+        Search for entities based on a search term.
 
-Returns:
-List[T]: List of matching entities
-"""
-try:
-    pass
-if hasattr(self._repository, 'search'):
-    pass
-return self._repository.search(search_term, fields)
-else:
-self._logger.warning('Search not supported by repository')
-return []
-except Exception as e:
-    pass
-self._logger.error(f'Error searching entities: {e}')
-raise ApplicationError(f'Failed to search entities: {str(e)}',
-{'search_term': search_term, 'fields': fields})
+        Args:
+            search_term (str): Term to search for
+            fields (Optional[List[str]], optional): Fields to search in
+
+        Returns:
+            List[T]: List of matching entities
+
+        Raises:
+            ApplicationError: If an error occurs during search
+        """
+        try:
+            if hasattr(self._repository, 'search'):
+                return self._repository.search(search_term, fields)
+            else:
+                self._logger.warning('Search not supported by repository')
+                return []
+        except Exception as e:
+            self._logger.error(f'Error searching entities: {e}')
+            raise ApplicationError(f'Failed to search entities: {str(e)}',
+                                   {'search_term': search_term, 'fields': fields})

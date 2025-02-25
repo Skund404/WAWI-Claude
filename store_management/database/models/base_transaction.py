@@ -1,57 +1,67 @@
-
-
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
 
-
-class BaseTransaction(BaseModel):
-    pass
 """
-Base class for all transaction models.
-
-Provides common fields and functionality for tracking inventory changes.
-
-Attributes:
-id (int): Primary key
-transaction_type (TransactionType): Type of transaction (purchase, use, etc.)
-notes (str): Optional notes about the transaction
-timestamp (datetime): When the transaction occurred
+Utility to resolve circular import dependencies in SQLAlchemy models.
 """
-__abstract__ = True
-id = Column(Integer, primary_key=True)
-transaction_type = Column(SQLEnum(TransactionType), nullable=False)
-notes = Column(String(500))
-timestamp = Column(DateTime, default=datetime.utcnow, nullable=False)
 
-@inject(MaterialService)
-def __init__(self, transaction_type: TransactionType, notes: Optional[
-str] = None):
-    pass
-"""
-Initialize a new transaction.
 
-Args:
-transaction_type: Type of inventory transaction
-notes: Optional notes about the transaction
-"""
-self.transaction_type = transaction_type
-self.notes = notes
+class CircularImportResolver:
+    """
+    A utility class to manage and resolve circular import dependencies.
 
-@inject(MaterialService)
-def __repr__(self) -> str:
-"""Return string representation of the transaction."""
-return (
-f'<{self.__class__.__name__}(id={self.id}, type={self.transaction_type}, timestamp={self.timestamp})>'
-)
+    This class provides a centralized way to register and retrieve model classes
+    that might cause circular import issues.
+    """
+    _registered_models: Dict[str, Type[DeclarativeBase]] = {}
 
-@inject(MaterialService)
-def to_dict(self) -> Dict[str, Any]:
-"""
-Convert transaction to dictionary representation.
+    @classmethod
+    def register_model(cls, model_name: str, model_class: Type[DeclarativeBase]
+                       ) -> None:
+        """
+        Register a model class with a given name.
 
-Returns:
-Dictionary containing transaction data
-"""
-return {'id': self.id, 'transaction_type': self.transaction_type.
-name, 'notes': self.notes, 'timestamp': self.timestamp.
-isoformat() if self.timestamp else None}
+        Args:
+            model_name (str): Unique identifier for the model.
+            model_class (Type[DeclarativeBase]): The model class to register.
+        """
+        cls._registered_models[model_name] = model_class
+
+    @classmethod
+    def get_model(cls, model_name: str) -> Type[DeclarativeBase]:
+        """
+        Retrieve a registered model class.
+
+        Args:
+            model_name (str): Unique identifier for the model.
+
+        Returns:
+            Type[DeclarativeBase]: The requested model class.
+
+        Raises:
+            KeyError: If the model is not registered.
+        """
+        if model_name not in cls._registered_models:
+            raise KeyError(f"Model '{model_name}' is not registered")
+        return cls._registered_models[model_name]
+
+    @classmethod
+    def clear_models(cls) -> None:
+        """
+        Clear all registered models.
+        Useful for testing or resetting the resolver.
+        """
+        cls._registered_models.clear()
+
+    @classmethod
+    def is_model_registered(cls, model_name: str) -> bool:
+        """
+        Check if a model is registered.
+
+        Args:
+            model_name (str): Unique identifier for the model.
+
+        Returns:
+            bool: True if the model is registered, False otherwise.
+        """
+        return model_name in cls._registered_models

@@ -1,165 +1,101 @@
-# Relative path: store_management/database/models/base.py
-
-"""
-Base Model Module
-
-Provides foundational classes and mixins for database models
-with dependency injection and common functionality.
-"""
-
+# database/models/base.py
 import logging
-from typing import Any, Dict, Optional, Type, TypeVar
-
-from sqlalchemy import Column, Integer, DateTime, func
+from sqlalchemy import Column, DateTime, Integer
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import declared_attr, DeclarativeMeta
-
-from di.core import inject
-from services.interfaces import MaterialService
+from sqlalchemy.orm import declared_attr
+from sqlalchemy import func
+from typing import Any, Dict, Optional, Type, TypeVar
 from utils.logger import get_logger
 
-# Configure logging
-logger = get_logger(__name__)
-
-# Type variable for generic model type
+# Type variable for generic methods
 T = TypeVar('T')
 
-# Create a base class for declarative models
-Base: DeclarativeMeta = declarative_base()
+# Get a logger for this module
+logger = get_logger(__name__)
 
 
-class BaseModel(Base):
-    pass
-"""
-Base model providing common fields and methods for all database models.
+# Create the base class for SQLAlchemy models
+class BaseClass:
+    """Base class for all SQLAlchemy models."""
 
-Attributes:
-id (int): Primary key for the model.
-created_at (DateTime): Timestamp of record creation.
-updated_at (DateTime): Timestamp of last record update.
-"""
-__abstract__ = True
+    @declared_attr
+    def __tablename__(cls):
+        """
+        Generates the table name automatically from the class name.
 
-# Primary key for all models
-id = Column(Integer, primary_key=True, autoincrement=True)
+        Returns:
+            str: The lowercase class name as the table name.
+        """
+        return cls.__name__.lower()
 
-# Automatic timestamp tracking
-created_at = Column(DateTime(timezone=True), server_default=func.now())
-updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    # Common columns for all models
+    id = Column(Integer, primary_key=True)
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
-@declared_attr
-def __tablename__(cls) -> str:
-"""
-Generate table name from the class name.
 
-Returns:
-str: Lowercase table name derived from the class name.
-"""
-return cls.__name__.lower()
+# Create the declarative base with our custom Base class
+Base = declarative_base(cls=BaseClass)
+
+# Rename the Base to BaseModel for clarity
+BaseModel = Base
+
+
+def to_dict(self, exclude_fields=None) -> Dict[str, Any]:
+    """
+    Convert the model instance to a dictionary.
+
+    Args:
+        exclude_fields: Optional list of field names to exclude
+
+    Returns:
+        Dict containing the model data
+    """
+    if exclude_fields is None:
+        exclude_fields = []
+
+    data = {}
+    for column in self.__table__.columns:
+        if column.name not in exclude_fields:
+            data[column.name] = getattr(self, column.name)
+
+    return data
+
+
+def update(self, **kwargs):
+    """
+    Update the model instance with the provided values.
+
+    Args:
+        **kwargs: Keyword arguments with field names and values
+
+    Returns:
+        self: The updated instance
+    """
+    for key, value in kwargs.items():
+        if hasattr(self, key):
+            setattr(self, key, value)
+        else:
+            logger.warning(f"Attribute '{key}' not found in {self.__class__.__name__}")
+
+    return self
+
 
 @classmethod
-def create(
-cls,
-material_service: Optional[MaterialService] = None,
-**kwargs
-) -> 'BaseModel':
-"""
-Create a new model instance with optional dependency injection.
+def create(cls, **kwargs):
+    """
+    Create a new instance of the model.
 
-Args:
-material_service (Optional[MaterialService], optional):
-Material service for additional validation or processing.
-**kwargs: Keyword arguments for model instantiation.
+    Args:
+        **kwargs: Keyword arguments with field names and values
 
-Returns:
-BaseModel: Newly created model instance.
-"""
-# Use dependency injection for material service if not provided
-if material_service is None:
-    pass
-try:
-    pass
-material_service = inject(MaterialService)()
-except Exception as e:
-    pass
-logger.error(f"Failed to inject MaterialService: {e}")
-material_service = None
-
-# Validate and process kwargs if material service is available
-if material_service:
-    pass
-try:
-    pass
-validated_kwargs = material_service.validate_model_creation(
-cls.__name__,
-kwargs
-)
-except Exception as e:
-    pass
-logger.warning(f"Validation failed for {cls.__name__}: {e}")
-validated_kwargs = kwargs
-else:
-validated_kwargs = kwargs
-
-# Create and return the model instance
-return cls(**validated_kwargs)
-
-def to_dict(self) -> Dict[str, Any]:
-"""
-Convert model instance to a dictionary representation.
-
-Returns:
-Dict[str, Any]: Dictionary of model attributes.
-"""
-return {
-column.name: getattr(self, column.name)
-for column in self.__table__.columns
-}
-
-def update(self, **kwargs) -> 'BaseModel':
-"""
-Update model instance with provided attributes.
-
-Args:
-**kwargs: Keyword arguments to update model attributes.
-
-Returns:
-BaseModel: Updated model instance.
-"""
-for key, value in kwargs.items():
-    pass
-if hasattr(self, key):
-    pass
-setattr(self, key, value)
-return self
-
-@classmethod
-def get_model_name(cls) -> str:
-"""
-Get the name of the model class.
-
-Returns:
-str: Name of the model class.
-"""
-return cls.__name__
+    Returns:
+        A new instance of the model
+    """
+    return cls(**kwargs)
 
 
-def model_factory(base_model: Type[T]) -> Type[T]:
-"""
-Create a model factory with additional functionality.
-
-Args:
-base_model (Type[T]): Base model class to extend.
-
-Returns:
-Type[T]: Extended model class with additional methods.
-"""
-
-class ExtendedModel(base_model, BaseModel):
-    pass
-"""
-Extended model combining base model with common functionality.
-"""
-pass
-
-return ExtendedModel
+# Add the methods to the BaseModel class
+BaseModel.to_dict = to_dict
+BaseModel.update = update
+BaseModel.create = create

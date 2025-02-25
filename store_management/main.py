@@ -1,88 +1,69 @@
-# File: main.py
-"""
-Primary entry point for the Store Management Application
-"""
-import sys
-import os
+# main.py
 import logging
-
-logging.basicConfig(level=logging.DEBUG, filename="env_debug.log")
-
-logging.debug("Starting application with the following environment:")
-for key, value in os.environ.items():
-    pass
-logging.debug(f"{key}={value}")
-
-
-# Ensure the project root is in the Python path
-project_root = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, project_root)
-
-# Configure basic logging
-logging.basicConfig(
-level=logging.INFO,
-format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-handlers=[
-logging.StreamHandler(sys.stdout),
-logging.FileHandler('app.log')
-]
-)
-logger = logging.getLogger(__name__)
+import os
+import sys
+from database.initialize import initialize_database
+from gui.main_window import launch_main_window
+from services.service_registration import register_services
 
 
 def initialize_application():
-    pass
-"""
-Initialize the store management application.
+    """
+    Initialize the application by setting up logging, database, and registering services.
 
-Returns:
-bool: True if initialization is successful, False otherwise
-"""
-try:
-    pass
-logger.info("Starting Store Management Application")
+    Returns:
+        bool: True if initialization is successful, False otherwise
+    """
+    # Set up logging
+    log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
+    os.makedirs(log_dir, exist_ok=True)
 
-# Import and initialize critical components
-from services.service_registration import register_services
-from database.initialize import initialize_database
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler(os.path.join(log_dir, "store_management.log")),
+            logging.StreamHandler(sys.stdout)
+        ]
+    )
 
-# Register services
-register_services()
+    logger = logging.getLogger(__name__)
 
-# Initialize database
-initialize_database()
+    try:
+        # Initialize database
+        logger.info("Initializing database...")
+        initialize_database()
 
-logger.info("Application initialization complete")
-return True
-except Exception as e:
-    pass
-logger.error(f"Application initialization failed: {e}", exc_info=True)
-return False
+        # Register services
+        logger.info("Registering services...")
+        register_services()
+
+        return True
+    except Exception as e:
+        logger.error(f"Error during application initialization: {str(e)}")
+        return False
 
 
 def main():
-    pass
-"""
-Main entry point for the application.
-"""
-try:
-    pass
-# Initialize the application
-if not initialize_application():
-    pass
-logger.critical("Failed to initialize application")
-sys.exit(1)
+    """
+    Main entry point for the application.
+    """
+    logger = logging.getLogger(__name__)
 
-# Import and launch the main GUI
-from gui.main_window import launch_main_window
-launch_main_window()
+    try:
+        logger.info("Starting Store Management Application")
 
-except Exception as e:
-    pass
-logger.critical(f"Unhandled exception in main: {e}", exc_info=True)
-sys.exit(1)
+        # Initialize the application
+        if initialize_application():
+            # Launch the main window
+            launch_main_window()
+        else:
+            logger.error("Application initialization failed")
+            sys.exit(1)
+    except Exception as e:
+        logger.error(f"Unhandled exception in main: {str(e)}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
-    pass
-main()
+    main()

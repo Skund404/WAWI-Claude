@@ -1,85 +1,120 @@
-from di.core import inject
-from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+# database/models/interfaces.py
 """
-Interface definitions for the store management system.
-
-This module defines abstract base classes that serve as interfaces for the models
-in the system. These interfaces define the methods that model classes must implement.
+Interface definitions for database models.
 """
 
+import abc
+from typing import Any, Dict, Optional
 
-class IModel(ABC):
-    pass
-"""
-Interface for all model classes.
 
-Defines common methods that all models should implement.
-"""
+class IModel(abc.ABC):
+    """
+    Abstract base interface for all database models.
+    """
 
-@abstractmethod
-@inject(MaterialService)
-def to_dict(self, exclude_fields: Optional[List[str]] = None) -> Dict[str, Any
-]:
-"""
-Convert the model to a dictionary.
+    @abc.abstractmethod
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Convert model instance to a dictionary representation.
 
-Args:
-exclude_fields: List of field names to exclude
+        Returns:
+            Dict[str, Any]: Dictionary representation of the model
+        """
+        pass
 
-Returns:
-Dict[str, Any]: Dictionary representation of the model
-"""
-pass
+    @classmethod
+    @abc.abstractmethod
+    def create(cls, data: Dict[str, Any]) -> 'IModel':
+        """
+        Create a new model instance from provided data.
+
+        Args:
+            data (Dict[str, Any]): Data to create the model instance
+
+        Returns:
+            IModel: A new model instance
+        """
+        pass
+
+    @abc.abstractmethod
+    def validate(self) -> bool:
+        """
+        Validate the current model instance.
+
+        Returns:
+            bool: Whether the model instance is valid
+        """
+        pass
 
 
 class IProject(IModel):
-    pass
-"""
-Interface for project models.
+    """
+    Interface for project-related models.
+    """
 
-Defines methods that project models should implement.
-"""
+    @abc.abstractmethod
+    def update_status(self, new_status: str) -> None:
+        """
+        Update the project status.
 
-@abstractmethod
-@inject(MaterialService)
-def calculate_complexity(self) -> float:
-"""
-Calculate the complexity score of the project.
+        Args:
+            new_status (str): New status for the project
+        """
+        pass
 
-Returns:
-float: The calculated complexity score
-"""
-pass
+    @abc.abstractmethod
+    def add_component(self, component: Any) -> None:
+        """
+        Add a component to the project.
 
-@abstractmethod
-@inject(MaterialService)
-def calculate_total_cost(self) -> float:
-"""
-Calculate the total cost of the project.
+        Args:
+            component (Any): Component to add to the project
+        """
+        pass
 
-Returns:
-float: The total estimated cost
-"""
-pass
 
-@abstractmethod
-@inject(MaterialService)
-def update_status(self, new_status) -> None:
-"""
-Update the project status.
+class IInventoryItem(IModel):
+    """
+    Interface for inventory-related models.
+    """
 
-Args:
-new_status: The new status to set for the project
-"""
-pass
+    @abc.abstractmethod
+    def adjust_quantity(self, quantity_change: float) -> None:
+        """
+        Adjust the quantity of the inventory item.
 
-@abstractmethod
-@inject(MaterialService)
-def validate(self) -> List[str]:
-"""
-Validate the project data.
+        Args:
+            quantity_change (float): Amount to adjust the quantity by
+        """
+        pass
 
-Returns:
-List[str]: List of validation error messages, empty if valid
-"""
-pass
+    @abc.abstractmethod
+    def get_stock_value(self) -> float:
+        """
+        Calculate the total stock value.
+
+        Returns:
+            float: Total value of the item in stock
+        """
+        pass
+
+
+def validate_model_data(data: Dict[str, Any], required_fields: Optional[list] = None) -> bool:
+    """
+    Generic data validation function for model data.
+
+    Args:
+        data (Dict[str, Any]): Data to validate
+        required_fields (Optional[list], optional): List of required field names
+
+    Returns:
+        bool: Whether the data is valid
+    """
+    if required_fields is None:
+        return True
+
+    # Check if all required fields are present and not None
+    return all(
+        field in data and data[field] is not None
+        for field in required_fields
+    )

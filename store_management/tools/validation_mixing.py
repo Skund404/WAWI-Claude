@@ -7,13 +7,13 @@ OrderService,
 )
 
 """
-Script to fix validation_mixing.py syntax issues.
+Script to fix validation_mixin.py syntax issues.
 """
 
 
 def fix_validation_mixing(project_root: Path) -> bool:
 """
-Fix the validation_mixing.py file.
+Fix the validation_mixin.py file.
 
 Args:
 project_root: Path to project root directory
@@ -22,7 +22,7 @@ Returns:
 bool: True if fix was successful
 """
 file_path = (
-project_root / "database" / "sqlalchemy" / "mixins" / "validation_mixing.py"
+project_root / "database" / "sqlalchemy" / "mixins" / "validation_mixin.py"
 )
 if not file_path.exists():
     pass
@@ -34,7 +34,7 @@ file_path.parent
 )
 shutil.copy2(file_path, backup_path)
 print(f"Created backup at {backup_path}")
-fixed_content = """# database/sqlalchemy/mixins/validation_mixing.py
+fixed_content = """# database/sqlalchemy/mixins/validation_mixin.py
 
 ""\"
 Validation mixin for SQLAlchemy models.

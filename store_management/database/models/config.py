@@ -1,63 +1,111 @@
+# database/models/config.py
+"""
+Configuration models for database-related settings.
+"""
 
+from typing import Dict, Any, Optional
 
-from di.core import inject
-from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
-
-
-@dataclass
 class MaterialConfig:
-    pass
-"""Configuration for material calculations."""
-material_type: MaterialType
-wastage_factor: float
-minimum_order_quantity: float
-unit_cost_multiplier: float
+    """
+    Configuration settings for material-related parameters.
+    """
+    def __init__(self, config_data: Optional[Dict[str, Any]] = None):
+        """
+        Initialize material configuration.
 
-@dataclass
+        Args:
+            config_data (Optional[Dict[str, Any]], optional): Configuration dictionary. Defaults to None.
+        """
+        self._config = config_data or {}
+
+    def get_material_setting(self, key: str, default: Any = None) -> Any:
+        """
+        Retrieve a specific material configuration setting.
+
+        Args:
+            key (str): Configuration key
+            default (Any, optional): Default value if key is not found. Defaults to None.
+
+        Returns:
+            Any: Configuration value
+        """
+        return self._config.get(key, default)
+
+    def update_config(self, updates: Dict[str, Any]) -> None:
+        """
+        Update material configuration settings.
+
+        Args:
+            updates (Dict[str, Any]): Dictionary of configuration updates
+        """
+        self._config.update(updates)
+
 class ComponentConfig:
-    pass
-"""Configuration for component calculations."""
-component_type: ComponentType
-complexity_factor: float
-labor_multiplier: float
+    """
+    Configuration settings for component-related parameters.
+    """
+    def __init__(self, config_data: Optional[Dict[str, Any]] = None):
+        """
+        Initialize component configuration.
 
+        Args:
+            config_data (Optional[Dict[str, Any]], optional): Configuration dictionary. Defaults to None.
+        """
+        self._config = config_data or {}
+
+    def get_component_setting(self, key: str, default: Any = None) -> Any:
+        """
+        Retrieve a specific component configuration setting.
+
+        Args:
+            key (str): Configuration key
+            default (Any, optional): Default value if key is not found. Defaults to None.
+
+        Returns:
+            Any: Configuration value
+        """
+        return self._config.get(key, default)
 
 class ModelConfiguration:
-    pass
-"""Configuration management for model calculations."""
-_material_configs: Dict[MaterialType, MaterialConfig] = {}
-_component_configs: Dict[ComponentType, ComponentConfig] = {}
+    """
+    Comprehensive model configuration management.
+    """
+    def __init__(self):
+        """
+        Initialize model configuration with default settings.
+        """
+        self.material_config = MaterialConfig()
+        self.component_config = ComponentConfig()
 
-@classmethod
-def register_material_config(cls, config: MaterialConfig) -> None:
-"""Register configuration for a material type."""
-cls._material_configs[config.material_type] = config
+    def load_configuration(self, config_path: Optional[str] = None) -> None:
+        """
+        Load configuration from a specified path.
 
-@classmethod
-def register_component_config(cls, config: ComponentConfig) -> None:
-"""Register configuration for a component type."""
-cls._component_configs[config.component_type] = config
+        Args:
+            config_path (Optional[str], optional): Path to configuration file. Defaults to None.
+        """
+        # Placeholder for configuration loading logic
+        # In a real implementation, this would load from a file or database
+        pass
 
-@classmethod
-def get_material_config(cls, material_type: MaterialType) -> Optional[
-MaterialConfig]:
-"""Get configuration for a material type."""
-return cls._material_configs.get(material_type)
+    def save_configuration(self, config_path: Optional[str] = None) -> None:
+        """
+        Save current configuration to a specified path.
 
-@classmethod
-def get_component_config(cls, component_type: ComponentType) -> Optional[
-ComponentConfig]:
-"""Get configuration for a component type."""
-return cls._component_configs.get(component_type)
+        Args:
+            config_path (Optional[str], optional): Path to save configuration file. Defaults to None.
+        """
+        # Placeholder for configuration saving logic
+        # In a real implementation, this would save to a file or database
+        pass
 
-@classmethod
-def initialize_default_configs(cls) -> None:
-"""Initialize default configurations."""
-for material_type in MaterialType:
-    pass
-cls.register_material_config(MaterialConfig(
-material_type=material_type, wastage_factor=0.1, minimum_order_quantity=1.0, unit_cost_multiplier=1.0))
-for component_type in ComponentType:
-    pass
-cls.register_component_config(ComponentConfig(
-component_type=component_type, complexity_factor=1.0, labor_multiplier=1.0))
+def create_default_configuration() -> ModelConfiguration:
+    """
+    Create a default model configuration.
+
+    Returns:
+        ModelConfiguration: Default configuration instance
+    """
+    config = ModelConfiguration()
+    # Add any default configuration settings here
+    return config

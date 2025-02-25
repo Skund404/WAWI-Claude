@@ -188,7 +188,7 @@ def _verify_code(self) -> VerificationResult:
 """Verify code cleanup."""
 issues = []
 mixing_path = (self.project_root /
-'database/sqlalchemy/mixins/validation_mixing.py')
+'database/sqlalchemy/mixins/validation_mixin.py')
 if mixing_path.exists():
     pass
 with open(mixing_path, 'r', encoding='utf-8') as f:
@@ -197,7 +197,7 @@ content = f.read()
 if re.search('class\\s+\\w+\\s*:', content):
     pass
 issues.append(
-'Syntax check failed for database/sqlalchemy/mixins/validation_mixing.py'
+'Syntax check failed for database/sqlalchemy/mixins/validation_mixin.py'
 )
 return VerificationResult(passed=len(issues) == 0, message='Code cleanup is complete' if len(issues) == 0 else
 'Found code cleanup issues', details={'issues': issues})
@@ -206,7 +206,7 @@ return VerificationResult(passed=len(issues) == 0, message='Code cleanup is comp
 def _fix_code(self) -> None:
 """Fix code issues."""
 mixing_path = (self.project_root /
-'database/sqlalchemy/mixins/validation_mixing.py')
+'database/sqlalchemy/mixins/validation_mixin.py')
 if mixing_path.exists():
     pass
 with open(mixing_path, 'r', encoding='utf-8') as f:

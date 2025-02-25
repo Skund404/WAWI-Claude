@@ -1,120 +1,56 @@
-# Relative path: store_management/utils/logger.py
-
-"""
-Logging Utility Module
-
-Provides centralized logging configuration and utility functions.
-"""
-
+# utils/logger.py
 import logging
 import os
 from typing import Optional
-
 from config.settings import get_log_path
 
 
-def setup_logging(
-log_level: int = logging.INFO,
-log_dir: Optional[str] = None,
-log_filename: str = 'application.log'
-) -> None:
+# Configure the root logger
+def configure_logging():
     """
-Configure logging for the application.
+    Configure the root logger with basic settings.
 
-Args:
-    log_level (int, optional): Logging level. Defaults to logging.INFO.
-log_dir (Optional[str], optional): Directory to store log files.
-Defaults to None (uses default log path).
-log_filename (str, optional): Name of the log file. Defaults to 'application.log'.
-"""
-# Determine log directory
-if log_dir is None:
-    log_dir = get_log_path()
+    This function sets up the basic configuration for logging,
+    including format, level, and file handler if a log path is available.
+    """
+    log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    log_level = logging.INFO
 
-# Ensure log directory exists
-os.makedirs(log_dir, exist_ok=True)
+    # Configure basic logging to console
+    logging.basicConfig(
+        level=log_level,
+        format=log_format,
+        handlers=[logging.StreamHandler()]
+    )
 
-# Full path to log file
-log_path = os.path.join(log_dir, log_filename)
+    # Add file handler if log path is available
+    try:
+        log_path = get_log_path()
+        if log_path:
+            log_dir = os.path.dirname(log_path)
+            os.makedirs(log_dir, exist_ok=True)
 
-# Configure logging
-logging.basicConfig(
-level=log_level,
-format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-handlers=[
-# Console handler
-logging.StreamHandler(),
-# File handler
-logging.FileHandler(log_path, encoding='utf-8')
-]
-)
+            file_handler = logging.FileHandler(log_path)
+            file_handler.setFormatter(logging.Formatter(log_format))
+
+            # Add file handler to root logger
+            logging.getLogger().addHandler(file_handler)
+    except Exception as e:
+        logging.error(f"Failed to configure file logging: {e}")
+
+
+# Initialize logging
+configure_logging()
 
 
 def get_logger(name: Optional[str] = None) -> logging.Logger:
     """
-Get a configured logger instance.
+    Get a logger instance with the given name.
 
-Args:
-    name (Optional[str], optional): Name of the logger.
-Defaults to None (uses root logger).
+    Args:
+        name: The name for the logger. If None, the root logger is returned.
 
-Returns:
-    logging.Logger: Configured logger instance.
-"""
-return logging.getLogger(name)
-
-
-def log_error(
-error: Exception,
-context: Optional[str] = None,
-logger_name: Optional[str] = None
-) -> None:
+    Returns:
+        A logger instance
     """
-Log an error with optional context.
-
-Args:
-    error (Exception): The error to log.
-context (Optional[str], optional): Additional context about the error.
-Defaults to None.
-logger_name (Optional[str], optional): Name of the logger.
-Defaults to None.
-"""
-logger = get_logger(logger_name)
-error_message = str(error)
-
-if context:
-    logger.error(f"{context}: {error_message}")
-else:
-    logger.error(error_message)
-
-
-def log_info(
-message: str,
-logger_name: Optional[str] = None
-) -> None:
-    """
-Log an informational message.
-
-Args:
-    message (str): The message to log.
-logger_name (Optional[str], optional): Name of the logger.
-Defaults to None.
-"""
-logger = get_logger(logger_name)
-logger.info(message)
-
-
-def log_debug(
-message: str,
-logger_name: Optional[str] = None
-) -> None:
-    """
-Log a debug message.
-
-Args:
-    message (str): The message to log.
-logger_name (Optional[str], optional): Name of the logger.
-Defaults to None.
-"""
-logger = get_logger(logger_name)
-logger.debug(message)
+    return logging.getLogger(name)

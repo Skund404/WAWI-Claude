@@ -1,122 +1,97 @@
-# Relative path: store_management/utils/circular_import_resolver.py
-
-"""
-Circular Import Resolver Utility
-
-This module provides a utility to help manage and resolve circular import dependencies
-in a modular and extensible manner.
-"""
-
+# utils/circular_import_resolver.py
 import importlib
 import logging
 from typing import Any, Dict, Optional, Type
 
-logger = logging.getLogger(__name__)
-
 
 class CircularImportResolver:
-    pass
-"""
-A utility class to manage and resolve circular import dependencies.
+    """
+    A utility class for resolving circular imports in the application.
 
-This class provides methods to dynamically import modules and resolve
-potential circular import issues by lazy loading and caching imported modules.
-"""
+    This class provides mechanisms to handle circular dependencies by deferring
+    imports and resolving them at runtime when needed.
+    """
 
-_module_cache: Dict[str, Any] = {}
-_import_lock: Dict[str, bool] = {}
+    # Dictionary to store pending imports that need to be resolved
+    _pending_imports = {}
 
-@classmethod
-def import_module(cls, module_path: str) -> Any:
-"""
-Dynamically import a module with circular import protection.
+    # Cache for resolved classes to avoid repeated imports
+    _class_cache = {}
 
-Args:
-module_path (str): Fully qualified module path to import.
+    @classmethod
+    def clear_cache(cls):
+        """
+        Clear the internal caches for pending imports and resolved classes.
 
-Returns:
-Any: The imported module.
+        This is useful for testing or when resetting the application state.
+        """
+        cls._pending_imports.clear()
+        cls._class_cache.clear()
 
-Raises:
-ImportError: If the module cannot be imported after multiple attempts.
-"""
-if module_path in cls._module_cache:
-    pass
-return cls._module_cache[module_path]
+    @classmethod
+    def register_pending_import(cls, module_name: str, error: ImportError):
+        """
+        Register a pending import that failed due to circular dependencies.
 
-# Prevent recursive import attempts
-if cls._import_lock.get(module_path, False):
-    pass
-logger.warning(
-f"Potential circular import detected for {module_path}")
-return None
+        Args:
+            module_name: The name of the module where the import failed
+            error: The ImportError exception that was raised
+        """
+        if module_name not in cls._pending_imports:
+            cls._pending_imports[module_name] = error
+            logging.getLogger(__name__).debug(f"Registered pending import for {module_name}")
 
-try:
-    pass
-# Lock the import to prevent recursive calls
-cls._import_lock[module_path] = True
+    @classmethod
+    def resolve_class(cls, module_path: str, class_name: str) -> Type:
+        """
+        Resolve a class from a module path, handling circular dependencies.
 
-# Dynamically import the module
-module = importlib.import_module(module_path)
+        Args:
+            module_path: The dotted path to the module
+            class_name: The name of the class to import
 
-# Cache the imported module
-cls._module_cache[module_path] = module
+        Returns:
+            The requested class
 
-return module
+        Raises:
+            ImportError: If the class cannot be imported
+        """
+        cache_key = f"{module_path}.{class_name}"
 
-except ImportError as e:
-    pass
-logger.error(f"Failed to import module {module_path}: {e}")
-raise
+        # Check if we already resolved this class
+        if cache_key in cls._class_cache:
+            return cls._class_cache[cache_key]
 
-finally:
-# Remove the import lock
-cls._import_lock.pop(module_path, None)
+        try:
+            # Try to import the module and get the class
+            module = importlib.import_module(module_path)
+            resolved_class = getattr(module, class_name)
 
-@classmethod
-def get_class(cls, module_path: str, class_name: str) -> Optional[Type[Any]]:
-"""
-Dynamically retrieve a class from a module.
+            # Cache the resolved class
+            cls._class_cache[cache_key] = resolved_class
+            return resolved_class
+        except ImportError as e:
+            # Register the pending import and re-raise
+            cls.register_pending_import(module_path, e)
+            raise
 
-Args:
-module_path (str): Fully qualified module path.
-class_name (str): Name of the class to retrieve.
+    @classmethod
+    def lazy_import(cls, module_path: str, class_name: Optional[str] = None) -> Any:
+        """
+        Lazily import a module or class to avoid circular dependencies.
 
-Returns:
-Optional[Type[Any]]: The requested class, or None if not found.
-"""
-try:
-    pass
-module = cls.import_module(module_path)
+        Args:
+            module_path: The dotted path to the module
+            class_name: Optional name of the class to import
 
-if module is None:
-    pass
-logger.warning(f"Module {module_path} could not be imported")
-return None
+        Returns:
+            The imported module or class
+        """
+        if class_name:
+            return cls.resolve_class(module_path, class_name)
 
-# Retrieve the class from the module
-requested_class = getattr(module, class_name, None)
-
-if requested_class is None:
-    pass
-logger.error(
-f"Class {class_name} not found in module {module_path}")
-
-return requested_class
-
-except (ImportError, AttributeError) as e:
-    pass
-logger.error(
-f"Error retrieving class {class_name} from {module_path}: {e}")
-return None
-
-@classmethod
-def clear_cache(cls):
-    pass
-"""
-Clear the module and import caches.
-
-Useful for testing or resetting the import state.
-"""
-cls._module_cache.clear()
-cls._import_lock.clear()
+        try:
+            return importlib.import_module(module_path)
+        except ImportError as e:
+            cls.register_pending_import(module_path, e)
+            raise

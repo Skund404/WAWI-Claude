@@ -1,118 +1,70 @@
 # database/models/__init__.py
 """
-Database models package initialization.
+Model initialization and registration module.
 
-This module initializes the models package and registers all model classes
-to make them available throughout the application.
+This module handles dynamic model discovery and registration for the application.
 """
 
 import importlib
 import logging
-from typing import Dict, Optional, Type, Any
+from typing import Any, Dict, Optional, Type
 
-logger = logging.getLogger(__name__)
+from database.models.model_metaclass import Base, BaseModel, ModelMetaclass
 
 
 class ModelRegistry:
-    pass
-"""
-Registry for all model classes.
+    """
+    A registry to manage and track model classes dynamically.
+    """
+    _registered_models: Dict[str, Type] = {}
 
-Provides methods to register and retrieve model classes by name.
-"""
+    @classmethod
+    def register_model(cls, model_name: str, model_class: Type) -> None:
+        """
+        Register a model class with the registry.
 
-_models: Dict[str, Type] = {}
+        Args:
+            model_name (str): The name of the model
+            model_class (Type): The model class to register
+        """
+        cls._registered_models[model_name] = model_class
 
-@classmethod
-def register(cls, name: str, model_class: Type) -> None:
-"""
-Register a model class.
+    @classmethod
+    def load_models(cls) -> None:
+        """
+        Load all models from the models package.
 
-Args:
-name: Name to register the model under
-model_class: The model class to register
-"""
-cls._models[name] = model_class
-logger.debug(f"Registered model: {name}")
+        This method dynamically imports model modules and registers
+        all model classes that inherit from Base.
+        """
+        # List of model modules to import
+        model_modules = [
+            'base', 'components', 'config', 'enums', 'factories',
+            'hardware', 'interfaces', 'leather', 'material', 'metrics',
+            'mixins', 'order', 'order_item', 'pattern', 'product',
+            'project', 'shopping_list', 'storage', 'supplier', 'transaction'
+        ]
 
-@classmethod
-def get(cls, name: str) -> Optional[Type]:
-"""
-Get a registered model class.
+        for module_name in model_modules:
+            try:
+                # Dynamically import the module
+                module = importlib.import_module(f'.{module_name}', package='database.models')
 
-Args:
-name: Name of the model to retrieve
-
-Returns:
-Type or None: The model class, or None if not found
-"""
-return cls._models.get(name)
-
-@classmethod
-def get_all_models(cls) -> Dict[str, Type]:
-"""
-Get all registered model classes.
-
-Returns:
-Dict[str, Type]: Dictionary of all registered model classes
-"""
-return cls._models.copy()
-
-
-def _safe_import(module_name: str, class_name: str) -> Optional[Type]:
-"""
-Safely import a class from a module.
-
-Args:
-module_name: Name of the module to import from
-class_name: Name of the class to import
-
-Returns:
-Type or None: The imported class, or None if import failed
-"""
-try:
-    pass
-module = importlib.import_module(f"database.models.{module_name}")
-return getattr(module, class_name)
-except (ImportError, AttributeError) as e:
-    pass
-logger.warning(
-f"Failed to import {class_name} from {module_name}: {e}")
-return None
+                # Find and register classes that inherit from Base
+                for name, obj in module.__dict__.items():
+                    if (isinstance(obj, type) and
+                            issubclass(obj, Base) and
+                            obj is not Base and
+                            obj is not BaseModel):
+                        cls.register_model(name, obj)
+            except ImportError as e:
+                logging.warning(f"Could not import model module {module_name}: {e}")
+            except Exception as e:
+                logging.error(f"Error processing model module {module_name}: {e}")
 
 
-def _register_models() -> None:
-"""
-Register all model classes.
+# Automatically load models when the module is imported
+ModelRegistry.load_models()
 
-This function imports and registers all model classes that should be
-available throughout the application.
-"""
-# Import base models first
-from database.models.base import Base, BaseModel
-from database.models.model_metaclass import ModelMetaclass
-
-# Register core models
-# These should be imported in dependency order
-model_imports = [
-("enums", "ProjectStatus"),
-("enums", "ProjectType"),
-("enums", "SkillLevel"),
-("enums", "MaterialType"),
-("project", "Project"),
-# Add other models here
-]
-
-for module_name, class_name in model_imports:
-    pass
-model_class = _safe_import(module_name, class_name)
-if model_class:
-    pass
-ModelRegistry.register(class_name, model_class)
-
-
-# Register all models when this module is imported
-_register_models()
-
-# Export the registry
-__all__ = ["ModelRegistry"]
+# Export Base and BaseModel for convenience
+__all__ = ['Base', 'BaseModel', 'ModelRegistry']

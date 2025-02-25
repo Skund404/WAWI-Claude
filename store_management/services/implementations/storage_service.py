@@ -1,318 +1,286 @@
-from di.core import inject
-from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+#!/usr/bin/env python3
+# Path: storage_service.py
 """
+Storage Service Implementation
+
 Concrete implementation of the IStorageService interface.
 
 This module provides a comprehensive implementation of storage-related
 operations using the dependency injection pattern and repository pattern.
 """
 
+import logging
+from typing import Dict, List, Any, Optional
+
+from di.core import inject
+from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+from services.base_service import Service
+from repositories.storage_repository import StorageRepository
+from exceptions import ValidationError, ApplicationError
+
 
 class StorageService(Service, IStorageService):
-    pass
-"""
-Concrete implementation of the IStorageService interface.
+    """
+    Concrete implementation of the IStorageService interface.
 
-This service provides methods for managing storage locations with
-dependency injection, error handling, and validation.
+    This service provides methods for managing storage locations with
+    dependency injection, error handling, and validation.
 
-Attributes:
-_storage_repository (StorageRepository): Repository for storage-related database operations
-"""
+    Attributes:
+        _storage_repository (StorageRepository): Repository for storage-related database operations
+    """
 
-@inject(MaterialService)
-def __init__(self, container):
-    pass
-"""
-Initialize the StorageService with a dependency injection container.
+    def __init__(self, container):
+        """
+        Initialize the StorageService with a dependency injection container.
 
-Args:
-container: Dependency injection container
-"""
-super().__init__(container)
-self._storage_repository = self.get_dependency(StorageRepository)
-self._logger = logging.getLogger(__name__)
+        Args:
+            container: Dependency injection container
+        """
+        super().__init__(container)
+        self._storage_repository = self.get_dependency(StorageRepository)
+        self._logger = logging.getLogger(__name__)
 
-@inject(MaterialService)
-def get_all_storage_locations(self) -> List[Dict[str, Any]]:
-"""
-Retrieve all storage locations from the system.
+    def get_all_storage_locations(self) -> List[Dict[str, Any]]:
+        """
+        Retrieve all storage locations from the system.
 
-Returns:
-List[Dict[str, Any]]: A list of storage locations with their details.
+        Returns:
+            List[Dict[str, Any]]: A list of storage locations with their details.
 
-Raises:
-ApplicationError: If retrieval fails due to database or system errors.
-"""
-try:
-    pass
-storage_locations = self._storage_repository.get_all()
-return [self._to_dict(location) for location in storage_locations]
-except Exception as e:
-    pass
-self._logger.error(f'Error retrieving storage locations: {str(e)}')
-raise ApplicationError('Failed to retrieve storage locations'
-) from e
+        Raises:
+            ApplicationError: If retrieval fails due to database or system errors.
+        """
+        try:
+            storage_locations = self._storage_repository.get_all()
+            return [self._to_dict(location) for location in storage_locations]
+        except Exception as e:
+            self._logger.error(f'Error retrieving storage locations: {str(e)}')
+            raise ApplicationError('Failed to retrieve storage locations') from e
 
-@inject(MaterialService)
-def get_storage_by_id(self, storage_id: int) -> Optional[Dict[str, Any]]:
-"""
-Retrieve a specific storage location by its unique identifier.
+    def get_storage_by_id(self, storage_id: int) -> Optional[Dict[str, Any]]:
+        """
+        Retrieve a specific storage location by its unique identifier.
 
-Args:
-storage_id (int): The unique identifier of the storage location.
+        Args:
+            storage_id (int): The unique identifier of the storage location.
 
-Returns:
-Optional[Dict[str, Any]]: Details of the storage location if found,
-None otherwise.
+        Returns:
+            Optional[Dict[str, Any]]: Details of the storage location if found,
+            None otherwise.
 
-Raises:
-ValidationError: If the storage_id is invalid.
-ApplicationError: If retrieval fails due to database or system errors.
-"""
-try:
-    pass
-if not isinstance(storage_id, int) or storage_id <= 0:
-    pass
-raise ValidationError('Invalid storage ID')
-storage = self._storage_repository.get(storage_id)
-return self._to_dict(storage) if storage else None
-except ValidationError:
-    pass
-raise
-except Exception as e:
-    pass
-self._logger.error(
-f'Error retrieving storage location {storage_id}: {str(e)}')
-raise ApplicationError(
-f'Failed to retrieve storage location {storage_id}') from e
+        Raises:
+            ValidationError: If the storage_id is invalid.
+            ApplicationError: If retrieval fails due to database or system errors.
+        """
+        try:
+            if not isinstance(storage_id, int) or storage_id <= 0:
+                raise ValidationError('Invalid storage ID')
 
-@inject(MaterialService)
-def create_storage_location(self, storage_data: Dict[str, Any]) -> Dict[
-str, Any]:
-"""
-Create a new storage location in the system.
+            storage = self._storage_repository.get(storage_id)
+            return self._to_dict(storage) if storage else None
 
-Args:
-storage_data (Dict[str, Any]): Data for the new storage location.
+        except ValidationError:
+            raise
+        except Exception as e:
+            self._logger.error(f'Error retrieving storage location {storage_id}: {str(e)}')
+            raise ApplicationError(f'Failed to retrieve storage location {storage_id}') from e
 
-Returns:
-Dict[str, Any]: Details of the created storage location.
+    def create_storage_location(self, storage_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Create a new storage location in the system.
 
-Raises:
-ValidationError: If the provided storage data is invalid.
-ApplicationError: If creation fails due to database or system errors.
-"""
-try:
-    pass
-self._validate_storage_data(storage_data)
-new_storage = self._storage_repository.create(storage_data)
-self._logger.info(f'Created new storage location: {new_storage.id}'
-)
-return self._to_dict(new_storage)
-except ValidationError:
-    pass
-raise
-except Exception as e:
-    pass
-self._logger.error(f'Error creating storage location: {str(e)}')
-raise ApplicationError('Failed to create storage location') from e
+        Args:
+            storage_data (Dict[str, Any]): Data for the new storage location.
 
-@inject(MaterialService)
-def update_storage_location(self, storage_id: int, storage_data: Dict[
-str, Any]) -> Dict[str, Any]:
-"""
-Update an existing storage location.
+        Returns:
+            Dict[str, Any]: Details of the created storage location.
 
-Args:
-storage_id (int): Unique identifier of the storage location to update.
-storage_data (Dict[str, Any]): Updated data for the storage location.
+        Raises:
+            ValidationError: If the provided storage data is invalid.
+            ApplicationError: If creation fails due to database or system errors.
+        """
+        try:
+            self._validate_storage_data(storage_data)
+            new_storage = self._storage_repository.create(storage_data)
+            self._logger.info(f'Created new storage location: {new_storage.id}')
+            return self._to_dict(new_storage)
 
-Returns:
-Dict[str, Any]: Updated details of the storage location.
+        except ValidationError:
+            raise
+        except Exception as e:
+            self._logger.error(f'Error creating storage location: {str(e)}')
+            raise ApplicationError('Failed to create storage location') from e
 
-Raises:
-ValidationError: If the storage_id is invalid or storage data is incomplete.
-ApplicationError: If update fails due to database or system errors.
-"""
-try:
-    pass
-if not isinstance(storage_id, int) or storage_id <= 0:
-    pass
-raise ValidationError('Invalid storage ID')
-self._validate_storage_data(storage_data, is_update=True)
-updated_storage = self._storage_repository.update(storage_id,
-storage_data)
-if not updated_storage:
-    pass
-raise ApplicationError(
-f'Storage location {storage_id} not found')
-self._logger.info(f'Updated storage location: {storage_id}')
-return self._to_dict(updated_storage)
-except ValidationError:
-    pass
-raise
-except Exception as e:
-    pass
-self._logger.error(
-f'Error updating storage location {storage_id}: {str(e)}')
-raise ApplicationError(
-f'Failed to update storage location {storage_id}') from e
+    def update_storage_location(self, storage_id: int, storage_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Update an existing storage location.
 
-@inject(MaterialService)
-def delete_storage_location(self, storage_id: int) -> bool:
-"""
-Delete a storage location from the system.
+        Args:
+            storage_id (int): Unique identifier of the storage location to update.
+            storage_data (Dict[str, Any]): Updated data for the storage location.
 
-Args:
-storage_id (int): Unique identifier of the storage location to delete.
+        Returns:
+            Dict[str, Any]: Updated details of the storage location.
 
-Returns:
-bool: True if deletion was successful, False otherwise.
+        Raises:
+            ValidationError: If the storage_id is invalid or storage data is incomplete.
+            ApplicationError: If update fails due to database or system errors.
+        """
+        try:
+            if not isinstance(storage_id, int) or storage_id <= 0:
+                raise ValidationError('Invalid storage ID')
 
-Raises:
-ValidationError: If the storage_id is invalid.
-ApplicationError: If deletion fails due to existing dependencies or system errors.
-"""
-try:
-    pass
-if not isinstance(storage_id, int) or storage_id <= 0:
-    pass
-raise ValidationError('Invalid storage ID')
-deletion_result = self._storage_repository.delete(storage_id)
-if deletion_result:
-    pass
-self._logger.info(f'Deleted storage location: {storage_id}')
-else:
-self._logger.warning(
-f'Storage location {storage_id} not found for deletion')
-return deletion_result
-except Exception as e:
-    pass
-self._logger.error(
-f'Error deleting storage location {storage_id}: {str(e)}')
-raise ApplicationError(
-f'Failed to delete storage location {storage_id}') from e
+            self._validate_storage_data(storage_data, is_update=True)
 
-@inject(MaterialService)
-def search_storage_locations(self, search_term: str) -> List[Dict[str, Any]
-]:
-"""
-Search for storage locations based on a search term.
+            updated_storage = self._storage_repository.update(storage_id, storage_data)
+            if not updated_storage:
+                raise ApplicationError(f'Storage location {storage_id} not found')
 
-Args:
-search_term (str): Term to search for in storage locations.
+            self._logger.info(f'Updated storage location: {storage_id}')
+            return self._to_dict(updated_storage)
 
-Returns:
-List[Dict[str, Any]]: List of storage locations matching the search term.
+        except ValidationError:
+            raise
+        except Exception as e:
+            self._logger.error(f'Error updating storage location {storage_id}: {str(e)}')
+            raise ApplicationError(f'Failed to update storage location {storage_id}') from e
 
-Raises:
-ValidationError: If the search term is empty or invalid.
-ApplicationError: If search fails due to database or system errors.
-"""
-try:
-    pass
-if not search_term or not isinstance(search_term, str):
-    pass
-raise ValidationError('Invalid search term')
-search_results = self._storage_repository.search_storage(
-search_term)
-return [self._to_dict(result) for result in search_results]
-except ValidationError:
-    pass
-raise
-except Exception as e:
-    pass
-self._logger.error(f'Error searching storage locations: {str(e)}')
-raise ApplicationError('Failed to search storage locations') from e
+    def delete_storage_location(self, storage_id: int) -> bool:
+        """
+        Delete a storage location from the system.
 
-@inject(MaterialService)
-def get_storage_status(self, storage_id: int) -> Optional[Dict[str, Any]]:
-"""
-Get the current status of a specific storage location.
+        Args:
+            storage_id (int): Unique identifier of the storage location to delete.
 
-Args:
-storage_id (int): Unique identifier of the storage location.
+        Returns:
+            bool: True if deletion was successful, False otherwise.
 
-Returns:
-Optional[Dict[str, Any]]: Dictionary with storage status information
-or None if not found.
+        Raises:
+            ValidationError: If the storage_id is invalid.
+            ApplicationError: If deletion fails due to existing dependencies or system errors.
+        """
+        try:
+            if not isinstance(storage_id, int) or storage_id <= 0:
+                raise ValidationError('Invalid storage ID')
 
-Raises:
-ValidationError: If the storage_id is invalid.
-ApplicationError: If status retrieval fails due to database or system errors.
-"""
-try:
-    pass
-if not isinstance(storage_id, int) or storage_id <= 0:
-    pass
-raise ValidationError('Invalid storage ID')
-storage_status = self._storage_repository.get_storage_with_details(
-storage_id)
-if not storage_status:
-    pass
-return None
-return self._to_dict(storage_status)
-except ValidationError:
-    pass
-raise
-except Exception as e:
-    pass
-self._logger.error(
-f'Error retrieving storage status for {storage_id}: {str(e)}')
-raise ApplicationError(
-f'Failed to retrieve storage status for {storage_id}') from e
+            deletion_result = self._storage_repository.delete(storage_id)
 
-@inject(MaterialService)
-def _to_dict(self, storage) -> Dict[str, Any]:
-"""
-Convert a storage model instance to a dictionary.
+            if deletion_result:
+                self._logger.info(f'Deleted storage location: {storage_id}')
+            else:
+                self._logger.warning(f'Storage location {storage_id} not found for deletion')
 
-Args:
-storage: Storage model instance
+            return deletion_result
 
-Returns:
-Dict[str, Any]: Dictionary representation of the storage
-"""
-return {'id': storage.id, 'name': storage.name, 'location': storage
-.location, 'capacity': storage.capacity, 'current_occupancy':
-storage.current_occupancy, 'type': storage.type, 'description':
-storage.description, 'status': storage.status}
+        except Exception as e:
+            self._logger.error(f'Error deleting storage location {storage_id}: {str(e)}')
+            raise ApplicationError(f'Failed to delete storage location {storage_id}') from e
 
-@inject(MaterialService)
-def _validate_storage_data(self, storage_data: Dict[str, Any],
-is_update: bool = False):
-    pass
-"""
-Validate storage location data before creation or update.
+    def search_storage_locations(self, search_term: str) -> List[Dict[str, Any]]:
+        """
+        Search for storage locations based on a search term.
 
-Args:
-storage_data (Dict[str, Any]): Storage location data to validate
-is_update (bool, optional): Whether this is an update operation. Defaults to False.
+        Args:
+            search_term (str): Term to search for in storage locations.
 
-Raises:
-ValidationError: If the storage data is invalid
-"""
-required_fields = ['name', 'location', 'capacity']
-if not is_update:
-    pass
-for field in required_fields:
-    pass
-if field not in storage_data or not storage_data[field]:
-    pass
-raise ValidationError(f'Missing required field: {field}')
-if 'capacity' in storage_data:
-    pass
-try:
-    pass
-capacity = float(storage_data['capacity'])
-if capacity < 0:
-    pass
-raise ValidationError(
-'Capacity must be a non-negative number')
-except (TypeError, ValueError):
-    pass
-raise ValidationError('Capacity must be a valid number')
-if 'type' in storage_data and not storage_data['type']:
-    pass
-raise ValidationError('Storage type cannot be empty')
+        Returns:
+            List[Dict[str, Any]]: List of storage locations matching the search term.
+
+        Raises:
+            ValidationError: If the search term is empty or invalid.
+            ApplicationError: If search fails due to database or system errors.
+        """
+        try:
+            if not search_term or not isinstance(search_term, str):
+                raise ValidationError('Invalid search term')
+
+            search_results = self._storage_repository.search_storage(search_term)
+            return [self._to_dict(result) for result in search_results]
+
+        except ValidationError:
+            raise
+        except Exception as e:
+            self._logger.error(f'Error searching storage locations: {str(e)}')
+            raise ApplicationError('Failed to search storage locations') from e
+
+    def get_storage_status(self, storage_id: int) -> Optional[Dict[str, Any]]:
+        """
+        Get the current status of a specific storage location.
+
+        Args:
+            storage_id (int): Unique identifier of the storage location.
+
+        Returns:
+            Optional[Dict[str, Any]]: Dictionary with storage status information
+            or None if not found.
+
+        Raises:
+            ValidationError: If the storage_id is invalid.
+            ApplicationError: If status retrieval fails due to database or system errors.
+        """
+        try:
+            if not isinstance(storage_id, int) or storage_id <= 0:
+                raise ValidationError('Invalid storage ID')
+
+            storage_status = self._storage_repository.get_storage_with_details(storage_id)
+            if not storage_status:
+                return None
+
+            return self._to_dict(storage_status)
+
+        except ValidationError:
+            raise
+        except Exception as e:
+            self._logger.error(f'Error retrieving storage status for {storage_id}: {str(e)}')
+            raise ApplicationError(f'Failed to retrieve storage status for {storage_id}') from e
+
+    def _to_dict(self, storage) -> Dict[str, Any]:
+        """
+        Convert a storage model instance to a dictionary.
+
+        Args:
+            storage: Storage model instance
+
+        Returns:
+            Dict[str, Any]: Dictionary representation of the storage
+        """
+        return {
+            'id': storage.id,
+            'name': storage.name,
+            'location': storage.location,
+            'capacity': storage.capacity,
+            'current_occupancy': storage.current_occupancy,
+            'type': storage.type,
+            'description': storage.description,
+            'status': storage.status
+        }
+
+    def _validate_storage_data(self, storage_data: Dict[str, Any], is_update: bool = False) -> None:
+        """
+        Validate storage location data before creation or update.
+
+        Args:
+            storage_data (Dict[str, Any]): Storage location data to validate
+            is_update (bool, optional): Whether this is an update operation. Defaults to False.
+
+        Raises:
+            ValidationError: If the storage data is invalid
+        """
+        required_fields = ['name', 'location', 'capacity']
+
+        if not is_update:
+            for field in required_fields:
+                if field not in storage_data or not storage_data[field]:
+                    raise ValidationError(f'Missing required field: {field}')
+
+        if 'capacity' in storage_data:
+            try:
+                capacity = float(storage_data['capacity'])
+                if capacity < 0:
+                    raise ValidationError('Capacity must be a non-negative number')
+            except (TypeError, ValueError):
+                raise ValidationError('Capacity must be a valid number')
+
+        if 'type' in storage_data and not storage_data['type']:
+            raise ValidationError('Storage type cannot be empty')

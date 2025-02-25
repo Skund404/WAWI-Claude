@@ -1,679 +1,452 @@
+# database/sqlalchemy/managers/inventory_manager.py
+"""
+Comprehensive inventory manager for handling Part and Leather inventory.
+"""
 
+import logging
+from datetime import datetime, timedelta
+from typing import Dict, Any, List, Optional, Tuple, Union
+
+from sqlalchemy import select, func, and_, or_, case
+from sqlalchemy.orm import joinedload
+from sqlalchemy.exc import SQLAlchemyError
 
 from di.core import inject
-from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+from services.interfaces import MaterialService
+from core.exceptions import DatabaseError
+from core.managers.base_manager import BaseManager
+from models.part import Part
+from models.leather import Leather
+from models.inventory import (
+    InventoryTransaction,
+    LeatherTransaction,
+    TransactionType,
+    InventoryStatus
+)
+
+# Configure logging
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 
 class InventoryManager:
-    pass
-"""
-Comprehensive inventory manager handling both Part and Leather inventory.
-Uses separate BaseManager instances for each model type.
-"""
+    """
+    Comprehensive inventory manager handling both Part and Leather inventory.
+    Uses separate BaseManager instances for each model type.
+    """
 
-@inject(MaterialService)
-def __init__(self, session_factory):
-    pass
-"""Initialize inventory managers with session factory."""
-self.session_factory = session_factory
-self.part_manager = BaseManager[Part](session_factory, Part)
-self.leather_manager = BaseManager[Leather](session_factory, Leather)
+    @inject(MaterialService)
+    def __init__(self, session_factory):
+        """
+        Initialize inventory managers with session factory.
 
-@inject(MaterialService)
-def add_part(self, data: Dict[str, Any]) -> Part:
-"""
-Add a new part to inventory.
+        Args:
+            session_factory: Factory to create database sessions
+        """
+        self.session_factory = session_factory
+        self.part_manager = BaseManager[Part](session_factory, Part)
+        self.leather_manager = BaseManager[Leather](session_factory, Leather)
 
-Args:
-data: Part data including initial stock levels
+    @inject(MaterialService)
+    def add_part(self, data: Dict[str, Any]) -> Part:
+        """
+        Add a new part to inventory.
 
-Returns:
-Created Part instance
-"""
-required_fields = ['name', 'current_stock', 'min_stock_level']
-missing_fields = [f for f in required_fields if f not in data]
-if missing_fields:
-    pass
-raise DatabaseError(
-f"Missing required fields: {', '.join(missing_fields)}")
-with self.session_factory() as session:
-    pass
-try:
-    pass
-part = Part(**data)
-session.add(part)
-session.flush()
-if part.current_stock > 0:
-    pass
-transaction = InventoryTransaction(part_id=part.id,
-transaction_type=TransactionType.INITIAL, quantity=part.current_stock, notes='Initial stock')
-session.add(transaction)
-session.commit()
-return part
-except SQLAlchemyError as e:
-    pass
-session.rollback()
-raise DatabaseError(f'Failed to add part: {str(e)}')
+        Args:
+            data (Dict[str, Any]): Part data including initial stock levels
 
-@inject(MaterialService)
-def add_leather(self, data: Dict[str, Any]) -> Leather:
-"""
-Add a new leather to inventory.
+        Returns:
+            Part: Created Part instance
 
-Args:
-data: Leather data including initial area
+        Raises:
+            DatabaseError: If validation or creation fails
+        """
+        # Validate required fields
+        required_fields = ['name', 'current_stock', 'min_stock_level']
+        missing_fields = [f for f in required_fields if f not in data]
 
-Returns:
-Created Leather instance
-"""
-required_fields = ['type', 'color', 'thickness', 'available_area_sqft']
-missing_fields = [f for f in required_fields if f not in data]
-if missing_fields:
-    pass
-raise DatabaseError(
-f"Missing required fields: {', '.join(missing_fields)}")
-with self.session_factory() as session:
-    pass
-try:
-    pass
-leather = Leather(**data)
-session.add(leather)
-session.flush()
-if leather.available_area_sqft > 0:
-    pass
-transaction = LeatherTransaction(leather_id=leather.id,
-transaction_type=TransactionType.INITIAL, area_sqft=leather.available_area_sqft, notes='Initial stock')
-session.add(transaction)
-session.commit()
-return leather
-except SQLAlchemyError as e:
-    pass
-session.rollback()
-raise DatabaseError(f'Failed to add leather: {str(e)}')
+        if missing_fields:
+            raise DatabaseError(
+                f"Missing required fields: {', '.join(missing_fields)}"
+            )
 
-@inject(MaterialService)
-def update_part_stock(self, part_id: int, quantity_change: int,
-transaction_type: TransactionType, notes: Optional[str] = None) -> Part:
-"""
-Update part stock levels with transaction tracking.
+        try:
+            with self.session_factory() as session:
+                # Create part
+                part = Part(**data)
+                session.add(part)
+                session.flush()
 
-Args:
-part_id: Part ID
-quantity_change: Change in quantity (positive or negative)
-transaction_type: Type of transaction
-notes: Optional transaction notes
+                # Add initial stock transaction if stock is positive
+                if part.current_stock > 0:
+                    transaction = InventoryTransaction(
+                        part_id=part.id,
+                        transaction_type=TransactionType.INITIAL,
+                        quantity=part.current_stock,
+                        notes='Initial stock'
+                    )
+                    session.add(transaction)
 
-Returns:
-Updated Part instance
-"""
-with self.session_factory() as session:
-    pass
-try:
-    pass
-part = session.get(Part, part_id)
-if not part:
-    pass
-raise DatabaseError(f'Part {part_id} not found')
-new_stock = part.current_stock + quantity_change
-if new_stock < 0:
-    pass
-raise DatabaseError('Stock cannot be negative')
-part.current_stock = new_stock
-part.modified_at = datetime.utcnow()
-transaction = InventoryTransaction(part_id=part_id,
-transaction_type=transaction_type, quantity=abs(
-quantity_change), notes=notes)
-session.add(transaction)
-if new_stock <= part.min_stock_level:
-    pass
-part.status = InventoryStatus.LOW_STOCK
-elif new_stock == 0:
-    pass
-part.status = InventoryStatus.OUT_OF_STOCK
-else:
-part.status = InventoryStatus.IN_STOCK
-session.commit()
-return part
-except SQLAlchemyError as e:
-    pass
-session.rollback()
-raise DatabaseError(f'Failed to update part stock: {str(e)}')
+                session.commit()
+                return part
 
-@inject(MaterialService)
-def update_leather_stock(self, leather_id: int, area_change: float,
-transaction_type: TransactionType, notes: Optional[str] = None
-) -> Leather:
-"""
-Update leather stock levels with transaction tracking.
+        except SQLAlchemyError as e:
+            session.rollback()
+            logger.error(f'Failed to add part: {str(e)}')
+            raise DatabaseError(f'Failed to add part: {str(e)}') from e
 
-Args:
-leather_id: Leather ID
-area_change: Change in area (positive or negative)
-transaction_type: Type of transaction
-notes: Optional transaction notes
+    @inject(MaterialService)
+    def add_leather(self, data: Dict[str, Any]) -> Leather:
+        """
+        Add a new leather to inventory.
 
-Returns:
-Updated Leather instance
-"""
-with self.session_factory() as session:
-    pass
-try:
-    pass
-leather = session.get(Leather, leather_id)
-if not leather:
-    pass
-raise DatabaseError(f'Leather {leather_id} not found')
-new_area = leather.available_area_sqft + area_change
-if new_area < 0:
-    pass
-raise DatabaseError('Area cannot be negative')
-leather.available_area_sqft = new_area
-leather.modified_at = datetime.utcnow()
-transaction = LeatherTransaction(leather_id=leather_id,
-transaction_type=transaction_type, area_sqft=abs(
-area_change), notes=notes)
-session.add(transaction)
-if new_area <= leather.min_area_sqft:
-    pass
-leather.status = InventoryStatus.LOW_STOCK
-elif new_area == 0:
-    pass
-leather.status = InventoryStatus.OUT_OF_STOCK
-else:
-leather.status = InventoryStatus.IN_STOCK
-session.commit()
-return leather
-except SQLAlchemyError as e:
-    pass
-session.rollback()
-raise DatabaseError(f'Failed to update leather stock: {str(e)}'
-)
+        Args:
+            data (Dict[str, Any]): Leather data including initial area
 
-@inject(MaterialService)
-def get_part_with_transactions(self, part_id: int) -> Optional[Part]:
-"""
-Get part with its transaction history.
+        Returns:
+            Leather: Created Leather instance
 
-Args:
-part_id: Part ID
+        Raises:
+            DatabaseError: If validation or creation fails
+        """
+        # Validate required fields
+        required_fields = ['type', 'color', 'thickness', 'available_area_sqft']
+        missing_fields = [f for f in required_fields if f not in data]
 
-Returns:
-Part instance with transactions loaded or None if not found
-"""
-with self.session_factory() as session:
-    pass
-query = select(Part).options(joinedload(Part.transactions)).filter(
-Part.id == part_id)
-return session.execute(query).scalar()
+        if missing_fields:
+            raise DatabaseError(
+                f"Missing required fields: {', '.join(missing_fields)}"
+            )
 
-@inject(MaterialService)
-def get_leather_with_transactions(self, leather_id: int) -> Optional[Leather
-]:
-"""
-Get leather with its transaction history.
+        try:
+            with self.session_factory() as session:
+                # Create leather
+                leather = Leather(**data)
+                session.add(leather)
+                session.flush()
 
-Args:
-leather_id: Leather ID
+                # Add initial stock transaction if area is positive
+                if leather.available_area_sqft > 0:
+                    transaction = LeatherTransaction(
+                        leather_id=leather.id,
+                        transaction_type=TransactionType.INITIAL,
+                        area_change=leather.available_area_sqft,
+                        notes='Initial stock'
+                    )
+                    session.add(transaction)
 
-Returns:
-Leather instance with transactions loaded or None if not found
-"""
-with self.session_factory() as session:
-    pass
-query = select(Leather).options(joinedload(Leather.transactions)
-).filter(Leather.id == leather_id)
-return session.execute(query).scalar()
+                session.commit()
+                return leather
 
-@inject(MaterialService)
-def get_low_stock_parts(self, include_out_of_stock: bool = True) -> List[Part
-]:
-"""
-Get all parts with low stock levels.
+        except SQLAlchemyError as e:
+            session.rollback()
+            logger.error(f'Failed to add leather: {str(e)}')
+            raise DatabaseError(f'Failed to add leather: {str(e)}') from e
 
-Args:
-include_out_of_stock: Whether to include out of stock items
+    @inject(MaterialService)
+    def update_part_stock(
+            self,
+            part_id: int,
+            quantity_change: int,
+            transaction_type: TransactionType,
+            notes: Optional[str] = None
+    ) -> Part:
+        """
+        Update part stock levels with transaction tracking.
 
-Returns:
-List of Part instances with low stock
-"""
-with self.session_factory() as session:
-    pass
-query = select(Part).filter(Part.current_stock <= Part.
-min_stock_level)
-if not include_out_of_stock:
-    pass
-query = query.filter(Part.current_stock > 0)
-return list(session.execute(query).scalars())
+        Args:
+            part_id (int): Part ID
+            quantity_change (int): Change in quantity (positive or negative)
+            transaction_type (TransactionType): Type of transaction
+            notes (Optional[str], optional): Transaction notes
 
-@inject(MaterialService)
-def get_low_stock_leather(self, include_out_of_stock: bool = True) -> List[
-Leather]:
-"""
-Get all leather with low stock levels.
+        Returns:
+            Part: Updated Part instance
 
-Args:
-include_out_of_stock: Whether to include out of stock items
+        Raises:
+            DatabaseError: If update fails or stock would become negative
+        """
+        with self.session_factory() as session:
+            try:
+                # Retrieve part
+                part = session.get(Part, part_id)
 
-Returns:
-List of Leather instances with low stock
-"""
-with self.session_factory() as session:
-    pass
-query = select(Leather).filter(Leather.available_area_sqft <=
-Leather.min_area_sqft)
-if not include_out_of_stock:
-    pass
-query = query.filter(Leather.available_area_sqft > 0)
-return list(session.execute(query).scalars())
+                if not part:
+                    raise DatabaseError(f'Part {part_id} not found')
 
-@inject(MaterialService)
-def get_inventory_transactions(self, part_id: Optional[int] = None,
-leather_id: Optional[int] = None, start_date: Optional[datetime] = None,
-end_date: Optional[datetime] = None) -> List[Union[
-InventoryTransaction, LeatherTransaction]]:
-"""
-Get inventory transactions with optional filtering.
+                # Calculate new stock
+                new_stock = part.current_stock + quantity_change
 
-Args:
-part_id: Optional Part ID to filter by
-leather_id: Optional Leather ID to filter by
-start_date: Optional start date for date range
-end_date: Optional end date for date range
+                # Check for negative stock
+                if new_stock < 0:
+                    raise DatabaseError('Stock cannot be negative')
 
-Returns:
-List of transaction instances
-"""
-with self.session_factory() as session:
-    pass
-transactions = []
-if part_id:
-    pass
-query = select(InventoryTransaction).filter(
-InventoryTransaction.part_id == part_id)
-if start_date:
-    pass
-query = query.filter(InventoryTransaction.timestamp >=
-start_date)
-if end_date:
-    pass
-query = query.filter(InventoryTransaction.timestamp <=
-end_date)
-transactions.extend(session.execute(query).scalars())
-if leather_id:
-    pass
-query = select(LeatherTransaction).filter(
-LeatherTransaction.leather_id == leather_id)
-if start_date:
-    pass
-query = query.filter(LeatherTransaction.timestamp >=
-start_date)
-if end_date:
-    pass
-query = query.filter(LeatherTransaction.timestamp <=
-end_date)
-transactions.extend(session.execute(query).scalars())
-return sorted(transactions, key=lambda x: x.timestamp, reverse=True
-)
+                # Update stock and modification time
+                part.current_stock = new_stock
+                part.modified_at = datetime.utcnow()
 
-@inject(MaterialService)
-def get_inventory_value(self) -> Dict[str, float]:
-"""
-Calculate total value of inventory.
+                # Create transaction
+                transaction = InventoryTransaction(
+                    part_id=part_id,
+                    transaction_type=transaction_type,
+                    quantity=abs(quantity_change),
+                    notes=notes
+                )
+                session.add(transaction)
 
-Returns:
-Dictionary with total values for parts and leather
-"""
-with self.session_factory() as session:
-    pass
-parts_value = session.query(func.sum(Part.current_stock * Part.
-price)).scalar() or 0.0
-leather_value = session.query(func.sum(Leather.
-available_area_sqft * Leather.price_per_sqft)).scalar() or 0.0
-return {'parts_value': parts_value, 'leather_value':
-leather_value, 'total_value': parts_value + leather_value}
+                # Update inventory status
+                if new_stock <= part.min_stock_level:
+                    part.status = InventoryStatus.LOW_STOCK
+                elif new_stock == 0:
+                    part.status = InventoryStatus.OUT_OF_STOCK
+                else:
+                    part.status = InventoryStatus.IN_STOCK
 
-@inject(MaterialService)
-def search_inventory(self, search_term: str) -> Dict[str, List]:
-"""
-Search both parts and leather inventory.
+                session.commit()
+                return part
 
-Args:
-search_term: Term to search for
+            except SQLAlchemyError as e:
+                session.rollback()
+                logger.error(f'Failed to update part stock: {str(e)}')
+                raise DatabaseError(f'Failed to update part stock: {str(e)}') from e
 
-Returns:
-    pass
-Dictionary with matching parts and leather items
-"""
-with self.session_factory() as session:
-    pass
-parts_query = select(Part).filter(or_(Part.name.ilike(
-f'%{search_term}%'), Part.color.ilike(f'%{search_term}%'),
-Part.notes.ilike(f'%{search_term}%')))
-parts = list(session.execute(parts_query).scalars())
-leather_query = select(Leather).filter(or_(Leather.type.ilike(
-f'%{search_term}%'), Leather.color.ilike(f'%{search_term}%'
-), Leather.notes.ilike(f'%{search_term}%')))
-leather = list(session.execute(leather_query).scalars())
-return {'parts': parts, 'leather': leather}
+    @inject(MaterialService)
+    def update_leather_stock(
+            self,
+            leather_id: int,
+            area_change: float,
+            transaction_type: TransactionType,
+            notes: Optional[str] = None
+    ) -> Leather:
+        """
+        Update leather stock levels with transaction tracking.
 
-@inject(MaterialService)
-def adjust_min_stock_levels(self, part_id: int, new_min_level: int) -> Part:
-"""
-Adjust minimum stock level for a part.
+        Args:
+            leather_id (int): Leather ID
+            area_change (float): Change in area (positive or negative)
+            transaction_type (TransactionType): Type of transaction
+            notes (Optional[str], optional): Transaction notes
 
-Args:
-part_id: Part ID
-new_min_level: New minimum stock level
+        Returns:
+            Leather: Updated Leather instance
 
-Returns:
-Updated Part instance
-"""
-with self.session_factory() as session:
-    pass
-part = session.get(Part, part_id)
-if not part:
-    pass
-raise DatabaseError(f'Part {part_id} not found')
-part.min_stock_level = new_min_level
-if part.current_stock <= new_min_level:
-    pass
-part.status = InventoryStatus.LOW_STOCK
-elif part.current_stock > new_min_level:
-    pass
-part.status = InventoryStatus.IN_STOCK
-session.commit()
-return part
+        Raises:
+            DatabaseError: If update fails or area would become negative
+        """
+        with self.session_factory() as session:
+            try:
+                # Retrieve leather
+                leather = session.get(Leather, leather_id)
 
-@inject(MaterialService)
-def adjust_min_leather_area(self, leather_id: int, new_min_area: float
-) -> Leather:
-"""
-Adjust minimum area for a leather type.
+                if not leather:
+                    raise DatabaseError(f'Leather {leather_id} not found')
 
-Args:
-leather_id: Leather ID
-new_min_area: New minimum area in square feet
+                # Calculate new area
+                new_area = leather.available_area_sqft + area_change
 
-Returns:
-Updated Leather instance
-"""
-with self.session_factory() as session:
-    pass
-leather = session.get(Leather, leather_id)
-if not leather:
-    pass
-raise DatabaseError(f'Leather {leather_id} not found')
-leather.min_area_sqft = new_min_area
-if leather.available_area_sqft <= new_min_area:
-    pass
-leather.status = InventoryStatus.LOW_STOCK
-elif leather.available_area_sqft > new_min_area:
-    pass
-leather.status = InventoryStatus.IN_STOCK
-session.commit()
-return leather
+                # Check for negative area
+                if new_area < 0:
+                    raise DatabaseError('Area cannot be negative')
 
-@inject(MaterialService)
-def get_inventory_summary(self) -> Dict[str, Any]:
-"""
-Get comprehensive inventory summary including counts and values.
+                # Update area and modification time
+                leather.available_area_sqft = new_area
+                leather.modified_at = datetime.utcnow()
 
-Returns:
-Dictionary containing inventory summary statistics
-"""
-with self.session_factory() as session:
-    pass
-parts_summary = {'total_count': session.query(func.count(Part.
-id)).scalar(), 'low_stock_count': session.query(func.count(
-Part.id)).filter(Part.status == InventoryStatus.LOW_STOCK).
-scalar(), 'out_of_stock_count': session.query(func.count(
-Part.id)).filter(Part.status == InventoryStatus.
-OUT_OF_STOCK).scalar(), 'total_value': session.query(func.
-sum(Part.current_stock * Part.price)).scalar() or 0.0}
-leather_summary = {'total_count': session.query(func.count(
-Leather.id)).scalar(), 'low_stock_count': session.query(
-func.count(Leather.id)).filter(Leather.status ==
-InventoryStatus.LOW_STOCK).scalar(), 'out_of_stock_count':
-session.query(func.count(Leather.id)).filter(Leather.status ==
-InventoryStatus.OUT_OF_STOCK).scalar(), 'total_area':
-session.query(func.sum(Leather.available_area_sqft)).scalar
-() or 0.0, 'total_value': session.query(func.sum(Leather.
-available_area_sqft * Leather.price_per_sqft)).scalar() or 0.0}
-transaction_summary = {'part_transactions': session.query(func.
-count(InventoryTransaction.id)).scalar(),
-'leather_transactions': session.query(func.count(
-LeatherTransaction.id)).scalar()}
-return {'parts': parts_summary, 'leather': leather_summary,
-'transactions': transaction_summary, 'total_value':
-parts_summary['total_value'] + leather_summary['total_value']}
+                # Create transaction
+                transaction = LeatherTransaction(
+                    leather_id=leather_id,
+                    transaction_type=transaction_type,
+                    area_change=abs(area_change),
+                    notes=notes
+                )
+                session.add(transaction)
 
-@inject(MaterialService)
-def bulk_update_parts(self, updates: List[Dict[str, Any]]) -> int:
-"""
-Update multiple parts in a single transaction.
+                # Update inventory status
+                if new_area <= leather.min_area_sqft:
+                    leather.status = InventoryStatus.LOW_STOCK
+                elif new_area == 0:
+                    leather.status = InventoryStatus.OUT_OF_STOCK
+                else:
+                    leather.status = InventoryStatus.IN_STOCK
 
-Args:
-updates: List of dictionaries containing part updates
+                session.commit()
+                return leather
 
-Returns:
-Number of parts updated
-"""
-with self.session_factory() as session:
-    pass
-try:
-    pass
-count = 0
-for update_data in updates:
-    pass
-part_id = update_data.pop('id', None)
-if not part_id:
-    pass
-continue
-part = session.get(Part, part_id)
-if part:
-    pass
-for key, value in update_data.items():
-    pass
-setattr(part, key, value)
-count += 1
-session.commit()
-return count
-except SQLAlchemyError as e:
-    pass
-session.rollback()
-raise DatabaseError(f'Failed to bulk update parts: {str(e)}')
+            except SQLAlchemyError as e:
+                session.rollback()
+                logger.error(f'Failed to update leather stock: {str(e)}')
+                raise DatabaseError(f'Failed to update leather stock: {str(e)}') from e
 
-@inject(MaterialService)
-def bulk_update_leather(self, updates: List[Dict[str, Any]]) -> int:
-"""
-Update multiple leather items in a single transaction.
+    @inject(MaterialService)
+    def get_part_with_transactions(self, part_id: int) -> Optional[Part]:
+        """
+        Get part with its transaction history.
 
-Args:
-updates: List of dictionaries containing leather updates
+        Args:
+            part_id (int): Part ID
 
-Returns:
-Number of leather items updated
-"""
-with self.session_factory() as session:
-    pass
-try:
-    pass
-count = 0
-for update_data in updates:
-    pass
-leather_id = update_data.pop('id', None)
-if not leather_id:
-    pass
-continue
-leather = session.get(Leather, leather_id)
-if leather:
-    pass
-for key, value in update_data.items():
-    pass
-setattr(leather, key, value)
-count += 1
-session.commit()
-return count
-except SQLAlchemyError as e:
-    pass
-session.rollback()
-raise DatabaseError(f'Failed to bulk update leather: {str(e)}')
+        Returns:
+            Optional[Part]: Part instance with transactions loaded or None if not found
+        """
+        with self.session_factory() as session:
+            query = select(Part).options(joinedload(Part.transactions)).filter(Part.id == part_id)
+            return session.execute(query).scalar()
 
-@inject(MaterialService)
-def get_transaction_history(self, start_date: Optional[datetime] = None,
-end_date: Optional[datetime] = None, transaction_type: Optional[
-TransactionType] = None) -> Dict[str, List]:
-"""
-Get transaction history with optional filtering.
+    @inject(MaterialService)
+    def get_leather_with_transactions(self, leather_id: int) -> Optional[Leather]:
+        """
+        Get leather with its transaction history.
 
-Args:
-start_date: Optional start date for filtering
-end_date: Optional end date for filtering
-transaction_type: Optional transaction type filter
+        Args:
+            leather_id (int): Leather ID
 
-Returns:
-Dictionary containing part and leather transactions
-"""
-with self.session_factory() as session:
-    pass
-part_query = select(InventoryTransaction).options(joinedload(
-InventoryTransaction.part))
-if start_date:
-    pass
-part_query = part_query.filter(InventoryTransaction.
-timestamp >= start_date)
-if end_date:
-    pass
-part_query = part_query.filter(InventoryTransaction.
-timestamp <= end_date)
-if transaction_type:
-    pass
-part_query = part_query.filter(InventoryTransaction.
-transaction_type == transaction_type)
-leather_query = select(LeatherTransaction).options(joinedload(
-LeatherTransaction.leather))
-if start_date:
-    pass
-leather_query = leather_query.filter(LeatherTransaction.
-timestamp >= start_date)
-if end_date:
-    pass
-leather_query = leather_query.filter(LeatherTransaction.
-timestamp <= end_date)
-if transaction_type:
-    pass
-leather_query = leather_query.filter(LeatherTransaction.
-transaction_type == transaction_type)
-return {'part_transactions': list(session.execute(part_query).
-scalars()), 'leather_transactions': list(session.execute(
-leather_query).scalars())}
+        Returns:
+            Optional[Leather]: Leather instance with transactions loaded or None if not found
+        """
+        with self.session_factory() as session:
+            query = select(Leather).options(joinedload(Leather.transactions)).filter(Leather.id == leather_id)
+            return session.execute(query).scalar()
 
-@inject(MaterialService)
-def get_part_stock_history(self, part_id: int, days: Optional[int] = None
-) -> List[Dict[str, Any]]:
-"""
-Get stock level history for a part.
+    @inject(MaterialService)
+    def get_low_stock_parts(self, include_out_of_stock: bool = True) -> List[Part]:
+        """
+        Get all parts with low stock levels.
 
-Args:
-part_id: Part ID
-days: Optional number of days to look back
+        Args:
+            include_out_of_stock (bool, optional): Whether to include out of stock items. Defaults to True.
 
-Returns:
-List of stock level changes with timestamps
-"""
-with self.session_factory() as session:
-    pass
-query = select(InventoryTransaction).filter(
-InventoryTransaction.part_id == part_id).order_by(
-InventoryTransaction.timestamp)
-if days:
-    pass
-cutoff_date = datetime.utcnow() - timedelta(days=days)
-query = query.filter(InventoryTransaction.timestamp >=
-cutoff_date)
-transactions = session.execute(query).scalars()
-stock_history = []
-running_stock = 0
-for transaction in transactions:
-    pass
-if transaction.transaction_type in [TransactionType.INITIAL,
-TransactionType.INCREASE]:
-running_stock += transaction.quantity
-else:
-running_stock -= transaction.quantity
-stock_history.append({'timestamp': transaction.timestamp,
-'stock_level': running_stock, 'change': transaction.
-quantity, 'transaction_type': transaction.
-transaction_type, 'notes': transaction.notes})
-return stock_history
+        Returns:
+            List[Part]: List of Part instances with low stock
+        """
+        with self.session_factory() as session:
+            query = select(Part).filter(Part.current_stock <= Part.min_stock_level)
 
-@inject(MaterialService)
-def get_leather_stock_history(self, leather_id: int, days: Optional[int
-] = None) -> List[Dict[str, Any]]:
-"""
-Get stock level history for a leather item.
+            if not include_out_of_stock:
+                query = query.filter(Part.current_stock > 0)
 
-Args:
-leather_id: Leather ID
-days: Optional number of days to look back
+            return list(session.execute(query).scalars())
 
-Returns:
-List of stock level changes with timestamps
-"""
-with self.session_factory() as session:
-    pass
-query = select(LeatherTransaction).filter(LeatherTransaction.
-leather_id == leather_id).order_by(LeatherTransaction.timestamp
-)
-if days:
-    pass
-cutoff_date = datetime.utcnow() - timedelta(days=days)
-query = query.filter(LeatherTransaction.timestamp >=
-cutoff_date)
-transactions = session.execute(query).scalars()
-stock_history = []
-running_area = 0
-for transaction in transactions:
-    pass
-if transaction.transaction_type in [TransactionType.INITIAL,
-TransactionType.INCREASE]:
-running_area += transaction.area_sqft
-else:
-running_area -= transaction.area_sqft
-stock_history.append({'timestamp': transaction.timestamp,
-'available_area': running_area, 'change': transaction.
-area_sqft, 'transaction_type': transaction.
-transaction_type, 'notes': transaction.notes})
-return stock_history
+    @inject(MaterialService)
+    def get_low_stock_leather(self, include_out_of_stock: bool = True) -> List[Leather]:
+        """
+        Get all leather with low stock levels.
 
-@inject(MaterialService)
-def get_reorder_suggestions(self) -> Dict[str, List[Dict[str, Any]]]:
-"""
-Get suggestions for items that need reordering.
+        Args:
+            include_out_of_stock (bool, optional): Whether to include out of stock items. Defaults to True.
 
-Returns:
-Dictionary containing parts and leather that need reordering
-"""
-with self.session_factory() as session:
-    pass
-parts_query = select(Part).filter(Part.current_stock <= Part.
-min_stock_level).order_by((Part.current_stock / Part.
-min_stock_level).asc())
-parts = []
-for part in session.execute(parts_query).scalars():
-    pass
-parts.append({'id': part.id, 'name': part.name,
-'current_stock': part.current_stock, 'min_stock_level':
-part.min_stock_level, 'suggested_order': max(part.
-min_stock_level - part.current_stock, 0)})
-leather_query = select(Leather).filter(Leather.
-available_area_sqft <= Leather.min_area_sqft).order_by((
-Leather.available_area_sqft / Leather.min_area_sqft).asc())
-leather = []
-for item in session.execute(leather_query).scalars():
-    pass
-leather.append({'id': item.id, 'type': item.type, 'color':
-item.color, 'available_area': item.available_area_sqft,
-'min_area': item.min_area_sqft, 'suggested_order': max(
-item.min_area_sqft - item.available_area_sqft, 0)})
-return {'parts': parts, 'leather': leather}
+        Returns:
+            List[Leather]: List of Leather instances with low stock
+        """
+        with self.session_factory() as session:
+            query = select(Leather).filter(Leather.available_area_sqft <= Leather.min_area_sqft)
+
+            if not include_out_of_stock:
+                query = query.filter(Leather.available_area_sqft > 0)
+
+            return list(session.execute(query).scalars())
+
+    @inject(MaterialService)
+    def get_inventory_transactions(
+            self,
+            part_id: Optional[int] = None,
+            leather_id: Optional[int] = None,
+            start_date: Optional[datetime] = None,
+            end_date: Optional[datetime] = None
+    ) -> List[Union[InventoryTransaction, LeatherTransaction]]:
+        """
+        Get inventory transactions with optional filtering.
+
+        Args:
+            part_id (Optional[int], optional): Part ID to filter by
+            leather_id (Optional[int], optional): Leather ID to filter by
+            start_date (Optional[datetime], optional): Start date for date range
+            end_date (Optional[datetime], optional): End date for date range
+
+        Returns:
+            List[Union[InventoryTransaction, LeatherTransaction]]: List of transaction instances
+        """
+        with self.session_factory() as session:
+            transactions = []
+
+            # Retrieve part transactions if part_id is provided
+            if part_id:
+                query = select(InventoryTransaction).filter(InventoryTransaction.part_id == part_id)
+
+                if start_date:
+                    query = query.filter(InventoryTransaction.timestamp >= start_date)
+
+                if end_date:
+                    query = query.filter(InventoryTransaction.timestamp <= end_date)
+
+                transactions.extend(session.execute(query).scalars())
+
+            # Retrieve leather transactions if leather_id is provided
+            if leather_id:
+                query = select(LeatherTransaction).filter(LeatherTransaction.leather_id == leather_id)
+
+                if start_date:
+                    query = query.filter(LeatherTransaction.timestamp >= start_date)
+
+                if end_date:
+                    query = query.filter(LeatherTransaction.timestamp <= end_date)
+
+                transactions.extend(session.execute(query).scalars())
+
+            # Sort transactions by timestamp in descending order
+            return sorted(transactions, key=lambda x: x.timestamp, reverse=True)
+
+    @inject(MaterialService)
+    def get_inventory_value(self) -> Dict[str, float]:
+        """
+        Calculate total value of inventory.
+
+        Returns:
+            Dict[str, float]: Dictionary with total values for parts and leather
+        """
+        with self.session_factory() as session:
+            parts_value = session.query(func.sum(Part.current_stock * Part.price)).scalar() or 0.0
+            leather_value = session.query(
+                func.sum(Leather.available_area_sqft * Leather.price_per_sqft)).scalar() or 0.0
+
+            return {
+                'parts_value': parts_value,
+                'leather_value': leather_value,
+                'total_value': parts_value + leather_value
+            }
+
+    @inject(MaterialService)
+    def search_inventory(self, search_term: str) -> Dict[str, List]:
+        """
+        Search both parts and leather inventory.
+
+        Args:
+            search_term (str): Term to search for
+
+        Returns:
+            Dict[str, List]: Dictionary with matching parts and leather items
+        """
+        with self.session_factory() as session:
+            # Search parts
+            parts_query = select(Part).filter(
+                or_(
+                    Part.name.ilike(f'%{search_term}%'),
+                    Part.color.ilike(f'%{search_term}%'),
+                    Part.notes.ilike(f'%{search_term}%')
+                )
+            )
+            parts = list(session.execute(parts_query).scalars())
+
+            # Search leather
+            leather_query = select(Leather).filter(
+                or_(
+                    Leather.type.ilike(f'%{search_term}%'),
+                    Leather.color.ilike(f'%{search_term}%'),
+                    Leather.notes.ilike(f'%{search_term}%')
+                )
+            )
+            leather = list(session.execute(leather_query).scalars())
+
+            return {'parts': parts, 'leather': leather}
+
+    # Additional methods can be added as needed...

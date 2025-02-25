@@ -1,35 +1,40 @@
-
+from abc import ABC, abstractmethod
+from typing import TypeVar, Generic, List, Optional, Dict
 
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
 
+T = TypeVar('T')
 
-class ILeatherInventoryService(IBaseService[Leather]):
-    pass
-"""Interface for leather inventory management."""
+class IBaseService(ABC, Generic[T]):
+    """Base interface for all services."""
 
-@abstractmethod
-@inject(MaterialService)
-def update_stock(self, leather_id: int, area_change: float, notes: str
-) -> bool:
-"""Update leather stock levels."""
-pass
+    @abstractmethod
+    @inject(MaterialService)
+    def get_by_id(self, id: int) -> Optional[T]:
+        """Get entity by ID."""
+        pass
 
-@abstractmethod
-@inject(MaterialService)
-def get_low_stock_items(self) -> List[Leather]:
-"""Get items with low stock."""
-pass
+    @abstractmethod
+    @inject(MaterialService)
+    def get_all(self) -> List[T]:
+        """Get all entities."""
+        pass
 
-@abstractmethod
-@inject(MaterialService)
-def track_wastage(self, leather_id: int, area_wasted: float, reason: str
-) -> bool:
-"""Track leather wastage."""
-pass
+    @abstractmethod
+    @inject(MaterialService)
+    def create(self, data: dict) -> T:
+        """Create new entity."""
+        pass
 
-@abstractmethod
-@inject(MaterialService)
-def get_usage_statistics(self, leather_id: int) -> Dict[str, float]:
-"""Get usage statistics for leather."""
-pass
+    @abstractmethod
+    @inject(MaterialService)
+    def update(self, id: int, data: dict) -> Optional[T]:
+        """Update existing entity."""
+        pass
+
+    @abstractmethod
+    @inject(MaterialService)
+    def delete(self, id: int) -> bool:
+        """Delete entity."""
+        pass

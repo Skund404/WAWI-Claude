@@ -1,5 +1,5 @@
-from di.core import inject
-from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+# Relative path: store_management/services/interfaces/supplier_service.py
+
 """
 Interface definition for Supplier Service.
 
@@ -7,135 +7,153 @@ Defines the contract for supplier-related operations
 and management in the application.
 """
 
+from abc import ABC, abstractmethod
+from typing import Dict, Any, Optional, List
+from datetime import datetime
+
+from di.core import inject
+from services.interfaces import MaterialService
+
 
 class ISupplierService(ABC):
-    pass
-"""
-Abstract base class defining the contract for supplier services.
+    """
+    Abstract base class defining the contract for supplier services.
 
-Provides a standardized interface for supplier-related operations,
-ensuring consistent implementation across different service layers.
-"""
+    Provides a standardized interface for supplier-related operations,
+    ensuring consistent implementation across different service layers.
+    """
 
-@abstractmethod
-@inject(MaterialService)
-def get_all_suppliers(self) -> List[Dict[str, Any]]:
-"""
-Retrieve all suppliers in the system.
+    @abstractmethod
+    @inject(MaterialService)
+    def get_all_suppliers(self) -> List[Dict[str, Any]]:
+        """
+        Retrieve all suppliers in the system.
 
-Returns:
-List[Dict[str, Any]]: List of supplier dictionaries.
-"""
-pass
+        Returns:
+            List[Dict[str, Any]]: List of supplier dictionaries.
+        """
+        pass
 
-@abstractmethod
-@inject(MaterialService)
-def get_supplier_by_id(self, supplier_id: int) -> Optional[Dict[str, Any]]:
-"""
-Retrieve a specific supplier by their unique identifier.
+    @abstractmethod
+    @inject(MaterialService)
+    def get_supplier_by_id(self, supplier_id: int) -> Optional[Dict[str, Any]]:
+        """
+        Retrieve a specific supplier by their unique identifier.
 
-Args:
-supplier_id (int): Unique identifier for the supplier.
+        Args:
+            supplier_id (int): Unique identifier for the supplier.
 
-Returns:
-Optional[Dict[str, Any]]: Supplier details, or None if not found.
-"""
-pass
+        Returns:
+            Optional[Dict[str, Any]]: Supplier details, or None if not found.
 
-@abstractmethod
-@inject(MaterialService)
-def create_supplier(self, supplier_data: Dict[str, Any]) -> Dict[str, Any]:
-"""
-Create a new supplier in the system.
+        Raises:
+            KeyError: If supplier with given ID does not exist.
+        """
+        pass
 
-Args:
-supplier_data (Dict[str, Any]): Details of the supplier to create.
+    @abstractmethod
+    @inject(MaterialService)
+    def create_supplier(self, supplier_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Create a new supplier in the system.
 
-Returns:
-Dict[str, Any]: Created supplier details.
+        Args:
+            supplier_data (Dict[str, Any]): Details of the supplier to create.
 
-Raises:
-ValueError: If supplier data is invalid.
-"""
-pass
+        Returns:
+            Dict[str, Any]: Created supplier details.
 
-@abstractmethod
-@inject(MaterialService)
-def update_supplier(self, supplier_id: int, update_data: Dict[str, Any]
-) -> Dict[str, Any]:
-"""
-Update an existing supplier's information.
+        Raises:
+            ValueError: If supplier data is invalid.
+        """
+        pass
 
-Args:
-supplier_id (int): Unique identifier of the supplier to update.
-update_data (Dict[str, Any]): Updated supplier information.
+    @abstractmethod
+    @inject(MaterialService)
+    def update_supplier(self, supplier_id: int, update_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Update an existing supplier's information.
 
-Returns:
-Dict[str, Any]: Updated supplier details.
+        Args:
+            supplier_id (int): Unique identifier of the supplier to update.
+            update_data (Dict[str, Any]): Updated supplier information.
 
-Raises:
-ValueError: If update data is invalid.
-KeyError: If supplier is not found.
-"""
-pass
+        Returns:
+            Dict[str, Any]: Updated supplier details.
 
-@abstractmethod
-@inject(MaterialService)
-def delete_supplier(self, supplier_id: int) -> bool:
-"""
-Delete a supplier from the system.
+        Raises:
+            ValueError: If update data is invalid.
+            KeyError: If supplier is not found.
+        """
+        pass
 
-Args:
-supplier_id (int): Unique identifier of the supplier to delete.
+    @abstractmethod
+    @inject(MaterialService)
+    def delete_supplier(self, supplier_id: int) -> bool:
+        """
+        Delete a supplier from the system.
 
-Returns:
-bool: True if deletion was successful, False otherwise.
+        Args:
+            supplier_id (int): Unique identifier of the supplier to delete.
 
-Raises:
-KeyError: If supplier is not found.
-"""
-pass
+        Returns:
+            bool: True if deletion was successful, False otherwise.
 
-@abstractmethod
-@inject(MaterialService)
-def get_supplier_performance(self, supplier_id: int, start_date:
-datetime = None, end_date: datetime = None) -> Dict[str, Any]:
-"""
-Retrieve performance metrics for a specific supplier.
+        Raises:
+            KeyError: If supplier is not found.
+        """
+        pass
 
-Args:
-supplier_id (int): Unique identifier of the supplier.
-start_date (datetime, optional): Start of performance period.
-end_date (datetime, optional): End of performance period.
+    @abstractmethod
+    @inject(MaterialService)
+    def get_supplier_performance(
+            self,
+            supplier_id: int,
+            start_date: datetime = None,
+            end_date: datetime = None
+    ) -> Dict[str, Any]:
+        """
+        Retrieve performance metrics for a specific supplier.
 
-Returns:
-Dict[str, Any]: Supplier performance metrics.
-"""
-pass
+        Args:
+            supplier_id (int): Unique identifier of the supplier.
+            start_date (datetime, optional): Start of performance period.
+            end_date (datetime, optional): End of performance period.
 
-@abstractmethod
-@inject(MaterialService)
-def search_suppliers(self, search_term: str, search_fields: List[str] = None
-) -> List[Dict[str, Any]]:
-"""
-Search for suppliers based on a search term.
+        Returns:
+            Dict[str, Any]: Supplier performance metrics.
 
-Args:
-search_term (str): Term to search for.
-search_fields (List[str], optional): Fields to search within.
+        Raises:
+            KeyError: If supplier is not found.
+        """
+        pass
 
-Returns:
-List[Dict[str, Any]]: List of matching suppliers.
-"""
-pass
+    @abstractmethod
+    @inject(MaterialService)
+    def search_suppliers(
+            self,
+            search_term: str,
+            search_fields: List[str] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Search for suppliers based on a search term.
 
-@abstractmethod
-@inject(MaterialService)
-def generate_supplier_report(self) -> Dict[str, Any]:
-"""
-Generate a comprehensive report of all suppliers.
+        Args:
+            search_term (str): Term to search for.
+            search_fields (List[str], optional): Fields to search within.
 
-Returns:
-Dict[str, Any]: Detailed supplier report.
-"""
-pass
+        Returns:
+            List[Dict[str, Any]]: List of matching suppliers.
+        """
+        pass
+
+    @abstractmethod
+    @inject(MaterialService)
+    def generate_supplier_report(self) -> Dict[str, Any]:
+        """
+        Generate a comprehensive report of all suppliers.
+
+        Returns:
+            Dict[str, Any]: Detailed supplier report.
+        """
+        pass

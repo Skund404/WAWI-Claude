@@ -221,7 +221,7 @@ for path in redundant_paths:
 if path.exists():
     pass
 issues.append(f'Redundant path still exists: {path}')
-to_check = {'database/sqlalchemy/mixins/validation_mixing.py': self
+to_check = {'database/sqlalchemy/mixins/validation_mixin.py': self
 ._check_validation_mixing, 'pyproject.toml.py': self.
 _check_pyproject_toml}
 for rel_path, check_func in to_check.items():
@@ -244,7 +244,7 @@ self.results['code_cleanup'] = VerificationResult(passed=len(issues
 
 @inject(MaterialService)
 def _check_validation_mixing(self, path: Path) -> bool:
-"""Check validation_mixing.py syntax."""
+"""Check validation_mixin.py syntax."""
 try:
     pass
 with open(path, 'r', encoding='utf-8') as f:

@@ -152,7 +152,7 @@ def fix_syntax_errors(self) -> None:
 logger.info('Fixing syntax errors...')
 files_to_fix = {(self.project_root / 'pyproject.toml.py'): self.
 _fix_pyproject_toml, (self.project_root /
-'database/sqlalchemy/mixins/validation_mixing.py'): self.
+'database/sqlalchemy/mixins/validation_mixin.py'): self.
 _fix_validation_mixing}
 for file_path, fix_func in files_to_fix.items():
     pass
@@ -243,7 +243,7 @@ f.write(fixed_content)
 
 @inject(MaterialService)
 def _fix_validation_mixing(self, file_path: Path) -> None:
-"""Fix syntax in validation_mixing.py."""
+"""Fix syntax in validation_mixin.py."""
 with open(file_path, 'r', encoding='utf-8') as f:
     pass
 content = f.read()

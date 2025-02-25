@@ -13,114 +13,130 @@ from database.models import Part
 
 
 class IStorageService(ABC):
-    pass
-"""
-Abstract base class defining the interface for storage-related operations.
+    """
+    Abstract base class defining the interface for storage-related operations.
 
-This service provides methods for managing inventory storage,
-tracking, and manipulation of stored items.
-"""
+    This service provides methods for managing inventory storage,
+    tracking, and manipulation of stored items.
+    """
 
-@abstractmethod
-def add_to_storage(
-self, part: Part, quantity: float, storage_location: Optional[str] = None
-) -> bool:
-"""
-Add a specified quantity of a part to storage.
+    @abstractmethod
+    def add_to_storage(
+            self, part: Part, quantity: float, storage_location: Optional[str] = None
+    ) -> bool:
+        """
+        Add a specified quantity of a part to storage.
 
-Args:
-part (Part): The part to be added to storage.
-quantity (float): The quantity of the part to add.
-storage_location (Optional[str], optional): Specific storage location.
-Defaults to None.
+        Args:
+            part (Part): The part to be added to storage.
+            quantity (float): The quantity of the part to add.
+            storage_location (Optional[str], optional): Specific storage location.
+                Defaults to None.
 
-Returns:
-bool: True if the addition was successful, False otherwise.
-"""
-pass
+        Returns:
+            bool: True if the addition was successful, False otherwise.
 
-@abstractmethod
-def remove_from_storage(
-self, part: Part, quantity: float, storage_location: Optional[str] = None
-) -> bool:
-"""
-Remove a specified quantity of a part from storage.
+        Raises:
+            ValueError: If quantity is invalid or negative.
+        """
+        pass
 
-Args:
-part (Part): The part to be removed from storage.
-quantity (float): The quantity of the part to remove.
-storage_location (Optional[str], optional): Specific storage location.
-Defaults to None.
+    @abstractmethod
+    def remove_from_storage(
+            self, part: Part, quantity: float, storage_location: Optional[str] = None
+    ) -> bool:
+        """
+        Remove a specified quantity of a part from storage.
 
-Returns:
-bool: True if the removal was successful, False otherwise.
-"""
-pass
+        Args:
+            part (Part): The part to be removed from storage.
+            quantity (float): The quantity of the part to remove.
+            storage_location (Optional[str], optional): Specific storage location.
+                Defaults to None.
 
-@abstractmethod
-def get_storage_quantity(
-self, part: Part, storage_location: Optional[str] = None
-) -> float:
-"""
-Get the current quantity of a part in storage.
+        Returns:
+            bool: True if the removal was successful, False otherwise.
 
-Args:
-part (Part): The part to check.
-storage_location (Optional[str], optional): Specific storage location.
-Defaults to None.
+        Raises:
+            ValueError: If quantity is invalid, negative, or exceeds available amount.
+            KeyError: If part is not found in storage or at the specified location.
+        """
+        pass
 
-Returns:
-float: The current quantity of the part in storage.
-"""
-pass
+    @abstractmethod
+    def get_storage_quantity(
+            self, part: Part, storage_location: Optional[str] = None
+    ) -> float:
+        """
+        Get the current quantity of a part in storage.
 
-@abstractmethod
-def list_storage_items(
-self, filter_criteria: Optional[Dict[str, Any]] = None
-) -> List[Dict[str, Any]]:
-"""
-List items currently in storage with optional filtering.
+        Args:
+            part (Part): The part to check.
+            storage_location (Optional[str], optional): Specific storage location.
+                Defaults to None.
 
-Args:
-filter_criteria (Optional[Dict[str, Any]], optional):
-Dictionary of filter parameters. Defaults to None.
+        Returns:
+            float: The current quantity of the part in storage.
 
-Returns:
-List[Dict[str, Any]]: A list of storage items matching the criteria.
-"""
-pass
+        Raises:
+            KeyError: If part is not found in storage or at the specified location.
+        """
+        pass
 
-@abstractmethod
-def move_storage_item(
-self, part: Part, quantity: float, from_location: str, to_location: str
-) -> bool:
-"""
-Move a specified quantity of a part between storage locations.
+    @abstractmethod
+    def list_storage_items(
+            self, filter_criteria: Optional[Dict[str, Any]] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        List items currently in storage with optional filtering.
 
-Args:
-part (Part): The part to be moved.
-quantity (float): The quantity of the part to move.
-from_location (str): The source storage location.
-to_location (str): The destination storage location.
+        Args:
+            filter_criteria (Optional[Dict[str, Any]], optional):
+                Dictionary of filter parameters. Defaults to None.
 
-Returns:
-bool: True if the move was successful, False otherwise.
-"""
-pass
+        Returns:
+            List[Dict[str, Any]]: A list of storage items matching the criteria.
+        """
+        pass
 
-@abstractmethod
-def validate_storage_operation(
-self, part: Part, quantity: float, operation_type: str
-) -> bool:
-"""
-Validate a storage operation before execution.
+    @abstractmethod
+    def move_storage_item(
+            self, part: Part, quantity: float, from_location: str, to_location: str
+    ) -> bool:
+        """
+        Move a specified quantity of a part between storage locations.
 
-Args:
-part (Part): The part involved in the operation.
-quantity (float): The quantity involved in the operation.
-operation_type (str): Type of operation (e.g., 'add', 'remove', 'move').
+        Args:
+            part (Part): The part to be moved.
+            quantity (float): The quantity of the part to move.
+            from_location (str): The source storage location.
+            to_location (str): The destination storage location.
 
-Returns:
-bool: True if the operation would be valid, False otherwise.
-"""
-pass
+        Returns:
+            bool: True if the move was successful, False otherwise.
+
+        Raises:
+            ValueError: If quantity is invalid, negative, or exceeds available amount.
+            KeyError: If part is not found at the source location.
+        """
+        pass
+
+    @abstractmethod
+    def validate_storage_operation(
+            self, part: Part, quantity: float, operation_type: str
+    ) -> bool:
+        """
+        Validate a storage operation before execution.
+
+        Args:
+            part (Part): The part involved in the operation.
+            quantity (float): The quantity involved in the operation.
+            operation_type (str): Type of operation (e.g., 'add', 'remove', 'move').
+
+        Returns:
+            bool: True if the operation would be valid, False otherwise.
+
+        Raises:
+            ValueError: If operation_type is not recognized.
+        """
+        pass
