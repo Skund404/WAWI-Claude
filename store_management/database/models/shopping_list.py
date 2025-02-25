@@ -1,179 +1,134 @@
-from di.core import inject
-from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+# database/models/shopping_list.py
+"""
+Shopping list model module for the leatherworking store management system.
 
-class ShoppingList(Base):
+Defines models for ShoppingList and ShoppingListItem.
+"""
+
+import enum
+import datetime
+from typing import Dict, Any, List, Optional
+
+from sqlalchemy import (
+    Column, String, Integer, Float, ForeignKey, Enum, Boolean,
+    DateTime, Text
+)
+from sqlalchemy.orm import relationship
+
+from database.models.base import Base, BaseModel
+from database.models.enums import Priority
+
+
+class ShoppingList(Base, BaseModel):
     """
-    Model representing a shopping list.
+    Model for shopping lists.
+
+    A shopping list represents a collection of items that need to be purchased,
+    either for specific projects or general inventory replenishment.
     """
-    __tablename__ = 'shopping_lists'
-    id = Column(Integer, primary_key=True)
+    __tablename__ = 'shopping_list'
+
     name = Column(String(100), nullable=False)
-    description = Column(String(500))
-    status = Column(SQLAEnum(ShoppingListStatus),
-                    default=ShoppingListStatus.ACTIVE)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow,
-                        onupdate=datetime.utcnow)
-    items = relationship('ShoppingListItem', back_populates='shopping_list',
-                           cascade='all, delete-orphan')
+    description = Column(Text, nullable=True)
+    due_date = Column(DateTime, nullable=True)
+    created_by = Column(String(100), nullable=True)
+    priority = Column(Enum(Priority), default=Priority.MEDIUM)
+    is_completed = Column(Boolean, default=False)
 
-    @inject(MaterialService)
-    def __init__(self, name: str, description: Optional[str] = None):
-        """
-        Initialize a shopping list.
+    # Relationships
+    items = relationship("ShoppingListItem", back_populates="shopping_list", cascade="all, delete-orphan")
 
-        Args:
-            name (str): Name of the shopping list
-            description (Optional[str]): Description of the shopping list
-        """
-        self.name = name
-        self.description = description
-
-    @inject(MaterialService)
     def __repr__(self) -> str:
         """
-        String representation of the shopping list.
+        Return a string representation of the shopping list.
 
         Returns:
-            str: Shopping list representation
+            str: String representation with id and name
         """
-        return (
-            f"<ShoppingList(id={self.id}, name='{self.name}', status={self.status})>"
-        )
+        return f"<ShoppingList id={self.id}, name='{self.name}'>"
 
-    @inject(MaterialService)
-    def to_dict(self) -> dict:
+    def get_total_estimated_cost(self) -> float:
         """
-        Convert shopping list to dictionary.
+        Calculate the total estimated cost of all items in the list.
 
         Returns:
-            dict: Dictionary representation of shopping list
+            float: Total estimated cost
         """
-        return {'id': self.id, 'name': self.name, 'description': self.
-            description, 'status': self.status.value, 'created_at': self.
-            created_at.isoformat() if self.created_at else None,
-                'updated_at': self.updated_at.isoformat() if self.updated_at else
-                None, 'items': [item.to_dict() for item in self.items]}
+        return sum(item.estimated_cost for item in self.items)
 
-    @inject(MaterialService)
-    def add_item(self, item) -> None:
-        """
-        Add an item to the shopping list.
-
-        Args:
-            item (ShoppingListItem): Item to add
-        """
-        self.items.append(item)
-        self.updated_at = datetime.utcnow()
-
-    @inject(MaterialService)
-    def remove_item(self, item) -> None:
-        """
-        Remove an item from the shopping list.
-
-        Args:
-            item (ShoppingListItem): Item to remove
-        """
-        self.items.remove(item)
-        self.updated_at = datetime.utcnow()
-
-    @inject(MaterialService)
-    def get_total_items(self) -> int:
-        """
-        Get total number of items in the list.
-
-        Returns:
-            int: Total number of items
-        """
-        return len(self.items)
-
-    @inject(MaterialService)
     def get_pending_items(self) -> List['ShoppingListItem']:
         """
-        Get items that haven't been purchased.
+        Get items that have not been purchased yet.
 
         Returns:
             List[ShoppingListItem]: List of pending items
         """
-        return [item for item in self.items if not item.purchased]
+        return [item for item in self.items if not item.is_purchased]
+
+    def get_completion_percentage(self) -> float:
+        """
+        Calculate the percentage of items that have been purchased.
+
+        Returns:
+            float: Completion percentage (0-100)
+        """
+        if not self.items:
+            return 0.0
+
+        purchased_count = sum(1 for item in self.items if item.is_purchased)
+        return (purchased_count / len(self.items)) * 100
 
 
-class ShoppingListItem(Base):
+class ShoppingListItem(Base, BaseModel):
     """
-    Model representing an item in a shopping list.
+    Model for items in a shopping list.
+
+    A shopping list item represents a specific material or part that
+    needs to be purchased, along with quantity and purchasing details.
     """
-    __tablename__ = 'shopping_list_items'
-    id = Column(Integer, primary_key=True)
-    shopping_list_id = Column(Integer, ForeignKey('shopping_lists.id'),
-                               nullable=False)
+    __tablename__ = 'shopping_list_item'
+
+    shopping_list_id = Column(Integer, ForeignKey('shopping_list.id'), nullable=False)
     name = Column(String(100), nullable=False)
-    quantity = Column(Float, default=1.0)
-    unit = Column(String(20))
-    priority = Column(Integer, default=0)
-    notes = Column(String(500))
-    purchased = Column(String(5), default=False)
-    purchase_date = Column(DateTime)
-    shopping_list = relationship('ShoppingList', back_populates='items')
+    quantity = Column(Float, nullable=False, default=1.0)
+    estimated_cost = Column(Float, nullable=False, default=0.0)
+    actual_cost = Column(Float, nullable=True)
 
-    @inject(MaterialService)
-    def __init__(self, name: str, quantity: float = 1.0, unit: Optional[str] =
-            None, priority: int = 0, notes: Optional[str] = None):
-        """
-        Initialize a shopping list item.
+    # Links to specific inventory items
+    material_id = Column(Integer, ForeignKey('material.id'), nullable=True)
+    part_id = Column(Integer, ForeignKey('part.id'), nullable=True)
+    leather_id = Column(Integer, ForeignKey('leather.id'), nullable=True)
 
-        Args:
-            name (str): Name of the item
-            quantity (float): Quantity needed
-            unit (Optional[str]): Unit of measurement
-            priority (int): Priority level
-            notes (Optional[str]): Additional notes
-        """
-        self.name = name
-        self.quantity = quantity
-        self.unit = unit
-        self.priority = priority
-        self.notes = notes
+    # Purchase tracking
+    is_purchased = Column(Boolean, default=False)
+    purchase_date = Column(DateTime, nullable=True)
+    priority = Column(Enum(Priority), default=Priority.MEDIUM)
+    notes = Column(Text, nullable=True)
 
-    @inject(MaterialService)
+    # Relationships
+    shopping_list = relationship("ShoppingList", back_populates="items")
+    material = relationship("Material", backref="shopping_list_items")
+    part = relationship("Part", backref="shopping_list_items")
+    leather = relationship("Leather", backref="shopping_list_items")
+
     def __repr__(self) -> str:
         """
-        String representation of the shopping list item.
+        Return a string representation of the shopping list item.
 
         Returns:
-            str: Shopping list item representation
+            str: String representation with id and name
         """
-        return (
-            f"<ShoppingListItem(id={self.id}, name='{self.name}', quantity={self.quantity})>"
-        )
+        return f"<ShoppingListItem id={self.id}, name='{self.name}'>"
 
-    @inject(MaterialService)
-    def to_dict(self) -> dict:
-        """
-        Convert shopping list item to dictionary.
-
-        Returns:
-            dict: Dictionary representation of shopping list item
-        """
-        return {'id': self.id, 'shopping_list_id': self.shopping_list_id,
-                'name': self.name, 'quantity': self.quantity, 'unit': self.unit,
-                'priority': self.priority, 'notes': self.notes, 'purchased':
-                    self.purchased, 'purchase_date': self.purchase_date.isoformat() if
-                self.purchase_date else None}
-
-    @inject(MaterialService)
-    def mark_as_purchased(self) -> None:
+    def mark_as_purchased(self, actual_cost: Optional[float] = None) -> None:
         """
         Mark the item as purchased.
-        """
-        self.purchased = True
-        self.purchase_date = datetime.utcnow()
-
-    @inject(MaterialService)
-    def update_quantity(self, new_quantity: float) -> None:
-        """
-        Update the quantity of the item.
 
         Args:
-            new_quantity (float): New quantity value
+            actual_cost: The actual cost of the item (optional)
         """
-        self.quantity = new_quantity
+        self.is_purchased = True
+        self.purchase_date = datetime.datetime.utcnow()
+
+        if actual_cost is not None:
+            self.actual_cost = actual_cost

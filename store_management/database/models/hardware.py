@@ -1,123 +1,124 @@
 # database/models/hardware.py
 """
-Hardware-related models and enumerations.
+Hardware model module for the leatherworking store management system.
+
+Defines classes for hardware items used in leatherworking.
 """
 
-from enum import Enum, auto
-from typing import Optional, Dict, Any
+import enum
+from datetime import datetime
+from typing import Dict, Any, Optional
 
-from sqlalchemy import Column, String, Float, ForeignKey
+from sqlalchemy import (
+    Column, String, Integer, Float, ForeignKey, Enum, Boolean,
+    DateTime, Text
+)
 from sqlalchemy.orm import relationship
 
-from .base import BaseModel, Base
+from database.models.base import Base, BaseModel
 
 
-class HardwareType(str, Enum):
+class HardwareType(enum.Enum):
+    """Enumeration of hardware types."""
+    BUCKLE = "buckle"
+    SNAP = "snap"
+    RIVET = "rivet"
+    ZIPPER = "zipper"
+    CLASP = "clasp"
+    BUTTON = "button"
+    D_RING = "d_ring"
+    O_RING = "o_ring"
+    MAGNETIC_CLOSURE = "magnetic_closure"
+    OTHER = "other"
+
+
+class HardwareMaterial(enum.Enum):
+    """Enumeration of hardware materials."""
+    BRASS = "brass"
+    STEEL = "steel"
+    STAINLESS_STEEL = "stainless_steel"
+    NICKEL = "nickel"
+    SILVER = "silver"
+    GOLD = "gold"
+    BRONZE = "bronze"
+    ALUMINUM = "aluminum"
+    PLASTIC = "plastic"
+    OTHER = "other"
+
+
+class Hardware(Base, BaseModel):
     """
-    Enumeration of different hardware types.
-    """
-    BUCKLE = 'buckle'
-    SNAP = 'snap'
-    ZIPPER = 'zipper'
-    D_RING = 'd_ring'
-    RIVET = 'rivet'
-    MAGNETIC_CLASP = 'magnetic_clasp'
-    BUTTON = 'button'
-    OTHER = 'other'
+    Model for hardware items used in leatherworking.
 
-
-class HardwareMaterial(str, Enum):
-    """
-    Enumeration of hardware materials.
-    """
-    BRASS = 'brass'
-    STEEL = 'steel'
-    NICKEL = 'nickel'
-    ZINC = 'zinc'
-    ALUMINUM = 'aluminum'
-    COPPER = 'copper'
-    BRONZE = 'bronze'
-    OTHER = 'other'
-
-
-class Hardware(BaseModel, Base):
-    """
-    Model representing hardware items in the inventory.
+    This model represents physical hardware components like buckles,
+    rivets, snaps, etc. that are used in leatherworking projects.
     """
     __tablename__ = 'hardware'
 
-    # Basic hardware attributes
-    name = Column(String, nullable=False)
-    hardware_type = Column(String, nullable=False)  # Using HardwareType
-    material = Column(String, nullable=False)  # Using HardwareMaterial
+    name = Column(String(255), nullable=False)
+    hardware_type = Column(Enum(HardwareType), nullable=False)
+    material = Column(Enum(HardwareMaterial), nullable=True)
 
-    # Quantity and pricing
-    quantity = Column(Float, default=0.0)
-    unit_price = Column(Float, default=0.0)
+    # Inventory tracking
+    current_quantity = Column(Integer, default=0, nullable=False)
+    minimum_quantity = Column(Integer, default=1, nullable=False)
+    unit_cost = Column(Float, default=0.0, nullable=False)
 
-    # Optional relationships
-    supplier_id = Column(ForeignKey('suppliers.id'), nullable=True)
-    supplier = relationship('Supplier', back_populates='hardware')
+    # Physical properties
+    dimensions = Column(String(100), nullable=True)  # e.g., "25mm x 15mm"
+    weight = Column(Float, nullable=True)  # in grams
+    color = Column(String(50), nullable=True)
+    finish = Column(String(50), nullable=True)
+
+    # Supplier information
+    supplier_id = Column(Integer, ForeignKey('supplier.id'), nullable=True)
+    supplier = relationship("Supplier", backref="hardware_items")
+
+    # Product information
+    sku = Column(String(50), nullable=True)
+    notes = Column(Text, nullable=True)
 
     def __repr__(self) -> str:
         """
-        String representation of the hardware.
+        Return a string representation of the hardware item.
 
         Returns:
-            str: A string describing the hardware
+            str: String representation with id, name, and type
         """
-        return (
-            f"<Hardware(id={self.id}, "
-            f"name='{self.name}', "
-            f"type='{self.hardware_type}', "
-            f"material='{self.material}', "
-            f"quantity={self.quantity})>"
-        )
+        return f"<Hardware id={self.id}, name='{self.name}', type={self.hardware_type.name}>"
 
-    @classmethod
-    def create_hardware(cls, data: Dict[str, Any]) -> 'Hardware':
+    def is_low_stock(self) -> bool:
         """
-        Create a new hardware instance.
+        Check if the hardware is low in stock.
+
+        Returns:
+            bool: True if the quantity is below the minimum stock level
+        """
+        return self.current_quantity < self.minimum_quantity
+
+    def update_stock(self, quantity_change: int) -> None:
+        """
+        Update the stock quantity.
 
         Args:
-            data (Dict[str, Any]): Hardware creation data
+            quantity_change: Amount to change the quantity by (positive or negative)
+        """
+        new_quantity = self.current_quantity + quantity_change
+        if new_quantity < 0:
+            raise ValueError("Stock cannot be negative")
+
+        self.current_quantity = new_quantity
+
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Convert the hardware to a dictionary.
 
         Returns:
-            Hardware: A new hardware instance
+            Dict[str, Any]: Dictionary representation of the hardware
         """
-        # Validate hardware type
-        if data.get('hardware_type') not in HardwareType.__members__:
-            raise ValueError(f"Invalid hardware type: {data.get('hardware_type')}")
-
-        # Validate hardware material
-        if data.get('material') not in HardwareMaterial.__members__:
-            raise ValueError(f"Invalid hardware material: {data.get('material')}")
-
-        return cls(**data)
-
-
-def validate_hardware_data(hardware_data: Dict[str, Any]) -> bool:
-    """
-    Validate hardware data against predefined constraints.
-
-    Args:
-        hardware_data (Dict[str, Any]): Hardware data to validate
-
-    Returns:
-        bool: Whether the hardware data is valid
-    """
-    # Check required fields
-    required_fields = ['name', 'hardware_type', 'material']
-    if not all(field in hardware_data for field in required_fields):
-        return False
-
-    # Validate hardware type
-    if hardware_data['hardware_type'] not in HardwareType.__members__:
-        return False
-
-    # Validate material
-    if hardware_data['material'] not in HardwareMaterial.__members__:
-        return False
-
-    # Additional validation can be added here
-    return True
+        result = super().to_dict()
+        result['hardware_type'] = self.hardware_type.name
+        if self.material:
+            result['material'] = self.material.name
+        result['supplier'] = self.supplier.name if self.supplier else None
+        return result

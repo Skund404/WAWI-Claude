@@ -1,125 +1,109 @@
 # database/initialize.py
-import shutil
+"""
+Database initialization module for the leatherworking store management system.
+
+This module handles the initialization of the SQLAlchemy engine and session factory.
+"""
+
 import logging
-from .models.base import Base
-from .models.product import Product
-from .models.storage import Storage
-from .models.supplier import Supplier
+from sqlalchemy import create_engine, inspect
+from sqlalchemy.orm import sessionmaker, scoped_session
+from typing import Any, Optional, Tuple
+from sqlalchemy.exc import NoReferencedTableError
+
+from database.models.base import Base
+
+# Configure logger
+logger = logging.getLogger(__name__)
 
 
-# Import needed model classes
-# Add all models that should be created in the database
-
-def initialize_database():
+def initialize_database(database_url: Optional[str] = None) -> Tuple[Any, Any]:
     """
-    Initialize the database with all tables.
-
-    This function creates all tables defined in the SQLAlchemy models
-    and optionally seeds the database with initial data.
-
-    Returns:
-        bool: True if initialization was successful, False otherwise
-    """
-    logger = logging.getLogger(__name__)
-
-    try:
-        from sqlalchemy import create_engine
-        from config.settings import get_database_path
-
-        logger.info("Initializing database...")
-
-        # Get database connection
-        db_path = get_database_path()
-        logger.info(f"Database path: {db_path}")
-
-        # Create engine and tables
-        engine = create_engine(f"sqlite:///{db_path}")
-        Base.metadata.create_all(engine)
-
-        logger.info("Database tables created successfully")
-
-        # Optionally seed the database with initial data
-        seed_database(engine)
-
-        return True
-    except Exception as e:
-        logger.error(f"Error initializing database: {str(e)}")
-        return False
-
-
-def seed_database(engine):
-    """
-    Seed the database with initial data.
+    Initialize the database with the given connection URL.
 
     Args:
-        engine: SQLAlchemy engine object
-    """
-    logger = logging.getLogger(__name__)
-
-    try:
-        from sqlalchemy.orm import sessionmaker
-
-        Session = sessionmaker(bind=engine)
-        session = Session()
-
-        # Check if we already have data
-        if session.query(Storage).count() == 0:
-            logger.info("Seeding database with initial data...")
-
-            # Create sample storage locations
-            storage1 = Storage(name="Main Warehouse", location="Building A", capacity=1000)
-            storage2 = Storage(name="Store Front", location="Building B", capacity=200)
-
-            session.add_all([storage1, storage2])
-
-            # Create sample suppliers
-            supplier1 = Supplier(name="Quality Supplies Inc", contact_email="contact@qualitysupplies.com")
-            supplier2 = Supplier(name="Best Materials Ltd", contact_email="info@bestmaterials.com")
-
-            session.add_all([supplier1, supplier2])
-
-            # Create sample products
-            product1 = Product(name="Leather Type A", description="Premium leather", price=50.00)
-            product2 = Product(name="Metal Buckle", description="High-quality buckle", price=5.00)
-
-            session.add_all([product1, product2])
-
-            session.commit()
-            logger.info("Database seeded successfully")
-        else:
-            logger.info("Database already contains data, skipping seed")
-
-    except Exception as e:
-        logger.error(f"Error seeding database: {str(e)}")
-        session.rollback()
-
-
-def backup_database():
-    """
-    Create a backup of the database file.
+        database_url (str, optional): Database connection URL.
+            Defaults to SQLite local file for leatherworking store.
 
     Returns:
-        str: Path to the backup file if successful, None otherwise
+        tuple: Engine and scoped session factory
     """
-    logger = logging.getLogger(__name__)
+    if database_url is None:
+        # Default to SQLite local file if no URL provided
+        database_url = 'sqlite:///leatherworking_store.db'
 
+    logger.info(f"Initializing database with URL: {database_url}")
+
+    # Create engine with appropriate configuration
+    engine = create_engine(
+        database_url,
+        echo=False,  # Set to True for debugging SQL queries
+        future=True,  # Use SQLAlchemy 2.0 behavior
+        connect_args={"check_same_thread": False} if database_url.startswith('sqlite') else {}
+    )
+
+    # Create session factory
+    session_factory = sessionmaker(
+        bind=engine,
+        expire_on_commit=False,
+        autoflush=False
+    )
+
+    # Create scoped session for thread safety
+    scoped_session_factory = scoped_session(session_factory)
+
+    # Create tables if they don't exist
     try:
-        from datetime import datetime
-        from config.settings import get_database_path, get_backup_dir
+        # Import all models to ensure they're registered with Base.metadata
+        import database.models
 
-        # Get paths
-        db_path = get_database_path()
-        backup_dir = get_backup_dir()
+        # Create tables in the correct order
+        Base.metadata.create_all(engine)
+        logger.info("Database tables created successfully")
+    except NoReferencedTableError as e:
+        logger.error(f"Error creating tables: {str(e)}")
+        # Try to create tables individually in a controlled order
+        try:
+            inspector = inspect(engine)
+            existing_tables = inspector.get_table_names()
+            logger.info(f"Existing tables: {existing_tables}")
 
-        # Create timestamp for the backup file
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_path = f"{backup_dir}/backup_{timestamp}.db"
+            # Create tables in a specific order to handle dependencies
+            for table in [
+                'supplier', 'storage', 'material', 'material_transaction',
+                'part', 'leather', 'hardware', 'product', 'pattern',
+                'project', 'project_component', 'order', 'order_item',
+                'shopping_list', 'shopping_list_item'
+            ]:
+                if table not in existing_tables and hasattr(Base.metadata.tables, table):
+                    Base.metadata.tables[table].create(engine)
+                    logger.info(f"Created table '{table}'")
 
-        # Create the backup
-        shutil.copy2(db_path, backup_path)
+            logger.info("Database tables created in controlled order")
+        except Exception as e2:
+            logger.error(f"Error in controlled table creation: {str(e2)}")
+            raise
 
-        logger.info(f"Database backed up to {backup_path}")
-        return backup_path
-    except Exception as e:
-        logger.error(f"Error backing up database: {str(e)}")
-        return None
+    logger.info("Database initialized successfully")
+
+    return engine, scoped_session_factory
+
+
+# Global session variable
+_session_factory = None
+
+
+def get_session():
+    """
+    Get a database session.
+
+    Returns:
+        Session: Database session
+
+    Raises:
+        RuntimeError: If database is not initialized
+    """
+    global _session_factory
+    if _session_factory is None:
+        raise RuntimeError("Database not initialized. Call initialize_database() first.")
+    return _session_factory()

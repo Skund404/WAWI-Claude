@@ -1,182 +1,164 @@
-from di.core import inject
-from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
-from typing import Optional, List, Dict, Any
-from enum import Enum
-from sqlalchemy import Column, Integer, String, Float, Text, Enum as SQLAEnum
-from sqlalchemy.orm import declarative_base
-from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
-from sqlalchemy.ext.hybrid import hybrid_property
+# database/models/project.py
+"""
+Project model module for the leatherworking store management system.
+
+Defines classes for Project and ProjectComponent models.
+"""
+
+import enum
+# database/models/project.py
+"""
+Project model module for the leatherworking store management system.
+
+Defines classes for Project and ProjectComponent models.
+"""
+
+import enum
 import datetime
-from sqlalchemy.dialects.postgresql import JSON
-from .base import Base
-from .base import BaseModel
+from typing import Dict, Any, List, Optional
 
-"""
-Project model definition for the store management system.
+from sqlalchemy import (
+    Column, String, Integer, Float, ForeignKey, Enum, Boolean,
+    DateTime, Text, Table
+)
+from sqlalchemy.orm import relationship
 
-This module defines the Project class which represents a leatherworking project in the system.
-It includes project details, status tracking, complexity calculation, and validation logic.
-"""
-
-
-class ProjectStatus(Enum):
-    PLANNED = 'planned'
-    IN_PROGRESS = 'in_progress'
-    COMPLETED = 'completed'
-    ON_HOLD = 'on_hold'
-    CANCELLED = 'cancelled'
+from database.models.base import Base, BaseModel
+from database.models.enums import ProjectType, SkillLevel, ProjectStatus
 
 
-class ProjectType(Enum):
-    WALLET = 'wallet'
-    BAG = 'bag'
-    BELT = 'belt'
-    ACCESSORY = 'accessory'
-    OTHER = 'other'
 
-
-class SkillLevel(Enum):
-    BEGINNER = 'beginner'
-    INTERMEDIATE = 'intermediate'
-    ADVANCED = 'advanced'
-    EXPERT = 'expert'
+# Association table for many-to-many relationships if needed
+project_components = Table(
+    'project_components',
+    Base.metadata,
+    Column('project_id', Integer, ForeignKey('project.id'), primary_key=True),
+    Column('component_id', Integer, ForeignKey('project_component.id'), primary_key=True)
+)
 
 
 class Project(Base, BaseModel):
     """
-    Project model representing a leatherworking project.
+    Model for leatherworking projects.
 
-    Extends BaseModel with project-specific attributes and functionality
-    and implements the IProject interface.
+    A project represents a specific leatherwork item being created,
+    based on a pattern and using specific materials.
     """
-    __tablename__ = 'projects'
+    __tablename__ = 'project'
+
     id = Column(Integer, primary_key=True)
-    name = Column(String(150), nullable=False)
-    project_type = Column(SQLAEnum(ProjectType), nullable=False)
-    skill_level = Column(SQLAEnum(SkillLevel), nullable=False)
+    name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
-    estimated_hours = Column(Float, nullable=False, default=0.0)
-    material_budget = Column(Float, nullable=False, default=0.0)
-    status = Column(SQLAEnum(ProjectStatus), nullable=False,
-                    default=ProjectStatus.PLANNED)
+    project_type = Column(Enum(ProjectType), nullable=False)
+    skill_level = Column(Enum(SkillLevel), nullable=False)
+    start_date = Column(DateTime, default=datetime.datetime.utcnow)
+    due_date = Column(DateTime, nullable=True)
+    completion_date = Column(DateTime, nullable=True)
+    status = Column(Enum(ProjectStatus), default=ProjectStatus.NEW)
 
-    @inject(MaterialService)
-    def __init__(self, name: str, project_type: ProjectType, skill_level:
-                 SkillLevel, description: Optional[str] = None, estimated_hours: float
-                 = 0.0, material_budget: float = 0.0) -> None:
-        """
-        Initialize a new Project instance.
+    # Relationships
+    components = relationship("ProjectComponent",
+                              secondary=project_components,
+                              back_populates="projects")
+    pattern_id = Column(Integer, ForeignKey('pattern.id'), nullable=True)
+    pattern = relationship("Pattern", back_populates="projects")
 
-        Args:
-            name: Name of the project
-            project_type: Type of project (from ProjectType enum)
-            skill_level: Required skill level (from SkillLevel enum)
-            description: Optional project description
-            estimated_hours: Estimated hours to complete the project
-            material_budget: Budget allocated for materials
-        """
-        self.name = name
-        self.project_type = project_type
-        self.skill_level = skill_level
-        self.description = description
-        self.estimated_hours = estimated_hours
-        self.material_budget = material_budget
-        self.status = ProjectStatus.PLANNED
+    # Optional fields for quality metrics
+    quality_rating = Column(Float, nullable=True)
+    customer_satisfaction = Column(Float, nullable=True)
 
-    @inject(MaterialService)
+    # Fields for project complexity and tracking
+    complexity_score = Column(Float, default=0.0)
+    time_spent = Column(Float, default=0.0)  # In hours
+
+    def __repr__(self):
+        """Return a string representation of the project."""
+        return f"<Project id={self.id}, name='{self.name}', status={self.status}>"
+
     def calculate_complexity(self) -> float:
         """
         Calculate the complexity score of the project.
 
-        The complexity is determined by the skill level, estimated hours,
-        and number of components (when available).
-
         Returns:
-            float: The calculated complexity score
+            float: Complexity score based on various factors
         """
-        complexity_map = {SkillLevel.BEGINNER: 1.0, SkillLevel.INTERMEDIATE:
-                          2.0, SkillLevel.ADVANCED: 3.0, SkillLevel.EXPERT: 4.0}
-        base_complexity = complexity_map.get(self.skill_level, 1.0)
-        hours_factor = min(1.0, self.estimated_hours / 10)
-        component_factor = 1.0
-        return base_complexity * (1 + hours_factor) * component_factor
+        # Simple implementation - in a real app this would be more sophisticated
+        base_score = 1.0
 
-    @inject(MaterialService)
-    def calculate_total_cost(self) -> float:
+        # Adjust based on skill level
+        skill_multipliers = {
+            SkillLevel.BEGINNER: 1.0,
+            SkillLevel.INTERMEDIATE: 1.5,
+            SkillLevel.ADVANCED: 2.0,
+            SkillLevel.EXPERT: 3.0
+        }
+        skill_factor = skill_multipliers.get(self.skill_level, 1.0)
+
+        # Adjust based on component count
+        component_factor = 0.1 * len(self.components) if self.components else 0
+
+        self.complexity_score = base_score * skill_factor + component_factor
+        return self.complexity_score
+
+    def update_quality_metrics(self, quality_rating: float, customer_satisfaction: float) -> None:
         """
-        Calculate the total cost of the project.
-
-        The total cost includes material costs (from components),
-        and estimated labor costs.
-
-        Returns:
-            float: The total estimated cost
-        """
-        materials_cost = 0.0
-        if materials_cost == 0.0:
-            materials_cost = self.material_budget
-        labor_cost = self.estimated_hours * 25.0
-        return materials_cost + labor_cost
-
-    @inject(MaterialService)
-    def update_status(self, new_status: ProjectStatus) -> None:
-        """
-        Update the project status.
+        Update the quality metrics for the project.
 
         Args:
-            new_status: The new status to set for the project
+            quality_rating: Quality rating from 1 to 5
+            customer_satisfaction: Customer satisfaction rating from 1 to 5
         """
-        self.status = new_status
+        if 1 <= quality_rating <= 5 and 1 <= customer_satisfaction <= 5:
+            self.quality_rating = quality_rating
+            self.customer_satisfaction = customer_satisfaction
+        else:
+            raise ValueError("Quality ratings must be between 1 and 5")
 
-    @inject(MaterialService)
-    def validate(self) -> List[str]:
+
+class ProjectComponent(Base, BaseModel):
+    """
+    Component used in a specific project.
+
+    ProjectComponents represent actual materials used in a concrete project,
+    with actual quantities and costs.
+    """
+    __tablename__ = 'project_component'
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    quantity = Column(Float, nullable=False, default=1.0)
+    unit_cost = Column(Float, nullable=False, default=0.0)
+
+    # Foreign keys
+    material_id = Column(Integer, ForeignKey('material.id'), nullable=True)
+    part_id = Column(Integer, ForeignKey('part.id'), nullable=True)
+    leather_id = Column(Integer, ForeignKey('leather.id'), nullable=True)
+
+    # Relationships
+    material = relationship("Material", back_populates="components")
+    part = relationship("Part", back_populates="components")
+    leather = relationship("Leather", back_populates="components")
+    projects = relationship("Project",
+                            secondary=project_components,
+                            back_populates="components")
+
+    # Efficiency tracking
+    expected_quantity = Column(Float, nullable=True)
+    actual_quantity = Column(Float, nullable=True)
+    wastage = Column(Float, nullable=True, default=0.0)
+
+    def __repr__(self):
+        """Return a string representation of the project component."""
+        return f"<ProjectComponent id={self.id}, name='{self.name}', quantity={self.quantity}>"
+
+    def calculate_efficiency(self) -> Optional[float]:
         """
-        Validate the project data.
-
-        Ensures all required fields are present and valid.
+        Calculate the material efficiency for this component.
 
         Returns:
-            List[str]: List of validation error messages, empty if valid
+            float: Efficiency percentage or None if data is incomplete
         """
-        errors = []
-        if not self.name or len(self.name.strip()) == 0:
-            errors.append('Project name is required')
-        if not self.project_type:
-            errors.append('Project type is required')
-        if not self.skill_level:
-            errors.append('Skill level is required')
-        if self.estimated_hours < 0:
-            errors.append('Estimated hours cannot be negative')
-        if self.material_budget < 0:
-            errors.append('Material budget cannot be negative')
-        return errors
-
-    @inject(MaterialService)
-    def to_dict(self, exclude_fields: List[str] = None) -> Dict[str, Any]:
-        """
-        Convert the project to a dictionary representation.
-
-        Args:
-            exclude_fields: List of field names to exclude
-
-        Returns:
-            Dict[str, Any]: Dictionary representation of the project
-        """
-        if exclude_fields is None:
-            exclude_fields = []
-        project_dict = {'id': self.id, 'name': self.name, 'project_type':
-                        self.project_type.name if self.project_type else None,
-                        'skill_level': self.skill_level.name if self.skill_level else
-                        None, 'description': self.description, 'estimated_hours': self.
-                        estimated_hours, 'material_budget': self.material_budget,
-                        'status': self.status.name if self.status else None,
-                        'complexity': self.calculate_complexity()}
-        # if 'components' not in exclude_fields and hasattr(self, 'components') and self.components:
-        #    project_dict['components'] = [comp.to_dict() for comp in self.
-        #                                   components]
-        for field in exclude_fields:
-            if field in project_dict:
-                del project_dict[field]
-        return project_dict
+        if self.expected_quantity and self.actual_quantity and self.expected_quantity > 0:
+            return (self.expected_quantity / self.actual_quantity) * 100
+        return None

@@ -1,145 +1,119 @@
-from di.core import inject
-from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
-from enum import Enum
-from datetime import datetime
-from typing import List, Optional, Dict, Any
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Enum as SQLAEnum
+# database/models/order.py
+"""
+Order model module for the leatherworking store management system.
+
+Defines models for Order and OrderItem.
+"""
+
+import datetime
+from typing import Dict, Any, List, Optional
+
+from sqlalchemy import (
+    Column, String, Integer, Float, ForeignKey, Enum, Boolean,
+    DateTime, Text
+)
 from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
-from sqlalchemy.orm import declarative_base
 
-"""
-Order model definition with support for order items.
-"""
+from database.models.base import Base, BaseModel
+from database.models.enums import OrderStatus, PaymentStatus
 
 
-class Order(BaseModel):
+class Order(Base, BaseModel):
     """
-    Represents a customer order in the system.
+    Represents an order in the system.
 
-    Attributes:
-        id (int): Primary key for the order.
-        order_number (str): Unique order identifier.
-        status (OrderStatus): Current status of the order.
-        payment_status (PaymentStatus): Payment status of the order.
-        customer_name (str): Name of the customer.
-        total_amount (float): Total order amount.
-        created_at (datetime): Timestamp of order creation.
-        updated_at (datetime): Timestamp of last order update.
-        items (list): List of order items associated with this order.
+    An order can contain multiple order items.
     """
     __tablename__ = 'orders'
-    id = Column(Integer, primary_key=True)
+
     order_number = Column(String(50), unique=True, nullable=False)
-    status = Column(Enum(OrderStatus), default=OrderStatus.PENDING)
-    payment_status = Column(Enum(PaymentStatus), default=PaymentStatus.UNPAID)
-    customer_name = Column(String(100))
+    customer_name = Column(String(100), nullable=False)
+    order_date = Column(DateTime, default=datetime.datetime.utcnow)
+    delivery_date = Column(DateTime, nullable=True)
+    status = Column(Enum(OrderStatus), default=OrderStatus.NEW)
+    payment_status = Column(Enum(PaymentStatus), default=PaymentStatus.PENDING)
     total_amount = Column(Float, default=0.0)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow,
-                         onupdate=datetime.utcnow)
-    items = relationship('OrderItem', back_populates='order',
-                           cascade='all, delete-orphan', lazy='subquery')
+    notes = Column(Text, nullable=True)
 
-    @inject(MaterialService)
-    def __init__(self, order_number: str, customer_name: str = None):
-        """
-        Initialize an Order.
+    # Relationships
+    items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
+    supplier_id = Column(Integer, ForeignKey('suppliers.id'), nullable=True)
+    supplier = relationship("Supplier", back_populates="orders")
 
-        Args:
-            order_number (str): Unique order identifier.
-            customer_name (str, optional): Name of the customer. Defaults to None.
-        """
-        self.order_number = order_number
-        self.customer_name = customer_name
-
-    @inject(MaterialService)
     def __repr__(self) -> str:
+        """String representation of the Order model."""
+        return f"<Order id={self.id}, number='{self.order_number}', status={self.status.name}>"
+
+    def to_dict(self, include_items: bool = False) -> Dict[str, Any]:
         """
-        String representation of the Order.
+        Convert order to dictionary representation.
+
+        Args:
+            include_items (bool): Whether to include order items
 
         Returns:
-            str: Formatted string describing the order.
+            dict: Dictionary representation of the order
         """
-        return (
-            f"<Order(id={self.id}, order_number='{self.order_number}', status={self.status}, total_amount={self.total_amount})>"
-        )
+        result = super().to_dict()
+        result['status'] = self.status.name
+        result['payment_status'] = self.payment_status.name
+        result['order_date'] = self.order_date.isoformat() if self.order_date else None
+        result['delivery_date'] = self.delivery_date.isoformat() if self.delivery_date else None
 
-    @inject(MaterialService)
-    def calculate_total_amount(self) -> float:
-        """
-        Calculate the total amount of the order based on items.
-
-        Returns:
-            float: Total order amount.
-        """
-        self.total_amount = sum(item.calculate_total_price() for item in
-                                 self.items)
-        return self.total_amount
-
-    @inject(MaterialService)
-    def add_item(self, order_item: OrderItem) -> None:
-        """
-        Add an item to the order.
-
-        Args:
-            order_item (OrderItem): OrderItem to be added to the order.
-        """
-        order_item.order = self
-        self.items.append(order_item)
-        self.calculate_total_amount()
-
-    @inject(MaterialService)
-    def remove_item(self, order_item: OrderItem) -> None:
-        """
-        Remove an item from the order.
-
-        Args:
-            order_item (OrderItem): OrderItem to be removed from the order.
-        """
-        if order_item in self.items:
-            self.items.remove(order_item)
-            self.calculate_total_amount()
-
-    @inject(MaterialService)
-    def update_status(self, new_status: OrderStatus) -> None:
-        """
-        Update the order status.
-
-        Args:
-            new_status (OrderStatus): New status to set for the order.
-        """
-        self.status = new_status
-
-    @inject(MaterialService)
-    def update_payment_status(self, new_payment_status: PaymentStatus) -> None:
-        """
-        Update the payment status of the order.
-
-        Args:
-            new_payment_status (PaymentStatus): New payment status to set.
-        """
-        self.payment_status = new_payment_status
-
-    @inject(MaterialService)
-    def to_dict(self, include_items: bool = False) -> dict:
-        """
-        Convert Order to dictionary representation.
-
-        Args:
-            include_items (bool, optional): Whether to include order items. Defaults to False.
-
-        Returns:
-            dict: Dictionary containing Order attributes.
-        """
-        order_dict = {'id': self.id, 'order_number': self.order_number,
-                      'status': self.status.value if self.status else None,
-                      'payment_status': self.payment_status.value if self.
-                      payment_status else None, 'customer_name': self.customer_name,
-                      'total_amount': self.total_amount, 'created_at': self.
-                      created_at.isoformat() if self.created_at else None,
-                      'updated_at': self.updated_at.isoformat() if self.updated_at else
-                      None}
         if include_items:
-            order_dict['items'] = [item.to_dict() for item in self.items]
-        return order_dict
+            result['items'] = [item.to_dict() for item in self.items]
+
+        return result
+
+    def calculate_total(self) -> float:
+        """
+        Calculate the total order amount based on items.
+
+        Returns:
+            float: The calculated total amount
+        """
+        total = sum(item.get_total() for item in self.items)
+        self.total_amount = total
+        return total
+
+
+class OrderItem(Base, BaseModel):
+    """
+    Represents an individual item within an order.
+    """
+    __tablename__ = 'order_items'
+
+    order_id = Column(Integer, ForeignKey('orders.id'), nullable=False)
+    product_id = Column(Integer, ForeignKey('products.id'), nullable=True)
+    quantity = Column(Float, nullable=False, default=1.0)
+    unit_price = Column(Float, nullable=False, default=0.0)
+    description = Column(String(255), nullable=True)
+
+    # Relationships
+    order = relationship("Order", back_populates="items")
+    product = relationship("Product", back_populates="order_items")
+
+    def __repr__(self) -> str:
+        """String representation of the OrderItem model."""
+        return f"<OrderItem id={self.id}, order_id={self.order_id}, quantity={self.quantity}>"
+
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Convert order item to dictionary representation.
+
+        Returns:
+            dict: Dictionary representation of the order item
+        """
+        result = super().to_dict()
+        if self.product:
+            result['product_name'] = self.product.name
+        return result
+
+    def get_total(self) -> float:
+        """
+        Calculate the total price for this item.
+
+        Returns:
+            float: Total price (quantity * unit_price)
+        """
+        return self.quantity * self.unit_price

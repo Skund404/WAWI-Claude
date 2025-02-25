@@ -1,145 +1,191 @@
-# Relative path: store_management/services/interfaces/material_service.py
-
+# services/interfaces/material_service.py
 """
-Material Service Interface Module
+Material service interface definitions.
 
-Defines the abstract base interface for material-related operations.
+This module defines the interface for material-related services,
+which provide functionality related to managing materials in the system.
 """
 
+import enum
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional, List, Type
-
-from database.models import Part
+from typing import List, Dict, Any, Optional, Union
 
 
-class MaterialService(ABC):
+class MaterialType(enum.Enum):
+    """Enumeration of material types."""
+    LEATHER = "leather"
+    HARDWARE = "hardware"
+    THREAD = "thread"
+    LINING = "lining"
+    ADHESIVE = "adhesive"
+    OTHER = "other"
+
+
+class IMaterialService(ABC):
     """
-    Abstract base class defining the interface for material-related operations.
+    Interface for material service.
 
-    This service provides methods for managing materials,
-    including validation, creation, and manipulation.
+    This interface defines the contract for services that manage materials
+    in the leatherworking store management system.
     """
 
     @abstractmethod
-    def validate_model_creation(
-        self,
-        model_name: str,
-        data: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """
-        Validate data before model creation.
-
-        Args:
-            model_name (str): Name of the model being created.
-            data (Dict[str, Any]): Data to be validated.
-
-        Returns:
-            Dict[str, Any]: Validated and potentially modified data.
-
-        Raises:
-            ValueError: If data validation fails.
-        """
-        pass
-
-    @abstractmethod
-    def get_material_by_name(self, name: str) -> Optional[Part]:
-        """
-        Retrieve a material by its name.
-
-        Args:
-            name (str): Name of the material to retrieve.
-
-        Returns:
-            Optional[Part]: The material if found, None otherwise.
-        """
-        pass
-
-    @abstractmethod
-    def create_material(
-        self,
-        name: str,
-        **kwargs
-    ) -> Part:
+    def create_material(self, material_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Create a new material.
 
         Args:
-            name (str): Name of the material.
-            **kwargs: Additional material attributes.
+            material_data: Dictionary containing material attributes
 
         Returns:
-            Part: The newly created material.
+            Dictionary representing the created material
 
         Raises:
-            ValueError: If material creation fails validation.
+            ValidationError: If material data is invalid
         """
         pass
 
     @abstractmethod
-    def update_material(
-        self,
-        material: Part,
-        **kwargs
-    ) -> Part:
+    def get_material(self, material_id: int) -> Optional[Dict[str, Any]]:
         """
-        Update an existing material.
+        Get a material by ID.
 
         Args:
-            material (Part): The material to update.
-            **kwargs: Attributes to update.
+            material_id: ID of the material to retrieve
 
         Returns:
-            Part: The updated material.
+            Dictionary representing the material or None if not found
 
         Raises:
-            ValueError: If material update fails validation.
+            NotFoundError: If material is not found
+        """
+        pass
+
+    @abstractmethod
+    def update_material(self, material_id: int, material_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """
+        Update a material.
+
+        Args:
+            material_id: ID of the material to update
+            material_data: Dictionary containing updated attributes
+
+        Returns:
+            Dictionary representing the updated material or None if not found
+
+        Raises:
+            ValidationError: If update data is invalid
+            NotFoundError: If material is not found
+        """
+        pass
+
+    @abstractmethod
+    def delete_material(self, material_id: int) -> bool:
+        """
+        Delete a material.
+
+        Args:
+            material_id: ID of the material to delete
+
+        Returns:
+            True if the material was deleted, False otherwise
+
+        Raises:
+            NotFoundError: If material is not found
         """
         pass
 
     @abstractmethod
     def list_materials(
         self,
-        filter_criteria: Optional[Dict[str, Any]] = None
-    ) -> List[Part]:
+        material_type: Optional[MaterialType] = None,
+        page: int = 1,
+        page_size: int = 10
+    ) -> List[Dict[str, Any]]:
         """
-        List materials with optional filtering.
+        List materials with optional filtering and pagination.
 
         Args:
-            filter_criteria (Optional[Dict[str, Any]], optional):
-                Filtering parameters. Defaults to None.
+            material_type: Optional filter by material type
+            page: Page number for pagination
+            page_size: Number of items per page
 
         Returns:
-            List[Part]: List of materials matching the criteria.
+            List of material dictionaries
         """
         pass
 
     @abstractmethod
-    def delete_material(self, material: Part) -> bool:
+    def get_low_stock_materials(self, include_zero_stock: bool = True) -> List[Dict[str, Any]]:
         """
-        Delete a material.
+        Get materials with low stock levels.
 
         Args:
-            material (Part): The material to delete.
+            include_zero_stock: Whether to include materials with zero stock
 
         Returns:
-            bool: True if deletion was successful, False otherwise.
+            List of dictionaries representing materials with low stock
         """
         pass
 
     @abstractmethod
-    def validate_material_quantity(
-        self,
-        material: Part,
-        quantity: float
-    ) -> bool:
+    def track_material_usage(self, material_id: int, quantity_used: float) -> bool:
         """
-        Validate if a given quantity is valid for a material.
+        Track usage of a material.
 
         Args:
-            material (Part): The material to validate.
-            quantity (float): Quantity to check.
+            material_id: ID of the material used
+            quantity_used: Quantity of material used
 
         Returns:
-            bool: True if the quantity is valid, False otherwise.
+            True if the usage was tracked successfully, False otherwise
+
+        Raises:
+            NotFoundError: If material is not found
+            ValidationError: If usage tracking fails
         """
         pass
+
+    @abstractmethod
+    def search_materials(self, search_params: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """
+        Search for materials based on parameters.
+
+        Args:
+            search_params: Dictionary of search parameters
+
+        Returns:
+            List of dictionaries representing matching materials
+        """
+        pass
+
+    @abstractmethod
+    def generate_sustainability_report(self) -> Dict[str, Any]:
+        """
+        Generate a sustainability report for materials.
+
+        Returns:
+            Dictionary containing sustainability metrics
+        """
+        pass
+
+    @abstractmethod
+    def calculate_material_efficiency(self, material_id: int, period_days: int = 30) -> Dict[str, Any]:
+        """
+        Calculate efficiency metrics for a material.
+
+        Args:
+            material_id: ID of the material
+            period_days: Number of days to include in the calculation
+
+        Returns:
+            Dictionary containing efficiency metrics
+
+        Raises:
+            NotFoundError: If material is not found
+        """
+        pass
+
+
+# Class type alias for backward compatibility
+MaterialService = IMaterialService

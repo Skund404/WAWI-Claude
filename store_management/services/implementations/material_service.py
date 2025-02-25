@@ -1,331 +1,465 @@
-#!/usr/bin/env python3
-# Path: material_service.py
+# services/implementations/material_service.py
 """
-Material Service implementation.
-
-Provides business logic for material management operations.
+Implementation of Material Service for the leatherworking store management application.
 """
 
-from typing import Dict, List, Any, Optional
 import logging
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
 
-from di.core import inject
-from services.base_service import BaseService
-from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
-from models.material import Material
-from repositories.material_repository import MaterialRepository
-from exceptions import ValidationError, NotFoundError, ApplicationError
-from models.enums import MaterialType, MaterialQualityGrade
+from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError
+
+from services.interfaces.material_service import IMaterialService, MaterialType
+from database.models.material import Material
+from database.repositories.material_repository import MaterialRepository
+from utils.error_handler import ValidationError, NotFoundError
 
 
-class MaterialService(BaseService[Material], IMaterialService):
+class MaterialServiceImpl(IMaterialService):
     """
-    Service implementation for managing materials.
+    Concrete implementation of the Material Service interface.
 
-    Provides business logic and validation for material-related operations.
+    Manages CRUD operations and business logic for materials in the leatherworking store.
     """
 
-    def __init__(self, repository: MaterialRepository, unit_of_work: Optional[IUnitOfWork] = None):
+    def __init__(self, session: Session):
         """
-        Initialize the MaterialService.
+        Initialize the Material Service with a database session.
 
         Args:
-            repository (MaterialRepository): Repository for material data access
-            unit_of_work (Optional[IUnitOfWork], optional): Unit of work for transactions
+            session (Session): SQLAlchemy database session
         """
-        super().__init__(repository, unit_of_work)
-        self._repository = repository
+        self.session = session
+        self.repository = MaterialRepository(session)
+        self.logger = logging.getLogger(__name__)
 
-    def _validate_create_data(self, data: Dict[str, Any]) -> None:
+    def _validate_material_data(self, material_data: Dict[str, Any]) -> None:
         """
-        Validate data before creating a new material.
+        Validate material data before creation or update.
 
         Args:
-            data (Dict[str, Any]): Material creation data
+            material_data (Dict[str, Any]): Material data to validate
 
         Raises:
-            ValidationError: If data is invalid
+            ValidationError: If material data is invalid
         """
-        if not data.get('name'):
-            raise ValidationError('Material name is required', {'name': 'Name cannot be empty'})
+        required_fields = ['name', 'material_type', 'quantity']
+        for field in required_fields:
+            if field not in material_data or not material_data[field]:
+                raise ValidationError(f"Missing required field: {field}")
 
+        # Validate material type
         try:
-            material_type = MaterialType(data.get('material_type'))
+            MaterialType(material_data['material_type'])
         except ValueError:
-            raise ValidationError('Invalid material type', {'material_type': 'Must be a valid MaterialType'})
+            raise ValidationError(f"Invalid material type: {material_data['material_type']}")
 
-        try:
-            quality_grade = MaterialQualityGrade(data.get('quality_grade'))
-        except ValueError:
-            raise ValidationError('Invalid quality grade', {'quality_grade': 'Must be a valid MaterialQualityGrade'})
-
-        stock = data.get('stock', 0)
-        if not isinstance(stock, (int, float)) or stock < 0:
-            raise ValidationError('Invalid stock quantity', {'stock': 'Stock must be a non-negative number'})
-
-        unit_price = data.get('unit_price', 0)
-        if not isinstance(unit_price, (int, float)) or unit_price < 0:
-            raise ValidationError('Invalid unit price', {'unit_price': 'Unit price must be a non-negative number'})
-
-    def _validate_update_data(self, existing_entity: Material, update_data: Dict[str, Any]) -> None:
+    def create_material(self, material_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Validate data before updating an existing material.
+        Create a new material entry.
 
         Args:
-            existing_entity (Material): The existing material
-            update_data (Dict[str, Any]): Material update data
-
-        Raises:
-            ValidationError: If update data is invalid
-        """
-        if 'name' in update_data and not update_data['name']:
-            raise ValidationError('Material name cannot be empty', {'name': 'Name cannot be empty'})
-
-        if 'material_type' in update_data:
-            try:
-                MaterialType(update_data['material_type'])
-            except ValueError:
-                raise ValidationError('Invalid material type',
-                                      {'material_type': 'Must be a valid MaterialType'})
-
-        if 'quality_grade' in update_data:
-            try:
-                MaterialQualityGrade(update_data['quality_grade'])
-            except ValueError:
-                raise ValidationError('Invalid quality grade',
-                                      {'quality_grade': 'Must be a valid MaterialQualityGrade'})
-
-        if 'stock' in update_data:
-            stock = update_data['stock']
-            if not isinstance(stock, (int, float)) or stock < 0:
-                raise ValidationError('Invalid stock quantity', {'stock': 'Stock must be a non-negative number'})
-
-        if 'unit_price' in update_data:
-            unit_price = update_data['unit_price']
-            if not isinstance(unit_price, (int, float)) or unit_price < 0:
-                raise ValidationError('Invalid unit price', {'unit_price': 'Unit price must be a non-negative number'})
-
-    def update_stock(self, material_id: Any, quantity_change: float,
-                     transaction_type: str, notes: Optional[str] = None) -> Material:
-        """
-        Update the stock of a material.
-
-        Args:
-            material_id (Any): ID of the material
-            quantity_change (float): Quantity to add or subtract
-            transaction_type (str): Type of stock transaction
-            notes (Optional[str], optional): Additional notes for the transaction
+            material_data (Dict[str, Any]): Data for the new material
 
         Returns:
-            Material: Updated material
+            Dict[str, Any]: Created material data
+
+        Raises:
+            ValidationError: If material data is invalid
+        """
+        try:
+            # Validate input data
+            self._validate_material_data(material_data)
+
+            # Create material
+            material = Material(**material_data)
+
+            # Save to database
+            with self.session.begin():
+                self.repository.create(material)
+
+            self.logger.info(f"Created material: {material.name}")
+            return self._material_to_dict(material)
+
+        except ValidationError as ve:
+            self.logger.error(f"Validation error creating material: {ve}")
+            raise
+        except SQLAlchemyError as e:
+            self.logger.error(f"Database error creating material: {e}")
+            raise ValidationError(f"Could not create material: {str(e)}")
+
+    def get_material(self, material_id: int) -> Optional[Dict[str, Any]]:
+        """
+        Retrieve a material by its identifier.
+
+        Args:
+            material_id (int): Unique identifier for the material
+
+        Returns:
+            Optional[Dict[str, Any]]: Material data or None if not found
 
         Raises:
             NotFoundError: If material is not found
-            ValidationError: If stock update is invalid
         """
         try:
-            material = self.get_by_id(material_id)
-            if not isinstance(quantity_change, (int, float)):
-                raise ValidationError('Invalid quantity change', {'quantity_change': 'Must be a number'})
+            material = self.repository.get_by_id(material_id)
+            if not material:
+                raise NotFoundError(f"Material with ID {material_id} not found")
+            return self._material_to_dict(material)
+        except SQLAlchemyError as e:
+            self.logger.error(f"Error retrieving material {material_id}: {e}")
+            raise NotFoundError(f"Could not retrieve material: {str(e)}")
 
-            if hasattr(self._repository, 'update_stock'):
-                return self._repository.update_stock(material_id, quantity_change, transaction_type, notes)
-            else:
-                material.update_stock(quantity_change)
-                return self.update(material_id, {'stock': material.stock})
-
-        except (NotFoundError, ValidationError):
-            raise
-        except Exception as e:
-            self._logger.error(f'Error updating stock for material {material_id}: {e}')
-            raise ApplicationError(f'Failed to update material stock: {str(e)}',
-                                   {'material_id': material_id, 'quantity_change': quantity_change})
-
-    def get_low_stock_materials(self, include_zero_stock: bool = False) -> List[Material]:
+    def update_material(self, material_id: int, material_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """
-        Retrieve materials with low stock.
+        Update an existing material.
 
         Args:
-            include_zero_stock (bool, optional): Whether to include materials
-                with zero stock. Defaults to False.
+            material_id (int): Unique identifier for the material
+            material_data (Dict[str, Any]): Data to update
 
         Returns:
-            List[Material]: List of low stock materials
-        """
-        try:
-            if hasattr(self._repository, 'get_low_stock_materials'):
-                return self._repository.get_low_stock_materials(include_zero_stock)
-
-            all_materials = self.get_all()
-            return [material for material in all_materials
-                    if material.is_low_stock() or (include_zero_stock and material.stock == 0)]
-
-        except Exception as e:
-            self._logger.error(f'Error retrieving low stock materials: {e}')
-            raise ApplicationError(f'Failed to retrieve low stock materials: {str(e)}',
-                                   {'include_zero_stock': include_zero_stock})
-
-    def search_materials(self, search_params: Dict[str, Any]) -> List[Material]:
-        """
-        Search materials based on multiple criteria.
-
-        Args:
-            search_params (Dict[str, Any]): Search criteria
-
-        Returns:
-            List[Material]: List of matching materials
-        """
-        try:
-            if hasattr(self._repository, 'search_materials'):
-                return self._repository.search_materials(search_params)
-
-            all_materials = self.get_all()
-            return [material for material in all_materials
-                    if all(self._match_search_criterion(material, key, value)
-                           for key, value in search_params.items())]
-
-        except Exception as e:
-            self._logger.error(f'Error searching materials: {e}')
-            raise ApplicationError(f'Failed to search materials: {str(e)}',
-                                   {'search_params': search_params})
-
-    def _match_search_criterion(self, material: Material, key: str, value: Any) -> bool:
-        """
-        Helper method to match a single search criterion.
-
-        Args:
-            material (Material): Material to check
-            key (str): Search key
-            value (Any): Search value
-
-        Returns:
-            bool: True if the material matches the criterion, False otherwise
-        """
-        try:
-            if key == 'material_type':
-                return material.material_type.value == value
-            elif key == 'quality_grade':
-                return material.quality_grade.value == value
-
-            attr_value = getattr(material, key, None)
-            if isinstance(attr_value, str) and isinstance(value, str):
-                return value.lower() in attr_value.lower()
-
-            return attr_value == value
-
-        except Exception:
-            return False
-
-    def generate_material_usage_report(self, start_date: Optional[str] = None,
-                                       end_date: Optional[str] = None) -> Dict[str, Any]:
-        """
-        Generate a comprehensive material usage report.
-
-        Args:
-            start_date (Optional[str], optional): Start date for the report
-            end_date (Optional[str], optional): End date for the report
-
-        Returns:
-            Dict[str, Any]: Material usage report
-        """
-        try:
-            if hasattr(self._repository, 'generate_material_usage_report'):
-                return self._repository.generate_material_usage_report(start_date, end_date)
-
-            materials = self.get_all()
-            report = {
-                'total_materials': len(materials),
-                'low_stock_materials': 0,
-                'materials': []
-            }
-
-            for material in materials:
-                material_data = material.to_dict()
-                if material.is_low_stock():
-                    report['low_stock_materials'] += 1
-                report['materials'].append(material_data)
-
-            return report
-
-        except Exception as e:
-            self._logger.error(f'Error generating material usage report: {e}')
-            raise ApplicationError(f'Failed to generate material usage report: {str(e)}',
-                                   {'start_date': start_date, 'end_date': end_date})
-
-    def deactivate_material(self, material_id: Any) -> Material:
-        """
-        Deactivate a material, preventing further use.
-
-        Args:
-            material_id (Any): ID of the material to deactivate
-
-        Returns:
-            Material: The deactivated material
-        """
-        try:
-            material = self.get_by_id(material_id)
-            return self.update(material_id, {'is_active': False})
-        except Exception as e:
-            self._logger.error(f'Error deactivating material {material_id}: {e}')
-            raise ApplicationError(f'Failed to deactivate material: {str(e)}',
-                                   {'material_id': material_id})
-
-    def activate_material(self, material_id: Any) -> Material:
-        """
-        Reactivate a previously deactivated material.
-
-        Args:
-            material_id (Any): ID of the material to activate
-
-        Returns:
-            Material: The activated material
-        """
-        try:
-            material = self.get_by_id(material_id)
-            return self.update(material_id, {'is_active': True})
-        except Exception as e:
-            self._logger.error(f'Error activating material {material_id}: {e}')
-            raise ApplicationError(f'Failed to activate material: {str(e)}',
-                                   {'material_id': material_id})
-
-    def validate_material_substitution(self, original_material_id: Any,
-                                       substitute_material_id: Any) -> bool:
-        """
-        Check if one material can be substituted for another.
-
-        Args:
-            original_material_id (Any): ID of the original material
-            substitute_material_id (Any): ID of the potential substitute material
-
-        Returns:
-            bool: True if substitution is possible, False otherwise
+            Optional[Dict[str, Any]]: Updated material data
 
         Raises:
-            NotFoundError: If either material is not found
+            ValidationError: If update data is invalid
+            NotFoundError: If material is not found
         """
         try:
-            original_material = self.get_by_id(original_material_id)
-            substitute_material = self.get_by_id(substitute_material_id)
+            # Validate material exists
+            material = self.repository.get_by_id(material_id)
+            if not material:
+                raise NotFoundError(f"Material with ID {material_id} not found")
 
-            substitution_checks = [
-                original_material.material_type == substitute_material.material_type,
-                substitute_material.stock > 0,
-                substitute_material.quality_grade.value >= original_material.quality_grade.value
-            ]
+            # Validate update data
+            if 'material_type' in material_data:
+                MaterialType(material_data['material_type'])
 
-            if hasattr(self._repository, 'validate_material_substitution'):
-                repo_check = self._repository.validate_material_substitution(
-                    original_material_id, substitute_material_id)
-                substitution_checks.append(repo_check)
+            # Update material
+            for key, value in material_data.items():
+                setattr(material, key, value)
 
-            return all(substitution_checks)
+            # Save updates
+            with self.session.begin():
+                self.repository.update(material)
 
-        except NotFoundError:
+            self.logger.info(f"Updated material: {material_id}")
+            return self._material_to_dict(material)
+
+        except (ValidationError, NotFoundError) as e:
+            self.logger.error(f"Error updating material {material_id}: {e}")
             raise
-        except Exception as e:
-            self._logger.error(
-                f'Error validating material substitution ({original_material_id} -> {substitute_material_id}): {e}'
+        except SQLAlchemyError as e:
+            self.logger.error(f"Database error updating material {material_id}: {e}")
+            raise ValidationError(f"Could not update material: {str(e)}")
+
+    def delete_material(self, material_id: int) -> bool:
+        """
+        Delete a material by its identifier.
+
+        Args:
+            material_id (int): Unique identifier for the material
+
+        Returns:
+            bool: True if deletion was successful
+
+        Raises:
+            NotFoundError: If material is not found
+        """
+        try:
+            # Validate material exists
+            material = self.repository.get_by_id(material_id)
+            if not material:
+                raise NotFoundError(f"Material with ID {material_id} not found")
+
+            # Delete material
+            with self.session.begin():
+                self.repository.delete(material)
+
+            self.logger.info(f"Deleted material: {material_id}")
+            return True
+
+        except (ValidationError, NotFoundError) as e:
+            self.logger.error(f"Error deleting material {material_id}: {e}")
+            raise
+        except SQLAlchemyError as e:
+            self.logger.error(f"Database error deleting material {material_id}: {e}")
+            raise ValidationError(f"Could not delete material: {str(e)}")
+
+    def list_materials(
+            self,
+            material_type: Optional[MaterialType] = None,
+            page: int = 1,
+            page_size: int = 10
+    ) -> List[Dict[str, Any]]:
+        """
+        List materials with optional filtering and pagination.
+
+        Args:
+            material_type: Optional filter by material type
+            page: Page number for pagination
+            page_size: Number of items per page
+
+        Returns:
+            List of material dictionaries
+        """
+        try:
+            # Build query conditions
+            conditions = {}
+            if material_type:
+                conditions['material_type'] = material_type.value
+
+            # Calculate offset
+            offset = (page - 1) * page_size
+
+            # Retrieve materials
+            materials = self.repository.list_with_filters(
+                conditions,
+                limit=page_size,
+                offset=offset
             )
-            raise ApplicationError(f'Failed to validate material substitution: {str(e)}',
-                                   {'original_material_id': original_material_id,
-                                    'substitute_material_id': substitute_material_id})
+
+            self.logger.info(f"Listed materials: type={material_type}, page={page}")
+            return [self._material_to_dict(material) for material in materials]
+
+        except SQLAlchemyError as e:
+            self.logger.error(f"Error listing materials: {e}")
+            raise ValidationError(f"Could not list materials: {str(e)}")
+
+    def get_low_stock_materials(self, include_zero_stock: bool = True) -> List[Dict[str, Any]]:
+        """
+        Get materials with low stock levels.
+
+        Args:
+            include_zero_stock: Whether to include materials with zero stock
+
+        Returns:
+            List of dictionaries representing materials with low stock
+        """
+        try:
+            # Define low stock threshold (e.g., less than 10 units)
+            low_stock_threshold = 10
+
+            # Retrieve low stock materials
+            conditions = {
+                'quantity__lt': low_stock_threshold if not include_zero_stock else None
+            }
+
+            low_stock_materials = self.repository.list_with_filters(conditions)
+
+            self.logger.info(f"Retrieved low stock materials. Include zero stock: {include_zero_stock}")
+            return [self._material_to_dict(material) for material in low_stock_materials]
+
+        except SQLAlchemyError as e:
+            self.logger.error(f"Error retrieving low stock materials: {e}")
+            raise ValidationError(f"Could not retrieve low stock materials: {str(e)}")
+
+    def track_material_usage(self, material_id: int, quantity_used: float) -> bool:
+        """
+        Track usage of a material.
+
+        Args:
+            material_id: ID of the material used
+            quantity_used: Quantity of material used
+
+        Returns:
+            True if the usage was tracked successfully, False otherwise
+
+        Raises:
+            NotFoundError: If material is not found
+            ValidationError: If usage tracking fails
+        """
+        try:
+            # Retrieve the material
+            material = self.repository.get_by_id(material_id)
+            if not material:
+                raise NotFoundError(f"Material with ID {material_id} not found")
+
+            # Validate quantity used
+            if quantity_used < 0:
+                raise ValidationError("Quantity used must be a non-negative number")
+
+            # Update material quantity
+            if material.quantity < quantity_used:
+                raise ValidationError("Insufficient material quantity")
+
+            material.quantity -= quantity_used
+
+            # Save updates
+            with self.session.begin():
+                self.repository.update(material)
+
+            self.logger.info(f"Tracked material usage: {material_id}, Quantity: {quantity_used}")
+            return True
+
+        except (NotFoundError, ValidationError) as e:
+            self.logger.error(f"Error tracking material usage: {e}")
+            raise
+        except SQLAlchemyError as e:
+            self.logger.error(f"Database error tracking material usage: {e}")
+            raise ValidationError(f"Could not track material usage: {str(e)}")
+
+    def search_materials(self, search_params: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """
+        Search for materials based on parameters.
+
+        Args:
+            search_params: Dictionary of search parameters
+
+        Returns:
+            List of dictionaries representing matching materials
+        """
+        try:
+            # Validate search parameters
+            allowed_params = {'name', 'material_type', 'min_quantity', 'max_quantity'}
+            invalid_params = set(search_params.keys()) - allowed_params
+            if invalid_params:
+                raise ValidationError(f"Invalid search parameters: {invalid_params}")
+
+            # Prepare query conditions
+            conditions = {}
+
+            # Name search (case-insensitive partial match)
+            if 'name' in search_params:
+                conditions['name__ilike'] = f"%{search_params['name']}%"
+
+            # Material type filter
+            if 'material_type' in search_params:
+                try:
+                    conditions['material_type'] = MaterialType(search_params['material_type']).value
+                except ValueError:
+                    raise ValidationError(f"Invalid material type: {search_params['material_type']}")
+
+            # Quantity range filters
+            if 'min_quantity' in search_params:
+                conditions['quantity__gte'] = search_params['min_quantity']
+
+            if 'max_quantity' in search_params:
+                conditions['quantity__lte'] = search_params['max_quantity']
+
+            # Perform search
+            materials = self.repository.list_with_filters(conditions)
+
+            self.logger.info(f"Searched materials with params: {search_params}")
+            return [self._material_to_dict(material) for material in materials]
+
+        except (ValidationError, SQLAlchemyError) as e:
+            self.logger.error(f"Error searching materials: {e}")
+            raise ValidationError(f"Could not search materials: {str(e)}")
+
+    def generate_sustainability_report(self) -> Dict[str, Any]:
+        """
+        Generate a sustainability report for materials.
+
+        Returns:
+            Dictionary containing sustainability metrics
+        """
+        try:
+            # Retrieve all materials
+            materials = self.repository.list_with_filters({})
+
+            # Calculate sustainability metrics
+            report = {
+                'total_materials': len(materials),
+                'material_type_breakdown': {},
+                'total_quantity': 0,
+                'average_quantity_per_type': {},
+                'sustainability_score': 0.0
+            }
+
+            # Aggregate metrics by material type
+            for material in materials:
+                material_type = material.material_type
+
+                # Material type breakdown
+                if material_type not in report['material_type_breakdown']:
+                    report['material_type_breakdown'][material_type] = 0
+                report['material_type_breakdown'][material_type] += 1
+
+                # Total quantity
+                report['total_quantity'] += material.quantity
+
+            # Calculate average quantity per type
+            for material_type, count in report['material_type_breakdown'].items():
+                report['average_quantity_per_type'][material_type] = (
+                    report['total_quantity'] / count if count > 0 else 0
+                )
+
+            # Simple sustainability scoring (placeholder logic)
+            # Could be expanded with more complex sustainability metrics
+            report['sustainability_score'] = (
+                    len(materials) > 0
+                    and sum(1 for m in materials if m.quantity > 0) / len(materials)
+                    or 0.0
+            )
+
+            self.logger.info("Generated sustainability report for materials")
+            return report
+
+        except SQLAlchemyError as e:
+            self.logger.error(f"Error generating sustainability report: {e}")
+            raise ValidationError(f"Could not generate sustainability report: {str(e)}")
+
+    def calculate_material_efficiency(self, material_id: int, period_days: int = 30) -> Dict[str, Any]:
+        """
+        Calculate efficiency metrics for a material.
+
+        Args:
+            material_id: ID of the material
+            period_days: Number of days to include in the calculation
+
+        Returns:
+            Dictionary containing efficiency metrics
+
+        Raises:
+            NotFoundError: If material is not found
+        """
+        try:
+            # Retrieve the material
+            material = self.repository.get_by_id(material_id)
+            if not material:
+                raise NotFoundError(f"Material with ID {material_id} not found")
+
+            # Calculate efficiency metrics
+            # Note: This is a simplified calculation and would typically
+            # involve more complex tracking of material usage
+            end_date = datetime.now()
+            start_date = end_date - timedelta(days=period_days)
+
+            # Placeholder for more advanced efficiency calculation
+            efficiency_metrics = {
+                'material_id': material_id,
+                'material_name': material.name,
+                'total_quantity': material.quantity,
+                'period_days': period_days,
+                'usage_rate': 0.0,  # Placeholder for actual usage calculation
+                'waste_percentage': 0.0,  # Placeholder for waste calculation
+                'efficiency_score': 0.0  # Placeholder for efficiency scoring
+            }
+
+            self.logger.info(f"Calculated efficiency metrics for material {material_id}")
+            return efficiency_metrics
+
+        except (NotFoundError, SQLAlchemyError) as e:
+            self.logger.error(f"Error calculating material efficiency: {e}")
+            raise
+
+    def _material_to_dict(self, material: Material) -> Dict[str, Any]:
+        """
+        Convert a Material model instance to a dictionary.
+
+        Args:
+            material (Material): Material model instance
+
+        Returns:
+            Dict[str, Any]: Dictionary representation of the material
+        """
+        return {
+            'id': material.id,
+            'name': material.name,
+            'material_type': material.material_type,
+            'quantity': material.quantity,
+            # Add other relevant fields from the Material model
+            # This method can be expanded to include more fields as needed
+        }

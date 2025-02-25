@@ -1,200 +1,162 @@
-# Relative path: store_management/services/interfaces/project_service.py
-
+# path: services/interfaces/project_service.py
 """
-Project Service Interface Module
+Project service interface definitions.
 
-Defines the abstract base interface for project-related operations.
+This module defines the interface for project-related services,
+which provide functionality related to managing projects in the system.
 """
 
+import enum
 from abc import ABC, abstractmethod
-from typing import Dict, Any, List
-from enum import Enum
-
-from di.core import inject
-from services.interfaces import MaterialService
+from typing import List, Dict, Any, Optional, Union
 
 
-class ProjectType(Enum):
-    """Enumeration of different project types"""
-    LEATHER_BAG = 'leather_bag'
-    WALLET = 'wallet'
-    BELT = 'belt'
-    CUSTOM = 'custom'
+class ProjectType(enum.Enum):
+    """Enumeration of project types."""
+    BAG = "bag"
+    WALLET = "wallet"
+    BELT = "belt"
+    CASE = "case"
+    HOLSTER = "holster"
+    ACCESSORY = "accessory"
+    GARMENT = "garment"
+    CUSTOM = "custom"
+    OTHER = "other"
 
 
-class SkillLevel(Enum):
-    """Enumeration of skill levels required for projects"""
-    BEGINNER = 'beginner'
-    INTERMEDIATE = 'intermediate'
-    ADVANCED = 'advanced'
-    EXPERT = 'expert'
+class SkillLevel(enum.Enum):
+    """Enumeration of skill levels required for projects."""
+    BEGINNER = "beginner"
+    INTERMEDIATE = "intermediate"
+    ADVANCED = "advanced"
+    EXPERT = "expert"
 
 
 class IProjectService(ABC):
     """
-    Interface defining the contract for project service implementations.
-    Handles project creation, management, and analysis functionality.
+    Interface for project service.
+
+    This interface defines the contract for services that manage projects
+    in the leatherworking store management system.
     """
 
     @abstractmethod
-    @inject(MaterialService)
-    def create_project(self, project_data: Dict) -> Dict:
+    def create_project(self, project_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Create a new project with the given data.
+        Create a new project.
 
         Args:
-            project_data (Dict): Dictionary containing project information including:
-                - name: str
-                - project_type: ProjectType
-                - skill_level: SkillLevel
-                - description: str
-                - estimated_hours: float
+            project_data: Dictionary containing project attributes
 
         Returns:
-            Dict: Created project data
-
-        Raises:
-            ValidationError: If project data is invalid
+            Dictionary representing the created project
         """
         pass
 
     @abstractmethod
-    @inject(MaterialService)
-    def get_project(self, project_id: int, include_components: bool = False) -> Dict:
+    def get_project(self, project_id: int, include_components: bool = False) -> Optional[Dict[str, Any]]:
         """
-        Retrieve project details by ID.
+        Get a project by ID.
 
         Args:
-            project_id (int): ID of the project to retrieve
-            include_components (bool): Whether to include component details
+            project_id: ID of the project to retrieve
+            include_components: Whether to include project components in the result
 
         Returns:
-            Dict: Project details
-
-        Raises:
-            NotFoundError: If project is not found
+            Dictionary representing the project or None if not found
         """
         pass
 
     @abstractmethod
-    @inject(MaterialService)
-    def update_project(self, project_id: int, project_data: Dict) -> Dict:
+    def update_project(self, project_id: int, project_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """
-        Update an existing project.
+        Update a project.
 
         Args:
-            project_id (int): ID of the project to update
-            project_data (Dict): Updated project data
+            project_id: ID of the project to update
+            project_data: Dictionary containing updated attributes
 
         Returns:
-            Dict: Updated project details
-
-        Raises:
-            NotFoundError: If project is not found
-            ValidationError: If update data is invalid
+            Dictionary representing the updated project or None if not found
         """
         pass
 
     @abstractmethod
-    @inject(MaterialService)
     def delete_project(self, project_id: int) -> bool:
         """
-        Delete a project by ID.
+        Delete a project.
 
         Args:
-            project_id (int): ID of the project to delete
+            project_id: ID of the project to delete
 
         Returns:
-            bool: True if deletion was successful
-
-        Raises:
-            NotFoundError: If project is not found
+            True if the project was deleted, False otherwise
         """
         pass
 
     @abstractmethod
-    @inject(MaterialService)
-    def search_projects(self, search_params: Dict) -> List[Dict]:
+    def search_projects(self, search_params: Dict[str, Any]) -> List[Dict[str, Any]]:
         """
-        Search projects based on given parameters.
+        Search for projects based on parameters.
 
         Args:
-            search_params (Dict): Search parameters which may include:
-                - name: str
-                - project_type: ProjectType
-                - skill_level: SkillLevel
-                - status: str
-                - date_range: tuple
+            search_params: Dictionary of search parameters
 
         Returns:
-            List[Dict]: List of matching projects
+            List of dictionaries representing matching projects
         """
         pass
 
     @abstractmethod
-    @inject(MaterialService)
-    def get_complex_projects(self, complexity_threshold: float) -> List[Dict]:
+    def get_complex_projects(self, complexity_threshold: float = 7.0) -> List[Dict[str, Any]]:
         """
-        Get projects above specified complexity threshold.
+        Get projects above a certain complexity threshold.
 
         Args:
-            complexity_threshold (float): Minimum complexity score
+            complexity_threshold: The minimum complexity score
 
         Returns:
-            List[Dict]: List of complex projects
+            List of dictionaries representing complex projects
         """
         pass
 
     @abstractmethod
-    @inject(MaterialService)
-    def analyze_project_material_usage(self, project_id: int) -> Dict:
+    def analyze_project_material_usage(self, project_id: int) -> Dict[str, Any]:
         """
-        Analyze material usage for a specific project.
+        Analyze material usage for a project.
 
         Args:
-            project_id (int): ID of the project to analyze
+            project_id: ID of the project
 
         Returns:
-            Dict: Material usage analysis including:
-                - total_materials: float
-                - material_efficiency: float
-                - wastage: float
-                - cost_analysis: Dict
-
-        Raises:
-            NotFoundError: If project is not found
+            Dictionary containing material usage analysis
         """
         pass
 
     @abstractmethod
-    @inject(MaterialService)
-    def generate_project_complexity_report(self) -> Dict:
+    def generate_project_complexity_report(self) -> Dict[str, Any]:
         """
-        Generate a report on project complexities across the system.
+        Generate a report on project complexity across the system.
 
         Returns:
-            Dict: Complexity report including:
-                - average_complexity: float
-                - complexity_distribution: Dict
-                - skill_level_breakdown: Dict
+            Dictionary containing project complexity metrics
         """
         pass
 
     @abstractmethod
-    @inject(MaterialService)
-    def update_project_status(self, project_id: int, new_status: str) -> Dict:
+    def update_project_status(self, project_id: int, new_status: str) -> bool:
         """
         Update the status of a project.
 
         Args:
-            project_id (int): ID of the project
-            new_status (str): New status to set
+            project_id: ID of the project
+            new_status: New status for the project
 
         Returns:
-            Dict: Updated project details
-
-        Raises:
-            NotFoundError: If project is not found
-            ValidationError: If status is invalid
+            True if the status was updated, False otherwise
         """
         pass
+
+
+# Class type alias for backward compatibility
+ProjectService = IProjectService

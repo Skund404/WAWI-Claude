@@ -1,220 +1,221 @@
-#!/usr/bin/env python3
-# Path: inventory_service.py
+# services/implementations/material_service.py
 """
-Inventory Service Implementation
-
-Provides functionality for managing inventory items, tracking stock levels,
-and handling inventory transactions.
+Implementation of Material Service for the leatherworking store management application.
 """
 
 import logging
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, List, Optional
 
-from di.core import inject
-from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
-from services.base_service import Service
-from models.enums import TransactionType, InventoryStatus
+from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError
 
-logger = logging.getLogger(__name__)
+from services.interfaces.material_service import IMaterialService, MaterialType
+from database.models.material import Material
+from database.repositories.material_repository import MaterialRepository
+from utils.error_handler import ValidationError, NotFoundError
 
 
-class InventoryService(Service, IInventoryService):
+class MaterialServiceImpl(IMaterialService):
     """
-    Service for managing inventory items, tracking stock levels,
-    and handling inventory transactions.
+    Concrete implementation of the Material Service interface.
+
+    Manages CRUD operations and business logic for materials in the leatherworking store.
     """
 
-    def __init__(self, container) -> None:
+    def __init__(self, session: Session):
         """
-        Initialize the inventory service.
+        Initialize the Material Service with a database session.
 
         Args:
-            container: Dependency injection container
+            session (Session): SQLAlchemy database session
         """
-        super().__init__(container)
-        self.part_repository = self.get_dependency('PartRepository')
-        self.leather_repository = self.get_dependency('LeatherRepository')
-        self.transaction_repository = self.get_dependency('TransactionRepository')
+        self.session = session
+        self.repository = MaterialRepository(session)
+        self.logger = logging.getLogger(__name__)
 
-    def update_part_stock(self, part_id: int, quantity_change: float,
-                          transaction_type: TransactionType, notes: str) -> None:
+    def _validate_material_data(self, material_data: Dict[str, Any]) -> None:
         """
-        Update the stock level for a part and record the transaction.
+        Validate material data before creation or update.
 
         Args:
-            part_id: ID of the part to update
-            quantity_change: Amount to change stock by (positive or negative)
-            transaction_type: Type of transaction
-            notes: Transaction notes
+            material_data (Dict[str, Any]): Material data to validate
 
         Raises:
-            ValueError: If resulting quantity would be negative
+            ValidationError: If material data is invalid
         """
+        required_fields = ['name', 'material_type', 'quantity']
+        for field in required_fields:
+            if field not in material_data or not material_data[field]:
+                raise ValidationError(f"Missing required field: {field}")
+
+        # Validate material type
         try:
-            part = self.part_repository.get_with_transactions(part_id)
-            if not part:
-                raise ValueError(f'Part not found with ID: {part_id}')
+            MaterialType(material_data['material_type'])
+        except ValueError:
+            raise ValidationError(f"Invalid material type: {material_data['material_type']}")
 
-            new_quantity = part.quantity + quantity_change
-            if new_quantity < 0:
-                raise ValueError(f'Cannot reduce stock below zero. Current stock: {part.quantity}')
-
-            part.quantity = new_quantity
-            self.transaction_repository.create_part_transaction(
-                part_id=part_id,
-                quantity_change=quantity_change,
-                transaction_type=transaction_type,
-                notes=notes
-            )
-            self._update_part_status(part)
-            logger.info(f'Updated stock for part {part_id} by {quantity_change}')
-        except Exception as e:
-            logger.error(f'Error updating part stock: {str(e)}')
-            raise
-
-    def update_leather_area(self, leather_id: int, area_change: float,
-                            transaction_type: TransactionType, notes: str,
-                            wastage: Optional[float] = None) -> None:
+    def create_material(self, material_data: Dict[str, Any]) -> Material:
         """
-        Update the available area for a leather piece and record the transaction.
+        Create a new material entry.
 
         Args:
-            leather_id: ID of the leather to update
-            area_change: Amount to change area by (positive or negative)
-            transaction_type: Type of transaction
-            notes: Transaction notes
-            wastage: Optional wastage amount
+            material_data (Dict[str, Any]): Data for the new material
+
+        Returns:
+            Material: Created material object
 
         Raises:
-            ValueError: If resulting area would be negative
+            ValidationError: If material data is invalid
         """
         try:
-            leather = self.leather_repository.get_with_transactions(leather_id)
-            if not leather:
-                raise ValueError(f'Leather not found with ID: {leather_id}')
+            # Validate input data
+            self._validate_material_data(material_data)
 
-            new_area = leather.area + area_change
-            if new_area < 0:
-                raise ValueError(f'Cannot reduce area below zero. Current area: {leather.area}')
+            # Create material
+            material = Material(**material_data)
 
-            leather.area = new_area
-            self.transaction_repository.create_leather_transaction(
-                leather_id=leather_id,
-                area_change=area_change,
-                transaction_type=transaction_type,
-                notes=notes,
-                wastage=wastage
-            )
-            self._update_leather_status(leather)
-            logger.info(f'Updated area for leather {leather_id} by {area_change}')
-        except Exception as e:
-            logger.error(f'Error updating leather area: {str(e)}')
+            # Save to database
+            with self.session.begin():
+                self.repository.create(material)
+
+            self.logger.info(f"Created material: {material.name}")
+            return material
+
+        except ValidationError as ve:
+            self.logger.error(f"Validation error creating material: {ve}")
             raise
+        except SQLAlchemyError as e:
+            self.logger.error(f"Database error creating material: {e}")
+            raise ValidationError(f"Could not create material: {str(e)}")
 
-    def get_low_stock_parts(self, include_out_of_stock: bool = False) -> List[Dict[str, Any]]:
+    def get_material(self, material_id: str) -> Optional[Material]:
         """
-        Get list of parts with low stock levels.
+        Retrieve a material by its identifier.
 
         Args:
-            include_out_of_stock: Whether to include out of stock items
+            material_id (str): Unique identifier for the material
 
         Returns:
-            List[Dict[str, Any]]: List of parts with low stock
+            Optional[Material]: Material object or None if not found
+
+        Raises:
+            NotFoundError: If material is not found
         """
         try:
-            parts = self.part_repository.get_low_stock()
-            if not include_out_of_stock:
-                parts = [p for p in parts if p.quantity > 0]
-            return [self._part_to_dict(p) for p in parts]
-        except Exception as e:
-            logger.error(f'Error getting low stock parts: {str(e)}')
-            return []
+            material = self.repository.get_by_id(material_id)
+            if not material:
+                raise NotFoundError(f"Material with ID {material_id} not found")
+            return material
+        except SQLAlchemyError as e:
+            self.logger.error(f"Error retrieving material {material_id}: {e}")
+            raise NotFoundError(f"Could not retrieve material: {str(e)}")
 
-    def get_low_stock_leather(self, include_out_of_stock: bool = False) -> List[Dict[str, Any]]:
+    def update_material(self, material_id: str, update_data: Dict[str, Any]) -> Material:
         """
-        Get list of leather pieces with low area remaining.
+        Update an existing material.
 
         Args:
-            include_out_of_stock: Whether to include out of stock items
+            material_id (str): Unique identifier for the material
+            update_data (Dict[str, Any]): Data to update
 
         Returns:
-            List[Dict[str, Any]]: List of leather pieces with low stock
+            Material: Updated material object
+
+        Raises:
+            ValidationError: If update data is invalid
+            NotFoundError: If material is not found
         """
         try:
-            leather = self.leather_repository.get_low_stock()
-            if not include_out_of_stock:
-                leather = [l for l in leather if l.area > 0]
-            return [self._leather_to_dict(l) for l in leather]
-        except Exception as e:
-            logger.error(f'Error getting low stock leather: {str(e)}')
-            return []
+            # Validate material exists
+            material = self.get_material(material_id)
 
-    def _update_part_status(self, part: Any) -> None:
+            # Validate update data
+            if 'material_type' in update_data:
+                MaterialType(update_data['material_type'])
+
+            # Update material
+            for key, value in update_data.items():
+                setattr(material, key, value)
+
+            # Save updates
+            with self.session.begin():
+                self.repository.update(material)
+
+            self.logger.info(f"Updated material: {material_id}")
+            return material
+
+        except (ValidationError, NotFoundError) as e:
+            self.logger.error(f"Error updating material {material_id}: {e}")
+            raise
+        except SQLAlchemyError as e:
+            self.logger.error(f"Database error updating material {material_id}: {e}")
+            raise ValidationError(f"Could not update material: {str(e)}")
+
+    def delete_material(self, material_id: str) -> bool:
         """
-        Update the status of a part based on its current stock level.
+        Delete a material by its identifier.
 
         Args:
-            part: Part to update
-        """
-        if part.quantity <= 0:
-            part.status = InventoryStatus.OUT_OF_STOCK
-        elif part.quantity <= part.reorder_point:
-            part.status = InventoryStatus.LOW_STOCK
-        else:
-            part.status = InventoryStatus.IN_STOCK
-
-    def _update_leather_status(self, leather: Any) -> None:
-        """
-        Update the status of a leather piece based on its current area.
-
-        Args:
-            leather: Leather piece to update
-        """
-        if leather.area <= 0:
-            leather.status = InventoryStatus.OUT_OF_STOCK
-        elif leather.area <= leather.minimum_area:
-            leather.status = InventoryStatus.LOW_STOCK
-        else:
-            leather.status = InventoryStatus.IN_STOCK
-
-    def _part_to_dict(self, part: Any) -> Dict[str, Any]:
-        """
-        Convert a part to a dictionary representation.
-
-        Args:
-            part: Part to convert
+            material_id (str): Unique identifier for the material
 
         Returns:
-            Dict[str, Any]: Dictionary representation of the part
-        """
-        return {
-            'id': part.id,
-            'name': part.name,
-            'quantity': part.quantity,
-            'reorder_point': part.reorder_point,
-            'status': part.status.value,
-            'location': part.location,
-            'supplier': part.supplier.name if part.supplier else None
-        }
+            bool: True if deletion was successful
 
-    def _leather_to_dict(self, leather: Any) -> Dict[str, Any]:
+        Raises:
+            NotFoundError: If material is not found
         """
-        Convert a leather piece to a dictionary representation.
+        try:
+            # Validate material exists
+            material = self.get_material(material_id)
+
+            # Delete material
+            with self.session.begin():
+                self.repository.delete(material)
+
+            self.logger.info(f"Deleted material: {material_id}")
+            return True
+
+        except (ValidationError, NotFoundError) as e:
+            self.logger.error(f"Error deleting material {material_id}: {e}")
+            raise
+        except SQLAlchemyError as e:
+            self.logger.error(f"Database error deleting material {material_id}: {e}")
+            raise ValidationError(f"Could not delete material: {str(e)}")
+
+    def list_materials(self,
+                       material_type: Optional[MaterialType] = None,
+                       page: int = 1,
+                       page_size: int = 10) -> List[Material]:
+        """
+        List materials with optional filtering and pagination.
 
         Args:
-            leather: Leather piece to convert
+            material_type (Optional[MaterialType], optional): Filter by material type
+            page (int, optional): Page number for pagination. Defaults to 1.
+            page_size (int, optional): Number of items per page. Defaults to 10.
 
         Returns:
-            Dict[str, Any]: Dictionary representation of the leather piece
+            List[Material]: List of material objects
         """
-        return {
-            'id': leather.id,
-            'name': leather.name,
-            'area': leather.area,
-            'minimum_area': leather.minimum_area,
-            'leather_type': leather.leather_type.value,
-            'quality_grade': leather.quality_grade.value,
-            'status': leather.status.value,
-            'location': leather.location,
-            'supplier': leather.supplier.name if leather.supplier else None
-        }
+        try:
+            # Build query conditions
+            conditions = {}
+            if material_type:
+                conditions['material_type'] = material_type.value
+
+            # Calculate offset
+            offset = (page - 1) * page_size
+
+            # Retrieve materials
+            materials = self.repository.list_with_filters(
+                conditions,
+                limit=page_size,
+                offset=offset
+            )
+
+            self.logger.info(f"Listed materials: type={material_type}, page={page}")
+            return materials
+
+        except SQLAlchemyError as e:
+            self.logger.error(f"Error listing materials: {e}")
+            raise ValidationError(f"Could not list materials: {str(e)}")

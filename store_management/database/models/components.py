@@ -1,74 +1,164 @@
-# database/models/components.py
+# path: database/models/components.py
 """
-Component models for the database.
+Component models for the store management application.
+
+This module defines the database models for components used in projects,
+patterns, and products, including their relationships and attributes.
 """
 
-from sqlalchemy import Column, Float, String, ForeignKey
-from sqlalchemy.orm import relationship
+import enum
+from typing import List, Optional, Union, Dict, Any
+from datetime import datetime
 
-from .base import Base, BaseModel
-from .mixins import TimestampMixin, ValidationMixin, CostingMixin
+from sqlalchemy import Column, String, Integer, Float, ForeignKey, Enum, Boolean, DateTime, Text
+from sqlalchemy.orm import relationship, backref
 
-class Component(BaseModel, Base, TimestampMixin, ValidationMixin, CostingMixin):
+# Import the SQLAlchemy declarative base and mixins carefully
+from database.models.base import BaseModel
+from sqlalchemy.ext.declarative import declarative_base
+
+# Create a local Base to avoid conflicts
+Base = declarative_base()
+
+
+# Import mixins if needed but avoid circular dependencies
+class TimestampMixin:
+    """Mixin to add created_at and updated_at timestamps to models."""
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class ValidationMixin:
+    """Mixin to add validation functionality to models."""
+
+    def validate(self) -> bool:
+        """Validate the model data."""
+        return True
+
+
+class CostingMixin:
+    """Mixin to add costing functionality to models."""
+    cost = Column(Float, nullable=True)
+
+    def calculate_cost(self) -> float:
+        """Calculate the cost of the component."""
+        return self.cost or 0.0
+
+
+class ComponentType(enum.Enum):
+    """Enumeration of component types."""
+    LEATHER = "leather"
+    HARDWARE = "hardware"
+    THREAD = "thread"
+    LINING = "lining"
+    ADHESIVE = "adhesive"
+    OTHER = "other"
+
+
+class Component(Base):
     """
-    Base component model for various types of components in the system.
+    Base model for all components in the system.
+
+    This is the foundation for specific component types like
+    PatternComponent and ProjectComponent.
     """
     __tablename__ = 'components'
 
-    # Common attributes for all components
-    name = Column(String, nullable=False)
-    description = Column(String)
-    quantity = Column(Float, default=0.0)
-    unit_price = Column(Float, default=0.0)
+    id = Column(Integer, primary_key=True)
+    name = Column(String(100), nullable=False)
+    description = Column(Text, nullable=True)
+    component_type = Column(Enum(ComponentType), nullable=False)
+    quantity = Column(Float, default=1.0)
+    unit = Column(String(20), nullable=True)
+    cost = Column(Float, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    # Relationship to project can be defined here or in specific subclasses
-    project_id = Column(ForeignKey('projects.id'), nullable=True)
-    project = relationship('Project', back_populates='components')
+    # Discriminator column for polymorphic identity
+    type = Column(String(50))
 
-    def __repr__(self):
-        """
-        String representation of the component.
+    __mapper_args__ = {
+        'polymorphic_identity': 'component',
+        'polymorphic_on': type
+    }
 
-        Returns:
-            str: A string describing the component
-        """
-        return (
-            f"<Component(id={self.id}, "
-            f"name='{self.name}', "
-            f"quantity={self.quantity}, "
-            f"unit_price={self.unit_price})>"
-        )
+    def __repr__(self) -> str:
+        return f"<Component(id={self.id}, name='{self.name}', type={self.component_type})>"
 
-class ProjectComponent(Component):
-    """
-    Specific component type associated with projects.
-    """
-    __tablename__ = 'project_components'
+    def calculate_cost(self) -> float:
+        """Calculate the cost of the component."""
+        return self.cost or 0.0
 
-    # Additional project-specific attributes can be added here
-    material_type = Column(String)
-    estimated_quantity = Column(Float)
+    def validate(self) -> bool:
+        """Validate the component data."""
+        return True
+
 
 class PatternComponent(Component):
     """
-    Components specific to patterns/recipes.
+    Component used in a pattern template.
+
+    PatternComponents define the theoretical components needed for a pattern,
+    without being tied to a specific project instance.
     """
     __tablename__ = 'pattern_components'
 
-    # Additional pattern-specific attributes
-    cutting_instructions = Column(String)
-    complexity_rating = Column(Float)
+    id = Column(Integer, ForeignKey('components.id'), primary_key=True)
+    pattern_id = Column(Integer, ForeignKey('patterns.id'), nullable=True)
 
-def can_substitute_material(component, alternate_material_type):
+    # Optional sizing information
+    min_quantity = Column(Float, nullable=True)
+    max_quantity = Column(Float, nullable=True)
+    is_optional = Column(Boolean, default=False)
+    notes = Column(Text, nullable=True)
+
+    # Many-to-one: PatternComponent => Pattern
+    pattern = relationship("Pattern", backref=backref("components", cascade="all, delete-orphan"))
+
+    __mapper_args__ = {
+        'polymorphic_identity': 'pattern_component',
+    }
+
+    def __repr__(self) -> str:
+        return f"<PatternComponent(id={self.id}, name='{self.name}', pattern_id={self.pattern_id})>"
+
+
+class ProjectComponent(Component):
     """
-    Check if a material can be substituted.
+    Component used in a specific project.
 
-    Args:
-        component: The original component
-        alternate_material_type: The type of alternate material
-
-    Returns:
-        bool: Whether the material can be substituted
+    ProjectComponents represent actual materials used in a concrete project,
+    with actual quantities and costs.
     """
-    # Implement substitution logic here
-    return True
+    __tablename__ = 'project_components'
+
+    id = Column(Integer, ForeignKey('components.id'), primary_key=True)
+    project_id = Column(Integer, ForeignKey('projects.id'), nullable=True)
+
+    # Usage tracking
+    planned_quantity = Column(Float, nullable=True)
+    actual_quantity = Column(Float, nullable=True)
+    wastage = Column(Float, default=0.0)
+    efficiency = Column(Float, nullable=True)
+
+    # Status and notes
+    is_completed = Column(Boolean, default=False)
+    notes = Column(Text, nullable=True)
+
+    # Many-to-one: ProjectComponent => Project
+    project = relationship("Project", backref=backref("components", cascade="all, delete-orphan"))
+
+    __mapper_args__ = {
+        'polymorphic_identity': 'project_component',
+    }
+
+    def __repr__(self) -> str:
+        return f"<ProjectComponent(id={self.id}, name='{self.name}', project_id={self.project_id})>"
+
+    def calculate_efficiency(self) -> float:
+        """Calculate the material efficiency for this component."""
+        if not self.planned_quantity or not self.actual_quantity:
+            return 0.0
+
+        used = self.actual_quantity - self.wastage
+        return (used / self.planned_quantity) * 100.0

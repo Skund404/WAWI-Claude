@@ -1,147 +1,79 @@
-# Relative path: store_management/di/core.py
+# File: di/core.py
+from functools import wraps
+from typing import Any, Callable, TypeVar, Type, Optional
 
-"""
-Dependency Injection Core Module
-
-Provides a comprehensive dependency injection mechanism for the application.
-"""
-
-import functools
-import inspect
-import logging
-from typing import Any, Callable, Dict, Optional, Type, TypeVar
-
-# Configure logging
-logger = logging.getLogger(__name__)
-
-# Type variable for generic service type
 T = TypeVar('T')
 
 
-class DIContainer:
+class DependencyContainer:
     """
-    Dependency Injection Container for managing service registrations and resolutions.
-
-    Provides a thread-safe singleton mechanism for service registration and retrieval.
+    Dependency injection container.
     """
-
     _instance = None
-    _services: Dict[str, Any] = {}
-    _factories: Dict[str, Callable[[], Any]] = {}
+    _services: dict = {}
 
     def __new__(cls):
         """
-        Ensure only one instance of DIContainer exists (Singleton pattern).
+        Singleton pattern implementation.
 
         Returns:
-            DIContainer: The singleton instance of the container.
+            DependencyContainer: Singleton instance
         """
-        if cls._instance is None:
+        if not cls._instance:
             cls._instance = super().__new__(cls)
         return cls._instance
 
     @classmethod
-    def register(
-        cls,
-        service_type: Type[T],
-        service_impl: Optional[Any] = None,
-        factory: Optional[Callable[[], Any]] = None
-    ):
+    def register(cls, service_type: Type[T], service_impl: Any):
         """
-        Register a service implementation or factory.
+        Register a service implementation.
 
         Args:
-            service_type (Type[T]): The type or interface of the service.
-            service_impl (Optional[Any], optional): Concrete service implementation.
-            factory (Optional[Callable[[], Any]], optional): Factory method to create service.
+            service_type (Type[T]): Interface/abstract base class
+            service_impl (Any): Concrete implementation
         """
-        key = service_type.__name__
-
-        if service_impl is not None:
-            cls._services[key] = service_impl
-            logger.info(f"Registered service implementation for {key}")
-
-        if factory is not None:
-            cls._factories[key] = factory
-            logger.info(f"Registered factory for {key}")
+        cls._services[service_type] = service_impl
 
     @classmethod
-    def resolve(cls, service_type: Type[T]) -> T:
+    def resolve(cls, service_type: Type[T]) -> Optional[Any]:
         """
-        Resolve a service instance.
+        Resolve a service implementation.
 
         Args:
-            service_type (Type[T]): The type of service to resolve.
+            service_type (Type[T]): Interface/abstract base class
 
         Returns:
-            T: An instance of the requested service.
-
-        Raises:
-            ValueError: If no implementation or factory is found.
+            Optional[Any]: Registered service implementation
         """
-        key = service_type.__name__
-
-        # Check if a concrete implementation is registered
-        if key in cls._services:
-            return cls._services[key]
-
-        # Check if a factory is registered
-        if key in cls._factories:
-            service = cls._factories[key]()
-            cls._services[key] = service
-            return service
-
-        logger.error(f"No implementation found for service type: {key}")
-        raise ValueError(f"No implementation found for service type: {key}")
-
-    @classmethod
-    def clear(cls):
-        """
-        Clear all registered services and factories.
-        Useful for testing or resetting the container.
-        """
-        cls._services.clear()
-        cls._factories.clear()
+        return cls._services.get(service_type)
 
 
 def inject(service_type: Type[T]):
     """
-    Decorator for dependency injection.
-
-    Automatically injects the specified service type into the method.
+    Dependency injection decorator.
 
     Args:
-        service_type (Type[T]): The type of service to inject.
+        service_type (Type[T]): Service type to inject
 
     Returns:
-        Callable: Decorated function with dependency injection.
+        Callable: Decorated function
     """
 
-    def decorator(func: Callable):
-        @functools.wraps(func)
+    def decorator(func: Callable) -> Callable:
+        @wraps(func)
         def wrapper(*args, **kwargs):
-            # Determine the signature of the original function
-            sig = inspect.signature(func)
+            # Find the service
+            service = DependencyContainer.resolve(service_type)
 
-            # Check if the service type is already in kwargs
-            service_name = service_type.__name__.lower()
-            if service_name not in kwargs:
-                try:
-                    # Resolve the service
-                    service = DIContainer.resolve(service_type)
+            # If no service is registered, call the original function
+            if not service:
+                return func(*args, **kwargs)
 
-                    # Add the resolved service to kwargs
-                    kwargs[service_name] = service
-                except ValueError as e:
-                    logger.error(f"Dependency injection failed: {e}")
-                    raise
+            # Replace or add the service to kwargs
+            kwargs['service'] = service
 
             return func(*args, **kwargs)
 
         return wrapper
 
     return decorator
-
-
-# Global container instance for easy access
-container = DIContainer()

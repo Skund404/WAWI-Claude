@@ -1,69 +1,119 @@
-# config/settings.py
+# path: config/settings.py
 """
-Configuration settings for the application.
+Configuration settings for the store management application.
+
+This module provides functions to locate important directories and files
+within the application structure, such as database location, log paths,
+backup directories, and configuration files.
 """
 
 import os
 import sys
-from typing import Optional
+import logging
+from pathlib import Path
+from typing import Optional, Union, Dict, Any
 
-# Application Details
-APP_NAME = "Store Management"
-APP_VERSION = "0.1.0"
-APP_DESCRIPTION = "Inventory and Project Management System"
+# Configure basic logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
-def add_project_to_path() -> None:
+
+def _find_project_root() -> Path:
     """
-    Add the project root directory to the Python path.
-
-    This ensures that modules can be imported properly regardless
-    of the working directory when the application is run.
-    """
-    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-    if project_root not in sys.path:
-        sys.path.insert(0, project_root)
-
-def get_config_dir() -> str:
-    """
-    Get the configuration directory path.
+    Find the project's root directory by looking for key marker files/directories.
 
     Returns:
-        str: Absolute path to the configuration directory
+        Path: The absolute path to the project root directory
     """
-    return os.path.abspath(os.path.dirname(__file__))
+    # Start with the current file's directory
+    current_dir = Path(os.path.dirname(os.path.abspath(__file__)))
 
-def get_backup_dir() -> str:
-    """
-    Get the backup directory path.
+    # Check if we're already at the project root
+    if (current_dir / 'main.py').exists() or (current_dir / 'setup.py').exists():
+        return current_dir
 
-    Returns:
-        str: Absolute path to the backup directory
-    """
-    backup_dir = os.path.join(get_config_dir(), '..', 'backups')
-    os.makedirs(backup_dir, exist_ok=True)
-    return os.path.abspath(backup_dir)
+    # Navigate up until we find a marker file
+    while current_dir != current_dir.parent:
+        # Look for common project root markers
+        if (current_dir / 'main.py').exists() or (current_dir / 'setup.py').exists():
+            return current_dir
+        current_dir = current_dir.parent
 
-def get_log_path() -> Optional[str]:
-    """
-    Get the log file path.
+    # If we couldn't find project root, default to parent of this file
+    logger.warning("Could not detect project root directory. Using parent of config directory.")
+    return Path(os.path.dirname(os.path.abspath(__file__))).parent
 
-    Returns:
-        Optional[str]: Absolute path to the log file, or None if not configured
-    """
-    log_dir = os.path.join(get_config_dir(), '..', 'logs')
-    os.makedirs(log_dir, exist_ok=True)
-    return os.path.join(log_dir, 'app.log')
 
 def get_database_path() -> str:
     """
-    Get the absolute path to the database file.
+    Get the path to the SQLite database file.
 
     Returns:
         str: Absolute path to the database file
     """
-    db_dir = os.path.join(get_config_dir(), '..', 'database')
-    os.makedirs(db_dir, exist_ok=True)
-    return os.path.join(db_dir, 'store_management.db')
+    root_dir = _find_project_root()
+    db_dir = root_dir / 'data'
 
-# Automatically add project to path when module is imported
-add_project_to_path()
+    # Ensure the data directory exists
+    if not db_dir.exists():
+        os.makedirs(db_dir, exist_ok=True)
+
+    return str(db_dir / 'store_management.db')
+
+
+def get_log_path() -> str:
+    """
+    Get the path to the log directory.
+
+    Returns:
+        str: Absolute path to the log directory
+    """
+    root_dir = _find_project_root()
+    log_dir = root_dir / 'logs'
+
+    # Ensure the log directory exists
+    if not log_dir.exists():
+        os.makedirs(log_dir, exist_ok=True)
+
+    return str(log_dir)
+
+
+def get_backup_path() -> str:
+    """
+    Get the path to the backup directory.
+
+    Returns:
+        str: Absolute path to the backup directory
+    """
+    root_dir = _find_project_root()
+    backup_dir = root_dir / 'backups'
+
+    # Ensure the backup directory exists
+    if not backup_dir.exists():
+        os.makedirs(backup_dir, exist_ok=True)
+
+    return str(backup_dir)
+
+
+# For backward compatibility
+get_backup_dir = get_backup_path
+
+
+def get_config_path() -> str:
+    """
+    Get the path to the configuration file.
+
+    Returns:
+        str: Absolute path to the configuration file directory
+    """
+    root_dir = _find_project_root()
+    config_dir = root_dir / 'config'
+
+    # Ensure the config directory exists
+    if not config_dir.exists():
+        os.makedirs(config_dir, exist_ok=True)
+
+    return str(config_dir)

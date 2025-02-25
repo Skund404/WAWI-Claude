@@ -1,97 +1,111 @@
 # utils/circular_import_resolver.py
+"""
+Module for resolving circular import issues in the leatherworking store management application.
+
+This module provides a mechanism to manage and prevent circular imports by
+registering and lazily importing modules.
+"""
+
 import importlib
 import logging
-from typing import Any, Dict, Optional, Type
-
+import sys
+from types import ModuleType  # Updated import for ModuleType
+from typing import Dict, Optional, Any, Callable, List, Tuple
 
 class CircularImportResolver:
     """
-    A utility class for resolving circular imports in the application.
+    A singleton class to manage and resolve circular import dependencies.
 
-    This class provides mechanisms to handle circular dependencies by deferring
-    imports and resolving them at runtime when needed.
+    This class provides mechanisms to:
+    - Register modules
+    - Prevent circular imports
+    - Lazily import modules as needed
     """
 
-    # Dictionary to store pending imports that need to be resolved
-    _pending_imports = {}
+    _instance = None
+    _registered_modules: Dict[str, str] = {}
+    _imported_modules: Dict[str, ModuleType] = {}
 
-    # Cache for resolved classes to avoid repeated imports
-    _class_cache = {}
-
-    @classmethod
-    def clear_cache(cls):
+    def __new__(cls):
         """
-        Clear the internal caches for pending imports and resolved classes.
-
-        This is useful for testing or when resetting the application state.
-        """
-        cls._pending_imports.clear()
-        cls._class_cache.clear()
-
-    @classmethod
-    def register_pending_import(cls, module_name: str, error: ImportError):
-        """
-        Register a pending import that failed due to circular dependencies.
-
-        Args:
-            module_name: The name of the module where the import failed
-            error: The ImportError exception that was raised
-        """
-        if module_name not in cls._pending_imports:
-            cls._pending_imports[module_name] = error
-            logging.getLogger(__name__).debug(f"Registered pending import for {module_name}")
-
-    @classmethod
-    def resolve_class(cls, module_path: str, class_name: str) -> Type:
-        """
-        Resolve a class from a module path, handling circular dependencies.
-
-        Args:
-            module_path: The dotted path to the module
-            class_name: The name of the class to import
+        Ensure a singleton instance of the CircularImportResolver.
 
         Returns:
-            The requested class
-
-        Raises:
-            ImportError: If the class cannot be imported
+            CircularImportResolver: The singleton instance
         """
-        cache_key = f"{module_path}.{class_name}"
-
-        # Check if we already resolved this class
-        if cache_key in cls._class_cache:
-            return cls._class_cache[cache_key]
-
-        try:
-            # Try to import the module and get the class
-            module = importlib.import_module(module_path)
-            resolved_class = getattr(module, class_name)
-
-            # Cache the resolved class
-            cls._class_cache[cache_key] = resolved_class
-            return resolved_class
-        except ImportError as e:
-            # Register the pending import and re-raise
-            cls.register_pending_import(module_path, e)
-            raise
+        if not cls._instance:
+            cls._instance = super().__new__(cls)
+            cls.register_common_modules()
+        return cls._instance
 
     @classmethod
-    def lazy_import(cls, module_path: str, class_name: Optional[str] = None) -> Any:
+    def register_module(cls, module_name: str, module_path: Optional[str] = None) -> None:
         """
-        Lazily import a module or class to avoid circular dependencies.
+        Register a module with its import path.
 
         Args:
-            module_path: The dotted path to the module
-            class_name: Optional name of the class to import
+            module_name (str): Name used to reference the module
+            module_path (str, optional): Full import path for the module.
+                                         Defaults to module_name if not provided.
+        """
+        module_path = module_path or module_name
+        cls._registered_modules[module_name] = module_path
+
+    @classmethod
+    def get_module(cls, module_name: str) -> Optional[ModuleType]:
+        """
+        Retrieve a module by its registered name.
+
+        Args:
+            module_name (str): Name of the module to retrieve
 
         Returns:
-            The imported module or class
+            Optional[ModuleType]: The imported module or None if not found
         """
-        if class_name:
-            return cls.resolve_class(module_path, class_name)
+        # Check if module is already imported
+        if module_name in cls._imported_modules:
+            return cls._imported_modules[module_name]
+
+        # Check if module is registered
+        if module_name not in cls._registered_modules:
+            logging.warning(f"Module {module_name} not registered")
+            return None
 
         try:
-            return importlib.import_module(module_path)
+            # Dynamically import the module
+            module_path = cls._registered_modules[module_name]
+            imported_module = importlib.import_module(module_path)
+            cls._imported_modules[module_name] = imported_module
+            return imported_module
         except ImportError as e:
-            cls.register_pending_import(module_path, e)
-            raise
+            logging.error(f"Failed to import module {module_name}: {e}")
+            return None
+
+    @classmethod
+    def register_common_modules(cls) -> None:
+        """
+        Register commonly used modules to prevent circular imports.
+        """
+        common_modules = [
+            'database.models',
+            'services.interfaces',
+            'database.repositories',
+            'config',
+            'di.core',
+        ]
+
+        for module in common_modules:
+            cls.register_module(module.split('.')[-1], module)
+
+def get_module(module_name: str) -> Optional[ModuleType]:
+    """
+    Convenience function to get a module from the CircularImportResolver.
+
+    Args:
+        module_name (str): Name of the module to retrieve
+
+    Returns:
+        Optional[ModuleType]: The imported module or None if not found
+    """
+    resolver = CircularImportResolver()
+    return resolver.get_module(module_name)

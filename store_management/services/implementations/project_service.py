@@ -11,10 +11,10 @@ from typing import Dict, List, Any, Optional, Tuple
 
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
-from models.project import Project, ProjectComponent
-from models.part import Part
-from models.leather import Leather
-from repositories.manager import get_manager
+from database.models.project import Project, ProjectComponent
+from database.models.part import Part
+from database.models.leather import Leather
+from database.sqlalchemy.core.manager_factory import get_manager
 
 
 class RecipeService:

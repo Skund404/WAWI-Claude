@@ -1,70 +1,69 @@
 # database/models/__init__.py
 """
-Model initialization and registration module.
+Database models package for the leatherworking store management system.
 
-This module handles dynamic model discovery and registration for the application.
+This package contains all SQLAlchemy ORM models used in the application.
 """
 
-import importlib
-import logging
-from typing import Any, Dict, Optional, Type
+# Base classes first
+from database.models.base import Base, BaseModel
 
-from database.models.model_metaclass import Base, BaseModel, ModelMetaclass
+# Enums next
+from database.models.enums import (
+    OrderStatus, MaterialType, LeatherType, MaterialQualityGrade,
+    InventoryStatus, ProjectType, SkillLevel, ProjectStatus,
+    SupplierStatus, StorageLocationType, MeasurementUnit,
+    Priority, TransactionType, QualityCheckStatus, PaymentStatus
+)
 
+# Independent models with no foreign keys
+from database.models.supplier import Supplier
+from database.models.storage import Storage
 
-class ModelRegistry:
-    """
-    A registry to manage and track model classes dynamically.
-    """
-    _registered_models: Dict[str, Type] = {}
+# Models that depend on suppliers
+from database.models.material import Material, MaterialTransaction
+from database.models.part import Part
+from database.models.leather import Leather
+from database.models.hardware import Hardware
+from database.models.product import Product
 
-    @classmethod
-    def register_model(cls, model_name: str, model_class: Type) -> None:
-        """
-        Register a model class with the registry.
+# Models that depend on material-related models
+from database.models.pattern import Pattern
+from database.models.project import Project, ProjectComponent
+from database.models.order import Order, OrderItem
+from database.models.shopping_list import ShoppingList, ShoppingListItem
 
-        Args:
-            model_name (str): The name of the model
-            model_class (Type): The model class to register
-        """
-        cls._registered_models[model_name] = model_class
-
-    @classmethod
-    def load_models(cls) -> None:
-        """
-        Load all models from the models package.
-
-        This method dynamically imports model modules and registers
-        all model classes that inherit from Base.
-        """
-        # List of model modules to import
-        model_modules = [
-            'base', 'components', 'config', 'enums', 'factories',
-            'hardware', 'interfaces', 'leather', 'material', 'metrics',
-            'mixins', 'order', 'order_item', 'pattern', 'product',
-            'project', 'shopping_list', 'storage', 'supplier', 'transaction'
-        ]
-
-        for module_name in model_modules:
-            try:
-                # Dynamically import the module
-                module = importlib.import_module(f'.{module_name}', package='database.models')
-
-                # Find and register classes that inherit from Base
-                for name, obj in module.__dict__.items():
-                    if (isinstance(obj, type) and
-                            issubclass(obj, Base) and
-                            obj is not Base and
-                            obj is not BaseModel):
-                        cls.register_model(name, obj)
-            except ImportError as e:
-                logging.warning(f"Could not import model module {module_name}: {e}")
-            except Exception as e:
-                logging.error(f"Error processing model module {module_name}: {e}")
-
-
-# Automatically load models when the module is imported
-ModelRegistry.load_models()
-
-# Export Base and BaseModel for convenience
-__all__ = ['Base', 'BaseModel', 'ModelRegistry']
+__all__ = [
+    'Base',
+    'BaseModel',
+    'OrderStatus',
+    'MaterialType',
+    'LeatherType',
+    'MaterialQualityGrade',
+    'InventoryStatus',
+    'ProjectType',
+    'SkillLevel',
+    'ProjectStatus',
+    'SupplierStatus',
+    'StorageLocationType',
+    'MeasurementUnit',
+    'Priority',
+    'TransactionType',
+    'QualityCheckStatus',
+    'PaymentStatus',
+    'Supplier',
+    'Storage',
+    'Material',
+    'MaterialTransaction',
+    'Part',
+    'Leather',
+    'Hardware',
+    'Product',
+    'Pattern',
+    'Project',
+    'ProjectComponent',
+    'Order',
+    'OrderItem',
+    'ShoppingList',
+    'ShoppingListItem',
+]

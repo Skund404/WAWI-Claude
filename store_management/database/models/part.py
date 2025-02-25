@@ -1,119 +1,106 @@
-# Relative path: store_management/database/models/part.py
-
+# database/models/part.py
 """
-Part Model Module
+Part model module for the leatherworking store management system.
 
-Defines the Part model for storing material/inventory information.
+Defines the Part class for tracking non-leather inventory components.
 """
 
-from sqlalchemy import Column, String, Float, Boolean
+import datetime
+from typing import Dict, Any, Optional
+
+from sqlalchemy import (
+    Column, String, Integer, Float, ForeignKey, Enum, Boolean,
+    DateTime, Text
+)
 from sqlalchemy.orm import relationship
-from .base import BaseModel
-from database.sqlalchemy.core import Base
+
+from database.models.base import Base, BaseModel
+from database.models.enums import InventoryStatus
 
 
-class Part(BaseModel):
+class Part(Base, BaseModel):
     """
-    Represents a part or material in the inventory system.
+    Model for hardware parts and small items used in leatherworking.
 
-    Attributes:
-        name (str): Name of the part.
-        description (str): Detailed description of the part.
-        quantity (float): Current quantity in inventory.
-        unit (str): Unit of measurement.
-        is_active (bool): Whether the part is currently active in inventory.
+    This model represents non-leather components like buckles, rivets,
+    snaps, zippers, etc. that are tracked by count rather than area.
     """
-    __tablename__ = 'parts'
+    __tablename__ = 'part'
 
-    # Specific columns for Part model
-    name = Column(String(255), nullable=False, unique=True, index=True)
-    description = Column(String(500), nullable=True)
-    quantity = Column(Float, default=0.0)
-    unit = Column(String(50), nullable=False, default='unit')
-    is_active = Column(Boolean, default=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    part_number = Column(String(50), unique=True, nullable=True)
 
-    # Optional: Relationships with other models
-    # Example: storage_locations = relationship("StorageLocation", back_populates="parts")
+    # Inventory tracking
+    current_quantity = Column(Float, default=0.0, nullable=False)
+    minimum_quantity = Column(Float, default=1.0, nullable=False)
+    unit_cost = Column(Float, default=0.0, nullable=False)
+    status = Column(Enum(InventoryStatus), default=InventoryStatus.IN_STOCK)
 
-    def __repr__(self):
+    # Supplier relationship
+    supplier_id = Column(Integer, ForeignKey('supplier.id'), nullable=True)
+    supplier = relationship("Supplier", back_populates="parts")
+
+    # Related components
+    components = relationship("ProjectComponent", back_populates="part")
+
+    def __repr__(self) -> str:
         """
-        String representation of the Part model.
+        Return a string representation of the part.
 
         Returns:
-            str: Descriptive string of the Part instance.
+            str: String representation with id, name, and type
         """
-        return (
-            f"<Part(id={self.id}, "
-            f"name='{self.name}', "
-            f"quantity={self.quantity} {self.unit}, "
-            f"active={self.is_active})>"
-        )
+        return f"<Part id={self.id}, name='{self.name}'>"
 
-    @classmethod
-    def create_part(
-            cls,
-            name: str,
-            description: str = None,
-            quantity: float = 0.0,
-            unit: str = 'unit',
-            is_active: bool = True,
-            **kwargs
-    ) -> 'Part':
+    def is_low_stock(self) -> bool:
         """
-        Class method to create a new Part instance with validation.
+        Check if the part is low in stock.
+
+        Returns:
+            bool: True if the quantity is below the minimum stock level
+        """
+        return self.current_quantity < self.minimum_quantity
+
+    def is_out_of_stock(self) -> bool:
+        """
+        Check if the part is out of stock.
+
+        Returns:
+            bool: True if the quantity is zero
+        """
+        return self.current_quantity <= 0
+
+    def update_stock(self, quantity_change: float) -> None:
+        """
+        Update the stock quantity.
 
         Args:
-            name (str): Name of the part.
-            description (str, optional): Description of the part.
-            quantity (float, optional): Initial quantity. Defaults to 0.0.
-            unit (str, optional): Unit of measurement. Defaults to 'unit'.
-            is_active (bool, optional): Active status. Defaults to True.
-            **kwargs: Additional attributes to set.
-
-        Returns:
-            Part: Newly created Part instance
+            quantity_change: Amount to change the quantity by (positive or negative)
         """
-        part_data = {
-            'name': name,
-            'description': description,
-            'quantity': quantity,
-            'unit': unit,
-            'is_active': is_active,
-            **kwargs
-        }
-
-        return cls.create(**part_data)
-
-    def adjust_quantity(self, amount: float) -> float:
-        """
-        Adjust the quantity of the part.
-
-        Args:
-            amount (float): Amount to add or subtract from current quantity.
-
-        Returns:
-            float: New quantity after adjustment.
-
-        Raises:
-            ValueError: If adjustment would result in negative quantity.
-        """
-        new_quantity = self.quantity + amount
-
+        new_quantity = self.current_quantity + quantity_change
         if new_quantity < 0:
-            raise ValueError(
-                f"Quantity adjustment would result in negative value for {self.name}")
+            raise ValueError("Stock cannot be negative")
 
-        self.quantity = new_quantity
-        return self.quantity
+        self.current_quantity = new_quantity
+        self._update_status()
 
-    def deactivate(self) -> None:
-        """
-        Deactivate the part.
-        """
-        self.is_active = False
+    def _update_status(self) -> None:
+        """Update the inventory status based on current quantity."""
+        if self.current_quantity <= 0:
+            self.status = InventoryStatus.OUT_OF_STOCK
+        elif self.current_quantity < self.minimum_quantity:
+            self.status = InventoryStatus.LOW_STOCK
+        else:
+            self.status = InventoryStatus.IN_STOCK
 
-    def activate(self) -> None:
+    def to_dict(self) -> Dict[str, Any]:
         """
-        Activate the part.
+        Convert the part to a dictionary.
+
+        Returns:
+            Dict[str, Any]: Dictionary representation of the part
         """
-        self.is_active = True
+        result = super().to_dict()
+        result['supplier'] = self.supplier.name if self.supplier else None
+        return result

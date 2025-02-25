@@ -1,101 +1,85 @@
 # database/models/base.py
-import logging
-from sqlalchemy import Column, DateTime, Integer
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import declared_attr
-from sqlalchemy import func
-from typing import Any, Dict, Optional, Type, TypeVar
-from utils.logger import get_logger
+"""
+Base model classes for SQLAlchemy ORM models.
 
-# Type variable for generic methods
-T = TypeVar('T')
+This module defines the Base class that all SQLAlchemy models should inherit from,
+as well as common functionality through the BaseModel class.
+"""
 
-# Get a logger for this module
-logger = get_logger(__name__)
+from typing import Any, Dict, Optional
+from sqlalchemy.orm import declarative_base, DeclarativeMeta
+from sqlalchemy import Column, Integer, DateTime
+from sqlalchemy import create_engine, MetaData
+from sqlalchemy.sql import func
+
+# Define naming convention for constraints
+convention = {
+    "ix": "ix_%(column_0_label)s",
+    "uq": "uq_%(table_name)s_%(column_0_name)s",
+    "ck": "ck_%(table_name)s_%(constraint_name)s",
+    "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
+    "pk": "pk_%(table_name)s"
+}
+
+# Create metadata with naming convention
+metadata = MetaData(naming_convention=convention)
+
+# Create base class for declarative models
+Base = declarative_base(metadata=metadata)
 
 
-# Create the base class for SQLAlchemy models
-class BaseClass:
-    """Base class for all SQLAlchemy models."""
+class BaseModel:
+    """
+    Base model providing common functionality for all SQLAlchemy models.
 
-    @declared_attr
-    def __tablename__(cls):
-        """
-        Generates the table name automatically from the class name.
-
-        Returns:
-            str: The lowercase class name as the table name.
-        """
-        return cls.__name__.lower()
-
-    # Common columns for all models
+    Attributes:
+        id (int): Primary key for the model.
+        created_at (DateTime): Timestamp of model creation.
+        updated_at (DateTime): Timestamp of last model update.
+    """
     id = Column(Integer, primary_key=True)
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
+    def __repr__(self) -> str:
+        """
+        Default string representation of the model.
 
-# Create the declarative base with our custom Base class
-Base = declarative_base(cls=BaseClass)
+        Returns:
+            str: String representation including class name and ID.
+        """
+        return f"<{self.__class__.__name__} id={self.id}>"
 
-# Rename the Base to BaseModel for clarity
-BaseModel = Base
+    def to_dict(self, exclude: list = None) -> Dict[str, Any]:
+        """
+        Convert model instance to a dictionary.
 
+        Args:
+            exclude (list, optional): List of attributes to exclude from dictionary.
 
-def to_dict(self, exclude_fields=None) -> Dict[str, Any]:
-    """
-    Convert the model instance to a dictionary.
+        Returns:
+            Dict[str, Any]: Dictionary representation of the model.
+        """
+        if exclude is None:
+            exclude = []
 
-    Args:
-        exclude_fields: Optional list of field names to exclude
+        result = {}
+        for key in self.__mapper__.c.keys():
+            if key not in exclude:
+                result[key] = getattr(self, key)
+        return result
 
-    Returns:
-        Dict containing the model data
-    """
-    if exclude_fields is None:
-        exclude_fields = []
+    def update(self, **kwargs) -> 'BaseModel':
+        """
+        Update model attributes.
 
-    data = {}
-    for column in self.__table__.columns:
-        if column.name not in exclude_fields:
-            data[column.name] = getattr(self, column.name)
+        Args:
+            **kwargs: Keyword arguments representing attributes to update.
 
-    return data
-
-
-def update(self, **kwargs):
-    """
-    Update the model instance with the provided values.
-
-    Args:
-        **kwargs: Keyword arguments with field names and values
-
-    Returns:
-        self: The updated instance
-    """
-    for key, value in kwargs.items():
-        if hasattr(self, key):
-            setattr(self, key, value)
-        else:
-            logger.warning(f"Attribute '{key}' not found in {self.__class__.__name__}")
-
-    return self
-
-
-@classmethod
-def create(cls, **kwargs):
-    """
-    Create a new instance of the model.
-
-    Args:
-        **kwargs: Keyword arguments with field names and values
-
-    Returns:
-        A new instance of the model
-    """
-    return cls(**kwargs)
-
-
-# Add the methods to the BaseModel class
-BaseModel.to_dict = to_dict
-BaseModel.update = update
-BaseModel.create = create
+        Returns:
+            BaseModel: Updated instance.
+        """
+        for key, value in kwargs.items():
+            if hasattr(self, key):
+                setattr(self, key, value)
+        return self

@@ -13,7 +13,7 @@ import logging
 
 from di.core import inject
 from services.interfaces import MaterialService
-from models.material import (
+from database.models.material import (
     Material,
     MaterialType,
     MaterialQualityGrade
