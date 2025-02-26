@@ -1,63 +1,31 @@
-# path: database/__init__.py
-"""
-Database package for the store management application.
-
-This package provides database models, connection management,
-and CRUD operations for the application's data.
-"""
+# database/__init__.py
 
 import logging
-from typing import Optional, Callable
+from typing import Callable, Optional
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+from sqlalchemy.orm import declarative_base
+
+from database.initialize import initialize_database
+from database.models.base import Base, BaseModel
+from database.models.components import Component, PatternComponent, ProjectComponent
+from database.models.enums import LeatherType, MaterialType, OrderStatus, ProjectStatus
+from utils.circular_import_resolver import CircularImportResolver
+
 logger = logging.getLogger(__name__)
 
-# Import circular import resolver to handle import cycles
+Base = declarative_base()
+
 try:
-    from utils.circular_import_resolver import CircularImportResolver
-except ImportError:
-    # Create a minimal implementation if the real one can't be imported
-    class CircularImportResolver:
-        @classmethod
-        def register_pending_import(cls, module_name: str, exception: Exception) -> None:
-            logger.error(f"Failed to import {module_name}: {exception}")
-
-        @classmethod
-        def get_module(cls, module_name: str) -> Optional[object]:
-            return None
-
-# Try to import models in a way that handles circular imports
-try:
-    # Import enums first as they don't depend on other modules
-    from database.models.enums import MaterialType, LeatherType, OrderStatus, ProjectStatus
-
-    # Then try to import other model modules
-    from database.models.base import Base, BaseModel
-    from database.models.material import Material
     from database.models.hardware import Hardware
-    from database.models.components import Component, PatternComponent, ProjectComponent
-    from database.models.pattern import Pattern  # Import Pattern instead of Recipe
+    from database.models.leather import Leather
+    from database.models.material import Material, MaterialTransaction
+    from database.models.order import Order, OrderItem
+    from database.models.part import Part
+    from database.models.pattern import Pattern
+    from database.models.product import Product
+    from database.models.project import Project, ProjectComponent
+    from database.models.shopping_list import ShoppingList, ShoppingListItem
+    from database.models.storage import Storage
+    from database.models.supplier import Supplier
 except ImportError as e:
-    # Register the import failure to be resolved later
     CircularImportResolver.register_pending_import(__name__, e)
-
-# Import database initialization function
-try:
-    from database.initialize import initialize_database
-except ImportError as e:
-    logger.error(f"Failed to import database initialization: {e}")
-
-
-    # Define a placeholder for the initialization function
-    def initialize_database(drop_existing: bool = False) -> None:
-        """
-        Placeholder for the database initialization function.
-
-        This function is meant to be replaced by the actual implementation
-        from database.initialize.
-
-        Args:
-            drop_existing: Whether to drop existing tables
-        """
-        logger.error("Database initialization not available.")

@@ -1,41 +1,126 @@
-#!/usr/bin/env python3
-# Path: base_service.py
+# services/base_service.py
 """
-Base service implementation providing generic CRUD operations.
+Base service module providing common functionality for all services.
 
-This module contains the AbstractBaseService class which serves as a foundation
-for all service implementations in the application.
+This module defines abstract base classes and common utility methods
+for service implementations across the application.
 """
 
+import abc
 import logging
-from abc import ABC, abstractmethod
 from typing import Any, Dict, Generic, List, Optional, TypeVar
 
-from di.core import inject
-from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
-from repositories.interfaces import IBaseRepository
-from infrastructure.unit_of_work import IUnitOfWork
-from exceptions import NotFoundError, ValidationError, ApplicationError
+# Fix imports by using the correct paths based on project structure
+# The exceptions are likely in utils.error_handler or database.exceptions
+try:
+    # Try to import from database.exceptions first
+    from database.exceptions import ApplicationError, NotFoundError, ValidationError
+except ImportError:
+    try:
+        # Try to import from utils.error_handler next
+        from utils.error_handler import ApplicationError, NotFoundError, ValidationError
+    except ImportError:
+        # Define minimal fallback exception classes if imports fail
+        class BaseApplicationException(Exception):
+            """Base exception class for application errors."""
 
-# Generic type for entities
+            def __init__(self, message: str, context: Dict[str, Any] = None):
+                self.context = context or {}
+                super().__init__(message)
+
+
+        class ApplicationError(BaseApplicationException):
+            """Exception raised for general application errors."""
+            pass
+
+
+        class NotFoundError(BaseApplicationException):
+            """Exception raised when a requested resource is not found."""
+            pass
+
+
+        class ValidationError(BaseApplicationException):
+            """Exception raised when data validation fails."""
+            pass
+
+# Try to import IBaseRepository from the correct location
+try:
+    # Try database.repositories.interfaces
+    from database.repositories.interfaces import IBaseRepository
+except ImportError:
+    try:
+        # Try database.interfaces
+        from database.interfaces import IBaseRepository
+    except ImportError:
+        # Define a minimal interface if import fails
+        class IBaseRepository(abc.ABC, Generic[TypeVar('E')]):
+            """Interface for repository pattern implementations."""
+
+            @abc.abstractmethod
+            def get_by_id(self, id_value: Any): pass
+
+            @abc.abstractmethod
+            def get_all(self): pass
+
+            @abc.abstractmethod
+            def create(self, data: Dict[str, Any]): pass
+
+            @abc.abstractmethod
+            def update(self, id_value: Any, data: Dict[str, Any]): pass
+
+            @abc.abstractmethod
+            def delete(self, id_value: Any): pass
+
+# Try to import IUnitOfWork from the correct location
+try:
+    from database.unit_of_work import IUnitOfWork
+except ImportError:
+    try:
+        from infrastructure.unit_of_work import IUnitOfWork
+    except ImportError:
+        # Define a minimal interface if import fails
+        class IUnitOfWork(abc.ABC):
+            """Interface for transaction management."""
+
+            @abc.abstractmethod
+            def __enter__(self): pass
+
+            @abc.abstractmethod
+            def __exit__(self, exc_type, exc_val, exc_tb): pass
+
+            @abc.abstractmethod
+            def commit(self): pass
+
+            @abc.abstractmethod
+            def rollback(self): pass
+
+# Import service interfaces - these should be stable
+from services.interfaces import (
+    InventoryService,
+    MaterialService,
+    OrderService,
+    ProjectService
+)
+
+# Logger for this module
+logger = logging.getLogger(__name__)
+
+# Type variable for generic typing
 T = TypeVar('T')
 
 
-class BaseService(ABC, Generic[T]):
+class Service(abc.ABC, Generic[T]):
     """
-    Abstract base service providing a generic implementation of CRUD operations.
+    Abstract base class for all services.
 
-    This service acts as an intermediate layer between the repository
-    and the application logic, adding additional validation, error handling,
-    and business logic capabilities.
-
-    Attributes:
-        _repository (IBaseRepository): The repository for data access
-        _unit_of_work (IUnitOfWork): Unit of work for transaction management
-        _logger (logging.Logger): Logger for the service
+    Provides common functionality for CRUD operations and transaction management.
     """
 
-    def __init__(self, repository: IBaseRepository[T], unit_of_work: Optional[IUnitOfWork] = None):
+    def __init__(
+            self,
+            repository: IBaseRepository[T],
+            unit_of_work: Optional[IUnitOfWork] = None
+    ):
         """
         Initialize the base service with a repository and optional unit of work.
 
@@ -43,196 +128,174 @@ class BaseService(ABC, Generic[T]):
             repository (IBaseRepository[T]): Repository for data access
             unit_of_work (Optional[IUnitOfWork], optional): Unit of work for transactions
         """
-        self._repository = repository
-        self._unit_of_work = unit_of_work
-        self._logger = logging.getLogger(self.__class__.__name__)
+        self.repository = repository
+        self.unit_of_work = unit_of_work
+        logger.debug(f"Initialized {self.__class__.__name__} with {repository.__class__.__name__}")
 
-    def get_by_id(self, id: Any) -> Optional[T]:
+    def get_by_id(self, id_value: Any) -> T:
         """
-        Retrieve an entity by its unique identifier.
+        Get an entity by its ID.
 
         Args:
-            id (Any): The unique identifier of the entity
+            id_value: The ID of the entity to retrieve
 
         Returns:
-            Optional[T]: The retrieved entity
+            The entity with the specified ID
 
         Raises:
-            NotFoundError: If no entity is found with the given ID
-            ApplicationError: If an error occurs during retrieval
+            NotFoundError: If the entity does not exist
         """
         try:
-            entity = self._repository.get_by_id(id)
-            if not entity:
-                raise NotFoundError(f'Entity with ID {id} not found', {'id': id})
+            entity = self.repository.get_by_id(id_value)
+            if entity is None:
+                raise NotFoundError(f"Entity with ID {id_value} not found")
             return entity
         except Exception as e:
-            self._logger.error(f'Error retrieving entity by ID {id}: {e}')
-            raise ApplicationError(f'Failed to retrieve entity: {str(e)}', {'id': id})
+            if isinstance(e, NotFoundError):
+                raise
+            logger.error(f"Error retrieving entity with ID {id_value}: {str(e)}")
+            raise ApplicationError(f"Failed to retrieve entity: {str(e)}")
 
-    def get_all(self, limit: Optional[int] = None, offset: Optional[int] = None) -> List[T]:
+    def get_all(self) -> List[T]:
         """
-        Retrieve all entities with optional pagination.
-
-        Args:
-            limit (Optional[int], optional): Maximum number of entities to return
-            offset (Optional[int], optional): Number of entities to skip
+        Get all entities.
 
         Returns:
-            List[T]: A list of entities
+            List of all entities
 
         Raises:
-            ApplicationError: If an error occurs during retrieval
+            ApplicationError: If the operation fails
         """
         try:
-            return self._repository.get_all(limit=limit, offset=offset)
+            return self.repository.get_all()
         except Exception as e:
-            self._logger.error(f'Error retrieving all entities: {e}')
-            raise ApplicationError('Failed to retrieve entities', {})
+            logger.error(f"Error retrieving all entities: {str(e)}")
+            raise ApplicationError(f"Failed to retrieve entities: {str(e)}")
 
     def create(self, data: Dict[str, Any]) -> T:
         """
         Create a new entity.
 
         Args:
-            data (Dict[str, Any]): Data to create the entity
+            data: Dictionary with entity data
 
         Returns:
-            T: The created entity
+            The created entity
 
         Raises:
-            ValidationError: If the data fails validation
-            ApplicationError: If an error occurs during creation
+            ValidationError: If the data is invalid
+            ApplicationError: If the operation fails
         """
         try:
+            # Validate the data before creating
             self._validate_create_data(data)
-            if self._unit_of_work:
-                with self._unit_of_work:
-                    entity = self._repository.add(data)
-                    self._unit_of_work.commit()
-                return entity
+
+            # Use unit of work if available
+            if self.unit_of_work:
+                with self.unit_of_work:
+                    entity = self.repository.create(data)
+                    self.unit_of_work.commit()
+                    return entity
             else:
-                return self._repository.add(data)
-        except ValidationError as ve:
-            self._logger.warning(f'Validation error creating entity: {ve}')
+                return self.repository.create(data)
+        except ValidationError:
             raise
         except Exception as e:
-            self._logger.error(f'Error creating entity: {e}')
-            raise ApplicationError(f'Failed to create entity: {str(e)}', {'input_data': data})
+            logger.error(f"Error creating entity: {str(e)}")
+            raise ApplicationError(f"Failed to create entity: {str(e)}")
 
-    def update(self, id: Any, data: Dict[str, Any]) -> T:
+    def update(self, id_value: Any, data: Dict[str, Any]) -> T:
         """
         Update an existing entity.
 
         Args:
-            id (Any): The unique identifier of the entity to update
-            data (Dict[str, Any]): Updated data for the entity
+            id_value: ID of the entity to update
+            data: Dictionary with updated data
 
         Returns:
-            T: The updated entity
+            The updated entity
 
         Raises:
-            NotFoundError: If the entity doesn't exist
-            ValidationError: If the update data is invalid
-            ApplicationError: If an error occurs during update
+            NotFoundError: If the entity does not exist
+            ValidationError: If the data is invalid
+            ApplicationError: If the operation fails
         """
         try:
-            existing_entity = self.get_by_id(id)
-            self._validate_update_data(existing_entity, data)
-            if self._unit_of_work:
-                with self._unit_of_work:
-                    updated_entity = self._repository.update(id, data)
-                    self._unit_of_work.commit()
-                return updated_entity
+            # Check if entity exists
+            entity = self.get_by_id(id_value)
+
+            # Validate the update data
+            self._validate_update_data(id_value, data)
+
+            # Use unit of work if available
+            if self.unit_of_work:
+                with self.unit_of_work:
+                    updated_entity = self.repository.update(id_value, data)
+                    self.unit_of_work.commit()
+                    return updated_entity
             else:
-                return self._repository.update(id, data)
+                return self.repository.update(id_value, data)
         except (NotFoundError, ValidationError):
             raise
         except Exception as e:
-            self._logger.error(f'Error updating entity {id}: {e}')
-            raise ApplicationError(f'Failed to update entity: {str(e)}', {'id': id, 'input_data': data})
+            logger.error(f"Error updating entity with ID {id_value}: {str(e)}")
+            raise ApplicationError(f"Failed to update entity: {str(e)}")
 
-    def delete(self, id: Any) -> bool:
+    def delete(self, id_value: Any) -> bool:
         """
-        Delete an entity by its identifier.
+        Delete an entity.
 
         Args:
-            id (Any): The unique identifier of the entity to delete
+            id_value: ID of the entity to delete
 
         Returns:
-            bool: True if deletion was successful
+            True if the entity was deleted, False otherwise
 
         Raises:
-            NotFoundError: If the entity doesn't exist
-            ApplicationError: If an error occurs during deletion
+            NotFoundError: If the entity does not exist
+            ApplicationError: If the operation fails
         """
         try:
-            self.get_by_id(id)  # Check if entity exists
-            if self._unit_of_work:
-                with self._unit_of_work:
-                    result = self._repository.delete(id)
-                    self._unit_of_work.commit()
-                return result
+            # Check if entity exists
+            self.get_by_id(id_value)
+
+            # Use unit of work if available
+            if self.unit_of_work:
+                with self.unit_of_work:
+                    result = self.repository.delete(id_value)
+                    self.unit_of_work.commit()
+                    return result
             else:
-                return self._repository.delete(id)
+                return self.repository.delete(id_value)
         except NotFoundError:
             raise
         except Exception as e:
-            self._logger.error(f'Error deleting entity {id}: {e}')
-            raise ApplicationError(f'Failed to delete entity: {str(e)}', {'id': id})
+            logger.error(f"Error deleting entity with ID {id_value}: {str(e)}")
+            raise ApplicationError(f"Failed to delete entity: {str(e)}")
 
-    @abstractmethod
     def _validate_create_data(self, data: Dict[str, Any]) -> None:
         """
-        Abstract method to validate data before entity creation.
-
-        Subclasses must implement specific validation logic.
+        Validate data for entity creation.
 
         Args:
-            data (Dict[str, Any]): Data to be validated
+            data: Dictionary with entity data
 
         Raises:
-            ValidationError: If data is invalid
+            ValidationError: If the data is invalid
         """
+        # Base implementation does nothing - subclasses should override
         pass
 
-    @abstractmethod
-    def _validate_update_data(self, existing_entity: T, update_data: Dict[str, Any]) -> None:
+    def _validate_update_data(self, id_value: Any, data: Dict[str, Any]) -> None:
         """
-        Abstract method to validate data before entity update.
-
-        Subclasses must implement specific validation logic.
+        Validate data for entity update.
 
         Args:
-            existing_entity (T): The existing entity
-            update_data (Dict[str, Any]): Data to be validated
+            id_value: ID of the entity to update
+            data: Dictionary with updated data
 
         Raises:
-            ValidationError: If data is invalid
+            ValidationError: If the data is invalid
         """
+        # Base implementation does nothing - subclasses should override
         pass
-
-    def search(self, search_term: str, fields: Optional[List[str]] = None) -> List[T]:
-        """
-        Search for entities based on a search term.
-
-        Args:
-            search_term (str): Term to search for
-            fields (Optional[List[str]], optional): Fields to search in
-
-        Returns:
-            List[T]: List of matching entities
-
-        Raises:
-            ApplicationError: If an error occurs during search
-        """
-        try:
-            if hasattr(self._repository, 'search'):
-                return self._repository.search(search_term, fields)
-            else:
-                self._logger.warning('Search not supported by repository')
-                return []
-        except Exception as e:
-            self._logger.error(f'Error searching entities: {e}')
-            raise ApplicationError(f'Failed to search entities: {str(e)}',
-                                   {'search_term': search_term, 'fields': fields})

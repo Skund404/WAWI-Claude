@@ -1,42 +1,35 @@
-# store_management/database/repositories/base_repository.py
-"""
-Base repository module for standard database operations.
+# Path: database/repositories/base_repository.py
 
-This module provides a generic base repository class that implements 
-common CRUD (Create, Read, Update, Delete) operations using SQLAlchemy.
+"""
+Base Repository for common database operations.
+
+Provides a generic implementation of basic CRUD operations
+for SQLAlchemy models.
 """
 
-from typing import (
-    Any,
-    Dict,
-    Generic,
-    List,
-    Optional,
-    Type,
-    TypeVar
-)
 import logging
+from typing import TypeVar, Generic, List, Optional, Dict, Any, Type
+
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy import or_
+
+# Type variable for the model
+T = TypeVar('T')
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
-# Generic type variable for the model
-T = TypeVar('T')
-
 
 class BaseRepository(Generic[T]):
     """
-    A generic base repository for database operations.
+    Base repository providing common database operations.
 
-    Provides standard CRUD methods for database models with error handling
-    and logging.
+    Supports Create, Read, Update, and Delete (CRUD) operations
+    for SQLAlchemy models.
 
     Attributes:
         session (Session): SQLAlchemy database session
-        model_class (Type[T]): The SQLAlchemy model class being managed
+        model_class (Type[T]): SQLAlchemy model class
     """
 
     def __init__(self, session: Session, model_class: Type[T]):
@@ -45,206 +38,137 @@ class BaseRepository(Generic[T]):
 
         Args:
             session (Session): SQLAlchemy database session
-            model_class (Type[T]): The model class for this repository
+            model_class (Type[T]): SQLAlchemy model class
         """
         self.session = session
         self.model_class = model_class
 
-    def get_by_id(self, model_id: int) -> Optional[T]:
+    def get_by_id(self, id_value: int) -> Optional[T]:
         """
-        Retrieve a single record by its ID.
+        Retrieve an entity by its primary key.
 
         Args:
-            model_id (int): The unique identifier of the record
+            id_value (int): Primary key value
 
         Returns:
-            Optional[T]: The retrieved record or None if not found
-
-        Raises:
-            SQLAlchemyError: If there's a database-related error
+            Optional[T]: Entity if found, None otherwise
         """
         try:
-            return self.session.query(self.model_class).get(model_id)
+            return self.session.query(self.model_class).get(id_value)
         except SQLAlchemyError as e:
-            logger.error(f'Error retrieving {self.model_class.__name__} with ID {model_id}: {e}')
+            logger.error(f"Error retrieving {self.model_class.__name__} by ID {id_value}: {e}")
             raise
 
-    def get_all(self, limit: Optional[int] = None, offset: Optional[int] = None) -> List[T]:
+    def get_all(self,
+                limit: Optional[int] = None,
+                offset: Optional[int] = None) -> List[T]:
         """
-        Retrieve all records with optional pagination.
+        Retrieve all entities with optional pagination.
 
         Args:
-            limit (Optional[int], optional): Maximum number of records to return
-            offset (Optional[int], optional): Number of records to skip
+            limit (Optional[int]): Maximum number of results to return
+            offset (Optional[int]): Number of results to skip
 
         Returns:
-            List[T]: List of retrieved records
-
-        Raises:
-            SQLAlchemyError: If there's a database-related error
+            List[T]: List of entities
         """
         try:
             query = self.session.query(self.model_class)
 
-            if offset is not None:
-                query = query.offset(offset)
-
             if limit is not None:
                 query = query.limit(limit)
 
+            if offset is not None:
+                query = query.offset(offset)
+
             return query.all()
         except SQLAlchemyError as e:
-            logger.error(f'Error retrieving all {self.model_class.__name__}: {e}')
+            logger.error(f"Error retrieving all {self.model_class.__name__}: {e}")
             raise
 
     def create(self, data: Dict[str, Any]) -> T:
         """
-        Create a new record.
+        Create a new entity.
 
         Args:
-            data (Dict[str, Any]): Dictionary of field values for the new record
+            data (Dict[str, Any]): Entity creation data
 
         Returns:
-            T: The created record
-
-        Raises:
-            SQLAlchemyError: If there's a database-related error during creation
-            ValueError: If required fields are missing
+            T: The newly created entity
         """
         try:
-            # Validate required fields if needed
-            instance = self.model_class(**data)
+            # Create new entity instance
+            new_entity = self.model_class(**data)
 
-            self.session.add(instance)
+            # Add to session and commit
+            self.session.add(new_entity)
             self.session.commit()
 
-            return instance
+            logger.info(f"Created new {self.model_class.__name__}: {new_entity}")
+            return new_entity
         except SQLAlchemyError as e:
             self.session.rollback()
-            logger.error(f'Error creating {self.model_class.__name__}: {e}')
+            logger.error(f"Error creating {self.model_class.__name__}: {e}")
             raise
-        except TypeError as e:
-            logger.error(f'Invalid data for {self.model_class.__name__}: {e}')
-            raise ValueError(f'Invalid data for {self.model_class.__name__}')
 
-    def update(self, model_id: int, data: Dict[str, Any]) -> T:
+    def update(self, id_value: int, data: Dict[str, Any]) -> Optional[T]:
         """
-        Update an existing record.
+        Update an existing entity.
 
         Args:
-            model_id (int): The ID of the record to update
-            data (Dict[str, Any]): Dictionary of field values to update
+            id_value (int): Primary key of the entity to update
+            data (Dict[str, Any]): Update data
 
         Returns:
-            T: The updated record
-
-        Raises:
-            SQLAlchemyError: If there's a database-related error
-            ValueError: If the record is not found
+            Optional[T]: Updated entity, or None if not found
         """
         try:
-            # Retrieve the existing instance
-            instance = self.get_by_id(model_id)
+            # Find the existing entity
+            entity = self.get_by_id(id_value)
 
-            if instance is None:
-                raise ValueError(f'{self.model_class.__name__} with ID {model_id} not found')
+            if entity is None:
+                logger.warning(f"{self.model_class.__name__} with ID {id_value} not found")
+                return None
 
-            # Update instance attributes
+            # Update entity attributes
             for key, value in data.items():
-                if hasattr(instance, key):
-                    setattr(instance, key, value)
-                else:
-                    logger.warning(f'Attempted to set non-existent attribute {key} on {self.model_class.__name__}')
+                setattr(entity, key, value)
 
+            # Commit changes
             self.session.commit()
-            return instance
+
+            logger.info(f"Updated {self.model_class.__name__} with ID {id_value}")
+            return entity
         except SQLAlchemyError as e:
             self.session.rollback()
-            logger.error(f'Error updating {self.model_class.__name__} with ID {model_id}: {e}')
+            logger.error(f"Error updating {self.model_class.__name__} with ID {id_value}: {e}")
             raise
 
-    def delete(self, model_id: int) -> bool:
+    def delete(self, id_value: int) -> bool:
         """
-        Delete a record.
+        Delete an entity by its primary key.
 
         Args:
-            model_id (int): The ID of the record to delete
+            id_value (int): Primary key of the entity to delete
 
         Returns:
-            bool: True if deletion was successful
-
-        Raises:
-            SQLAlchemyError: If there's a database-related error
-            ValueError: If the record is not found
+            bool: True if deletion was successful, False otherwise
         """
         try:
-            # Retrieve the instance to delete
-            instance = self.get_by_id(model_id)
+            # Find the existing entity
+            entity = self.get_by_id(id_value)
 
-            if instance is None:
-                raise ValueError(f'{self.model_class.__name__} with ID {model_id} not found')
+            if entity is None:
+                logger.warning(f"{self.model_class.__name__} with ID {id_value} not found")
+                return False
 
-            self.session.delete(instance)
+            # Delete the entity
+            self.session.delete(entity)
             self.session.commit()
 
+            logger.info(f"Deleted {self.model_class.__name__} with ID {id_value}")
             return True
         except SQLAlchemyError as e:
             self.session.rollback()
-            logger.error(f'Error deleting {self.model_class.__name__} with ID {model_id}: {e}')
-            raise
-
-    def filter_by(self, **kwargs) -> List[T]:
-        """
-        Filter records by specific criteria.
-
-        Args:
-            **kwargs: Keyword arguments representing filter conditions
-
-        Returns:
-            List[T]: List of records matching the filter conditions
-
-        Raises:
-            SQLAlchemyError: If there's a database-related error
-        """
-        try:
-            return self.session.query(self.model_class).filter_by(**kwargs).all()
-        except SQLAlchemyError as e:
-            logger.error(f'Error filtering {self.model_class.__name__} by {kwargs}: {e}')
-            raise
-
-    def search(self, search_term: str, fields: List[str]) -> List[T]:
-        """
-        Perform a case-insensitive search across specified fields.
-
-        Args:
-            search_term (str): The term to search for
-            fields (List[str]): The fields to search in
-
-        Returns:
-            List[T]: List of records matching the search term
-
-        Raises:
-            SQLAlchemyError: If there's a database-related error
-            ValueError: If no valid search conditions are found
-        """
-        try:
-            # Validate input
-            if not search_term or not fields:
-                return []
-
-            # Build search conditions
-            conditions = []
-            for field in fields:
-                if hasattr(self.model_class, field):
-                    attr = getattr(self.model_class, field)
-                    conditions.append(attr.ilike(f'%{search_term}%'))
-
-            # Ensure at least one valid condition exists
-            if not conditions:
-                raise ValueError(f'No valid search fields found for {self.model_class.__name__}')
-
-            # Execute search query
-            return self.session.query(self.model_class).filter(or_(*conditions)).all()
-        except SQLAlchemyError as e:
-            logger.error(f"Error searching {self.model_class.__name__} for '{search_term}' in {fields}: {e}")
+            logger.error(f"Error deleting {self.model_class.__name__} with ID {id_value}: {e}")
             raise

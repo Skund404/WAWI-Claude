@@ -1,4 +1,4 @@
-# path: config/settings.py
+# Path: config/settings.py
 """
 Configuration settings for the store management application.
 
@@ -10,15 +10,33 @@ backup directories, and configuration files.
 import os
 import sys
 import logging
+from datetime import datetime
 from pathlib import Path
 from typing import Optional, Union, Dict, Any
 
-# Configure basic logging
+# Configure logging with more comprehensive settings
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler(
+            filename=os.path.join(
+                os.path.dirname(os.path.abspath(__file__)),
+                '..',
+                'logs',
+                f'store_management_{datetime.now().strftime("%Y-%m-%d")}.log'
+            ),
+            encoding='utf-8'
+        )
+    ]
 )
 logger = logging.getLogger(__name__)
+
+# Application Configuration
+APP_NAME = "Leatherworking Store Management"
+APP_VERSION = "0.1.0"
+APP_DESCRIPTION = "Comprehensive store management system for leatherworking businesses"
 
 
 def _find_project_root() -> Path:
@@ -27,24 +45,50 @@ def _find_project_root() -> Path:
 
     Returns:
         Path: The absolute path to the project root directory
+
+    Raises:
+        RuntimeError: If project root cannot be determined
     """
-    # Start with the current file's directory
-    current_dir = Path(os.path.dirname(os.path.abspath(__file__)))
+    try:
+        # Start with the current file's directory
+        current_dir = Path(os.path.dirname(os.path.abspath(__file__)))
 
-    # Check if we're already at the project root
-    if (current_dir / 'main.py').exists() or (current_dir / 'setup.py').exists():
-        return current_dir
-
-    # Navigate up until we find a marker file
-    while current_dir != current_dir.parent:
-        # Look for common project root markers
+        # Check if we're already at the project root
         if (current_dir / 'main.py').exists() or (current_dir / 'setup.py').exists():
             return current_dir
-        current_dir = current_dir.parent
 
-    # If we couldn't find project root, default to parent of this file
-    logger.warning("Could not detect project root directory. Using parent of config directory.")
-    return Path(os.path.dirname(os.path.abspath(__file__))).parent
+        # Navigate up until we find a marker file
+        while current_dir != current_dir.parent:
+            # Look for common project root markers
+            if (current_dir / 'main.py').exists() or (current_dir / 'setup.py').exists():
+                return current_dir
+            current_dir = current_dir.parent
+
+        # If we couldn't find project root, raise an error
+        raise RuntimeError("Could not detect project root directory")
+
+    except Exception as e:
+        logger.error(f"Error finding project root: {e}")
+        raise RuntimeError(f"Project root detection failed: {e}")
+
+
+def ensure_directory_exists(directory: Union[str, Path]) -> Path:
+    """
+    Ensure a directory exists, creating it if necessary.
+
+    Args:
+        directory (Union[str, Path]): Path to the directory
+
+    Returns:
+        Path: Absolute path to the existing directory
+    """
+    dir_path = Path(directory)
+    try:
+        dir_path.mkdir(parents=True, exist_ok=True)
+        return dir_path.absolute()
+    except Exception as e:
+        logger.error(f"Failed to create directory {directory}: {e}")
+        raise
 
 
 def get_database_path() -> str:
@@ -54,14 +98,17 @@ def get_database_path() -> str:
     Returns:
         str: Absolute path to the database file
     """
-    root_dir = _find_project_root()
-    db_dir = root_dir / 'data'
+    try:
+        root_dir = _find_project_root()
+        db_dir = ensure_directory_exists(root_dir / 'data')
+        db_path = db_dir / 'store_management.db'
 
-    # Ensure the data directory exists
-    if not db_dir.exists():
-        os.makedirs(db_dir, exist_ok=True)
+        logger.info(f"Database path: {db_path}")
+        return str(db_path)
 
-    return str(db_dir / 'store_management.db')
+    except Exception as e:
+        logger.error(f"Failed to get database path: {e}")
+        raise
 
 
 def get_log_path() -> str:
@@ -71,14 +118,20 @@ def get_log_path() -> str:
     Returns:
         str: Absolute path to the log directory
     """
-    root_dir = _find_project_root()
-    log_dir = root_dir / 'logs'
+    try:
+        root_dir = _find_project_root()
+        log_dir = ensure_directory_exists(root_dir / 'logs')
 
-    # Ensure the log directory exists
-    if not log_dir.exists():
-        os.makedirs(log_dir, exist_ok=True)
+        # Generate log filename with timestamp
+        log_filename = f'store_management_{datetime.now().strftime("%Y-%m-%d")}.log'
+        log_path = log_dir / log_filename
 
-    return str(log_dir)
+        logger.info(f"Log directory: {log_dir}")
+        return str(log_path)
+
+    except Exception as e:
+        logger.error(f"Failed to get log path: {e}")
+        raise
 
 
 def get_backup_path() -> str:
@@ -88,32 +141,89 @@ def get_backup_path() -> str:
     Returns:
         str: Absolute path to the backup directory
     """
-    root_dir = _find_project_root()
-    backup_dir = root_dir / 'backups'
+    try:
+        root_dir = _find_project_root()
+        backup_dir = ensure_directory_exists(root_dir / 'backups')
 
-    # Ensure the backup directory exists
-    if not backup_dir.exists():
-        os.makedirs(backup_dir, exist_ok=True)
+        logger.info(f"Backup directory: {backup_dir}")
+        return str(backup_dir)
 
-    return str(backup_dir)
+    except Exception as e:
+        logger.error(f"Failed to get backup path: {e}")
+        raise
 
 
-# For backward compatibility
+# Alias for backward compatibility
 get_backup_dir = get_backup_path
 
 
 def get_config_path() -> str:
     """
-    Get the path to the configuration file.
+    Get the path to the configuration file directory.
 
     Returns:
         str: Absolute path to the configuration file directory
     """
-    root_dir = _find_project_root()
-    config_dir = root_dir / 'config'
+    try:
+        root_dir = _find_project_root()
+        config_dir = ensure_directory_exists(root_dir / 'config')
 
-    # Ensure the config directory exists
-    if not config_dir.exists():
-        os.makedirs(config_dir, exist_ok=True)
+        logger.info(f"Configuration directory: {config_dir}")
+        return str(config_dir)
 
-    return str(config_dir)
+    except Exception as e:
+        logger.error(f"Failed to get config path: {e}")
+        raise
+
+
+def get_application_config() -> Dict[str, Any]:
+    """
+    Retrieve comprehensive application configuration.
+
+    Returns:
+        Dict[str, Any]: Dictionary of application configuration settings
+    """
+    return {
+        "app_name": APP_NAME,
+        "version": APP_VERSION,
+        "description": APP_DESCRIPTION,
+        "paths": {
+            "database": get_database_path(),
+            "logs": get_log_path(),
+            "backups": get_backup_path(),
+            "config": get_config_path()
+        }
+    }
+
+
+# Logging configuration
+def setup_logging(log_level: int = logging.INFO) -> None:
+    """
+    Configure application-wide logging with advanced settings.
+
+    Args:
+        log_level (int): Logging level. Defaults to logging.INFO
+    """
+    try:
+        # Configure root logger
+        logging.getLogger().setLevel(log_level)
+
+        # Create log file handler
+        log_path = get_log_path()
+        file_handler = logging.FileHandler(log_path, encoding='utf-8')
+        file_handler.setFormatter(logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        ))
+
+        # Add file handler to root logger
+        logging.getLogger().addHandler(file_handler)
+
+        logger.info(f"Logging configured. Log file: {log_path}")
+
+    except Exception as e:
+        print(f"Failed to setup logging: {e}")
+        logging.basicConfig(level=log_level)
+
+
+# Setup logging when the module is imported
+setup_logging()

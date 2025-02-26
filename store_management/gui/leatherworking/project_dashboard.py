@@ -1,6 +1,10 @@
+from typing import List, Dict, Any
 from di.core import inject
-from services.interfaces import MaterialService, ProjectService, \
-    InventoryService, OrderService
+from services.interfaces import MaterialService, ProjectService
+import tkinter as tk
+import tkinter.ttk as ttk
+import tkinter.messagebox as messagebox
+
 """
 Project Dashboard for leatherworking project management.
 """

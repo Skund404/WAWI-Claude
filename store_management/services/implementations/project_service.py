@@ -1,117 +1,161 @@
-#!/usr/bin/env python3
-# Path: project_service.py
-"""
-Recipe Service Implementation
+# Path: services/implementations/project_service.py
+"""Project Service Implementation for Leatherworking Store Management."""
 
-Provides functionality for managing projects/patterns and their components,
-including material requirements and availability checks.
-"""
+import logging
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple
 
-from typing import Dict, List, Any, Optional, Tuple
-
-from di.core import inject
-from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
-from database.models.project import Project, ProjectComponent
-from database.models.part import Part
-from database.models.leather import Leather
+from services.interfaces.project_service import IProjectService, ProjectType, SkillLevel
+from services.base_service import Service
+from database.repositories.project_repository import ProjectRepository
 from database.sqlalchemy.core.manager_factory import get_manager
 
+# Configure logging
+logger = logging.getLogger(__name__)
 
-class RecipeService:
+
+class ProjectService(Service[Any], IProjectService):
     """
-    Service for pattern management operations.
+    Project Service implementation for managing leatherworking projects.
 
-    Provides functionality for creating, updating, and validating patterns/projects
-    and checking material availability.
+    This service provides comprehensive methods for handling project-related
+    operations in the leatherworking store management system.
     """
 
-    def __init__(self):
+    def __init__(self, project_repository: Optional[ProjectRepository] = None):
         """
-        Initialize with appropriate managers.
-
-        Sets up repository managers for projects, components, parts, and leather.
-        """
-        self.recipe_manager = get_manager(Project)
-        self.recipe_item_manager = get_manager(ProjectComponent)
-        self.part_manager = get_manager(Part)
-        self.leather_manager = get_manager(Leather)
-
-    def create_project(self, recipe_data: Dict[str, Any], items: List[Dict[str, Any]]) -> Tuple[Optional[Project], str]:
-        """
-        Create a new pattern with items.
+        Initialize the Project Service.
 
         Args:
-            recipe_data: Dictionary with pattern data
-            items: List of dictionaries with item data
-
-        Returns:
-            Tuple of (created pattern or None, result message)
+            project_repository (Optional[ProjectRepository]): Repository for project operations
         """
-        try:
-            # Create the pattern
-            pattern = self.recipe_manager.create(recipe_data)
+        self._project_repository = project_repository or get_manager('Project')
+        super().__init__()
 
-            # Add items to the pattern
-            for item_data in items:
-                item_data['recipe_id'] = pattern.id
-                self.recipe_item_manager.create(item_data)
-
-            return pattern, 'Project created successfully'
-
-        except Exception as e:
-            return None, f'Error creating pattern: {str(e)}'
-
-    def check_materials_availability(self, recipe_id: int, quantity: int = 1) -> Tuple[bool, List[Dict[str, Any]]]:
+    def create_pattern(self, pattern_data: Dict[str, Any]) -> Any:
         """
-        Check if materials for a pattern are available in sufficient quantity.
+        Create a new pattern in the system.
 
         Args:
-            recipe_id: Project ID
-            quantity: Number of items to produce
+            pattern_data (Dict[str, Any]): Data for the new pattern
 
         Returns:
-            Tuple of (all materials available, list of missing items)
+            Any: Created pattern object
         """
-        missing_items = []
-
         try:
-            # Get the pattern/project
-            pattern = self.recipe_manager.get(recipe_id)
-            if not pattern:
-                return False, [{'error': f'Project with ID {recipe_id} not found'}]
+            # Validate and set default values
+            pattern_data.setdefault('created_date', datetime.now())
+            pattern_data.setdefault('type', ProjectType.CUSTOM)
+            pattern_data.setdefault('skill_level', SkillLevel.BEGINNER)
 
-            # Get all items for this pattern
-            recipe_items = self.recipe_item_manager.filter_by(recipe_id=recipe_id)
-
-            # Check each item for availability
-            for item in recipe_items:
-                required_quantity = item.quantity * quantity
-
-                # Check parts
-                if item.part_id:
-                    part = self.part_manager.get(item.part_id)
-                    if not part or part.stock_level < required_quantity:
-                        missing_items.append({
-                            'type': 'part',
-                            'id': item.part_id,
-                            'name': part.name if part else 'Unknown',
-                            'required': required_quantity,
-                            'available': part.stock_level if part else 0
-                        })
-
-                # Check leather
-                if item.leather_id:
-                    leather = self.leather_manager.get(item.leather_id)
-                    if not leather or leather.area < required_quantity:
-                        missing_items.append({
-                            'type': 'leather',
-                            'id': item.leather_id,
-                            'name': leather.name if leather else 'Unknown',
-                            'required': required_quantity,
-                            'available': leather.area if leather else 0
-                        })
-
-            return len(missing_items) == 0, missing_items
-
+            # Use repository to create pattern
+            pattern = self._project_repository.create(pattern_data)
+            return pattern
         except Exception as e:
-            return False, [{'error': f'Error checking materials: {str(e)}'}]
+            # Log the error and re-raise
+            logger.error(f"Error creating pattern: {str(e)}")
+            raise
+
+    def get_pattern_by_id(self, pattern_id: int) -> Any:
+        """
+        Retrieve a pattern by its ID.
+
+        Args:
+            pattern_id (int): Unique identifier for the pattern
+
+        Returns:
+            Any: Pattern object
+        """
+        try:
+            return self._project_repository.get_by_id(pattern_id)
+        except Exception as e:
+            logger.error(f"Error retrieving pattern {pattern_id}: {str(e)}")
+            raise
+
+    def update_pattern(self, pattern_id: int, update_data: Dict[str, Any]) -> Any:
+        """
+        Update an existing pattern.
+
+        Args:
+            pattern_id (int): ID of the pattern to update
+            update_data (Dict[str, Any]): Data to update
+
+        Returns:
+            Any: Updated pattern object
+        """
+        try:
+            return self._project_repository.update(pattern_id, update_data)
+        except Exception as e:
+            logger.error(f"Error updating pattern {pattern_id}: {str(e)}")
+            raise
+
+    def delete_pattern(self, pattern_id: int) -> bool:
+        """
+        Delete a pattern from the system.
+
+        Args:
+            pattern_id (int): ID of the pattern to delete
+
+        Returns:
+            bool: True if deletion was successful
+        """
+        try:
+            self._project_repository.delete(pattern_id)
+            return True
+        except Exception as e:
+            logger.error(f"Error deleting pattern {pattern_id}: {str(e)}")
+            return False
+
+    def list_patterns(
+            self,
+            filter_criteria: Optional[Dict[str, Any]] = None,
+            sort_by: Optional[str] = None,
+            limit: Optional[int] = None
+    ) -> List[Any]:
+        """
+        List patterns with optional filtering and sorting.
+
+        Args:
+            filter_criteria (Optional[Dict[str, Any]], optional): Filters to apply
+            sort_by (Optional[str], optional): Field to sort by
+            limit (Optional[int], optional): Maximum number of results
+
+        Returns:
+            List[Any]: List of pattern objects
+        """
+        try:
+            return self._project_repository.list(
+                filter_criteria=filter_criteria,
+                sort_by=sort_by,
+                limit=limit
+            )
+        except Exception as e:
+            logger.error(f"Error listing patterns: {str(e)}")
+            return []
+
+    def create_project(self, project_data: Dict[str, Any]) -> Any:
+        """
+        Create a new leatherworking project.
+
+        Args:
+            project_data (Dict[str, Any]): Data for the new project
+
+        Returns:
+            Any: Created project object
+        """
+        try:
+            # Set default values
+            project_data.setdefault('created_date', datetime.now())
+            project_data.setdefault('type', ProjectType.CUSTOM)
+            project_data.setdefault('skill_level', SkillLevel.BEGINNER)
+
+            # Use repository to create project
+            project = self._project_repository.create(project_data)
+            return project
+        except Exception as e:
+            logger.error(f"Error creating project: {str(e)}")
+            raise
+
+
+# Create service implementation variant
+ProjectServiceImpl = ProjectService

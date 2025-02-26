@@ -1,142 +1,156 @@
-# Relative path: store_management/services/interfaces/storage_service.py
-
+# services/interfaces/storage_service.py
 """
-Storage Service Interface Module
-
-Defines the abstract base interface for storage-related operations.
+Interface definition for the storage service.
+Provides functionality for managing storage locations for leatherworking materials.
 """
 
 from abc import ABC, abstractmethod
-from typing import List, Optional, Union, Dict, Any
+from typing import Any, Dict, List, Optional
 
-from database.models import Part
+from database.models.storage import Storage
 
 
 class IStorageService(ABC):
-    """
-    Abstract base class defining the interface for storage-related operations.
-
-    This service provides methods for managing inventory storage,
-    tracking, and manipulation of stored items.
-    """
+    """Interface for storage service operations."""
 
     @abstractmethod
-    def add_to_storage(
-            self, part: Part, quantity: float, storage_location: Optional[str] = None
-    ) -> bool:
+    def get_storage_location(self, storage_id: int) -> Dict[str, Any]:
         """
-        Add a specified quantity of a part to storage.
+        Get details of a specific storage location.
 
         Args:
-            part (Part): The part to be added to storage.
-            quantity (float): The quantity of the part to add.
-            storage_location (Optional[str], optional): Specific storage location.
-                Defaults to None.
+            storage_id: ID of the storage location
 
         Returns:
-            bool: True if the addition was successful, False otherwise.
+            Dictionary with storage location details
 
         Raises:
-            ValueError: If quantity is invalid or negative.
+            NotFoundError: If storage location not found
         """
         pass
 
     @abstractmethod
-    def remove_from_storage(
-            self, part: Part, quantity: float, storage_location: Optional[str] = None
-    ) -> bool:
+    def get_all_storage_locations(self) -> List[Dict[str, Any]]:
         """
-        Remove a specified quantity of a part from storage.
-
-        Args:
-            part (Part): The part to be removed from storage.
-            quantity (float): The quantity of the part to remove.
-            storage_location (Optional[str], optional): Specific storage location.
-                Defaults to None.
+        Get all storage locations.
 
         Returns:
-            bool: True if the removal was successful, False otherwise.
-
-        Raises:
-            ValueError: If quantity is invalid, negative, or exceeds available amount.
-            KeyError: If part is not found in storage or at the specified location.
+            List of dictionaries with storage location details
         """
         pass
 
     @abstractmethod
-    def get_storage_quantity(
-            self, part: Part, storage_location: Optional[str] = None
-    ) -> float:
+    def create_storage_location(self, storage_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Get the current quantity of a part in storage.
+        Create a new storage location.
 
         Args:
-            part (Part): The part to check.
-            storage_location (Optional[str], optional): Specific storage location.
-                Defaults to None.
+            storage_data: Dictionary with storage location data
 
         Returns:
-            float: The current quantity of the part in storage.
+            Dictionary with created storage location details
 
         Raises:
-            KeyError: If part is not found in storage or at the specified location.
+            ValidationError: If storage data is invalid
         """
         pass
 
     @abstractmethod
-    def list_storage_items(
-            self, filter_criteria: Optional[Dict[str, Any]] = None
-    ) -> List[Dict[str, Any]]:
+    def update_storage_location(self, storage_id: int, storage_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        List items currently in storage with optional filtering.
+        Update an existing storage location.
 
         Args:
-            filter_criteria (Optional[Dict[str, Any]], optional):
-                Dictionary of filter parameters. Defaults to None.
+            storage_id: ID of the storage location to update
+            storage_data: Dictionary with updated storage location data
 
         Returns:
-            List[Dict[str, Any]]: A list of storage items matching the criteria.
+            Dictionary with updated storage location details
+
+        Raises:
+            NotFoundError: If storage location not found
+            ValidationError: If storage data is invalid
         """
         pass
 
     @abstractmethod
-    def move_storage_item(
-            self, part: Part, quantity: float, from_location: str, to_location: str
-    ) -> bool:
+    def delete_storage_location(self, storage_id: int) -> bool:
         """
-        Move a specified quantity of a part between storage locations.
+        Delete a storage location.
 
         Args:
-            part (Part): The part to be moved.
-            quantity (float): The quantity of the part to move.
-            from_location (str): The source storage location.
-            to_location (str): The destination storage location.
+            storage_id: ID of the storage location to delete
 
         Returns:
-            bool: True if the move was successful, False otherwise.
+            True if deletion was successful
 
         Raises:
-            ValueError: If quantity is invalid, negative, or exceeds available amount.
-            KeyError: If part is not found at the source location.
+            NotFoundError: If storage location not found
         """
         pass
 
     @abstractmethod
-    def validate_storage_operation(
-            self, part: Part, quantity: float, operation_type: str
-    ) -> bool:
+    def assign_item_to_storage(self, storage_id: int, item_id: int, item_type: str) -> Dict[str, Any]:
         """
-        Validate a storage operation before execution.
+        Assign an item to a storage location.
 
         Args:
-            part (Part): The part involved in the operation.
-            quantity (float): The quantity involved in the operation.
-            operation_type (str): Type of operation (e.g., 'add', 'remove', 'move').
+            storage_id: ID of the storage location
+            item_id: ID of the item to assign
+            item_type: Type of item ('material', 'tool', etc.)
 
         Returns:
-            bool: True if the operation would be valid, False otherwise.
+            Dictionary with storage assignment details
 
         Raises:
-            ValueError: If operation_type is not recognized.
+            NotFoundError: If storage location or item not found
+            ValidationError: If assignment is not valid
+        """
+        pass
+
+    @abstractmethod
+    def remove_item_from_storage(self, storage_id: int, item_id: int, item_type: str) -> bool:
+        """
+        Remove an item from a storage location.
+
+        Args:
+            storage_id: ID of the storage location
+            item_id: ID of the item to remove
+            item_type: Type of item ('material', 'tool', etc.)
+
+        Returns:
+            True if removal was successful
+
+        Raises:
+            NotFoundError: If storage location or item not found
+        """
+        pass
+
+    @abstractmethod
+    def get_items_in_storage(self, storage_id: int) -> List[Dict[str, Any]]:
+        """
+        Get all items in a storage location.
+
+        Args:
+            storage_id: ID of the storage location
+
+        Returns:
+            List of dictionaries with item details
+
+        Raises:
+            NotFoundError: If storage location not found
+        """
+        pass
+
+    @abstractmethod
+    def get_storage_utilization(self, storage_id: Optional[int] = None) -> Dict[str, Any]:
+        """
+        Get utilization statistics for storage locations.
+
+        Args:
+            storage_id: Optional ID to get stats for a specific location
+
+        Returns:
+            Dictionary with utilization statistics
         """
         pass

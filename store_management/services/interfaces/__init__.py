@@ -4,6 +4,18 @@ Service interfaces package for the leatherworking store management application.
 
 This package contains interface definitions for services used in the application.
 """
+from abc import ABC, abstractmethod
+import enum
+
+# Import base service interface
+from .base_service import IBaseService
+
+# Import specific service interfaces
+from .inventory_service import IInventoryService
+from .material_service import IMaterialService, MaterialType
+from .order_service import IOrderService
+from .project_service import IProjectService, ProjectType, SkillLevel
+from .storage_service import IStorageService
 
 # Import base interface first to avoid circular dependencies
 try:
@@ -156,16 +168,20 @@ except ImportError:
 
 # Define which symbols to expose
 __all__ = [
+    # Base interface
     'IBaseService',
-    'IMaterialService',
-    'MaterialService',
-    'MaterialType',
-    'IProjectService',
-    'ProjectService',
-    'ProjectType',
-    'SkillLevel',
+
+    # Service interfaces
     'IInventoryService',
-    'InventoryService',
+    'IMaterialService',
     'IOrderService',
-    'OrderService'
+    'IProjectService',
+    'IStorageService',
+    'ISupplierService',
+
+    # Enums
+    'MaterialType',
+    'OrderStatus',
+    'ProjectType',
+    'SkillLevel'
 ]

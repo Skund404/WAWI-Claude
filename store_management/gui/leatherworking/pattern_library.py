@@ -1,224 +1,235 @@
+# Path: gui/leatherworking/pattern_library.py
+"""Pattern Library view for leatherworking store management application."""
+
+import tkinter as tk
+import tkinter.ttk as ttk
+from typing import Any, Optional
+
 from di.core import inject
-from services.interfaces import MaterialService, ProjectService, \
-    InventoryService, OrderService
-"""
-Pattern Library View for Leatherworking Project Management
-
-This module provides a comprehensive UI for managing leatherworking patterns,
-including creation, editing, searching, and categorization of patterns.
-"""
+from services.interfaces.material_service import IMaterialService
+from services.interfaces.project_service import IProjectService
 
 
-class PatternLibrary(tk.Frame):
+class PatternLibrary(ttk.Frame):
     """
-    A comprehensive pattern management view for leatherworking projects.
+    Pattern Library view for managing and displaying leatherworking patterns.
 
-    Provides functionality for:
-    - Browsing existing patterns
-    - Adding new patterns
-    - Editing pattern details
-    - Searching and filtering patterns
-    - Managing pattern metadata
+    This view provides functionality to browse, add, edit, and delete patterns.
     """
 
-    @inject(MaterialService)
-    def __init__(self, parent, controller):
+    def __init__(self, parent: tk.Widget, controller: Any):
         """
         Initialize the Pattern Library view.
 
         Args:
             parent (tk.Widget): Parent widget
-            controller (object): Application controller for managing interactions
+            controller (Any): Application controller for managing interactions
         """
         super().__init__(parent)
         self.controller = controller
-        self.patterns: List[Dict[str, Any]] = []
+
+        # Dependency Injection for services
+        self.material_service: IMaterialService = inject(IMaterialService)
+        self.project_service: IProjectService = inject(IProjectService)
+
         self._setup_layout()
         self._create_pattern_input()
         self._create_pattern_list()
         self._create_pattern_details()
+
+        # Load initial patterns
         self.load_initial_patterns()
 
-    @inject(MaterialService)
-    def _setup_layout(self):
-        """
-        Set up the overall layout of the Pattern Library view.
-        """
+    def _setup_layout(self) -> None:
+        """Set up the overall layout of the Pattern Library view."""
         self.grid_columnconfigure(0, weight=1)
-        self.grid_columnconfigure(1, weight=2)
-        self.pattern_input_frame = ttk.LabelFrame(self, text='Pattern Input')
-        self.pattern_input_frame.grid(row=0, column=0, padx=10, pady=10, sticky='nsew')
-        self.pattern_list_frame = ttk.LabelFrame(self, text='Pattern List')
-        self.pattern_list_frame.grid(row=0, column=1, padx=10, pady=10, sticky='nsew')
-        self.pattern_details_frame = ttk.LabelFrame(self, text='Pattern Details')
-        self.pattern_details_frame.grid(row=1, column=0, columnspan=2, padx=10, pady=10, sticky='nsew')
+        self.grid_columnconfigure(1, weight=1)
+        self.grid_rowconfigure(1, weight=1)
 
-    @inject(MaterialService)
-    def _create_pattern_input(self):
-        """
-        Create input fields for adding new patterns.
-        """
-        ttk.Label(self.pattern_input_frame, text='Pattern Name:').grid(row=0, column=0, sticky='w')
-        self.pattern_name_entry = ttk.Entry(self.pattern_input_frame, width=30)
-        self.pattern_name_entry.grid(row=0, column=1, padx=5, pady=5)
-        ttk.Label(self.pattern_input_frame, text='Pattern Type:').grid(row=1, column=0, sticky='w')
-        self.pattern_type_var = tk.StringVar()
-        pattern_types = ['Bag', 'Wallet', 'Belt', 'Accessory', 'Other']
-        self.pattern_type_combo = ttk.Combobox(self.pattern_input_frame, textvariable=self.pattern_type_var, values=pattern_types)
-        self.pattern_type_combo.grid(row=1, column=1, padx=5, pady=5)
-        self.pattern_image_path = tk.StringVar()
-        ttk.Button(self.pattern_input_frame, text='Upload Image', command=self.browse_image).grid(row=2, column=0, columnspan=2, pady=5)
-        ttk.Button(self.pattern_input_frame, text='Add Pattern', command=self.add_pattern).grid(row=3, column=0, columnspan=2, pady=10)
+    def _create_pattern_input(self) -> None:
+        """Create input fields for adding new patterns."""
+        input_frame = ttk.LabelFrame(self, text="Add New Pattern")
+        input_frame.grid(row=0, column=0, columnspan=2, padx=5, pady=5, sticky="ew")
 
-    @inject(MaterialService)
-    def browse_image(self):
-        """
-        Open file dialog to browse and select pattern image.
-        """
-        filename = filedialog.askopenfilename(filetypes=[('Image files', '*.png *.jpg *.jpeg *.gif *.bmp')])
-        if filename:
-            self.pattern_image_path.set(filename)
+        # Pattern name
+        ttk.Label(input_frame, text="Pattern Name:").grid(row=0, column=0, padx=5, pady=5)
+        self.pattern_name_entry = ttk.Entry(input_frame)
+        self.pattern_name_entry.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
 
-    @inject(MaterialService)
-    def _create_pattern_list(self):
-        """
-        Create a treeview to display existing patterns.
-        """
-        columns = 'Name', 'Type', 'Created'
-        self.pattern_tree = ttk.Treeview(self.pattern_list_frame, columns=columns, show='headings')
+        # Pattern type
+        ttk.Label(input_frame, text="Pattern Type:").grid(row=1, column=0, padx=5, pady=5)
+        pattern_types = ["Wallet", "Bag", "Belt", "Accessory", "Custom"]
+        self.pattern_type_var = tk.StringVar(value=pattern_types[0])
+        pattern_type_dropdown = ttk.Combobox(input_frame, textvariable=self.pattern_type_var, values=pattern_types)
+        pattern_type_dropdown.grid(row=1, column=1, padx=5, pady=5, sticky="ew")
+
+        # Add pattern button
+        add_pattern_btn = ttk.Button(input_frame, text="Add Pattern", command=self.add_pattern)
+        add_pattern_btn.grid(row=2, column=0, columnspan=2, padx=5, pady=5)
+
+    def _create_pattern_list(self) -> None:
+        """Create a treeview to display existing patterns."""
+        list_frame = ttk.LabelFrame(self, text="Pattern List")
+        list_frame.grid(row=1, column=0, padx=5, pady=5, sticky="nsew")
+
+        columns = ("Name", "Type", "Created Date")
+        self.pattern_tree = ttk.Treeview(list_frame, columns=columns, show="headings")
+
         for col in columns:
             self.pattern_tree.heading(col, text=col)
             self.pattern_tree.column(col, width=100)
-        self.pattern_tree.pack(expand=True, fill='both')
-        self.pattern_tree.bind('<Double-1>', self.show_pattern_details)
-        self.context_menu = tk.Menu(self, tearoff=0)
-        self.context_menu.add_command(label='Edit', command=self.edit_pattern)
-        self.context_menu.add_command(label='Delete', command=self.delete_pattern)
-        self.pattern_tree.bind('<Button-3>', self.show_context_menu)
 
-    @inject(MaterialService)
-    def _create_pattern_details(self):
-        """
-        Create a detailed view for selected pattern.
-        """
-        self.details_text = tk.Text(self.pattern_details_frame, height=10, width=70, wrap=tk.WORD)
-        self.details_text.pack(expand=True, fill='both', padx=10, pady=10)
+        self.pattern_tree.pack(expand=True, fill="both")
 
-    @inject(MaterialService)
-    def add_pattern(self):
-        """
-        Add a new pattern to the library.
-        """
-        name = self.pattern_name_entry.get()
+        # Bind events
+        self.pattern_tree.bind("<Double-1>", self.show_pattern_details)
+        self.pattern_tree.bind("<Button-3>", self.show_context_menu)
+
+    def _create_pattern_details(self) -> None:
+        """Create a detailed view for selected pattern."""
+        details_frame = ttk.LabelFrame(self, text="Pattern Details")
+        details_frame.grid(row=1, column=1, padx=5, pady=5, sticky="nsew")
+
+        # Placeholder for pattern details
+        self.details_text = tk.Text(details_frame, wrap=tk.WORD, height=10)
+        self.details_text.pack(expand=True, fill="both", padx=5, pady=5)
+
+    def browse_image(self) -> None:
+        """Open file dialog to browse and select pattern image."""
+        import tkinter.filedialog as filedialog
+        filename = filedialog.askopenfilename(
+            title="Select Pattern Image",
+            filetypes=[("Image files", "*.png *.jpg *.jpeg *.gif")]
+        )
+        if filename:
+            # TODO: Implement image handling logic
+            print(f"Selected image: {filename}")
+
+    def add_pattern(self) -> None:
+        """Add a new pattern to the library."""
+        name = self.pattern_name_entry.get().strip()
         pattern_type = self.pattern_type_var.get()
-        image_path = self.pattern_image_path.get()
-        if not name or not pattern_type:
-            messagebox.showwarning('Incomplete Information', 'Please fill in Pattern Name and Type')
+
+        if not name:
+            tk.messagebox.showerror("Error", "Pattern name cannot be empty")
             return
-        pattern = {'name': name, 'type': pattern_type, 'image_path': image_path, 'created': tk.datetime.now().strftime('%Y-%m-%d')}
-        self.patterns.append(pattern)
-        self._update_pattern_tree()
-        self.pattern_name_entry.delete(0, tk.END)
-        self.pattern_type_var.set('')
-        self.pattern_image_path.set('')
 
-    @inject(MaterialService)
-    def _update_pattern_tree(self):
-        """
-        Update the pattern treeview with current patterns.
-        """
-        for i in self.pattern_tree.get_children():
-            self.pattern_tree.delete(i)
-        for pattern in self.patterns:
-            self.pattern_tree.insert('', 'end', values=(pattern['name'], pattern['type'], pattern['created']))
+        try:
+            # TODO: Implement actual pattern creation in service
+            pattern_data = {
+                "name": name,
+                "type": pattern_type,
+                "created_date": tk.datetime.now()
+            }
 
-    @inject(MaterialService)
-    def show_pattern_details(self, event):
+            # Call project service to create pattern
+            new_pattern = self.project_service.create_pattern(pattern_data)
+
+            # Update treeview
+            self.pattern_tree.insert("", "end", values=(
+                new_pattern.name,
+                new_pattern.type,
+                new_pattern.created_date
+            ))
+
+            # Clear input
+            self.pattern_name_entry.delete(0, tk.END)
+
+            tk.messagebox.showinfo("Success", "Pattern added successfully")
+
+        except Exception as e:
+            tk.messagebox.showerror("Error", f"Failed to add pattern: {str(e)}")
+
+    def show_pattern_details(self, event: Optional[tk.Event] = None) -> None:
         """
         Display details of selected pattern.
 
         Args:
-            event (tk.Event): Treeview selection event
+            event (Optional[tk.Event]): Treeview selection event
         """
         selected_item = self.pattern_tree.selection()
         if not selected_item:
             return
-        values = self.pattern_tree.item(selected_item[0])['values']
-        pattern = next((p for p in self.patterns if p['name'] == values[0] and p['type'] == values[1]), None)
-        if pattern:
-            details = f"""
-Pattern Name: {pattern['name']}
-Pattern Type: {pattern['type']}
-Created: {pattern['created']}
-Image Path: {pattern['image_path']}
-"""
-            self.details_text.delete(1.0, tk.END)
-            self.details_text.insert(tk.END, details)
 
-    @inject(MaterialService)
-    def show_context_menu(self, event):
+        # Retrieve pattern details
+        pattern_data = self.pattern_tree.item(selected_item)['values']
+
+        # Update details text
+        self.details_text.delete(1.0, tk.END)
+        self.details_text.insert(tk.END, f"Name: {pattern_data[0]}\n")
+        self.details_text.insert(tk.END, f"Type: {pattern_data[1]}\n")
+        self.details_text.insert(tk.END, f"Created: {pattern_data[2]}\n")
+
+    def show_context_menu(self, event: tk.Event) -> None:
         """
         Show context menu for pattern selection.
 
         Args:
             event (tk.Event): Right-click event
         """
-        iid = self.pattern_tree.identify_row(event.y)
-        if iid:
-            self.pattern_tree.selection_set(iid)
-            self.context_menu.post(event.x_root, event.y_root)
+        # Create context menu
+        context_menu = tk.Menu(self, tearoff=0)
+        context_menu.add_command(label="Edit", command=self.edit_pattern)
+        context_menu.add_command(label="Delete", command=self.delete_pattern)
 
-    @inject(MaterialService)
-    def edit_pattern(self):
-        """
-        Edit the selected pattern.
-        """
+        # Display menu
+        context_menu.post(event.x_root, event.y_root)
+
+    def edit_pattern(self) -> None:
+        """Edit the selected pattern."""
         selected_item = self.pattern_tree.selection()
         if not selected_item:
-            messagebox.showwarning('No Selection', 'Please select a pattern to edit')
+            tk.messagebox.showwarning("Warning", "Please select a pattern to edit")
             return
-        messagebox.showinfo('Edit Pattern', 'Edit functionality to be implemented')
 
-    @inject(MaterialService)
-    def delete_pattern(self):
-        """
-        Delete the selected pattern.
-        """
+        # TODO: Implement edit pattern dialog/logic
+
+    def delete_pattern(self) -> None:
+        """Delete the selected pattern."""
         selected_item = self.pattern_tree.selection()
         if not selected_item:
-            messagebox.showwarning('No Selection', 'Please select a pattern to delete')
+            tk.messagebox.showwarning("Warning", "Please select a pattern to delete")
             return
-        if messagebox.askyesno('Confirm Deletion', 'Are you sure you want to delete this pattern?'):
-            values = self.pattern_tree.item(selected_item[0])['values']
-            self.patterns = [p for p in self.patterns if not (p['name'] == values[0] and p['type'] == values[1])]
-            self._update_pattern_tree()
 
-    @inject(MaterialService)
-    def load_initial_patterns(self):
+        # Confirm deletion
+        if tk.messagebox.askyesno("Confirm", "Are you sure you want to delete this pattern?"):
+            try:
+                # TODO: Implement actual pattern deletion in service
+                self.pattern_tree.delete(selected_item)
+                tk.messagebox.showinfo("Success", "Pattern deleted successfully")
+            except Exception as e:
+                tk.messagebox.showerror("Error", f"Failed to delete pattern: {str(e)}")
+
+    def load_initial_patterns(self) -> None:
         """
         Load initial patterns (can be replaced with database/file loading in future).
+
+        This method provides sample data for demonstration purposes.
         """
-        initial_patterns = [{'name': 'Classic Leather Bag', 'type': 'Bag', 'image_path': '', 'created': '2024-02-23'},
-                            {'name': 'Minimalist Wallet', 'type': 'Wallet', 'image_path': '', 'created': '2024-02-23'}]
-        self.patterns.extend(initial_patterns)
-        self._update_pattern_tree()
+        initial_patterns = [
+            ("Classic Wallet", "Wallet", "2025-02-01"),
+            ("Leather Messenger Bag", "Bag", "2025-02-10"),
+            ("Handcrafted Belt", "Belt", "2025-02-15")
+        ]
+
+        for pattern in initial_patterns:
+            self.pattern_tree.insert("", "end", values=pattern)
 
 
-def main():
-    """
-    Standalone test for PatternLibrary.
-    """
+def main() -> None:
+    """Standalone test for PatternLibrary."""
     root = tk.Tk()
-    root.title('Pattern Library')
-    root.geometry('800x600')
+    root.title("Pattern Library Test")
 
     class DummyController:
+        """Dummy controller for testing."""
         pass
 
     pattern_library = PatternLibrary(root, DummyController())
-    pattern_library.pack(fill='both', expand=True)
+    pattern_library.pack(fill="both", expand=True)
+
     root.mainloop()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

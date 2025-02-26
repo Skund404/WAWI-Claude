@@ -1,49 +1,53 @@
 # di/setup.py
 """
-Dependency Injection setup for the leatherworking store management application.
+Setup module for dependency injection.
 """
 
 import logging
+from typing import Optional, Any
 
-# Database Session
-from database.session import get_db_session
-
-# Services Interfaces
+# Import service interfaces
+from services.interfaces.inventory_service import IInventoryService
 from services.interfaces.material_service import IMaterialService
 from services.interfaces.order_service import IOrderService
 from services.interfaces.project_service import IProjectService
-from services.interfaces.inventory_service import IInventoryService
+from services.interfaces.storage_service import IStorageService
 
-# Services Implementations
-from services.implementations.material_service import MaterialServiceImpl
-from services.implementations.order_service import OrderServiceImpl
-from services.implementations.project_service import ProjectServiceImpl
-from services.implementations.inventory_service import InventoryServiceImpl
+# Import concrete service implementations
+from services.implementations.inventory_service import InventoryService
+from services.implementations.material_service import MaterialService
+from services.implementations.order_service import OrderService
+from services.implementations.project_service import ProjectService
+from services.implementations.storage_service import StorageService
 
-def setup_dependency_injection() -> None:
+# Import container
+from di.container import DependencyContainer
+
+# Configure logger
+logger = logging.getLogger(__name__)
+
+
+def setup_dependency_injection(container: Optional[DependencyContainer] = None) -> DependencyContainer:
     """
-    Set up dependency injection for the application services.
+    Set up dependency injection for the application.
 
-    This function registers the concrete service implementations
-    with their respective interfaces in the dependency injection container.
+    Args:
+        container: Optional existing container. If None, a new one is created.
+
+    Returns:
+        Configured dependency injection container
     """
-    try:
-        from di.container import DependencyContainer
+    # Create a new container if one was not provided
+    if container is None:
+        container = DependencyContainer()
 
-        # Get database session
-        session = get_db_session()
+    # Register services
+    container.register(IInventoryService, InventoryService)
+    container.register(IMaterialService, MaterialService)
+    container.register(IOrderService, OrderService)
+    container.register(IProjectService, ProjectService)
+    container.register(IStorageService, StorageService)
 
-        # Register service implementations
-        DependencyContainer.register(IMaterialService, MaterialServiceImpl(session))
-        DependencyContainer.register(IOrderService, OrderServiceImpl(session))
-        DependencyContainer.register(IProjectService, ProjectServiceImpl(session))
-        DependencyContainer.register(IInventoryService, InventoryServiceImpl(session))
+    logger.info("Dependency injection setup completed")
 
-        logging.info("Dependency injection setup completed successfully")
-    except Exception as e:
-        logging.error(f"Error setting up dependency injection: {e}")
-        raise
-
-# Optional: Can be called directly to ensure services are registered
-if __name__ == "__main__":
-    setup_dependency_injection()
+    return container

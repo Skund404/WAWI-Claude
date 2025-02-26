@@ -1,8 +1,15 @@
-"""
-F:/WAWI Homebrew/WAWI Claude/store_management/database/repositories/__init__.py
+# Path: database/repositories/__init__.py
 
-Repository initialization.
+"""
+Repositories package initialization.
+
+Provides access to repository classes for database operations.
 """
 
-# This file is intentionally left mostly empty to mark repositories as a package.
-# Specific repositories should be imported directly from their modules.
+from .base_repository import BaseRepository
+from .storage_repository import StorageRepository
+
+__all__ = [
+    'BaseRepository',
+    'StorageRepository'
+]

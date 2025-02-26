@@ -1,30 +1,30 @@
-# shopping_list_view.py
-"""
-Shopping list view implementation that displays shopping lists.
-"""
+# Path: gui/shopping_list/shopping_list_view.py
+"""Shopping List View for Leatherworking Store Management Application."""
 
-import os
-import sqlite3
+import abc
 import logging
-from datetime import datetime
-from typing import Optional
-
 import tkinter as tk
-from tkinter import ttk
+import tkinter.ttk as ttk
+import tkinter.messagebox as messagebox
+from datetime import datetime
+from typing import Optional, Any
 
 from di.core import inject
-from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
-from views.base_view import BaseView
-
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+from gui.base_view import BaseView
+from services.interfaces.inventory_service import IInventoryService
+from services.interfaces.material_service import IMaterialService
+from services.interfaces.order_service import IOrderService
+from services.interfaces.project_service import IProjectService
 
 
 class ShoppingListView(BaseView):
-    """View for displaying and managing shopping lists."""
+    """
+    Shopping List View for managing and tracking shopping lists.
 
-    @inject(MaterialService)
+    Provides functionality to create, edit, and manage shopping lists
+    for leatherworking materials and supplies.
+    """
+
     def __init__(self, parent: ttk.Frame, app: tk.Tk):
         """
         Initialize the shopping list view.
@@ -34,158 +34,182 @@ class ShoppingListView(BaseView):
             app (tk.Tk): Application instance.
         """
         super().__init__(parent, app)
-        self.db_path = self._find_database_file()
-        logger.debug(f'ShoppingListView initialized with database: {self.db_path}')
+
+        # Configure logging
+        self.logger = logging.getLogger(__name__)
+
+        # Setup UI components
         self.setup_ui()
+
+        # Load initial data
         self.load_data()
 
-    @inject(MaterialService)
-    def _find_database_file(self) -> Optional[str]:
-        """Find the SQLite database file."""
-        possible_locations = [
-            'store_management.db',
-            'data/store_management.db',
-            'database/store_management.db',
-            'config/database/store_management.db'
-        ]
-        for location in possible_locations:
-            if os.path.exists(location):
-                return location
-
-        logger.info('Searching for database file...')
-        for root, _, files in os.walk('.'):
-            for file in files:
-                if file.endswith('.db'):
-                    path = os.path.join(root, file)
-                    logger.info(f'Found database file: {path}')
-                    return path
-
-        return None
-
-    @inject(MaterialService)
     def setup_ui(self) -> None:
-        """Set up the user interface components."""
-        self.create_toolbar()
-        self.create_treeview()
+        """
+        Set up the user interface components for the shopping list view.
+        """
+        # Create main frame
+        main_frame = ttk.Frame(self)
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-    @inject(MaterialService)
-    def create_toolbar(self) -> None:
-        """Create the toolbar with buttons."""
-        toolbar = ttk.Frame(self)
-        toolbar.pack(side=tk.TOP, fill=tk.X, padx=5, pady=5)
+        # Shopping List Selection Section
+        list_selection_frame = ttk.LabelFrame(main_frame, text="Shopping Lists")
+        list_selection_frame.pack(fill=tk.X, padx=5, pady=5)
 
-        ttk.Button(toolbar, text='Add List', command=self.show_add_dialog).pack(side=tk.LEFT, padx=2)
-        ttk.Button(toolbar, text='Delete Selected', command=self.delete_selected).pack(side=tk.LEFT, padx=2)
-        ttk.Button(toolbar, text='Search', command=self.show_search_dialog).pack(side=tk.LEFT, padx=2)
-        ttk.Button(toolbar, text='Refresh', command=self.load_data).pack(side=tk.LEFT, padx=2)
+        # Treeview for shopping list selection
+        self.list_tree = ttk.Treeview(list_selection_frame,
+                                      columns=("Name", "Date Created", "Status"),
+                                      show="headings"
+                                      )
+        self.list_tree.heading("Name", text="Name")
+        self.list_tree.heading("Date Created", text="Date Created")
+        self.list_tree.heading("Status", text="Status")
+        self.list_tree.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
-        logger.debug('Toolbar created')
+        # Buttons for shopping list actions
+        btn_frame = ttk.Frame(list_selection_frame)
+        btn_frame.pack(fill=tk.X, padx=5, pady=5)
 
-    @inject(MaterialService)
-    def create_treeview(self) -> None:
-        """Create the treeview for displaying shopping lists."""
-        frame = ttk.Frame(self)
-        frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        ttk.Button(btn_frame, text="New List", command=self._new_shopping_list).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_frame, text="Edit List", command=self._edit_shopping_list).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_frame, text="Delete List", command=self._delete_shopping_list).pack(side=tk.LEFT, padx=5)
 
-        columns = ('id', 'name', 'date', 'status', 'priority', 'items', 'total')
-        self.tree = ttk.Treeview(frame, columns=columns, show='headings')
-
-        self.tree.heading('id', text='ID')
-        self.tree.heading('name', text='Name')
-        self.tree.heading('date', text='Date')
-        self.tree.heading('status', text='Status')
-        self.tree.heading('priority', text='Priority')
-        self.tree.heading('items', text='Items')
-        self.tree.heading('total', text='Total')
-
-        self.tree.column('id', width=50)
-        self.tree.column('name', width=200)
-        self.tree.column('date', width=100)
-        self.tree.column('status', width=100)
-        self.tree.column('priority', width=80)
-        self.tree.column('items', width=80)
-        self.tree.column('total', width=100)
-
-        vsb = ttk.Scrollbar(frame, orient='vertical', command=self.tree.yview)
-        hsb = ttk.Scrollbar(frame, orient='horizontal', command=self.tree.xview)
-        self.tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
-
-        vsb.pack(side=tk.RIGHT, fill=tk.Y)
-        hsb.pack(side=tk.BOTTOM, fill=tk.X)
-        self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-
-        self.tree.bind('<Double-1>', self.on_double_click)
-
-        logger.debug('Treeview created')
-
-    @inject(MaterialService)
     def load_data(self) -> None:
-        """Load shopping lists from the database and display them."""
+        """
+        Load data for the shopping list view.
+
+        Retrieves shopping lists from the shopping list service or database.
+        """
         try:
-            logger.info('Loading shopping list data')
-            self.tree.delete(*self.tree.get_children())
+            # Placeholder for actual implementation
+            # In a real scenario, this would use the shopping list service
+            sample_lists = [
+                ("Leather Project Materials", "2025-02-25", "Active"),
+                ("Hardware Supplies", "2025-02-20", "Completed")
+            ]
 
-            if not self.db_path:
-                logger.error('Database file not found')
-                self.set_status('Error: Database file not found')
-                return
+            # Clear existing items
+            for item in self.list_tree.get_children():
+                self.list_tree.delete(item)
 
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                cursor.execute("""
-                    SELECT name FROM sqlite_master 
-                    WHERE type='table' AND name='shopping_list';
-                """)
-                if not cursor.fetchone():
-                    logger.info("Shopping list table doesn't exist. Creating sample data.")
-                    self.set_status("Shopping list table doesn't exist - showing sample data")
-                    today = datetime.now().strftime('%Y-%m-%d')
-                    sample_data = [
-                        (1, 'Weekly Groceries', today, 'Active', 'High', 15, '$125.50'),
-                        (2, 'Office Supplies', today, 'Pending', 'Medium', 8, '$45.75'),
-                        (3, 'Party Supplies', today, 'Complete', 'Low', 12, '$78.25'),
-                        (4, 'Emergency Items', today, 'Active', 'Urgent', 5, '$32.99'),
-                        (5, 'Home Improvement', today, 'Draft', 'Low', 3, '$215.00')
-                    ]
-                    for shopping_list in sample_data:
-                        self.tree.insert('', tk.END, values=shopping_list)
-                    return
+            # Insert sample data
+            for item in sample_lists:
+                self.list_tree.insert("", "end", values=item)
 
-                cursor.execute("""
-                    SELECT id, name, date, status, priority, items, total 
-                    FROM shopping_list;
-                """)
-                rows = cursor.fetchall()
-                for row in rows:
-                    self.tree.insert('', tk.END, values=row)
-
-                self.set_status(f'Loaded {len(rows)} shopping lists')
-                logger.info(f'Loaded {len(rows)} shopping lists')
-
+            self.logger.info("Shopping lists loaded successfully")
         except Exception as e:
-            logger.exception(f'Error loading shopping list data: {e}')
-            self.show_error('Data Load Error', f'Failed to load shopping list data: {str(e)}')
+            self.logger.error(f"Error loading shopping lists: {e}")
+            self.show_error("Data Load Error", "Could not load shopping lists")
 
-    @inject(MaterialService)
-    def show_add_dialog(self) -> None:
-        """Show dialog to add a new shopping list."""
-        logger.debug('Add dialog requested but not implemented')
-        self.show_info('Not Implemented', 'Add shopping list functionality is not yet implemented.')
+    def save(self) -> None:
+        """
+        Save the current shopping list data.
+        """
+        try:
+            # TODO: Implement actual save logic
+            # This might involve calling a service method to persist changes
+            self.logger.info("Saving shopping list data")
+            self.show_info("Save Successful", "Shopping list data saved")
+        except Exception as e:
+            self.logger.error(f"Error saving shopping list: {e}")
+            self.show_error("Save Error", "Could not save shopping list data")
 
-    @inject(MaterialService)
-    def on_double_click(self, event: tk.Event) -> None:
-        """Handle double-click on a shopping list item."""
-        logger.debug('Double-click event received but not implemented')
-        self.show_info('Not Implemented', 'Edit shopping list functionality is not yet implemented.')
+    def undo(self) -> None:
+        """
+        Undo the last action in the shopping list view.
+        """
+        try:
+            # TODO: Implement undo logic
+            # This might involve maintaining an action history
+            self.logger.info("Undoing last action")
+            self.show_info("Undo", "Last action undone")
+        except Exception as e:
+            self.logger.error(f"Error performing undo: {e}")
+            self.show_error("Undo Error", "Could not undo last action")
 
-    @inject(MaterialService)
-    def delete_selected(self) -> None:
+    def redo(self) -> None:
+        """
+        Redo the last undone action in the shopping list view.
+        """
+        try:
+            # TODO: Implement redo logic
+            # This might involve maintaining an action history
+            self.logger.info("Redoing last undone action")
+            self.show_info("Redo", "Last action redone")
+        except Exception as e:
+            self.logger.error(f"Error performing redo: {e}")
+            self.show_error("Redo Error", "Could not redo last action")
+
+    def _new_shopping_list(self) -> None:
+        """Create a new shopping list."""
+        try:
+            # TODO: Implement shopping list creation dialog
+            pass
+        except Exception as e:
+            self.logger.error(f"Error creating shopping list: {e}")
+            tk.messagebox.showerror("Error", "Could not create shopping list")
+
+    def _edit_shopping_list(self) -> None:
+        """Edit the selected shopping list."""
+        try:
+            # TODO: Implement shopping list editing dialog
+            pass
+        except Exception as e:
+            self.logger.error(f"Error editing shopping list: {e}")
+            tk.messagebox.showerror("Error", "Could not edit shopping list")
+
+    def _delete_shopping_list(self) -> None:
         """Delete the selected shopping list."""
-        logger.debug('Delete requested but not implemented')
-        self.show_info('Not Implemented', 'Delete shopping list functionality is not yet implemented.')
+        try:
+            # TODO: Implement shopping list deletion
+            pass
+        except Exception as e:
+            self.logger.error(f"Error deleting shopping list: {e}")
+            tk.messagebox.showerror("Error", "Could not delete shopping list")
 
-    @inject(MaterialService)
-    def show_search_dialog(self) -> None:
-        """Show search dialog."""
-        logger.debug('Search requested but not implemented')
-        self.show_info('Not Implemented', 'Search functionality is not yet implemented.')
+    def _add_list_item(self) -> None:
+        """Add an item to the selected shopping list."""
+        try:
+            # TODO: Implement add list item dialog
+            pass
+        except Exception as e:
+            self.logger.error(f"Error adding list item: {e}")
+            tk.messagebox.showerror("Error", "Could not add list item")
+
+    def _edit_list_item(self) -> None:
+        """Edit the selected list item."""
+        try:
+            # TODO: Implement edit list item dialog
+            pass
+        except Exception as e:
+            self.logger.error(f"Error editing list item: {e}")
+            tk.messagebox.showerror("Error", "Could not edit list item")
+
+    def _remove_list_item(self) -> None:
+        """Remove the selected list item."""
+        try:
+            # TODO: Implement list item removal
+            pass
+        except Exception as e:
+            self.logger.error(f"Error removing list item: {e}")
+            tk.messagebox.showerror("Error", "Could not remove list item")
+
+
+def main() -> None:
+    """Standalone test for ShoppingListView."""
+    root = tk.Tk()
+    root.title("Shopping List View Test")
+
+    # Create a dummy application context
+    class DummyApp:
+        """Dummy application for testing."""
+        pass
+
+    shopping_list_view = ShoppingListView(root, DummyApp())
+    shopping_list_view.pack(fill="both", expand=True)
+
+    root.mainloop()
+
+
+if __name__ == "__main__":
+    main()

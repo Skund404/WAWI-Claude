@@ -1,74 +1,68 @@
-from di.core import inject
-from services.interfaces import (
-    MaterialService,
-    ProjectService,
-    InventoryService,
-    OrderService,
-)
-
+# database/session.py
 """
-F:/WAWI Homebrew/WAWI Claude/store_management/database/session.py
+Database session management module.
 
-Database session management functions.
+This module provides functionality for creating and managing database sessions,
+including session factories, connection pools, and database initialization.
 """
+
+import contextlib
 import logging
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, scoped_session
-from sqlalchemy.orm import Session
+from typing import Any, Generator, Optional
 
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import NullPool
+
+# Import the database path function - adjust path as needed
+try:
+    from config.settings import get_database_path
+except ImportError:
+    # Fallback if import fails
+    import os
+    from pathlib import Path
+
+
+    def get_database_path() -> Path:
+        """Returns the absolute path to the database file."""
+        base_dir = Path(__file__).parent.parent
+        return base_dir / "data" / "store.db"
+
+# Configure module logger
 logger = logging.getLogger(__name__)
+
+# Global database engine and session factory
 _engine = None
 _SessionFactory = None
-_scoped_session = None
 
 
-def init_database(database_url: str) -> None:
+def init_engine(database_url=None, echo=False, poolclass=NullPool):
     """
-    Initialize the database connection.
+    Initialize the database engine.
 
     Args:
-        database_url: The database connection URL.
-    """
-    global _engine, _SessionFactory, _scoped_session
-    try:
-        _engine = create_engine(
-            database_url,
-            pool_size=5,
-            max_overflow=10,
-            pool_pre_ping=True,
-            connect_args={"check_same_thread": False},
-        )
-        _SessionFactory = sessionmaker(bind=_engine)
-        _scoped_session = scoped_session(_SessionFactory)
-        logger.info(f"Database engine initialized with {database_url}")
-    except Exception as e:
-        logger.error(f"Failed to initialize database engine: {str(e)}")
-        raise
-
-
-def get_db_session() -> Session:
-    """
-    Get a database session from the scoped session registry.
+        database_url (str, optional): Database connection URL. If None, uses the default path.
+        echo (bool, optional): Whether to echo SQL statements. Defaults to False.
+        poolclass (Any, optional): SQLAlchemy connection pool class. Defaults to NullPool.
 
     Returns:
-        A database session.
-
-    Raises:
-        RuntimeError: If the database has not been initialized.
+        The SQLAlchemy engine instance.
     """
-    if _scoped_session is None:
-        raise RuntimeError(
-            "Database session has not been initialized. Call init_database first."
+    global _engine
+    if _engine is None:
+        if database_url is None:
+            database_path = get_database_path()
+            database_url = f"sqlite:///{database_path}"
+
+        logger.info(f"Initializing database engine with URL: {database_url}")
+        _engine = create_engine(
+            database_url,
+            echo=echo,
+            poolclass=poolclass,
+            connect_args={"check_same_thread": False}  # For SQLite
         )
-    return _scoped_session()
 
-
-def close_db_session() -> None:
-    """
-    Close the current database session.
-    """
-    if _scoped_session is not None:
-        _scoped_session.remove()
+    return _engine
 
 
 def get_engine():
@@ -81,8 +75,173 @@ def get_engine():
     Raises:
         RuntimeError: If the database has not been initialized.
     """
+    global _engine
     if _engine is None:
-        raise RuntimeError(
-            "Database engine has not been initialized. Call init_database first."
-        )
+        raise RuntimeError("Database engine has not been initialized. Call init_engine() first.")
     return _engine
+
+
+def init_session_factory(engine=None):
+    """
+    Initialize the session factory.
+
+    Args:
+        engine: SQLAlchemy engine, if None uses the global engine
+
+    Returns:
+        SQLAlchemy sessionmaker instance.
+    """
+    global _SessionFactory
+    if _SessionFactory is None:
+        if engine is None:
+            engine = init_engine()
+
+        logger.debug("Creating session factory")
+        _SessionFactory = sessionmaker(
+            autocommit=False,
+            autoflush=False,
+            bind=engine
+        )
+
+    return _SessionFactory
+
+
+def get_db_session() -> Session:
+    """
+    Get a database session.
+
+    Returns:
+        Session: A new SQLAlchemy session.
+
+    Raises:
+        RuntimeError: If the session factory has not been initialized.
+    """
+    global _SessionFactory
+    if _SessionFactory is None:
+        _SessionFactory = init_session_factory()
+
+    return _SessionFactory()
+
+
+# Add get_db as an alias to get_db_session for backward compatibility
+get_db = get_db_session
+
+
+@contextlib.contextmanager
+def session_scope() -> Generator[Session, None, None]:
+    """
+    Provide a transactional scope around a series of operations.
+
+    Yields:
+        Session: SQLAlchemy session.
+    """
+    session = get_db_session()
+    try:
+        yield session
+        session.commit()
+    except Exception as e:
+        logger.error(f"Session error: {str(e)}")
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
+
+class DatabaseSessionManager:
+    """
+    Manager class for database sessions.
+
+    Provides methods for initializing and working with the database,
+    including creating the schema and managing sessions.
+    """
+
+    def __init__(
+            self,
+            database_url: Optional[str] = None,
+            echo: bool = False,
+            poolclass: Optional[Any] = NullPool
+    ):
+        """
+        Initialize the database session manager.
+
+        Args:
+            database_url: Database URL, if None uses the default path
+            echo: Whether to echo SQL statements
+            poolclass: SQLAlchemy connection pool class
+        """
+        self.database_url = database_url
+        self.echo = echo
+        self.poolclass = poolclass
+        self.engine = init_engine(database_url, echo, poolclass)
+        self.session_factory = init_session_factory(self.engine)
+        logger.info("DatabaseSessionManager initialized")
+
+    def init_database(self, base_class=None):
+        """
+        Initialize the database, creating all tables defined in the models.
+
+        Args:
+            base_class (Optional[Any]): SQLAlchemy declarative base class
+        """
+        # Get Base class dynamically to avoid circular imports
+        if base_class is None:
+            try:
+                from database.models.base import Base
+                base_class = Base
+            except ImportError:
+                logger.error("Could not import Base class")
+                return
+
+        logger.info("Creating database schema")
+        base_class.metadata.create_all(self.engine)
+        logger.info("Database schema created successfully")
+
+    def drop_database(self, base_class=None):
+        """
+        Drop all tables in the database.
+
+        Warning: This will delete all data!
+
+        Args:
+            base_class (Optional[Any]): SQLAlchemy declarative base class
+        """
+        # Get Base class dynamically to avoid circular imports
+        if base_class is None:
+            try:
+                from database.models.base import Base
+                base_class = Base
+            except ImportError:
+                logger.error("Could not import Base class")
+                return
+
+        logger.warning("Dropping all database tables!")
+        base_class.metadata.drop_all(self.engine)
+        logger.info("Database tables dropped successfully")
+
+    def get_session(self) -> Session:
+        """
+        Get a new database session.
+
+        Returns:
+            Session: SQLAlchemy session
+        """
+        return self.session_factory()
+
+    @contextlib.contextmanager
+    def session_scope(self) -> Generator[Session, None, None]:
+        """
+        Provide a transactional scope around a series of operations.
+
+        Yields:
+            Session: SQLAlchemy session.
+        """
+        session = self.get_session()
+        try:
+            yield session
+            session.commit()
+        except Exception as e:
+            logger.error(f"Session error: {str(e)}")
+            session.rollback()
+            raise
+        finally:
+            session.close()

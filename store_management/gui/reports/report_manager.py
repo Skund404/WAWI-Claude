@@ -1,230 +1,194 @@
-# report_manager.py
-"""
-Report Manager module for generating and managing reports.
+# Path: gui/reports/report_manager.py
 
-This module provides functionality to generate various types of reports,
-such as inventory reports, sales reports, and production reports.
-It utilizes the SQLAlchemy ORM to retrieve data from the database and
-generates reports in different formats like CSV, PDF, and HTML.
+"""
+Report Manager for the Leatherworking Store Management Application.
+
+Provides utilities for generating various types of reports.
 """
 
 import csv
 import logging
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
+from datetime import datetime
 
-from sqlalchemy.exc import SQLAlchemyError
-from models import Inventory, Sales, Production
-from utils.database import DatabaseManager
-from utils.pdf_generator import PDFGenerator
-from utils.html_generator import HTMLGenerator
-
-# Configure logging
-logger = logging.getLogger(__name__)
+from utils.database.database_manager import database_manager
+from utils.logger import get_logger
 
 
-class ReportManager:
+class ReportDialog:
     """
-    Class for managing and generating reports.
+    A comprehensive report generation dialog for the leatherworking application.
 
-    Methods:
-        generate_inventory_report: Generate an inventory report.
-        generate_sales_report: Generate a sales report.
-        generate_production_report: Generate a production report.
+    Supports generating reports from various database models and exporting
+    to different formats.
+
+    Attributes:
+        _logger (logging.Logger): Logger for tracking report generation
+        _db_manager (DatabaseManager): Database management utility
     """
 
-    def __init__(self, db_manager: DatabaseManager):
+    def __init__(self,
+                 parent=None,
+                 session=None,
+                 title: str = 'Generate Report'):
         """
-        Initialize the ReportManager.
+        Initialize the ReportDialog.
 
         Args:
-            db_manager (DatabaseManager): Database manager instance.
+            parent: Parent widget or window
+            session: Optional database session
+            title (str, optional): Dialog title. Defaults to 'Generate Report'.
         """
-        self.db_manager = db_manager
+        self._logger = get_logger(__name__)
+        self._db_manager = database_manager
+        self._session = session or self._db_manager.get_session()
 
-    def generate_inventory_report(self, format: str = 'csv') -> str:
+        # Placeholder for report generation logic
+        self._report_types = [
+            'Inventory',
+            'Sales',
+            'Projects',
+            'Orders'
+        ]
+
+    def generate_report(self,
+                        report_type: str,
+                        export_format: str = 'csv') -> str:
         """
-        Generate an inventory report.
+        Generate a report based on the specified type and format.
 
         Args:
-            format (str): Report format ('csv', 'pdf', or 'html'). Default is 'csv'.
+            report_type (str): Type of report to generate
+            export_format (str, optional): Export format. Defaults to 'csv'.
 
         Returns:
-            str: Generated report filename.
+            str: Path to the generated report file
+
+        Raises:
+            ValueError: If an unsupported report type or format is specified
         """
         try:
-            # Retrieve inventory data from the database
-            with self.db_manager.session_scope() as session:
-                inventory_data = session.query(Inventory).all()
+            # Validate inputs
+            if report_type not in self._report_types:
+                raise ValueError(f"Unsupported report type: {report_type}")
 
-            # Prepare report data
-            report_data = [
-                ['Product ID', 'Product Name', 'Quantity', 'Location']
-            ]
-            for item in inventory_data:
-                report_data.append([
-                    item.product_id,
-                    item.product_name,
-                    item.quantity,
-                    item.location
-                ])
+            if export_format not in ['csv', 'json']:
+                raise ValueError(f"Unsupported export format: {export_format}")
 
-            # Generate report based on the specified format
-            if format == 'csv':
-                return self._generate_csv_report('inventory_report.csv', report_data)
-            elif format == 'pdf':
-                return self._generate_pdf_report('inventory_report.pdf', report_data)
-            elif format == 'html':
-                return self._generate_html_report('inventory_report.html', report_data)
+            # Generate timestamp for unique filename
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"{report_type.lower()}_report_{timestamp}.{export_format}"
+            filepath = f"reports/{filename}"
+
+            # Ensure reports directory exists
+            import os
+            os.makedirs('reports', exist_ok=True)
+
+            # Retrieve report data based on type
+            report_data = self._get_report_data(report_type)
+
+            # Export report
+            if export_format == 'csv':
+                self._export_to_csv(report_data, filepath)
             else:
-                raise ValueError(f"Unsupported report format: {format}")
+                self._export_to_json(report_data, filepath)
 
-        except SQLAlchemyError as e:
-            logger.exception("Error occurred while generating inventory report.")
-            raise
+            self._logger.info(f"Generated {report_type} report: {filepath}")
+            return filepath
 
-    def generate_sales_report(self, start_date: str, end_date: str, format: str = 'csv') -> str:
-        """
-        Generate a sales report for a given date range.
-
-        Args:
-            start_date (str): Start date of the sales report.
-            end_date (str): End date of the sales report.
-            format (str): Report format ('csv', 'pdf', or 'html'). Default is 'csv'.
-
-        Returns:
-            str: Generated report filename.
-        """
-        try:
-            # Retrieve sales data from the database
-            with self.db_manager.session_scope() as session:
-                sales_data = session.query(Sales)\
-                    .filter(Sales.date >= start_date)\
-                    .filter(Sales.date <= end_date)\
-                    .all()
-
-            # Prepare report data
-            report_data = [
-                ['Date', 'Product', 'Quantity', 'Revenue']
-            ]
-            for sale in sales_data:
-                report_data.append([
-                    sale.date,
-                    sale.product,
-                    sale.quantity,
-                    sale.revenue
-                ])
-
-            # Generate report based on the specified format
-            if format == 'csv':
-                return self._generate_csv_report('sales_report.csv', report_data)
-            elif format == 'pdf':
-                return self._generate_pdf_report('sales_report.pdf', report_data)
-            elif format == 'html':
-                return self._generate_html_report('sales_report.html', report_data)
-            else:
-                raise ValueError(f"Unsupported report format: {format}")
-
-        except SQLAlchemyError as e:
-            logger.exception("Error occurred while generating sales report.")
-            raise
-
-    def generate_production_report(self, month: str, format: str = 'csv') -> str:
-        """
-        Generate a production report for a given month.
-
-        Args:
-            month (str): Month for the production report.
-            format (str): Report format ('csv', 'pdf', or 'html'). Default is 'csv'.
-
-        Returns:
-            str: Generated report filename.
-        """
-        try:
-            # Retrieve production data from the database
-            with self.db_manager.session_scope() as session:
-                production_data = session.query(Production)\
-                    .filter(Production.month == month)\
-                    .all()
-
-            # Prepare report data
-            report_data = [
-                ['Month', 'Product', 'Quantity']
-            ]
-            for item in production_data:
-                report_data.append([
-                    item.month,
-                    item.product,
-                    item.quantity
-                ])
-
-            # Generate report based on the specified format
-            if format == 'csv':
-                return self._generate_csv_report('production_report.csv', report_data)
-            elif format == 'pdf':
-                return self._generate_pdf_report('production_report.pdf', report_data)
-            elif format == 'html':
-                return self._generate_html_report('production_report.html', report_data)
-            else:
-                raise ValueError(f"Unsupported report format: {format}")
-
-        except SQLAlchemyError as e:
-            logger.exception("Error occurred while generating production report.")
-            raise
-
-    def _generate_csv_report(self, filename: str, data: List[List[Any]]) -> str:
-        """
-        Generate a CSV report.
-
-        Args:
-            filename (str): Name of the CSV file.
-            data (List[List[Any]]): Report data.
-
-        Returns:
-            str: Generated CSV filename.
-        """
-        try:
-            with open(filename, 'w', newline='') as file:
-                writer = csv.writer(file)
-                writer.writerows(data)
-            return filename
-        except IOError as e:
-            logger.exception(f"Error occurred while generating CSV report: {filename}")
-            raise
-
-    def _generate_pdf_report(self, filename: str, data: List[List[Any]]) -> str:
-        """
-        Generate a PDF report.
-
-        Args:
-            filename (str): Name of the PDF file.
-            data (List[List[Any]]): Report data.
-
-        Returns:
-            str: Generated PDF filename.
-        """
-        try:
-            pdf_generator = PDFGenerator()
-            pdf_generator.generate(filename, data)
-            return filename
         except Exception as e:
-            logger.exception(f"Error occurred while generating PDF report: {filename}")
+            self._logger.error(f"Report generation failed: {e}")
             raise
 
-    def _generate_html_report(self, filename: str, data: List[List[Any]]) -> str:
+    def _get_report_data(self, report_type: str) -> List[Dict[str, Any]]:
         """
-        Generate an HTML report.
+        Retrieve report data from the database.
 
         Args:
-            filename (str): Name of the HTML file.
-            data (List[List[Any]]): Report data.
+            report_type (str): Type of report to generate
 
         Returns:
-            str: Generated HTML filename.
+            List[Dict[str, Any]]: Report data
         """
         try:
-            html_generator = HTMLGenerator()
-            html_generator.generate(filename, data)
-            return filename
+            # This is a placeholder implementation. In a real application,
+            # you would query specific models based on the report type
+            if report_type == 'Inventory':
+                # Example: Query inventory from database
+                inventory = self._session.execute(
+                    "SELECT * FROM inventory"
+                ).fetchall()
+                return [dict(row) for row in inventory]
+
+            elif report_type == 'Sales':
+                sales = self._session.execute(
+                    "SELECT * FROM sales"
+                ).fetchall()
+                return [dict(row) for row in sales]
+
+            elif report_type == 'Projects':
+                projects = self._session.execute(
+                    "SELECT * FROM project"
+                ).fetchall()
+                return [dict(row) for row in projects]
+
+            elif report_type == 'Orders':
+                orders = self._session.execute(
+                    "SELECT * FROM 'order'"
+                ).fetchall()
+                return [dict(row) for row in orders]
+
+            else:
+                return []
+
         except Exception as e:
-            logger.exception(f"Error occurred while generating HTML report: {filename}")
+            self._logger.error(f"Failed to retrieve {report_type} data: {e}")
+            return []
+
+    def _export_to_csv(self, data: List[Dict[str, Any]], filepath: str):
+        """
+        Export report data to CSV.
+
+        Args:
+            data (List[Dict[str, Any]]): Report data to export
+            filepath (str): Path to save the CSV file
+        """
+        if not data:
+            self._logger.warning("No data to export to CSV")
+            return
+
+        try:
+            with open(filepath, 'w', newline='') as csvfile:
+                if data:
+                    fieldnames = data[0].keys()
+                    writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                    writer.writeheader()
+                    writer.writerows(data)
+        except Exception as e:
+            self._logger.error(f"CSV export failed: {e}")
             raise
+
+    def _export_to_json(self, data: List[Dict[str, Any]], filepath: str):
+        """
+        Export report data to JSON.
+
+        Args:
+            data (List[Dict[str, Any]]): Report data to export
+            filepath (str): Path to save the JSON file
+        """
+        import json
+
+        if not data:
+            self._logger.warning("No data to export to JSON")
+            return
+
+        try:
+            with open(filepath, 'w') as jsonfile:
+                json.dump(data, jsonfile, indent=4)
+        except Exception as e:
+            self._logger.error(f"JSON export failed: {e}")
+            raise
+
+
+# Create a default dialog for potential dependency injection
+report_dialog = ReportDialog()

@@ -1,275 +1,179 @@
-# store_management/database/repositories/material_repository.py
-"""
-SQLAlchemy implementation of the Material Repository.
+# Path: database/repositories/material_repository.py
+"""Material Repository for managing material-related database operations."""
 
-Provides comprehensive data access and manipulation methods 
-for materials with advanced querying capabilities.
-"""
-
-from typing import List, Optional, Dict, Any
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy import func
 import logging
+from typing import Any, Dict, List, Optional
 
-from di.core import inject
-from services.interfaces import MaterialService
-from database.models.material import (
-    Material,
-    MaterialType,
-    MaterialQualityGrade
-)
+from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import or_, func
+
 from database.repositories.base_repository import BaseRepository
+from database.models.material import Material
+from database.models.enums import MaterialType
 
-# Configure logging
-logger = logging.getLogger(__name__)
 
-
-class MaterialRepository(BaseRepository[Material]):
+class MaterialRepository(BaseRepository):
     """
-    Repository for Material model operations.
+    Repository for managing material-related database operations.
 
-    Provides advanced methods for material data management,
-    including stock updates, searching, and reporting.
+    Provides methods for CRUD operations and complex queries on materials.
     """
 
-    def __init__(self, session):
+    def __init__(self, session: Session):
         """
         Initialize the Material Repository.
 
         Args:
-            session: SQLAlchemy database session
+            session (Session): SQLAlchemy database session
         """
         super().__init__(session, Material)
-        self._session = session
+        self._logger = logging.getLogger(__name__)
 
-    def update_stock(
-            self,
-            material_id: Any,
-            quantity_change: float,
-            transaction_type: str,
-            notes: Optional[str] = None
-    ) -> Material:
+    def create(self, material_data: Dict[str, Any]) -> Material:
         """
-        Update the stock of a material.
+        Create a new material.
 
         Args:
-            material_id (Any): ID of the material
-            quantity_change (float): Quantity to add or subtract
-            transaction_type (str): Type of stock transaction
-            notes (Optional[str], optional): Additional notes for the transaction
+            material_data (Dict[str, Any]): Data for the new material
 
         Returns:
-            Material: Updated material
-
-        Raises:
-            ValueError: If stock update would be invalid
+            Material: Created material instance
         """
         try:
-            # Retrieve material
-            material = self.get_by_id(material_id)
+            # Validate and prepare material data
+            if 'type' in material_data and isinstance(material_data['type'], str):
+                try:
+                    material_data['type'] = MaterialType[material_data['type']]
+                except (KeyError, ValueError):
+                    self._logger.warning(f"Invalid material type: {material_data['type']}")
+                    material_data['type'] = MaterialType.OTHER
 
-            # Calculate new stock
-            new_stock = material.stock + quantity_change
+            material = Material(**material_data)
+            self._session.add(material)
+            self._session.commit()
+            return material
+        except SQLAlchemyError as e:
+            self._session.rollback()
+            self._logger.error(f"Error creating material: {str(e)}")
+            raise
 
-            # Validate stock level
-            if new_stock < 0:
-                raise ValueError('Insufficient stock', {
-                    'current_stock': material.stock,
-                    'quantity_change': quantity_change
-                })
+    def list(
+            self,
+            filter_criteria: Optional[Dict[str, Any]] = None,
+            sort_by: Optional[str] = None,
+            limit: Optional[int] = None
+    ) -> List[Material]:
+        """
+        List materials with optional filtering and sorting.
 
-            # Update stock
-            material.stock = new_stock
+        Args:
+            filter_criteria (Optional[Dict[str, Any]], optional): Filters to apply
+            sort_by (Optional[str], optional): Field to sort by
+            limit (Optional[int], optional): Maximum number of results
+
+        Returns:
+            List[Material]: List of material objects
+        """
+        try:
+            # Start with base query
+            query = self._session.query(Material)
+
+            # Apply filtering
+            if filter_criteria:
+                for key, value in filter_criteria.items():
+                    if key == 'type' and isinstance(value, str):
+                        # Convert string to enum if needed
+                        try:
+                            value = MaterialType[value]
+                        except (KeyError, ValueError):
+                            self._logger.warning(f"Invalid material type: {value}")
+                            continue
+
+                    # Handle complex filter conditions
+                    if isinstance(value, dict):
+                        for op, val in value.items():
+                            if op == '$lt':
+                                query = query.filter(getattr(Material, key) < val)
+                            elif op == '$gt':
+                                query = query.filter(getattr(Material, key) > val)
+                            elif op == '$lte':
+                                query = query.filter(getattr(Material, key) <= val)
+                            elif op == '$gte':
+                                query = query.filter(getattr(Material, key) >= val)
+                    else:
+                        query = query.filter(getattr(Material, key) == value)
+
+            # Apply sorting
+            if sort_by:
+                query = query.order_by(getattr(Material, sort_by))
+
+            # Apply limit
+            if limit:
+                query = query.limit(limit)
+
+            # Execute and return results
+            return query.all()
+        except SQLAlchemyError as e:
+            self._logger.error(f"Error listing materials: {str(e)}")
+            return []
+
+    def update(self, material_id: int, update_data: Dict[str, Any]) -> Material:
+        """
+        Update an existing material.
+
+        Args:
+            material_id (int): ID of the material to update
+            update_data (Dict[str, Any]): Data to update
+
+        Returns:
+            Material: Updated material instance
+        """
+        try:
+            # Find the material
+            material = self._session.query(Material).filter(Material.id == material_id).first()
+
+            if not material:
+                raise ValueError(f"Material with ID {material_id} not found")
+
+            # Handle type conversion if needed
+            if 'type' in update_data and isinstance(update_data['type'], str):
+                try:
+                    update_data['type'] = MaterialType[update_data['type']]
+                except (KeyError, ValueError):
+                    self._logger.warning(f"Invalid material type: {update_data['type']}")
+                    update_data['type'] = MaterialType.OTHER
+
+            # Update material attributes
+            for key, value in update_data.items():
+                setattr(material, key, value)
 
             # Commit changes
             self._session.commit()
-
-            logger.info(f'Updated stock for material {material_id}: {quantity_change}')
             return material
-        except ValueError:
-            self._session.rollback()
-            raise
         except SQLAlchemyError as e:
             self._session.rollback()
-            logger.error(f'Failed to update material stock: {e}')
+            self._logger.error(f"Error updating material {material_id}: {str(e)}")
             raise
 
-    def get_low_stock_materials(
-            self,
-            include_zero_stock: bool = False
-    ) -> List[Material]:
+    def delete(self, material_id: int) -> None:
         """
-        Retrieve materials with low stock.
+        Delete a material from the system.
 
         Args:
-            include_zero_stock (bool, optional): Whether to include materials
-                with zero stock. Defaults to False.
-
-        Returns:
-            List[Material]: List of low stock materials
+            material_id (int): ID of the material to delete
         """
         try:
-            query = self._session.query(Material)
+            # Find the material
+            material = self._session.query(Material).filter(Material.id == material_id).first()
 
-            if include_zero_stock:
-                query = query.filter(Material.stock <= Material.minimum_stock)
-            else:
-                query = query.filter(
-                    (Material.stock <= Material.minimum_stock) &
-                    (Material.stock > 0)
-                )
+            if not material:
+                raise ValueError(f"Material with ID {material_id} not found")
 
-            return query.all()
+            # Delete material
+            self._session.delete(material)
+            self._session.commit()
         except SQLAlchemyError as e:
-            logger.error(f'Failed to retrieve low stock materials: {e}')
-            raise
-
-    def search_materials(self, search_params: Dict[str, Any]) -> List[Material]:
-        """
-        Search materials based on multiple criteria.
-
-        Args:
-            search_params (Dict[str, Any]): Search criteria
-
-        Returns:
-            List[Material]: List of matching materials
-        """
-        try:
-            query = self._session.query(Material)
-
-            for key, value in search_params.items():
-                if key == 'material_type':
-                    query = query.filter(Material.material_type == MaterialType(value))
-                elif key == 'quality_grade':
-                    query = query.filter(Material.quality_grade == MaterialQualityGrade(value))
-                elif key == 'name':
-                    query = query.filter(Material.name.ilike(f'%{value}%'))
-                else:
-                    query = query.filter(getattr(Material, key) == value)
-
-            return query.all()
-        except SQLAlchemyError as e:
-            logger.error(f'Failed to search materials: {e}')
-            raise
-
-    def generate_material_usage_report(
-            self,
-            start_date: Optional[str] = None,
-            end_date: Optional[str] = None
-    ) -> Dict[str, Any]:
-        """
-        Generate a comprehensive material usage report.
-
-        Args:
-            start_date (Optional[str], optional): Start date for the report
-        end_date (Optional[str], optional): End date for the report
-
-        Returns:
-            Dict[str, Any]: Material usage report
-        """
-        try:
-            # Retrieve all materials
-            materials = self._session.query(Material).all()
-
-            # Initialize report structure
-            report = {
-                'total_materials': len(materials),
-                'low_stock_materials': 0,
-                'materials': []
-            }
-
-            # Process each material
-            for material in materials:
-                material_data = {
-                    'id': material.id,
-                    'name': material.name,
-                    'material_type': material.material_type.value,
-                    'quality_grade': material.quality_grade.value,
-                    'current_stock': material.stock,
-                    'minimum_stock': material.minimum_stock,
-                    'is_low_stock': material.stock <= material.minimum_stock
-                }
-
-                # Count low stock materials
-                if material_data['is_low_stock']:
-                    report['low_stock_materials'] += 1
-
-                report['materials'].append(material_data)
-
-            return report
-        except SQLAlchemyError as e:
-            logger.error(f'Failed to generate material usage report: {e}')
-            raise
-
-    def validate_material_substitution(
-            self,
-            original_material_id: Any,
-            substitute_material_id: Any
-    ) -> bool:
-        """
-        Check if one material can be substituted for another.
-
-        Args:
-            original_material_id (Any): ID of the original material
-            substitute_material_id (Any): ID of the potential substitute material
-
-        Returns:
-            bool: True if substitution is possible, False otherwise
-        """
-        try:
-            # Retrieve both materials
-            original_material = self.get_by_id(original_material_id)
-            substitute_material = self.get_by_id(substitute_material_id)
-
-            # Define substitution criteria
-            criteria = [
-                original_material.material_type == substitute_material.material_type,
-                substitute_material.stock > 0,
-                substitute_material.quality_grade.value >= original_material.quality_grade.value
-            ]
-
-            # Check all criteria
-            return all(criteria)
-        except SQLAlchemyError as e:
-            logger.error(f'Failed to validate material substitution: {e}')
-            raise
-
-    def get_material_statistics(self) -> Dict[str, Any]:
-        """
-        Generate comprehensive material statistics.
-
-        Returns:
-            Dict[str, Any]: Detailed material statistics
-        """
-        try:
-            # Total materials
-            total_materials = self._session.query(Material).count()
-
-            # Materials by type
-            materials_by_type = (
-                self._session.query(Material.material_type, func.count(Material.material_type))
-                .group_by(Material.material_type)
-                .all()
-            )
-
-            # Total stock value
-            total_stock_value = (
-                self._session.query(func.sum(Material.stock * Material.unit_price))
-                .scalar() or 0
-            )
-
-            # Average stock level
-            avg_stock = (
-                self._session.query(func.avg(Material.stock))
-                .scalar() or 0
-            )
-
-            return {
-                'total_materials': total_materials,
-                'materials_by_type': dict(materials_by_type),
-                'total_stock_value': float(total_stock_value),
-                'average_stock_level': float(avg_stock)
-            }
-        except SQLAlchemyError as e:
-            logger.error(f'Failed to generate material statistics: {e}')
+            self._session.rollback()
+            self._logger.error(f"Error deleting material {material_id}: {str(e)}")
             raise
