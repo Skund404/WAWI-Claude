@@ -47,20 +47,15 @@ class ProductInventoryView(BaseView):
         logger.info("Product inventory view initialized")
 
     def get_service(self, service_type: Type) -> Any:
-        """
-        Retrieve a service from the dependency container.
+        """Get a service from the application.
 
         Args:
-            service_type (Type): Service interface to retrieve
+            service_type (Type): The service interface type to retrieve
 
         Returns:
-            Any: Service implementation instance
+            Any: The service instance
         """
-        try:
-            return self._app.get_service(service_type)
-        except Exception as e:
-            logger.error(f"Failed to get service {service_type.__name__}: {str(e)}")
-            raise
+        return self.app.get_service(service_type)
 
     @property
     def storage_service(self) -> IStorageService:

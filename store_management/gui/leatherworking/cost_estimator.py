@@ -1,273 +1,345 @@
-from di.core import inject
-from services.interfaces import MaterialService, ProjectService, \
-    InventoryService, OrderService
+# gui/leatherworking/cost_estimator.py
 import tkinter as tk
-from tkinter import ttk, messagebox, simpledialog
-from typing import List, Dict, Any
-
-"""
-Cost Estimator for calculating and tracking expenses in leatherworking projects.
-"""
+from tkinter import messagebox, simpledialog, ttk
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from typing import Any, Dict, List
 
 
 class CostEstimator(tk.Frame):
-    """
-    A comprehensive cost estimation and tracking tool for leatherworking projects.
+    """Cost estimator for leatherworking projects.
+
+    Allows users to estimate and track costs for leatherworking projects.
     """
 
-    @inject(MaterialService)
     def __init__(self, parent, controller=None):
-        """
-        Initialize the cost estimator.
+        """Initialize the cost estimator.
 
         Args:
             parent (tk.Tk or tk.Frame): Parent widget
             controller (object, optional): Application controller for navigation
         """
         super().__init__(parent)
+        self.parent = parent
         self.controller = controller
-        self.style = ttk.Style()
-        self.style.theme_use('clam')
-        self.cost_items: List[Dict[str, Any]] = []
+        self.cost_items = []
+
+        # Create the layout
         self._setup_layout()
         self._create_cost_input()
         self._create_cost_breakdown()
         self._create_cost_visualization()
         self._create_cost_summary()
+
+        # Load some sample data
         self.load_initial_costs()
 
-    @inject(MaterialService)
     def _setup_layout(self):
         """Configure grid layout for cost estimator."""
-        self.grid_columnconfigure(0, weight=2)
-        self.grid_columnconfigure(1, weight=1)
-        self.input_frame = ttk.LabelFrame(self, text='Cost Input', padding=(10, 10))
-        self.input_frame.grid(row=0, column=0, sticky='nsew', padx=5, pady=5)
-        self.visualization_frame = ttk.LabelFrame(self, text='Cost Breakdown', padding=(10, 10))
-        self.visualization_frame.grid(row=0, column=1, sticky='nsew', padx=5, pady=5)
-        self.summary_frame = ttk.LabelFrame(self, text='Cost Summary', padding=(10, 10))
-        self.summary_frame.grid(row=1, column=0, columnspan=2, sticky='nsew', padx=5, pady=5)
+        # Configure grid
+        self.columnconfigure(0, weight=1)
+        self.columnconfigure(1, weight=2)
+        self.rowconfigure(0, weight=0)  # Input area
+        self.rowconfigure(1, weight=1)  # Breakdown and visualization
+        self.rowconfigure(2, weight=0)  # Summary
 
-    @inject(MaterialService)
+        # Create frames
+        self.input_frame = ttk.LabelFrame(self, text="Add Cost Item")
+        self.input_frame.grid(row=0, column=0, columnspan=2, padx=10, pady=5, sticky="ew")
+
+        self.breakdown_frame = ttk.LabelFrame(self, text="Cost Breakdown")
+        self.breakdown_frame.grid(row=1, column=0, padx=10, pady=5, sticky="nsew")
+
+        self.visualization_frame = ttk.LabelFrame(self, text="Cost Distribution")
+        self.visualization_frame.grid(row=1, column=1, padx=10, pady=5, sticky="nsew")
+
+        self.summary_frame = ttk.LabelFrame(self, text="Cost Summary")
+        self.summary_frame.grid(row=2, column=0, columnspan=2, padx=10, pady=5, sticky="ew")
+
     def _create_cost_input(self):
         """Create input fields for adding cost items."""
-        ttk.Label(self.input_frame, text='Cost Category:').grid(row=0, column=0, sticky='w', pady=5)
+        # Configure grid
+        self.input_frame.columnconfigure(1, weight=1)
+
+        # Item description
+        ttk.Label(self.input_frame, text="Description:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        self.description_var = tk.StringVar()
+        ttk.Entry(self.input_frame, textvariable=self.description_var).grid(row=0, column=1, padx=5, pady=5,
+                                                                            sticky="ew")
+
+        # Item category
+        ttk.Label(self.input_frame, text="Category:").grid(row=0, column=2, padx=5, pady=5, sticky="w")
         self.category_var = tk.StringVar()
-        cost_categories = ['Leather', 'Hardware', 'Thread', 'Tools', 'Adhesive', 'Lining', 'Labor', 'Miscellaneous']
-        category_dropdown = ttk.Combobox(self.input_frame, textvariable=self.category_var, values=cost_categories,
-                                          state='readonly', width=27)
-        category_dropdown.grid(row=0, column=1, sticky='ew', pady=5)
+        categories = ["Leather", "Hardware", "Thread", "Tools", "Labor", "Other"]
+        ttk.Combobox(self.input_frame, textvariable=self.category_var, values=categories).grid(row=0, column=3, padx=5,
+                                                                                               pady=5, sticky="ew")
 
-        ttk.Label(self.input_frame, text='Item Name:').grid(row=1, column=0, sticky='w', pady=5)
-        self.item_name_var = tk.StringVar()
-        item_name_entry = ttk.Entry(self.input_frame, textvariable=self.item_name_var, width=30)
-        item_name_entry.grid(row=1, column=1, sticky='ew', pady=5)
+        # Item cost
+        ttk.Label(self.input_frame, text="Cost ($):").grid(row=1, column=0, padx=5, pady=5, sticky="w")
+        self.cost_var = tk.StringVar()
+        ttk.Entry(self.input_frame, textvariable=self.cost_var).grid(row=1, column=1, padx=5, pady=5, sticky="ew")
 
-        ttk.Label(self.input_frame, text='Quantity:').grid(row=2, column=0, sticky='w', pady=5)
-        self.quantity_var = tk.StringVar(value='1')
-        quantity_entry = ttk.Entry(self.input_frame, textvariable=self.quantity_var, width=30)
-        quantity_entry.grid(row=2, column=1, sticky='ew', pady=5)
+        # Item quantity
+        ttk.Label(self.input_frame, text="Quantity:").grid(row=1, column=2, padx=5, pady=5, sticky="w")
+        self.quantity_var = tk.StringVar(value="1")
+        ttk.Entry(self.input_frame, textvariable=self.quantity_var).grid(row=1, column=3, padx=5, pady=5, sticky="ew")
 
-        ttk.Label(self.input_frame, text='Unit Price ($):').grid(row=3, column=0, sticky='w', pady=5)
-        self.unit_price_var = tk.StringVar()
-        unit_price_entry = ttk.Entry(self.input_frame, textvariable=self.unit_price_var, width=30)
-        unit_price_entry.grid(row=3, column=1, sticky='ew', pady=5)
+        # Add button
+        add_button = ttk.Button(self.input_frame, text="Add Cost Item", command=self.add_cost_item)
+        add_button.grid(row=1, column=4, padx=5, pady=5, sticky="e")
 
-        ttk.Label(self.input_frame, text='Hours (Labor):').grid(row=4, column=0, sticky='w', pady=5)
-        self.hours_var = tk.StringVar(value='0')
-        hours_entry = ttk.Entry(self.input_frame, textvariable=self.hours_var, width=30)
-        hours_entry.grid(row=4, column=1, sticky='ew', pady=5)
-
-        ttk.Label(self.input_frame, text='Hourly Rate ($):').grid(row=5, column=0, sticky='w', pady=5)
-        self.hourly_rate_var = tk.StringVar(value='25')
-        hourly_rate_entry = ttk.Entry(self.input_frame, textvariable=self.hourly_rate_var, width=30)
-        hourly_rate_entry.grid(row=5, column=1, sticky='ew', pady=5)
-
-        add_btn = ttk.Button(self.input_frame, text='Add Cost Item', command=self.add_cost_item)
-        add_btn.grid(row=6, column=0, columnspan=2, sticky='ew', pady=10)
-
-    @inject(MaterialService)
     def _create_cost_breakdown(self):
         """Create a treeview to display cost breakdown."""
-        columns = 'Category', 'Item', 'Quantity', 'Unit Price', 'Total Cost'
-        self.cost_tree = ttk.Treeview(self.visualization_frame, columns=columns, show='headings')
-        for col in columns:
-            self.cost_tree.heading(col, text=col)
-            self.cost_tree.column(col, width=100, anchor='center')
-        self.cost_tree.pack(fill='both', expand=True)
+        # Create treeview
+        columns = ("description", "category", "cost", "quantity", "total")
+        self.cost_tree = ttk.Treeview(self.breakdown_frame, columns=columns, show="headings")
 
-        scrollbar = ttk.Scrollbar(self.visualization_frame, orient='vertical', command=self.cost_tree.yview)
+        # Configure columns
+        self.cost_tree.heading("description", text="Description")
+        self.cost_tree.heading("category", text="Category")
+        self.cost_tree.heading("cost", text="Cost ($)")
+        self.cost_tree.heading("quantity", text="Qty")
+        self.cost_tree.heading("total", text="Total ($)")
+
+        self.cost_tree.column("description", width=150)
+        self.cost_tree.column("category", width=80)
+        self.cost_tree.column("cost", width=60)
+        self.cost_tree.column("quantity", width=40)
+        self.cost_tree.column("total", width=60)
+
+        # Add scrollbar
+        scrollbar = ttk.Scrollbar(self.breakdown_frame, orient=tk.VERTICAL, command=self.cost_tree.yview)
         self.cost_tree.configure(yscroll=scrollbar.set)
-        scrollbar.pack(side='right', fill='y')
 
-        self.cost_tree_context_menu = tk.Menu(self, tearoff=0)
-        self.cost_tree_context_menu.add_command(label='Delete', command=self.delete_selected_cost_item)
-        self.cost_tree.bind('<Button-3>', self.show_context_menu)
+        # Pack elements
+        self.cost_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-    @inject(MaterialService)
+        # Bind right-click for context menu
+        self.cost_tree.bind("<Button-3>", self.show_context_menu)
+
+        # Create context menu
+        self.context_menu = tk.Menu(self, tearoff=0)
+        self.context_menu.add_command(label="Delete Item", command=self.delete_selected_cost_item)
+
     def _create_cost_visualization(self):
         """Create pie chart for cost distribution."""
+        # Create figure and axis
         self.figure, self.ax = plt.subplots(figsize=(5, 4), dpi=100)
-        self.ax.set_title('Cost Distribution')
+
+        # Create canvas
         self.canvas = FigureCanvasTkAgg(self.figure, master=self.visualization_frame)
-        self.canvas_widget = self.canvas.get_tk_widget()
-        self.canvas_widget.pack(fill='both', expand=True)
+        self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
 
-    @inject(MaterialService)
-    def _create_cost_summary(self):
-        """Create summary section for cost tracking."""
-        summary_metrics = [('Total Materials Cost', 'materials_cost'),
-                           ('Labor Cost', 'labor_cost'),
-                           ('Total Project Cost', 'total_cost'),
-                           ('Estimated Profit Margin (%)', 'profit_margin')]
-        for idx, (label, attr_name) in enumerate(summary_metrics):
-            frame = ttk.Frame(self.summary_frame)
-            frame.pack(fill='x', pady=5)
-            ttk.Label(frame, text=label, width=25).pack(side='left')
-            value_label = ttk.Label(frame, text='$0.00', width=15)
-            value_label.pack(side='right')
-            setattr(self, f'{attr_name}_label', value_label)
-
-        btn_frame = ttk.Frame(self.summary_frame)
-        btn_frame.pack(fill='x', pady=10)
-        calculate_btn = ttk.Button(btn_frame, text='Recalculate', command=self.recalculate_costs)
-        calculate_btn.pack(side='left', expand=True, fill='x', padx=5)
-        export_btn = ttk.Button(btn_frame, text='Export Report', command=self.export_cost_report)
-        export_btn.pack(side='right', expand=True, fill='x', padx=5)
-
-    @inject(MaterialService)
-    def add_cost_item(self):
-        """Add a new cost item to the breakdown."""
-        try:
-            category = self.category_var.get()
-            if not category:
-                raise ValueError('Please select a cost category')
-            item_name = self.item_name_var.get().strip()
-            if not item_name:
-                raise ValueError('Item name cannot be empty')
-            quantity = float(self.quantity_var.get())
-            if quantity <= 0:
-                raise ValueError('Quantity must be a positive number')
-
-            if category == 'Labor':
-                hours = float(self.hours_var.get())
-                hourly_rate = float(self.hourly_rate_var.get())
-                unit_price = hourly_rate
-                total_cost = hours * hourly_rate
-            else:
-                unit_price = float(self.unit_price_var.get())
-                total_cost = quantity * unit_price
-
-            cost_item = {
-                'category': category,
-                'item_name': item_name,
-                'quantity': quantity,
-                'unit_price': unit_price,
-                'total_cost': total_cost
-            }
-            self.cost_items.append(cost_item)
-            self.cost_tree.insert('', 'end', values=(category, item_name, f'{quantity}', f'${unit_price:.2f}', f'${total_cost:.2f}'))
-            self.recalculate_costs()
-            self.category_var.set('')
-            self.item_name_var.set('')
-            self.quantity_var.set('1')
-            self.unit_price_var.set('')
-            self.hours_var.set('0')
-            self.hourly_rate_var.set('25')
-        except ValueError as e:
-            messagebox.showerror('Input Error', str(e))
-
-    @inject(MaterialService)
-    def recalculate_costs(self):
-        """Recalculate and update cost summary."""
-        materials_cost = sum(item['total_cost'] for item in self.cost_items if item['category'] != 'Labor')
-        self.materials_cost_label.config(text=f'${materials_cost:.2f}')
-        labor_cost = sum(item['total_cost'] for item in self.cost_items if item['category'] == 'Labor')
-        self.labor_cost_label.config(text=f'${labor_cost:.2f}')
-        total_cost = materials_cost + labor_cost
-        self.total_cost_label.config(text=f'${total_cost:.2f}')
-        estimated_selling_price = total_cost * 2
-        estimated_profit = estimated_selling_price - total_cost
-        profit_margin = (estimated_profit / estimated_selling_price * 100 if estimated_selling_price > 0 else 0)
-        self.profit_margin_label.config(text=f'{profit_margin:.2f}%')
-        self._update_cost_distribution_chart()
-
-    @inject(MaterialService)
-    def _update_cost_distribution_chart(self):
-        """Update pie chart showing cost distribution."""
-        self.ax.clear()
-        self.ax.set_title('Cost Distribution')
-        categories = {}
-        for item in self.cost_items:
-            categories[item['category']] = categories.get(item['category'], 0) + item['total_cost']
-        if categories:
-            self.ax.pie(list(categories.values()), labels=list(categories.keys()), autopct='%1.1f%%')
-        else:
-            self.ax.text(0.5, 0.5, 'No Cost Data', ha='center', va='center')
+        # Initial empty plot
+        self.ax.set_title("Cost Distribution by Category")
+        self.ax.text(0.5, 0.5, "Add cost items to see distribution",
+                     horizontalalignment='center', verticalalignment='center', transform=self.ax.transAxes)
         self.canvas.draw()
 
-    @inject(MaterialService)
+    def _create_cost_summary(self):
+        """Create summary section for cost tracking."""
+        # Configure grid
+        self.summary_frame.columnconfigure(1, weight=1)
+        self.summary_frame.columnconfigure(3, weight=1)
+
+        # Total cost
+        ttk.Label(self.summary_frame, text="Total Cost:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        self.total_cost_var = tk.StringVar(value="$0.00")
+        ttk.Label(self.summary_frame, textvariable=self.total_cost_var, font=("Helvetica", 12, "bold")).grid(row=0,
+                                                                                                             column=1,
+                                                                                                             padx=5,
+                                                                                                             pady=5,
+                                                                                                             sticky="w")
+
+        # Item count
+        ttk.Label(self.summary_frame, text="Number of Items:").grid(row=0, column=2, padx=5, pady=5, sticky="w")
+        self.item_count_var = tk.StringVar(value="0")
+        ttk.Label(self.summary_frame, textvariable=self.item_count_var).grid(row=0, column=3, padx=5, pady=5,
+                                                                             sticky="w")
+
+        # Action buttons
+        button_frame = ttk.Frame(self.summary_frame)
+        button_frame.grid(row=1, column=0, columnspan=4, padx=5, pady=5, sticky="ew")
+
+        export_button = ttk.Button(button_frame, text="Export Cost Report", command=self.export_cost_report)
+        export_button.pack(side=tk.LEFT, padx=5)
+
+        clear_button = ttk.Button(button_frame, text="Clear All",
+                                  command=lambda: self.cost_tree.delete(*self.cost_tree.get_children()))
+        clear_button.pack(side=tk.LEFT, padx=5)
+
+    def add_cost_item(self):
+        """Add a new cost item to the breakdown."""
+        # Get values
+        description = self.description_var.get().strip()
+        category = self.category_var.get().strip()
+
+        # Validate inputs
+        try:
+            cost = float(self.cost_var.get())
+            quantity = int(self.quantity_var.get())
+        except ValueError:
+            messagebox.showerror("Input Error", "Cost must be a number and quantity must be an integer.")
+            return
+
+        if not description:
+            messagebox.showerror("Input Error", "Please enter a description.")
+            return
+
+        if not category:
+            messagebox.showerror("Input Error", "Please select a category.")
+            return
+
+        # Calculate total
+        total = cost * quantity
+
+        # Add to treeview
+        item_id = self.cost_tree.insert("", tk.END, values=(
+            description,
+            category,
+            f"{cost:.2f}",
+            quantity,
+            f"{total:.2f}"
+        ))
+
+        # Add to data
+        self.cost_items.append({
+            "id": item_id,
+            "description": description,
+            "category": category,
+            "cost": cost,
+            "quantity": quantity,
+            "total": total
+        })
+
+        # Clear inputs
+        self.description_var.set("")
+        self.cost_var.set("")
+        self.quantity_var.set("1")
+
+        # Update summary and visualization
+        self.recalculate_costs()
+
+    def recalculate_costs(self):
+        """Recalculate and update cost summary."""
+        # Calculate totals
+        total_cost = sum(item["total"] for item in self.cost_items)
+
+        # Update variables
+        self.total_cost_var.set(f"${total_cost:.2f}")
+        self.item_count_var.set(str(len(self.cost_items)))
+
+        # Update visualization
+        self._update_cost_distribution_chart()
+
+    def _update_cost_distribution_chart(self):
+        """Update pie chart showing cost distribution."""
+        # Clear previous plot
+        self.ax.clear()
+
+        # Skip if no items
+        if not self.cost_items:
+            self.ax.set_title("Cost Distribution by Category")
+            self.ax.text(0.5, 0.5, "Add cost items to see distribution",
+                         horizontalalignment='center', verticalalignment='center', transform=self.ax.transAxes)
+            self.canvas.draw()
+            return
+
+        # Group by category
+        category_totals = {}
+        for item in self.cost_items:
+            category = item["category"]
+            if category in category_totals:
+                category_totals[category] += item["total"]
+            else:
+                category_totals[category] = item["total"]
+
+        # Create pie chart
+        labels = list(category_totals.keys())
+        values = list(category_totals.values())
+
+        # Use custom colors for categories
+        colors = {'Leather': '#8B4513', 'Hardware': '#A9A9A9', 'Thread': '#4682B4',
+                  'Tools': '#556B2F', 'Labor': '#CD5C5C', 'Other': '#9932CC'}
+
+        plot_colors = [colors.get(category, '#1f77b4') for category in labels]
+
+        self.ax.pie(values, labels=labels, autopct='%1.1f%%', startangle=90, colors=plot_colors)
+        self.ax.set_title("Cost Distribution by Category")
+        self.ax.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle
+
+        # Draw the plot
+        self.canvas.draw()
+
     def delete_selected_cost_item(self):
         """Delete the selected cost item from the breakdown."""
-        selected_item = self.cost_tree.selection()
-        if not selected_item:
-            messagebox.showwarning('Selection', 'Please select a cost item to delete.')
+        selected_items = self.cost_tree.selection()
+        if not selected_items:
             return
-        self.cost_tree.delete(selected_item[0])
-        del self.cost_items[self.cost_tree.index(selected_item[0])]
+
+        # Remove from treeview
+        for item_id in selected_items:
+            self.cost_tree.delete(item_id)
+
+            # Remove from data
+            self.cost_items = [item for item in self.cost_items if item["id"] != item_id]
+
+        # Update summary and visualization
         self.recalculate_costs()
 
-    @inject(MaterialService)
     def show_context_menu(self, event):
-        """Show context menu for cost items list."""
-        iid = self.cost_tree.identify_row(event.y)
-        if iid:
-            self.cost_tree.selection_set(iid)
-            self.cost_tree_context_menu.post(event.x_root, event.y_root)
+        """Show context menu for cost items list.
 
-    @inject(MaterialService)
+        Args:
+            event: The event that triggered the context menu
+        """
+        # Select the item under cursor
+        item = self.cost_tree.identify_row(event.y)
+        if item:
+            self.cost_tree.selection_set(item)
+            self.context_menu.post(event.x_root, event.y_root)
+
     def export_cost_report(self):
         """Export cost report to a CSV file."""
-        try:
-            filename = simpledialog.askstring('Export Report', 'Enter filename for cost report:', initialvalue='cost_report.csv')
-            if not filename:
-                return
-            with open(filename, 'w') as f:
-                f.write('Category,Item,Quantity,Unit Price,Total Cost\n')
-                for item in self.cost_items:
-                    f.write(f"""{item['category']},{item['item_name']},{item['quantity']},{item['unit_price']},{item['total_cost']}\n""")
-                f.write('\nSummary,,,\n')
-                f.write(f"Materials Cost,,,{self.materials_cost_label.cget('text')}\n")
-                f.write(f"Labor Cost,,,{self.labor_cost_label.cget('text')}\n")
-                f.write(f"Total Project Cost,,,{self.total_cost_label.cget('text')}\n")
-                f.write(f"Estimated Profit Margin,,,{self.profit_margin_label.cget('text')}\n")
-            messagebox.showinfo('Export Successful', f'Cost report exported to {filename}')
-        except Exception as e:
-            messagebox.showerror('Export Error', str(e))
+        messagebox.showinfo("Export", "Export functionality not implemented yet.")
 
-    @inject(MaterialService)
     def load_initial_costs(self):
         """Load some initial cost items for demonstration."""
-        initial_costs = [
-            {'category': 'Leather', 'item_name': 'Full Grain Leather', 'quantity': 2, 'unit_price': 50.0, 'total_cost': 100.0},
-            {'category': 'Hardware', 'item_name': 'Metal Buckles', 'quantity': 4, 'unit_price': 5.5, 'total_cost': 22.0},
-            {'category': 'Labor', 'item_name': 'Design and Cutting', 'quantity': 3, 'unit_price': 25.0, 'total_cost': 75.0}
+        sample_items = [
+            {"description": "Veg-Tan Leather (2-3 oz)", "category": "Leather", "cost": 25.99, "quantity": 1},
+            {"description": "Solid Brass Buckle", "category": "Hardware", "cost": 4.50, "quantity": 2},
+            {"description": "Waxed Thread (25 yards)", "category": "Thread", "cost": 8.75, "quantity": 1},
+            {"description": "Edge Beveler Tool", "category": "Tools", "cost": 15.00, "quantity": 1},
+            {"description": "Construction Time (2 hours)", "category": "Labor", "cost": 30.00, "quantity": 2}
         ]
-        for cost_item in initial_costs:
-            self.cost_items.append(cost_item)
-            self.cost_tree.insert('', 'end', values=(cost_item['category'], cost_item['item_name'], f"{cost_item['quantity']}", f"${cost_item['unit_price']:.2f}", f"${cost_item['total_cost']:.2f}"))
-        self.recalculate_costs()
+
+        for item in sample_items:
+            self.description_var.set(item["description"])
+            self.category_var.set(item["category"])
+            self.cost_var.set(str(item["cost"]))
+            self.quantity_var.set(str(item["quantity"]))
+            self.add_cost_item()
 
 
 def main():
     """Standalone testing of the CostEstimator."""
     root = tk.Tk()
-    root.title('Leatherworking Cost Estimator')
-    root.geometry('1000x700')
-    cost_estimator = CostEstimator(root)
-    cost_estimator.pack(fill='both', expand=True)
+    root.title("Cost Estimator")
+    root.geometry("800x600")
+
+    app = CostEstimator(root)
+    app.pack(fill=tk.BOTH, expand=True)
+
+    # Ensure proper cleanup on exit
+    def on_close():
+        plt.close('all')
+        root.destroy()
+
+    root.protocol("WM_DELETE_WINDOW", on_close)
+
     root.mainloop()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

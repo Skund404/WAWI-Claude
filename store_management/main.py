@@ -1,137 +1,108 @@
-# main.py
+# store_management/main.py
 """
-Main entry point for the leatherworking store management application.
-Initializes the database, dependency injection container, and UI.
+Main application entrypoint for the Leatherworking Store Management Application.
+
+This module handles application initialization, dependency injection setup,
+and launching the main GUI window.
 """
 
-import logging
 import os
 import sys
-import tkinter as tk
-from tkinter import messagebox
-from typing import Optional, Type
+import logging
+import traceback
 
-# Add the project root directory to Python path
-project_root = os.path.dirname(os.path.abspath(__file__))
+# Ensure the project root is in the Python path
+project_root = os.path.abspath(os.path.dirname(__file__))
 sys.path.insert(0, project_root)
 
-# Import logging configuration
+# Import Tkinter first to ensure it's available
+import tkinter as tk
+from tkinter import messagebox
+
+# Configuration and logging imports
+from config.settings import get_database_path
 from utils.logging_config import setup_logging
 
-# Configure logging before importing other modules
-setup_logging()
-
-# Import other application modules
-from config.settings import get_database_path
+# Database and dependency injection imports
 from database.initialize import initialize_database
 from di.container import DependencyContainer
 from di.setup import setup_dependency_injection
+
+# GUI imports
 from gui.main_window import MainWindow
+from fallback_mainwindow import create_fallback_window
 
-logger = logging.getLogger(__name__)
 
-class Application:
-    """Main application class that initializes the environment and UI."""
+def setup_application_context() -> tk.Tk:
+    """
+    Set up the application context, including logging, database, and dependency injection.
 
-    def __init__(self):
-        """Initialize the application, database, and dependency injection."""
-        self.root = None
-        self.main_window = None
-        self.container = DependencyContainer()
+    Returns:
+        tk.Tk: The root Tkinter window for the application
+    """
+    try:
+        # Configure logging
+        setup_logging()
+        logger = logging.getLogger(__name__)
+
+        # Log database path
+        db_path = get_database_path()
+        logger.info(f"Database path: {db_path}")
 
         # Initialize database
-        try:
-            db_path = get_database_path()
-            logger.info(f"Database path: {db_path}")
-            initialize_database(db_path)
-        except Exception as e:
-            logger.error(f"Database initialization error: {str(e)}", exc_info=True)
-            self._show_startup_error("Database Error",
-                                    f"Failed to initialize database: {str(e)}")
-            sys.exit(1)
+        initialize_database()
+        logger.info("Database initialized successfully")
 
-        # Setup dependency injection
-        try:
-            setup_dependency_injection(self.container)
-        except Exception as e:
-            logger.error(f"Dependency injection setup error: {str(e)}", exc_info=True)
-            self._show_startup_error("Setup Error",
-                                    f"Failed to setup dependency injection: {str(e)}")
-            sys.exit(1)
+        # Reset and setup dependency injection
+        container = DependencyContainer()
+        container.reset()
+        setup_dependency_injection()
+        logger.info("Dependency injection setup completed")
 
-    def get_service(self, service_type: Type):
-        """Retrieve a service from the dependency injection container.
+        # Create root Tkinter window
+        root = tk.Tk()
+        root.withdraw()  # Hide initially
 
-        Args:
-            service_type (Type): Service interface to retrieve
+        return root
 
-        Returns:
-            The requested service implementation
-        """
-        try:
-            return self.container.get_service(service_type)
-        except Exception as e:
-            logger.error(f"Error getting service {service_type.__name__}: {str(e)}", exc_info=True)
-            messagebox.showerror("Service Error",
-                                f"Failed to get service {service_type.__name__}: {str(e)}")
-            return None
+    except Exception as e:
+        logging.error(f"Application startup error: {e}")
+        logging.error(traceback.format_exc())
+        raise
 
-    def run(self):
-        """Run the application and display the main window."""
-        try:
-            # Initialize Tkinter root
-            self.root = tk.Tk()
-            self.root.title("Leatherworking Store Management")
-            self.root.geometry("1200x800")
-
-            # Set application icon
-            icon_path = os.path.join(project_root, "assets", "icon.ico")
-            if os.path.exists(icon_path):
-                try:
-                    self.root.iconbitmap(icon_path)
-                except Exception as icon_error:
-                    logger.warning(f"Could not set application icon: {icon_error}")
-
-            # Create main window
-            self.main_window = MainWindow(self.root, self.container)
-            self.main_window.pack(fill=tk.BOTH, expand=True)
-
-            # Start the Tkinter event loop
-            logger.info("Starting application main event loop")
-            self.root.mainloop()
-        except Exception as e:
-            logger.error(f"Application startup error: {str(e)}", exc_info=True)
-            self._show_startup_error("Startup Error",
-                                    f"Failed to start application: {str(e)}")
-            sys.exit(1)
-
-    def quit(self):
-        """Close the application."""
-        logger.info("Closing application")
-        if self.root:
-            self.root.destroy()
-
-    def _show_startup_error(self, title: str, message: str):
-        """Show startup error message using either Tkinter or console.
-
-        Args:
-            title (str): Error title
-            message (str): Error message
-        """
-        try:
-            # Try to use Tkinter messagebox
-            messagebox.showerror(title, message)
-        except:
-            # Fall back to console output
-            print(f"ERROR: {title}\n{message}")
 
 def main():
-    """Main entry point for running the leatherworking store management application."""
-    logger.info("Starting Leatherworking Store Management v0.1.0")
+    """
+    Main application entry point with comprehensive error handling.
+    """
+    try:
+        # Set up application context
+        root = setup_application_context()
 
-    # Initialize and run the application
-    app = Application()
-    app.run()
+        try:
+            # Attempt to create main window
+            main_window = MainWindow(root, DependencyContainer())
+            main_window.mainloop()
+        except Exception as main_window_error:
+            logging.error(f"Failed to create main window: {main_window_error}")
+
+            # Fallback to minimal window
+            fallback_window = create_fallback_window(root, DependencyContainer())
+            fallback_window.mainloop()
+
+    except Exception as startup_error:
+        # Last resort error handling
+        logging.error(f"Critical application startup error: {startup_error}")
+        logging.error(traceback.format_exc())
+
+        # Show error message box
+        messagebox.showerror(
+            "Application Startup Error",
+            f"Could not start the application:\n{startup_error}\n\n"
+            "Please check logs for more details."
+        )
+        sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

@@ -1,156 +1,236 @@
-# services/interfaces/storage_service.py
+# store_management/services/interfaces/storage_service.py
 """
-Interface definition for the storage service.
-Provides functionality for managing storage locations for leatherworking materials.
+Comprehensive Interface for Storage Service in Leatherworking Store Management.
+
+Defines the contract for storage-related operations, including location management,
+product assignment, and inventory tracking.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from enum import Enum
+from typing import Any, Dict, List, Optional, Union
 
-from database.models.storage import Storage
+class StorageLocationType(Enum):
+    """
+    Enumeration of possible storage location types.
+    """
+    SHELF = "Shelf"
+    BIN = "Bin"
+    DRAWER = "Drawer"
+    CABINET = "Cabinet"
+    RACK = "Rack"
+    BOX = "Box"
+    WAREHOUSE = "Warehouse"
+    OTHER = "Other"
 
+class StorageCapacityStatus(Enum):
+    """
+    Enumeration of storage capacity statuses.
+    """
+    EMPTY = "Empty"
+    PARTIALLY_FILLED = "Partially Filled"
+    NEARLY_FULL = "Nearly Full"
+    FULL = "Full"
 
 class IStorageService(ABC):
-    """Interface for storage service operations."""
+    """
+    Abstract base class defining the comprehensive interface for storage-related operations.
+    """
 
     @abstractmethod
-    def get_storage_location(self, storage_id: int) -> Dict[str, Any]:
-        """
-        Get details of a specific storage location.
-
-        Args:
-            storage_id: ID of the storage location
-
-        Returns:
-            Dictionary with storage location details
-
-        Raises:
-            NotFoundError: If storage location not found
-        """
-        pass
-
-    @abstractmethod
-    def get_all_storage_locations(self) -> List[Dict[str, Any]]:
-        """
-        Get all storage locations.
-
-        Returns:
-            List of dictionaries with storage location details
-        """
-        pass
-
-    @abstractmethod
-    def create_storage_location(self, storage_data: Dict[str, Any]) -> Dict[str, Any]:
+    def create_storage_location(
+        self,
+        name: str,
+        location_type: StorageLocationType,
+        capacity: Optional[float] = None,
+        description: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
         Create a new storage location.
 
         Args:
-            storage_data: Dictionary with storage location data
+            name (str): Name or identifier of the storage location
+            location_type (StorageLocationType): Type of storage location
+            capacity (Optional[float], optional): Maximum capacity of the storage location
+            description (Optional[str], optional): Additional details about the location
 
         Returns:
-            Dictionary with created storage location details
-
-        Raises:
-            ValidationError: If storage data is invalid
+            Dict[str, Any]: Details of the created storage location
         """
         pass
 
     @abstractmethod
-    def update_storage_location(self, storage_id: int, storage_data: Dict[str, Any]) -> Dict[str, Any]:
+    def update_storage_location(
+        self,
+        location_id: str,
+        updates: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """
         Update an existing storage location.
 
         Args:
-            storage_id: ID of the storage location to update
-            storage_data: Dictionary with updated storage location data
+            location_id (str): Unique identifier of the storage location
+            updates (Dict[str, Any]): Dictionary of fields to update
 
         Returns:
-            Dictionary with updated storage location details
-
-        Raises:
-            NotFoundError: If storage location not found
-            ValidationError: If storage data is invalid
+            Dict[str, Any]: Updated storage location details
         """
         pass
 
     @abstractmethod
-    def delete_storage_location(self, storage_id: int) -> bool:
+    def delete_storage_location(self, location_id: str) -> bool:
         """
         Delete a storage location.
 
         Args:
-            storage_id: ID of the storage location to delete
+            location_id (str): Unique identifier of the storage location to delete
 
         Returns:
-            True if deletion was successful
-
-        Raises:
-            NotFoundError: If storage location not found
+            bool: True if deletion was successful, False otherwise
         """
         pass
 
     @abstractmethod
-    def assign_item_to_storage(self, storage_id: int, item_id: int, item_type: str) -> Dict[str, Any]:
+    def get_storage_location(self, location_id: str) -> Optional[Dict[str, Any]]:
         """
-        Assign an item to a storage location.
+        Retrieve details of a specific storage location.
 
         Args:
-            storage_id: ID of the storage location
-            item_id: ID of the item to assign
-            item_type: Type of item ('material', 'tool', etc.)
+            location_id (str): Unique identifier of the storage location
 
         Returns:
-            Dictionary with storage assignment details
-
-        Raises:
-            NotFoundError: If storage location or item not found
-            ValidationError: If assignment is not valid
+            Optional[Dict[str, Any]]: Storage location details, or None if not found
         """
         pass
 
     @abstractmethod
-    def remove_item_from_storage(self, storage_id: int, item_id: int, item_type: str) -> bool:
+    def list_storage_locations(
+        self,
+        location_type: Optional[StorageLocationType] = None,
+        min_capacity: Optional[float] = None
+    ) -> List[Dict[str, Any]]:
         """
-        Remove an item from a storage location.
+        List storage locations with optional filtering.
 
         Args:
-            storage_id: ID of the storage location
-            item_id: ID of the item to remove
-            item_type: Type of item ('material', 'tool', etc.)
+            location_type (Optional[StorageLocationType], optional): Filter by location type
+            min_capacity (Optional[float], optional): Minimum available capacity
 
         Returns:
-            True if removal was successful
-
-        Raises:
-            NotFoundError: If storage location or item not found
+            List[Dict[str, Any]]: List of storage locations matching the criteria
         """
         pass
 
     @abstractmethod
-    def get_items_in_storage(self, storage_id: int) -> List[Dict[str, Any]]:
+    def assign_item_to_storage(
+        self,
+        item_id: str,
+        location_id: str,
+        quantity: float = 1.0
+    ) -> Dict[str, Any]:
         """
-        Get all items in a storage location.
+        Assign an item (product, material, etc.) to a specific storage location.
 
         Args:
-            storage_id: ID of the storage location
+            item_id (str): Unique identifier of the item
+            location_id (str): Unique identifier of the storage location
+            quantity (float, optional): Quantity of the item to store. Defaults to 1.0
 
         Returns:
-            List of dictionaries with item details
-
-        Raises:
-            NotFoundError: If storage location not found
+            Dict[str, Any]: Assignment details
         """
         pass
 
     @abstractmethod
-    def get_storage_utilization(self, storage_id: Optional[int] = None) -> Dict[str, Any]:
+    def remove_item_from_storage(
+        self,
+        item_id: str,
+        location_id: str,
+        quantity: Optional[float] = None
+    ) -> Dict[str, Any]:
         """
-        Get utilization statistics for storage locations.
+        Remove an item from a specific storage location.
 
         Args:
-            storage_id: Optional ID to get stats for a specific location
+            item_id (str): Unique identifier of the item
+            location_id (str): Unique identifier of the storage location
+            quantity (Optional[float], optional): Quantity to remove. If None, remove all.
 
         Returns:
-            Dictionary with utilization statistics
+            Dict[str, Any]: Removal details
+        """
+        pass
+
+    @abstractmethod
+    def get_storage_contents(
+        self,
+        location_id: str
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve all items stored in a specific location.
+
+        Args:
+            location_id (str): Unique identifier of the storage location
+
+        Returns:
+            List[Dict[str, Any]]: List of items stored in the location
+        """
+        pass
+
+    @abstractmethod
+    def get_storage_capacity_status(
+        self,
+        location_id: str
+    ) -> StorageCapacityStatus:
+        """
+        Get the current capacity status of a storage location.
+
+        Args:
+            location_id (str): Unique identifier of the storage location
+
+        Returns:
+            StorageCapacityStatus: Current capacity status of the storage location
+        """
+        pass
+
+    @abstractmethod
+    def move_item_between_storage(
+        self,
+        item_id: str,
+        source_location_id: str,
+        destination_location_id: str,
+        quantity: Optional[float] = None
+    ) -> Dict[str, Any]:
+        """
+        Move an item from one storage location to another.
+
+        Args:
+            item_id (str): Unique identifier of the item
+            source_location_id (str): Current storage location
+            destination_location_id (str): Target storage location
+            quantity (Optional[float], optional): Quantity to move. If None, move all.
+
+        Returns:
+            Dict[str, Any]: Movement transaction details
+        """
+        pass
+
+    @abstractmethod
+    def search_items_in_storage(
+        self,
+        query: Optional[str] = None,
+        item_type: Optional[str] = None,
+        min_quantity: Optional[float] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Search for items across all storage locations.
+
+        Args:
+            query (Optional[str], optional): Search term
+            item_type (Optional[str], optional): Type of item to search for
+            min_quantity (Optional[float], optional): Minimum quantity filter
+
+        Returns:
+            List[Dict[str, Any]]: List of matching storage entries
         """
         pass

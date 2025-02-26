@@ -1,229 +1,187 @@
-# Path: config/settings.py
-"""
-Configuration settings for the store management application.
-
-This module provides functions to locate important directories and files
-within the application structure, such as database location, log paths,
-backup directories, and configuration files.
-"""
-
-import os
-import sys
+# config/settings.py
+import json
 import logging
-from datetime import datetime
+import os
 from pathlib import Path
-from typing import Optional, Union, Dict, Any
+import sys
+from typing import Any, Dict, Optional, Union
 
-# Configure logging with more comprehensive settings
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stdout),
-        logging.FileHandler(
-            filename=os.path.join(
-                os.path.dirname(os.path.abspath(__file__)),
-                '..',
-                'logs',
-                f'store_management_{datetime.now().strftime("%Y-%m-%d")}.log'
-            ),
-            encoding='utf-8'
-        )
-    ]
-)
-logger = logging.getLogger(__name__)
-
-# Application Configuration
 APP_NAME = "Leatherworking Store Management"
-APP_VERSION = "0.1.0"
-APP_DESCRIPTION = "Comprehensive store management system for leatherworking businesses"
+APP_VERSION = "1.0.0"
+APP_DESCRIPTION = "Application for managing a leatherworking store"
+
+DEVELOPMENT = 'development'
+PRODUCTION = 'production'
+TESTING = 'testing'
 
 
-def _find_project_root() -> Path:
-    """
-    Find the project's root directory by looking for key marker files/directories.
+class Environment:
+    """Manage application environment configurations."""
 
-    Returns:
-        Path: The absolute path to the project root directory
+    def __init__(self, env: Optional[str] = None):
+        self.env = env or os.environ.get('APP_ENV', DEVELOPMENT)
 
-    Raises:
-        RuntimeError: If project root cannot be determined
-    """
-    try:
-        # Start with the current file's directory
-        current_dir = Path(os.path.dirname(os.path.abspath(__file__)))
+    def is_development(self) -> bool:
+        return self.env == DEVELOPMENT
 
-        # Check if we're already at the project root
-        if (current_dir / 'main.py').exists() or (current_dir / 'setup.py').exists():
-            return current_dir
+    def is_production(self) -> bool:
+        return self.env == PRODUCTION
 
-        # Navigate up until we find a marker file
-        while current_dir != current_dir.parent:
-            # Look for common project root markers
-            if (current_dir / 'main.py').exists() or (current_dir / 'setup.py').exists():
-                return current_dir
-            current_dir = current_dir.parent
-
-        # If we couldn't find project root, raise an error
-        raise RuntimeError("Could not detect project root directory")
-
-    except Exception as e:
-        logger.error(f"Error finding project root: {e}")
-        raise RuntimeError(f"Project root detection failed: {e}")
+    def is_testing(self) -> bool:
+        return self.env == TESTING
 
 
-def ensure_directory_exists(directory: Union[str, Path]) -> Path:
-    """
-    Ensure a directory exists, creating it if necessary.
+class ConfigurationManager:
+    """Manages application configuration settings."""
 
-    Args:
-        directory (Union[str, Path]): Path to the directory
+    def __new__(cls):
+        """Singleton pattern implementation.
 
-    Returns:
-        Path: Absolute path to the existing directory
-    """
-    dir_path = Path(directory)
-    try:
-        dir_path.mkdir(parents=True, exist_ok=True)
-        return dir_path.absolute()
-    except Exception as e:
-        logger.error(f"Failed to create directory {directory}: {e}")
-        raise
+        Returns:
+            ConfigurationManager: Singleton instance
+        """
+        if not hasattr(cls, 'instance'):
+            cls.instance = super(ConfigurationManager, cls).__new__(cls)
+        return cls.instance
 
+    def __init__(self):
+        self._config: Dict[str, Any] = {}
+        self._environment = Environment()
+        self._initialize()
 
-def get_database_path() -> str:
-    """
-    Get the path to the SQLite database file.
-
-    Returns:
-        str: Absolute path to the database file
-    """
-    try:
-        root_dir = _find_project_root()
-        db_dir = ensure_directory_exists(root_dir / 'data')
-        db_path = db_dir / 'store_management.db'
-
-        logger.info(f"Database path: {db_path}")
-        return str(db_path)
-
-    except Exception as e:
-        logger.error(f"Failed to get database path: {e}")
-        raise
-
-
-def get_log_path() -> str:
-    """
-    Get the path to the log directory.
-
-    Returns:
-        str: Absolute path to the log directory
-    """
-    try:
-        root_dir = _find_project_root()
-        log_dir = ensure_directory_exists(root_dir / 'logs')
-
-        # Generate log filename with timestamp
-        log_filename = f'store_management_{datetime.now().strftime("%Y-%m-%d")}.log'
-        log_path = log_dir / log_filename
-
-        logger.info(f"Log directory: {log_dir}")
-        return str(log_path)
-
-    except Exception as e:
-        logger.error(f"Failed to get log path: {e}")
-        raise
-
-
-def get_backup_path() -> str:
-    """
-    Get the path to the backup directory.
-
-    Returns:
-        str: Absolute path to the backup directory
-    """
-    try:
-        root_dir = _find_project_root()
-        backup_dir = ensure_directory_exists(root_dir / 'backups')
-
-        logger.info(f"Backup directory: {backup_dir}")
-        return str(backup_dir)
-
-    except Exception as e:
-        logger.error(f"Failed to get backup path: {e}")
-        raise
-
-
-# Alias for backward compatibility
-get_backup_dir = get_backup_path
-
-
-def get_config_path() -> str:
-    """
-    Get the path to the configuration file directory.
-
-    Returns:
-        str: Absolute path to the configuration file directory
-    """
-    try:
-        root_dir = _find_project_root()
-        config_dir = ensure_directory_exists(root_dir / 'config')
-
-        logger.info(f"Configuration directory: {config_dir}")
-        return str(config_dir)
-
-    except Exception as e:
-        logger.error(f"Failed to get config path: {e}")
-        raise
-
-
-def get_application_config() -> Dict[str, Any]:
-    """
-    Retrieve comprehensive application configuration.
-
-    Returns:
-        Dict[str, Any]: Dictionary of application configuration settings
-    """
-    return {
-        "app_name": APP_NAME,
-        "version": APP_VERSION,
-        "description": APP_DESCRIPTION,
-        "paths": {
-            "database": get_database_path(),
-            "logs": get_log_path(),
-            "backups": get_backup_path(),
-            "config": get_config_path()
+    def _initialize(self):
+        """Initialize configuration with default and environment-specific settings."""
+        # Set default configuration
+        self._config = {
+            'debug': self._environment.is_development(),
+            'testing': self._environment.is_testing(),
+            'database': {
+                'uri': 'sqlite:///leatherworks.db',
+            },
+            'logging': {
+                'level': 'DEBUG' if self._environment.is_development() else 'INFO',
+                'format': '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            },
         }
-    }
+
+        project_root = Path(__file__).resolve().parent.parent
+        self._setup_directories(project_root)
+
+        self._load_environment_config()
+
+    def _setup_directories(self, project_root: Path):
+        """Set up and create necessary application directories.
+
+        Args:
+            project_root (Path): Root directory of the project
+        """
+        self._config['project_root'] = str(project_root)
+        self._config['logs_dir'] = str(project_root / 'logs')
+        self._config['data_dir'] = str(project_root / 'data')
+        self._config['backups_dir'] = str(project_root / 'backups')
+
+        os.makedirs(self._config['logs_dir'], exist_ok=True)
+        os.makedirs(self._config['data_dir'], exist_ok=True)
+        os.makedirs(self._config['backups_dir'], exist_ok=True)
+
+    def _load_environment_config(self):
+        """Load environment-specific configuration from environment variables or config file."""
+        env_config: Dict[str, Any] = {}
+
+        # Load from environment variables
+        env_config_json = os.environ.get('APP_CONFIG')
+        if env_config_json:
+            try:
+                env_config = json.loads(env_config_json)
+            except json.JSONDecodeError:
+                logging.warning(f"Invalid JSON in APP_CONFIG environment variable: {env_config_json}")
+
+        # Load from file
+        env = self._environment.env
+        env_config_path = Path(self._config['project_root']) / 'config' / f'{env}.json'
+        if env_config_path.exists():
+            try:
+                with open(env_config_path, 'r') as f:
+                    file_config = json.load(f)
+                    env_config = self._deep_update(env_config, file_config)
+            except (IOError, OSError, json.JSONDecodeError) as e:
+                logging.warning(f"Failed to load configuration file for {env} environment: {e}")
+
+        self._deep_update(self._config, env_config)
+
+    def _deep_update(self, original: Dict[str, Any], update: Dict[str, Any]):
+        """Recursively update a nested dictionary.
+
+        Args:
+            original (Dict[str, Any]): Original configuration dictionary
+            update (Dict[str, Any]): Dictionary with updates
+
+        Returns:
+            Dict[str, Any]: Updated configuration dictionary
+        """
+        for key, value in update.items():
+            if isinstance(value, dict):
+                original[key] = self._deep_update(original.get(key, {}), value)
+            else:
+                original[key] = value
+        return original
+
+    def set(self, key: str, value: Any):
+        """Set a configuration value.
+
+        Args:
+            key (str): Dot-separated configuration key
+            value (Any): Value to set
+        """
+        keys = key.split('.')
+        config = self._config
+        for k in keys[:-1]:
+            config = config.setdefault(k, {})
+        config[keys[-1]] = value
+
+    def get(self, key: str, default: Any = None) -> Any:
+        """Get a configuration value.
+
+        Args:
+            key (str): Dot-separated configuration key
+            default (Any): Default value if key is not found
+
+        Returns:
+            Any: Configuration value or default if not found
+        """
+        keys = key.split('.')
+        config = self._config
+        for k in keys:
+            if k in config:
+                config = config[k]
+            else:
+                return default
+        return config
+
+    def __getitem__(self, key: str) -> Any:
+        """Get a configuration value using dictionary-style access.
+
+        Args:
+            key (str): Dot-separated configuration key
+
+        Returns:
+            Any: Configuration value
+
+        Raises:
+            KeyError: If the specified key is not found
+        """
+        value = self.get(key)
+        if value is None:
+            raise KeyError(f"Configuration key not found: {key}")
+        return value
 
 
-# Logging configuration
-def setup_logging(log_level: int = logging.INFO) -> None:
+def get_database_path() -> Path:
+    """Returns the absolute path to the database file.
+
+    Returns:
+        Path: The absolute path to the database file.
     """
-    Configure application-wide logging with advanced settings.
-
-    Args:
-        log_level (int): Logging level. Defaults to logging.INFO
-    """
-    try:
-        # Configure root logger
-        logging.getLogger().setLevel(log_level)
-
-        # Create log file handler
-        log_path = get_log_path()
-        file_handler = logging.FileHandler(log_path, encoding='utf-8')
-        file_handler.setFormatter(logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-        ))
-
-        # Add file handler to root logger
-        logging.getLogger().addHandler(file_handler)
-
-        logger.info(f"Logging configured. Log file: {log_path}")
-
-    except Exception as e:
-        print(f"Failed to setup logging: {e}")
-        logging.basicConfig(level=log_level)
-
-
-# Setup logging when the module is imported
-setup_logging()
+    config = ConfigurationManager()
+    project_root = Path(config['project_root'])
+    return project_root / 'data' / 'database.db'

@@ -1,141 +1,174 @@
-# di/container.py
+# store_management/di/container.py
 """
-Dependency Injection Container for managing service registrations and instantiations.
+Dependency Injection Container Implementation.
 
-This module provides a flexible dependency injection mechanism
-for the leatherworking store management application.
+Provides a flexible and extensible dependency injection mechanism
+for the Leatherworking Store Management application.
 """
 
 import logging
-from typing import Any, Callable, Dict, Optional, Type
+import inspect
+from typing import Any, Callable, Dict, Optional, Type, TypeVar
+
+T = TypeVar('T')
 
 
 class DependencyContainer:
     """
-    A singleton dependency injection container for managing service registrations.
+    Centralized dependency injection container.
 
-    Provides methods to register, retrieve, and manage service implementations
-    across the application.
+    Manages service registrations, dependencies, and instantiations.
     """
-
     _instance = None
-    _service_registry: Dict[Type, Any] = {}
-    _service_instances: Dict[Type, Any] = {}
+    _services: Dict[Type, Callable[[], Any]] = {}
+    _instances: Dict[Type, Any] = {}
 
     def __new__(cls):
         """
-        Implement singleton pattern for the dependency container.
+        Singleton pattern implementation.
 
         Returns:
             DependencyContainer: Singleton instance of the container
         """
-        if not cls._instance:
+        if cls._instance is None:
             cls._instance = super().__new__(cls)
-            cls._instance._initialize()
+            cls._instance._services = {}
+            cls._instance._instances = {}
         return cls._instance
 
-    def _initialize(self):
+    def register(
+            self,
+            service_type: Type[T],
+            service_factory: Optional[Callable[[], T]] = None
+    ) -> None:
         """
-        Initialize the dependency container's internal state.
-        """
-        self._service_registry = {}
-        self._service_instances = {}
-        self._logger = logging.getLogger(__name__)
-
-    def register(self, service_type: Type, service_impl: Any):
-        """
-        Register a service implementation for a given service type.
+        Register a service implementation.
 
         Args:
-            service_type (Type): Service interface or abstract base class
-            service_impl (Any): Concrete service implementation or factory
+            service_type (Type[T]): Service interface or base class
+            service_factory (Optional[Callable[[], T]], optional):
+                Factory function to create service instance.
+                If None, uses default constructor.
         """
         try:
-            self._service_registry[service_type] = service_impl
-            self._logger.info(f"Registered service: {service_type.__name__} -> {service_impl}")
+            # If no factory provided, use default constructor
+            if service_factory is None:
+                service_factory = lambda: service_type()
+
+            # Register the service factory
+            self._services[service_type] = service_factory
+            logging.info(f"Registered service: {service_type.__name__}")
         except Exception as e:
-            self._logger.error(f"Error registering service {service_type}: {e}")
+            logging.error(f"Failed to register service {service_type.__name__}: {e}")
+            raise
 
-    def get(self, service_type: Type):
+    def get(self, service_type: Type[T]) -> T:
         """
-        Retrieve a service instance, creating it if not already instantiated.
-
-        Alias for get_service to match the error log expectations.
+        Retrieve a service instance.
 
         Args:
-            service_type (Type): Service interface to retrieve
+            service_type (Type[T]): Service interface or base class to retrieve
 
         Returns:
-            Any: Service implementation instance
+            T: Service instance
 
         Raises:
-            ValueError: If no implementation is registered for the service type
-        """
-        return self.get_service(service_type)
-
-    def resolve(self, service_type: Type):
-        """
-        Resolve a service instance, creating it if not already instantiated.
-
-        Alias for get_service to match the error log expectations.
-
-        Args:
-            service_type (Type): Service interface to resolve
-
-        Returns:
-            Any: Service implementation instance
-
-        Raises:
-            ValueError: If no implementation is registered for the service type
-        """
-        return self.get_service(service_type)
-
-    def get_service(self, service_type: Type):
-        """
-        Retrieve a service instance, creating it if not already instantiated.
-
-        Args:
-            service_type (Type): Service interface to retrieve
-
-        Returns:
-            Any: Service implementation instance
-
-        Raises:
-            ValueError: If no implementation is registered for the service type
+            ValueError: If no implementation is found for the service type
         """
         try:
             # Check if an instance already exists
-            if service_type in self._service_instances:
-                return self._service_instances[service_type]
+            if service_type in self._instances:
+                return self._instances[service_type]
 
-            # Find the implementation
-            if service_type not in self._service_registry:
-                raise ValueError(f"No implementation registered for {service_type.__name__}")
+            # Find the factory for the service type
+            factory = self._find_service_factory(service_type)
 
-            # Get the implementation
-            impl = self._service_registry[service_type]
+            # Create and cache the instance
+            instance = factory()
+            self._instances[service_type] = instance
 
-            # If it's a lambda or callable, invoke it
-            if callable(impl):
-                service_instance = impl()
-            else:
-                # Otherwise, assume it's a class and instantiate
-                service_instance = impl
-
-            # Cache the instance
-            self._service_instances[service_type] = service_instance
-
-            return service_instance
+            return instance
         except Exception as e:
-            self._logger.error(f"Error getting service {service_type}: {e}")
-            raise
+            logging.error(f"Failed to retrieve service {service_type.__name__}: {e}")
+            raise ValueError(f"No implementation found for {service_type.__name__}")
 
-    def reset(self):
+    def _find_service_factory(self, service_type: Type[T]) -> Callable[[], T]:
         """
-        Reset the container, clearing all registered services and instances.
+        Find the appropriate service factory for a given type.
 
-        Useful for testing or reinitialization.
+        Args:
+            service_type (Type[T]): Service type to find factory for
+
+        Returns:
+            Callable[[], T]: Factory function for creating service instance
+
+        Raises:
+            ValueError: If no factory is found
         """
-        self._service_registry.clear()
-        self._service_instances.clear()
-        self._logger.info("Dependency container reset")
+        # Direct match
+        if service_type in self._services:
+            return self._services[service_type]
+
+        # Check for subclass or interface implementations
+        matching_factories = [
+            factory for service, factory in self._services.items()
+            if issubclass(service, service_type)
+        ]
+
+        if matching_factories:
+            return matching_factories[0]
+
+        raise ValueError(f"No implementation found for {service_type.__name__}")
+
+    def reset(self) -> None:
+        """
+        Reset the dependency container, clearing all registered services and instances.
+        """
+        try:
+            self._services.clear()
+            self._instances.clear()
+            logging.info("Dependency container reset")
+        except Exception as e:
+            logging.error(f"Error resetting dependency container: {e}")
+
+    def inject(self, service_type: Type[T]) -> T:
+        """
+        Decorator for dependency injection.
+
+        Args:
+            service_type (Type[T]): Service type to inject
+
+        Returns:
+            T: Injected service instance
+        """
+
+        def decorator(func):
+            def wrapper(*args, **kwargs):
+                # Inject the service if not already provided
+                if not any(isinstance(arg, service_type) for arg in args):
+                    service = self.get(service_type)
+                    # If it's a method, inject as first argument after self
+                    if inspect.ismethod(func) or (
+                            inspect.isfunction(func) and
+                            len(inspect.signature(func).parameters) > 0
+                    ):
+                        args = list(args)
+                        args.insert(1, service)
+                    else:
+                        args = (service,) + args
+
+                return func(*args, **kwargs)
+
+            return wrapper
+
+        return decorator
+
+
+def get_dependency_container() -> DependencyContainer:
+    """
+    Get the singleton dependency injection container.
+
+    Returns:
+        DependencyContainer: Singleton container instance
+    """
+    return DependencyContainer()

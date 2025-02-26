@@ -1,104 +1,101 @@
-# utils/circular_import_resolver.py
+# store_management/utils/circular_import_resolver.py
 """
-Utility module for resolving circular import issues in the project.
+Circular Import Resolver Utility.
 
-This module provides mechanisms to handle complex import scenarios
-and break circular dependency chains.
+Provides mechanisms to handle and resolve circular import dependencies.
 """
 
 import importlib
 import logging
 import sys
-from types import ModuleType
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, Optional, Type, TypeVar
 
+T = TypeVar('T')
 
 class CircularImportResolver:
     """
-    A utility class to resolve circular import dependencies with various strategies.
-
-    This resolver provides methods to safely import modules, handle
-    circular dependencies, and manage complex import scenarios.
+    Utility class to resolve circular import dependencies.
     """
-
-    _import_cache: Dict[str, Any] = {}
-    _module_aliases: Dict[str, str] = {
-        'models.order': 'database.models.order',
-        'models.material': 'database.models.material',
-        # Add more mappings as needed
-    }
+    _module_cache: Dict[str, Any] = {}
+    _lazy_imports: Dict[str, Callable[[], Any]] = {}
 
     @classmethod
-    def get_module(cls, module_name: str) -> ModuleType:
+    def lazy_import(
+        cls,
+        module_path: str,
+        class_name: Optional[str] = None
+    ) -> Any:
         """
-        Safely retrieve a module, handling potential circular import issues.
+        Lazily import a module or class to break circular dependencies.
 
         Args:
-            module_name (str): Fully qualified module name to import
+            module_path (str): Full module path to import
+            class_name (Optional[str], optional): Specific class to import
 
         Returns:
-            ModuleType: The imported module
-
-        Raises:
-            ImportError: If the module cannot be imported
+            Any: Imported module or class
         """
-        # Check cache first
-        if module_name in cls._import_cache:
-            return cls._import_cache[module_name]
-
-        # Check for module alias
-        actual_module_name = cls._module_aliases.get(module_name, module_name)
-
         try:
-            # Attempt to import the module
-            module = importlib.import_module(actual_module_name)
+            # Check cache first
+            if module_path in cls._module_cache:
+                module = cls._module_cache[module_path]
+            else:
+                # Dynamically import the module
+                module = importlib.import_module(module_path)
+                cls._module_cache[module_path] = module
 
-            # Cache the module
-            cls._import_cache[module_name] = module
+            # If a specific class is requested
+            if class_name:
+                return getattr(module, class_name)
 
             return module
-        except ImportError as e:
-            logging.error(f"Failed to import module {module_name}: {e}")
 
-            # Fallback strategies
-            try:
-                # Try using sys.path manipulation
-                if actual_module_name not in sys.path:
-                    sys.path.append(actual_module_name.replace('.', '/'))
-                module = importlib.import_module(actual_module_name)
-                cls._import_cache[module_name] = module
-                return module
-            except ImportError:
-                logging.critical(f"Absolute import failed for {module_name}")
-                raise ImportError(f"Could not import module {module_name}")
+        except ImportError as e:
+            logging.error(f"Circular import resolution failed for {module_path}: {e}")
+            raise
 
     @classmethod
-    def add_module_alias(cls, original_name: str, actual_name: str) -> None:
+    def register_lazy_import(
+        cls,
+        key: str,
+        import_func: Callable[[], Any]
+    ):
         """
-        Add a module alias to help resolve import paths.
+        Register a lazy import function.
 
         Args:
-            original_name (str): The original module name
-            actual_name (str): The actual fully qualified module name
+            key (str): Unique key for the import
+            import_func (Callable[[], Any]): Function to lazily import
         """
-        cls._module_aliases[original_name] = actual_name
+        cls._lazy_imports[key] = import_func
 
     @classmethod
-    def clear_import_cache(cls) -> None:
+    def get_lazy_import(
+        cls,
+        key: str
+    ) -> Any:
         """
-        Clear the import cache to force fresh imports.
+        Retrieve a lazily imported module or class.
+
+        Args:
+            key (str): Unique key for the import
+
+        Returns:
+            Any: Imported module or class
         """
-        cls._import_cache.clear()
+        import_func = cls._lazy_imports.get(key)
+        if import_func:
+            return import_func()
+        raise KeyError(f"No lazy import registered for key: {key}")
 
-
-def get_module(module_name: str) -> ModuleType:
+def get_module(module_path: str) -> Any:
     """
-    Convenience function to get a module using CircularImportResolver.
+    Convenience function to get a module, breaking potential circular imports.
 
     Args:
-        module_name (str): Fully qualified module name to import
+        module_path (str): Full module path to import
 
     Returns:
-        ModuleType: The imported module
+        Any: Imported module
     """
-    return CircularImportResolver.get_module(module_name)
+    return CircularImportResolver.lazy_import(module_path)

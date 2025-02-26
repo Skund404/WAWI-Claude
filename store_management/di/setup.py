@@ -1,127 +1,150 @@
-# di/setup.py
+# store_management/di/setup.py
 """
-Setup module for dependency injection in the leatherworking store management application.
-Registers service implementations with their interfaces.
+Dependency Injection Setup for the Leatherworking Store Management Application.
+
+Configures service implementations for various interfaces.
 """
 
 import logging
 from typing import Any, Optional
 
-from database.repositories.order_repository import OrderRepository
-from database.sqlalchemy.session import get_db_session
 from di.container import DependencyContainer
-from services.implementations.inventory_service import InventoryService
-from services.implementations.material_service import MaterialService
-from services.implementations.order_service import OrderService
-from services.implementations.project_service import ProjectService
-from services.implementations.storage_service import StorageService
-from services.interfaces.inventory_service import IInventoryService
+
+# Service Interfaces
 from services.interfaces.material_service import IMaterialService
 from services.interfaces.order_service import IOrderService
 from services.interfaces.project_service import IProjectService
+from services.interfaces.inventory_service import IInventoryService
 from services.interfaces.storage_service import IStorageService
+from services.interfaces.pattern_service import IPatternService
+from services.interfaces.hardware_service import IHardwareService
+from services.interfaces.supplier_service import ISupplierService
+from services.interfaces.shopping_list_service import IShoppingListService
 
-# Import material management service
-from services.material_management_service import MaterialManagementService
+# Service Implementations
+from services.implementations.material_service import MaterialService
+from services.implementations.order_service import OrderService
+from services.implementations.project_service import ProjectService
+from services.implementations.inventory_service import InventoryService
+from services.implementations.storage_service import StorageService
+from services.implementations.pattern_service import PatternService
+from services.implementations.hardware_service import HardwareService
+from services.implementations.supplier_service import SupplierService
+from services.implementations.shopping_list_service import ShoppingListService
 
-# Configure logger
-logger = logging.getLogger(__name__)
+
+def create_service(service_class: Any, *args: Any, **kwargs: Any) -> Any:
+    """
+    Create a service instance with optional arguments.
+
+    Args:
+        service_class (type): Service class to instantiate
+        *args: Positional arguments for service instantiation
+        **kwargs: Keyword arguments for service instantiation
+
+    Returns:
+        Any: Instantiated service
+    """
+    return service_class(*args, **kwargs)
 
 
-def setup_dependency_injection(container: Optional[DependencyContainer] = None) -> DependencyContainer:
+def setup_dependency_injection(container: Optional[DependencyContainer] = None) -> None:
     """
     Set up dependency injection by registering service implementations.
 
     Args:
-        container (Optional[DependencyContainer]): Dependency injection container to use.
-                                                   If None, a new container is created.
-
-    Returns:
-        DependencyContainer: Configured dependency injection container
+        container (Optional[DependencyContainer]): Dependency injection container
     """
-    logger.info("Setting up dependency injection...")
-
-    # Use provided container or create a new one
-    if container is None:
-        container = DependencyContainer()
-
-    # Reset container to clear any existing registrations
-    container.reset()
-
     try:
-        # Material Management Service (standalone)
-        material_management_service = MaterialManagementService()
+        logging.info("Setting up dependency injection...")
 
-        # Register services using factories to ensure proper instantiation with dependencies
+        # Use existing container or create a new one
+        di_container = container or DependencyContainer()
 
-        # MaterialService
-        container.register(
-            IMaterialService,
-            lambda: MaterialService(material_management_service)
-        )
+        # Define service mappings
+        service_mappings = [
+            (IMaterialService, MaterialService),
+            (IOrderService, OrderService),
+            (IProjectService, ProjectService),
+            (IInventoryService, InventoryService),
+            (IStorageService, StorageService),
+            (IPatternService, PatternService),
+            (IHardwareService, HardwareService),
+            (ISupplierService, SupplierService),
+            (IShoppingListService, ShoppingListService)
+        ]
 
-        # OrderService with OrderRepository dependency
-        container.register(
-            IOrderService,
-            lambda: OrderService(
-                OrderRepository(get_db_session())
+        # Register services
+        for interface, implementation in service_mappings:
+            di_container.register(
+                interface,
+                lambda impl=implementation: create_service(impl)
             )
-        )
 
-        # ProjectService with MaterialManagementService
-        container.register(
-            IProjectService,
-            lambda: ProjectService(material_management_service)
-        )
-
-        # InventoryService
-        container.register(
-            IInventoryService,
-            lambda: InventoryService()
-        )
-
-        # StorageService
-        container.register(
-            IStorageService,
-            lambda: StorageService()
-        )
-
-        logger.info("Dependency injection setup completed successfully")
-        return container
+        logging.info("Dependency injection setup completed successfully")
 
     except Exception as e:
-        logger.error(f"Error setting up dependency injection: {e}", exc_info=True)
+        logging.error(f"Dependency injection setup failed: {e}")
         raise
+
+
+def verify_dependency_injection() -> None:
+    """
+    Verify that dependency injection is working correctly.
+
+    Attempts to retrieve each registered service and logs the results.
+    """
+    try:
+        logging.info("Verifying dependency injection...")
+        container = DependencyContainer()
+
+        # List of service interfaces to verify
+        service_interfaces = [
+            IMaterialService,
+            IOrderService,
+            IProjectService,
+            IInventoryService,
+            IStorageService,
+            IPatternService,
+            IHardwareService,
+            ISupplierService,
+            IShoppingListService
+        ]
+
+        # Attempt to retrieve each service
+        for service_type in service_interfaces:
+            try:
+                service = container.get(service_type)
+                logging.info(f"Successfully retrieved {service_type.__name__}: {service}")
+            except Exception as service_error:
+                logging.warning(f"Failed to retrieve {service_type.__name__}: {service_error}")
+
+        logging.info("Dependency injection verification completed")
+
+    except Exception as e:
+        logging.error(f"Dependency injection verification failed: {e}")
 
 
 def main():
     """
-    Demonstration of dependency injection setup.
-    Useful for testing and verifying the configuration.
+    Main function for testing dependency injection setup.
+
+    Useful for manual testing and verification of the DI configuration.
     """
-    # Configure logging for standalone execution
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    )
-
     try:
-        # Setup dependency injection
-        container = setup_dependency_injection()
+        # Setup logging
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        )
 
-        # Retrieve and test services
-        material_service = container.get_service(IMaterialService)
-        order_service = container.get_service(IOrderService)
-        project_service = container.get_service(IProjectService)
-
-        print("Dependency Injection Test:")
-        print(f"Material Service: {material_service}")
-        print(f"Order Service: {order_service}")
-        print(f"Project Service: {project_service}")
+        # Setup and verify dependency injection
+        setup_dependency_injection()
+        verify_dependency_injection()
 
     except Exception as e:
-        logger.error(f"Dependency injection test failed: {e}", exc_info=True)
+        logging.error(f"Dependency injection test failed: {e}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

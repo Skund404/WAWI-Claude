@@ -1,30 +1,22 @@
 # gui/base_view.py
-"""
-Base view module that provides common functionality for all views.
-Handles service access, error display, and shared UI components.
-"""
-
 import abc
 import logging
-import tkinter as tk
-from tkinter import messagebox, ttk
 from typing import Any, Type
 
-from di.container import DependencyContainer
+import tkinter as tk
+from tkinter import messagebox, ttk
+
 from services.interfaces.inventory_service import IInventoryService
 from services.interfaces.material_service import IMaterialService
 from services.interfaces.order_service import IOrderService
 from services.interfaces.project_service import IProjectService
 from services.interfaces.storage_service import IStorageService
 
-# Configure logger
-logger = logging.getLogger(__name__)
-
 
 class BaseView(ttk.Frame, abc.ABC):
-    """Base class for all application views.
+    """Base class for all views in the application.
 
-    Provides common functionality for service access, error handling, and UI components.
+    Provides common functionality like service access and UI utilities.
     """
 
     def __init__(self, parent: tk.Widget, app: Any):
@@ -35,10 +27,14 @@ class BaseView(ttk.Frame, abc.ABC):
             app (Any): Application instance with dependency container
         """
         super().__init__(parent)
-        self.parent = parent
-        self.app = app
+        self.app = app  # Store reference to the application
+        self._material_service = None
+        self._order_service = None
+        self._project_service = None
+        self._inventory_service = None
+        self._storage_service = None
 
-    def _get_service(self, service_type: Type):
+    def _get_service(self, service_type: Type) -> Any:
         """Retrieve a service from the dependency container.
 
         Args:
@@ -48,70 +44,63 @@ class BaseView(ttk.Frame, abc.ABC):
             Any: Service implementation instance
         """
         try:
-            if hasattr(self.app, 'get_service'):
-                return self.app.get_service(service_type)
-            elif hasattr(self.app, 'container'):
-                return self.app.container.get_service(service_type)
-            else:
-                logger.error(f"Cannot access service: {service_type.__name__}")
-                return None
+            return self.app.get_service(service_type)
         except Exception as e:
-            logger.error(f"Error getting service {service_type.__name__}: {str(e)}", exc_info=True)
-            self.show_error("Service Error", f"Error accessing {service_type.__name__}: {str(e)}")
-            return None
+            logging.getLogger(__name__).error(f"Error getting service {service_type.__name__}: {str(e)}")
+            raise
 
     @property
-    def material_service(self):
+    def material_service(self) -> IMaterialService:
         """Lazy-loaded material service property.
 
         Returns:
             IMaterialService: Material service instance
         """
-        if not hasattr(self, '_material_service'):
+        if self._material_service is None:
             self._material_service = self._get_service(IMaterialService)
         return self._material_service
 
     @property
-    def order_service(self):
+    def order_service(self) -> IOrderService:
         """Lazy-loaded order service property.
 
         Returns:
             IOrderService: Order service instance
         """
-        if not hasattr(self, '_order_service'):
+        if self._order_service is None:
             self._order_service = self._get_service(IOrderService)
         return self._order_service
 
     @property
-    def project_service(self):
+    def project_service(self) -> IProjectService:
         """Lazy-loaded project service property.
 
         Returns:
             IProjectService: Project service instance
         """
-        if not hasattr(self, '_project_service'):
+        if self._project_service is None:
             self._project_service = self._get_service(IProjectService)
         return self._project_service
 
     @property
-    def inventory_service(self):
+    def inventory_service(self) -> IInventoryService:
         """Lazy-loaded inventory service property.
 
         Returns:
             IInventoryService: Inventory service instance
         """
-        if not hasattr(self, '_inventory_service'):
+        if self._inventory_service is None:
             self._inventory_service = self._get_service(IInventoryService)
         return self._inventory_service
 
     @property
-    def storage_service(self):
+    def storage_service(self) -> IStorageService:
         """Lazy-loaded storage service property.
 
         Returns:
             IStorageService: Storage service instance
         """
-        if not hasattr(self, '_storage_service'):
+        if self._storage_service is None:
             self._storage_service = self._get_service(IStorageService)
         return self._storage_service
 
@@ -122,7 +111,7 @@ class BaseView(ttk.Frame, abc.ABC):
             title (str): Dialog title
             message (str): Error message to display
         """
-        messagebox.showerror(title, message, parent=self)
+        messagebox.showerror(title, message)
 
     def show_info(self, title: str, message: str):
         """Display an informational message dialog.
@@ -131,7 +120,7 @@ class BaseView(ttk.Frame, abc.ABC):
             title (str): Dialog title
             message (str): Information message to display
         """
-        messagebox.showinfo(title, message, parent=self)
+        messagebox.showinfo(title, message)
 
     def show_warning(self, title: str, message: str):
         """Display a warning message dialog.
@@ -140,19 +129,7 @@ class BaseView(ttk.Frame, abc.ABC):
             title (str): Dialog title
             message (str): Warning message to display
         """
-        messagebox.showwarning(title, message, parent=self)
-
-    def show_confirmation(self, title: str, message: str) -> bool:
-        """Display a confirmation dialog.
-
-        Args:
-            title (str): Dialog title
-            message (str): Confirmation message
-
-        Returns:
-            bool: True if confirmed, False otherwise
-        """
-        return messagebox.askyesno(title, message, parent=self)
+        messagebox.showwarning(title, message)
 
     def set_status(self, message: str):
         """Update the application status bar message.
@@ -174,15 +151,21 @@ class BaseView(ttk.Frame, abc.ABC):
         """
         toolbar = ttk.Frame(parent)
 
-        # Common buttons
-        ttk.Button(toolbar, text="New", command=self.on_new).pack(side=tk.LEFT, padx=2)
-        ttk.Button(toolbar, text="Edit", command=self.on_edit).pack(side=tk.LEFT, padx=2)
-        ttk.Button(toolbar, text="Delete", command=self.on_delete).pack(side=tk.LEFT, padx=2)
+        # Add standard toolbar buttons
+        new_btn = ttk.Button(toolbar, text="New", command=self.on_new)
+        new_btn.pack(side=tk.LEFT, padx=2)
 
-        ttk.Separator(toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, padx=5, fill=tk.Y)
+        edit_btn = ttk.Button(toolbar, text="Edit", command=self.on_edit)
+        edit_btn.pack(side=tk.LEFT, padx=2)
 
-        ttk.Button(toolbar, text="Save", command=self.on_save).pack(side=tk.LEFT, padx=2)
-        ttk.Button(toolbar, text="Refresh", command=self.on_refresh).pack(side=tk.LEFT, padx=2)
+        delete_btn = ttk.Button(toolbar, text="Delete", command=self.on_delete)
+        delete_btn.pack(side=tk.LEFT, padx=2)
+
+        save_btn = ttk.Button(toolbar, text="Save", command=self.on_save)
+        save_btn.pack(side=tk.LEFT, padx=2)
+
+        refresh_btn = ttk.Button(toolbar, text="Refresh", command=self.on_refresh)
+        refresh_btn.pack(side=tk.LEFT, padx=2)
 
         return toolbar
 
@@ -198,19 +181,22 @@ class BaseView(ttk.Frame, abc.ABC):
         """
         search_frame = ttk.Frame(parent)
 
-        ttk.Label(search_frame, text="Search:").pack(side=tk.LEFT, padx=2)
+        ttk.Label(search_frame, text="Search:").pack(side=tk.LEFT, padx=5)
 
-        self.search_var = tk.StringVar()
-        search_entry = ttk.Entry(search_frame, textvariable=self.search_var, width=20)
-        search_entry.pack(side=tk.LEFT, padx=2)
+        search_var = tk.StringVar()
+        search_entry = ttk.Entry(search_frame, textvariable=search_var, width=20)
+        search_entry.pack(side=tk.LEFT, padx=5)
 
-        if search_callback:
-            search_entry.bind("<Return>", search_callback)
-            ttk.Button(search_frame, text="Search", command=search_callback).pack(side=tk.LEFT, padx=2)
+        def on_search():
+            if search_callback and search_var.get():
+                search_callback(search_var.get())
+
+        search_entry.bind("<Return>", lambda e: on_search())
+
+        search_button = ttk.Button(search_frame, text="Search", command=on_search)
+        search_button.pack(side=tk.LEFT, padx=5)
 
         return search_frame
-
-    # These methods should be overridden by derived classes
 
     def on_new(self):
         """Handle new item action."""

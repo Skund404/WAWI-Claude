@@ -1,153 +1,119 @@
-# Relative path: store_management/services/interfaces/pattern_service.py
-
+# store_management/services/interfaces/pattern_service.py
 """
-Pattern Service Interface Module
+Interface for Pattern Service in Leatherworking Store Management.
 
-Defines the abstract base interface for pattern-related operations.
+Defines the contract for pattern-related operations.
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional, List
+from enum import Enum
+from typing import Any, Dict, List, Optional
 
 from di.core import inject
-from services.interfaces import MaterialService
+from utils.circular_import_resolver import CircularImportResolver
 
+class PatternStatus(Enum):
+    """
+    Enumeration of possible pattern statuses.
+    """
+    DRAFT = "Draft"
+    IN_PROGRESS = "In Progress"
+    COMPLETE = "Complete"
+    PUBLISHED = "Published"
+    ARCHIVED = "Archived"
 
 class IPatternService(ABC):
     """
-    Interface for pattern management service.
-
-    Provides a contract for management of leatherworking patterns,
-    including creation, retrieval, updating, and validation.
+    Abstract base class defining the interface for pattern-related operations.
     """
 
     @abstractmethod
-    @inject(MaterialService)
-    def get_all_patterns(self) -> List[Any]:
-        """
-        Get all available patterns.
-
-        Returns:
-            List[Any]: List of patterns
-        """
-        pass
-
-    @abstractmethod
-    @inject(MaterialService)
-    def get_pattern_by_id(self, pattern_id: int) -> Optional[Any]:
-        """
-        Get pattern by ID.
-
-        Args:
-            pattern_id (int): ID of the pattern
-
-        Returns:
-            Optional[Any]: Pattern if found, None otherwise
-
-        Raises:
-            KeyError: If pattern with the given ID does not exist
-        """
-        pass
-
-    @abstractmethod
-    @inject(MaterialService)
-    def create_pattern(self, pattern_data: Dict[str, Any]) -> Any:
+    @inject('IMaterialService')
+    def create_pattern(
+        self,
+        name: str,
+        description: Optional[str] = None,
+        skill_level: Optional[str] = None,
+        material_service: Optional[Any] = None
+    ) -> Dict[str, Any]:
         """
         Create a new pattern.
 
         Args:
-            pattern_data (Dict[str, Any]): Pattern data dictionary
+            name (str): Name of the pattern
+            description (Optional[str], optional): Detailed description of the pattern
+            skill_level (Optional[str], optional): Skill level required for the pattern
+            material_service (Optional[Any], optional): Material service for pattern creation
 
         Returns:
-            Any: Created pattern
-
-        Raises:
-            ValueError: If pattern data is invalid
+            Dict[str, Any]: Details of the created pattern
         """
         pass
 
     @abstractmethod
-    @inject(MaterialService)
-    def update_pattern(self, pattern_id: int, pattern_data: Dict[str, Any]) -> Optional[Any]:
+    def update_pattern(
+        self,
+        pattern_id: str,
+        updates: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """
-        Update existing pattern.
+        Update an existing pattern.
 
         Args:
-            pattern_id (int): ID of pattern to update
-            pattern_data (Dict[str, Any]): Updated pattern data
+            pattern_id (str): Unique identifier of the pattern
+            updates (Dict[str, Any]): Dictionary of fields to update
 
         Returns:
-            Optional[Any]: Updated pattern if successful, None otherwise
-
-        Raises:
-            KeyError: If pattern with the given ID does not exist
-            ValueError: If pattern data is invalid
+            Dict[str, Any]: Updated pattern details
         """
         pass
 
     @abstractmethod
-    @inject(MaterialService)
-    def delete_pattern(self, pattern_id: int) -> bool:
+    def get_pattern(
+        self,
+        pattern_id: str
+    ) -> Optional[Dict[str, Any]]:
         """
-        Delete pattern by ID.
+        Retrieve a specific pattern by its ID.
 
         Args:
-            pattern_id (int): ID of pattern to delete
+            pattern_id (str): Unique identifier of the pattern
 
         Returns:
-            bool: True if deleted, False otherwise
-
-        Raises:
-            KeyError: If pattern with the given ID does not exist
+            Optional[Dict[str, Any]]: Pattern details, or None if not found
         """
         pass
 
     @abstractmethod
-    @inject(MaterialService)
-    def search_patterns(self, search_term: str, search_fields: List[str]) -> List[Any]:
+    def list_patterns(
+        self,
+        status: Optional[PatternStatus] = None,
+        skill_level: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         """
-        Search patterns based on criteria.
+        List patterns with optional filtering.
 
         Args:
-            search_term (str): Term to search for
-            search_fields (List[str]): Fields to search in
+            status (Optional[PatternStatus], optional): Filter by pattern status
+            skill_level (Optional[str], optional): Filter by skill level
 
         Returns:
-            List[Any]: List of matching patterns
+            List[Dict[str, Any]]: List of patterns matching the criteria
         """
         pass
 
     @abstractmethod
-    @inject(MaterialService)
-    def calculate_material_requirements(self, pattern_id: int, quantity: int = 1) -> Dict[str, float]:
+    def delete_pattern(
+        self,
+        pattern_id: str
+    ) -> bool:
         """
-        Calculate material requirements for pattern.
+        Delete a pattern.
 
         Args:
-            pattern_id (int): ID of pattern
-            quantity (int): Number of items to produce
+            pattern_id (str): Unique identifier of the pattern to delete
 
         Returns:
-            Dict[str, float]: Dictionary of material requirements
-
-        Raises:
-            KeyError: If pattern with the given ID does not exist
-        """
-        pass
-
-    @abstractmethod
-    @inject(MaterialService)
-    def validate_pattern(self, pattern_id: int) -> Dict[str, Any]:
-        """
-        Validate pattern data and requirements.
-
-        Args:
-            pattern_id (int): ID of pattern to validate
-
-        Returns:
-            Dict[str, Any]: Validation results dictionary
-
-        Raises:
-            KeyError: If pattern with the given ID does not exist
+            bool: True if deletion was successful, False otherwise
         """
         pass

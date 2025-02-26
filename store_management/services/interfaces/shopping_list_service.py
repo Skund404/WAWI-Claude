@@ -1,210 +1,193 @@
-# Relative path: store_management/services/interfaces/shopping_list_service.py
-
+# store_management/services/interfaces/shopping_list_service.py
 """
-Shopping List Service Interface Module
+Interface for Shopping List Service in Leatherworking Store Management.
 
-Defines the abstract base interface for shopping list operations.
+Defines the contract for shopping list-related operations.
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional, List
+from enum import Enum
+from typing import Any, Dict, List, Optional
 
 from di.core import inject
-from services.interfaces import MaterialService
+from utils.circular_import_resolver import CircularImportResolver
 
+class ShoppingListStatus(Enum):
+    """
+    Enumeration of possible shopping list statuses.
+    """
+    DRAFT = "Draft"
+    ACTIVE = "Active"
+    COMPLETED = "Completed"
+    ARCHIVED = "Archived"
 
 class IShoppingListService(ABC):
     """
-    Interface for shopping list management service.
-
-    Provides methods for creating, retrieving, updating, and managing
-    shopping lists for the leatherworking management system.
+    Abstract base class defining the interface for shopping list-related operations.
     """
 
     @abstractmethod
-    @inject(MaterialService)
-    def get_all_shopping_lists(self) -> List[Any]:
-        """
-        Get all shopping lists.
-
-        Returns:
-            List[Any]: List of all shopping lists in the system
-        """
-        pass
-
-    @abstractmethod
-    @inject(MaterialService)
-    def get_shopping_list_by_id(self, list_id: int) -> Optional[Any]:
-        """
-        Get shopping list by ID.
-
-        Args:
-            list_id (int): ID of the shopping list to retrieve
-
-        Returns:
-            Optional[Any]: Shopping list if found, None otherwise
-
-        Raises:
-            KeyError: If list with given ID does not exist
-        """
-        pass
-
-    @abstractmethod
-    @inject(MaterialService)
-    def create_shopping_list(self, list_data: Dict[str, Any]) -> Any:
+    @inject('IMaterialService')
+    def create_shopping_list(
+        self,
+        name: str,
+        description: Optional[str] = None,
+        status: ShoppingListStatus = ShoppingListStatus.DRAFT,
+        material_service: Optional[Any] = None
+    ) -> Dict[str, Any]:
         """
         Create a new shopping list.
 
         Args:
-            list_data (Dict[str, Any]): Data for the new shopping list
+            name (str): Name of the shopping list
+            description (Optional[str], optional): Description of the shopping list
+            status (ShoppingListStatus, optional): Initial status of the shopping list
+            material_service (Optional[Any], optional): Material service for additional operations
 
         Returns:
-            Any: The created shopping list
-
-        Raises:
-            ValueError: If list data is invalid
+            Dict[str, Any]: Details of the created shopping list
         """
         pass
 
     @abstractmethod
-    @inject(MaterialService)
-    def update_shopping_list(self, list_id: int, list_data: Dict[str, Any]) -> Optional[Any]:
+    def add_item_to_shopping_list(
+        self,
+        shopping_list_id: str,
+        material_id: str,
+        quantity: float,
+        notes: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
-        Update existing shopping list.
+        Add an item to an existing shopping list.
 
         Args:
-            list_id (int): ID of the shopping list to update
-            list_data (Dict[str, Any]): Updated shopping list data
+            shopping_list_id (str): Unique identifier of the shopping list
+            material_id (str): Unique identifier of the material to add
+            quantity (float): Quantity of the material
+            notes (Optional[str], optional): Additional notes about the item
 
         Returns:
-            Optional[Any]: Updated shopping list if successful, None otherwise
-
-        Raises:
-            KeyError: If list with given ID does not exist
-            ValueError: If list data is invalid
+            Dict[str, Any]: Details of the added shopping list item
         """
         pass
 
     @abstractmethod
-    @inject(MaterialService)
-    def delete_shopping_list(self, list_id: int) -> bool:
+    def remove_item_from_shopping_list(
+        self,
+        shopping_list_id: str,
+        item_id: str
+    ) -> bool:
         """
-        Delete shopping list.
+        Remove an item from a shopping list.
 
         Args:
-            list_id (int): ID of the shopping list to delete
+            shopping_list_id (str): Unique identifier of the shopping list
+            item_id (str): Unique identifier of the item to remove
 
         Returns:
-            bool: True if deleted successfully, False otherwise
-
-        Raises:
-            KeyError: If list with given ID does not exist
+            bool: True if removal was successful, False otherwise
         """
         pass
 
     @abstractmethod
-    @inject(MaterialService)
-    def add_item_to_list(self, list_id: int, item_data: Dict[str, Any]) -> Any:
+    def update_shopping_list(
+        self,
+        shopping_list_id: str,
+        updates: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """
-        Add item to shopping list.
+        Update an existing shopping list.
 
         Args:
-            list_id (int): ID of the shopping list
-            item_data (Dict[str, Any]): Data for the item to add
+            shopping_list_id (str): Unique identifier of the shopping list
+            updates (Dict[str, Any]): Dictionary of fields to update
 
         Returns:
-            Any: The updated shopping list or added item
-
-        Raises:
-            KeyError: If list with given ID does not exist
-            ValueError: If item data is invalid
+            Dict[str, Any]: Updated shopping list details
         """
         pass
 
     @abstractmethod
-    @inject(MaterialService)
-    def remove_item_from_list(self, list_id: int, item_id: int) -> bool:
+    def get_shopping_list(
+        self,
+        shopping_list_id: str
+    ) -> Optional[Dict[str, Any]]:
         """
-        Remove item from shopping list.
+        Retrieve a specific shopping list by its ID.
 
         Args:
-            list_id (int): ID of the shopping list
-            item_id (int): ID of the item to remove
+            shopping_list_id (str): Unique identifier of the shopping list
 
         Returns:
-            bool: True if removed successfully, False otherwise
-
-        Raises:
-            KeyError: If list or item with given ID does not exist
+            Optional[Dict[str, Any]]: Shopping list details, or None if not found
         """
         pass
 
     @abstractmethod
-    @inject(MaterialService)
-    def mark_item_purchased(self, list_id: int, item_id: int, quantity: float) -> bool:
+    def list_shopping_lists(
+        self,
+        status: Optional[ShoppingListStatus] = None
+    ) -> List[Dict[str, Any]]:
         """
-        Mark item as purchased.
+        List shopping lists with optional filtering.
 
         Args:
-            list_id (int): ID of the shopping list
-            item_id (int): ID of the item to mark
-            quantity (float): Quantity purchased
+            status (Optional[ShoppingListStatus], optional): Filter by shopping list status
 
         Returns:
-            bool: True if marked successfully, False otherwise
-
-        Raises:
-            KeyError: If list or item with given ID does not exist
-            ValueError: If quantity is invalid
+            List[Dict[str, Any]]: List of shopping lists matching the criteria
         """
         pass
 
     @abstractmethod
-    @inject(MaterialService)
-    def get_active_lists(self) -> List[Any]:
+    def delete_shopping_list(
+        self,
+        shopping_list_id: str
+    ) -> bool:
         """
-        Get all active shopping lists.
-
-        Returns:
-            List[Any]: List of active shopping lists
-        """
-        pass
-
-    @abstractmethod
-    @inject(MaterialService)
-    def get_pending_items(self) -> List[Any]:
-        """
-        Get all pending items across all lists.
-
-        Returns:
-            List[Any]: List of pending items
-        """
-        pass
-
-    @abstractmethod
-    @inject(MaterialService)
-    def get_lists_by_status(self, status: str) -> List[Any]:
-        """
-        Get lists by status.
+        Delete a shopping list.
 
         Args:
-            status (str): Status to filter by
+            shopping_list_id (str): Unique identifier of the shopping list to delete
 
         Returns:
-            List[Any]: List of shopping lists matching the status
+            bool: True if deletion was successful, False otherwise
         """
         pass
 
     @abstractmethod
-    @inject(MaterialService)
-    def search_shopping_lists(self, search_term: str) -> List[Any]:
+    @inject('IMaterialService')
+    def generate_purchase_order(
+        self,
+        shopping_list_id: str,
+        material_service: Optional[Any] = None
+    ) -> Dict[str, Any]:
         """
-        Search shopping lists.
+        Generate a purchase order from a shopping list.
 
         Args:
-            search_term (str): Term to search for
+            shopping_list_id (str): Unique identifier of the shopping list
+            material_service (Optional[Any], optional): Material service for order generation
 
         Returns:
-            List[Any]: List of shopping lists matching the search term
+            Dict[str, Any]: Details of the generated purchase order
+        """
+        pass
+
+    @abstractmethod
+    def search_shopping_lists(
+        self,
+        query: Optional[str] = None,
+        material_types: Optional[List[str]] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Search for shopping lists with optional filtering.
+
+        Args:
+            query (Optional[str], optional): Search term
+            material_types (Optional[List[str]], optional): List of material types
+
+        Returns:
+            List[Dict[str, Any]]: List of shopping lists matching the search criteria
         """
         pass

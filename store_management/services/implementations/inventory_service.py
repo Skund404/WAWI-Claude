@@ -1,153 +1,194 @@
-# Path: services/implementations/inventory_service.py
-"""Inventory Service Implementation for Leatherworking Store Management."""
+# store_management/services/implementations/inventory_service.py
+"""
+Inventory Service Implementation for Leatherworking Store Management.
+
+Provides concrete implementation of inventory-related operations.
+"""
 
 from typing import Any, Dict, List, Optional
 
-from services.interfaces.material_service import MaterialType
-from services.interfaces.inventory_service import IInventoryService
 from services.base_service import Service
-from database.repositories.material_repository import MaterialRepository
-from database.sqlalchemy.core.manager_factory import get_manager
+from services.interfaces.inventory_service import IInventoryService
+from services.interfaces.material_service import MaterialType
 
 
-class InventoryService(Service[Any], IInventoryService):
+class InventoryService(Service[Dict[str, Any]], IInventoryService):
     """
-    Inventory Service implementation for managing leatherworking materials and parts.
+    Concrete implementation of the Inventory Service.
 
-    This service provides comprehensive methods for tracking and managing
-    inventory in the leatherworking store management system.
+    Manages inventory-related operations for leatherworking materials and products.
     """
 
-    def __init__(self, material_repository: Optional[MaterialRepository] = None):
-        """
-        Initialize the Inventory Service.
-
-        Args:
-            material_repository (Optional[MaterialRepository]): Repository for material operations
-        """
-        self._material_repository = material_repository or get_manager('Material')
-        super().__init__()
-
-    def get_material_by_id(self, material_id: int) -> Any:
-        """
-        Retrieve a material by its ID.
-
-        Args:
-            material_id (int): Unique identifier for the material
-
-        Returns:
-            Any: Material object
-        """
-        try:
-            return self._material_repository.get_by_id(material_id)
-        except Exception as e:
-            self.logger.error(f"Error retrieving material {material_id}: {str(e)}")
-            raise
-
-    def update_material(self, material_id: int, update_data: Dict[str, Any]) -> Any:
-        """
-        Update an existing material.
-
-        Args:
-            material_id (int): ID of the material to update
-            update_data (Dict[str, Any]): Data to update
-
-        Returns:
-            Any: Updated material object
-        """
-        try:
-            return self._material_repository.update(material_id, update_data)
-        except Exception as e:
-            self.logger.error(f"Error updating material {material_id}: {str(e)}")
-            raise
-
-    def delete_material(self, material_id: int) -> bool:
-        """
-        Delete a material from the system.
-
-        Args:
-            material_id (int): ID of the material to delete
-
-        Returns:
-            bool: True if deletion was successful
-        """
-        try:
-            self._material_repository.delete(material_id)
-            return True
-        except Exception as e:
-            self.logger.error(f"Error deleting material {material_id}: {str(e)}")
-            return False
-
-    def list_materials(
+    def get_by_id(
             self,
-            filter_criteria: Optional[Dict[str, Any]] = None,
-            sort_by: Optional[str] = None,
-            limit: Optional[int] = None
-    ) -> List[Any]:
+            id_value: str
+    ) -> Optional[Dict[str, Any]]:
         """
-        List materials with optional filtering and sorting.
+        Retrieve an inventory item by its unique identifier.
 
         Args:
-            filter_criteria (Optional[Dict[str, Any]], optional): Filters to apply
-            sort_by (Optional[str], optional): Field to sort by
-            limit (Optional[int], optional): Maximum number of results
+            id_value (str): Unique identifier for the inventory item
 
         Returns:
-            List[Any]: List of material objects
+            Optional[Dict[str, Any]]: Retrieved inventory item or None if not found
         """
-        try:
-            return self._material_repository.list(
-                filter_criteria=filter_criteria,
-                sort_by=sort_by,
-                limit=limit
-            )
-        except Exception as e:
-            self.logger.error(f"Error listing materials: {str(e)}")
-            return []
+        self.log_operation("Retrieving inventory item", {"id": id_value})
 
-    def get_low_stock_materials(self, material_type: Optional[MaterialType] = None) -> List[Any]:
+        # TODO: Implement actual database retrieval
+        return None
+
+    def get_all(
+            self,
+            filters: Optional[Dict[str, Any]] = None,
+            limit: Optional[int] = None,
+            offset: Optional[int] = None
+    ) -> List[Dict[str, Any]]:
         """
-        Retrieve materials with low stock.
+        Retrieve all inventory items, with optional filtering and pagination.
 
         Args:
-            material_type (Optional[MaterialType], optional): Filter by specific material type
+            filters (Optional[Dict[str, Any]], optional): Filtering criteria
+            limit (Optional[int], optional): Maximum number of items to retrieve
+            offset (Optional[int], optional): Number of items to skip
 
         Returns:
-            List[Any]: List of low stock material objects
+            List[Dict[str, Any]]: List of retrieved inventory items
         """
-        try:
-            filter_criteria = {
-                "stock_level": {"$lt": 10}  # Adjust threshold as needed
-            }
-            if material_type:
-                filter_criteria["type"] = material_type
+        self.log_operation("Retrieving inventory items", {
+            "filters": filters,
+            "limit": limit,
+            "offset": offset
+        })
 
-            return self.list_materials(filter_criteria)
-        except Exception as e:
-            self.logger.error(f"Error retrieving low stock materials: {str(e)}")
-            return []
+        # TODO: Implement actual database retrieval
+        return []
 
-    def add_material(self, material_data: Dict[str, Any]) -> Any:
+    def create(
+            self,
+            data: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """
-        Add a new material to the inventory.
+        Create a new inventory item.
 
         Args:
-            material_data (Dict[str, Any]): Data for the new material
+            data (Dict[str, Any]): Data for creating the inventory item
 
         Returns:
-            Any: Created material object
+            Dict[str, Any]: Created inventory item
         """
-        try:
-            # Validate and set default values
-            material_data.setdefault('type', MaterialType.LEATHER)
+        # Validate required fields
+        self.validate_data(data, [
+            'material_type',
+            'quantity',
+            'unit_of_measurement'
+        ])
 
-            # Use repository to create material
-            material = self._material_repository.create(material_data)
-            return material
-        except Exception as e:
-            self.logger.error(f"Error adding material: {str(e)}")
-            raise
+        self.log_operation("Creating inventory item", {"data": data})
 
+        # TODO: Implement actual database creation
+        return data
 
-# Export for easier importing
-InventoryServiceImpl = InventoryService
+    def update(
+            self,
+            id_value: str,
+            data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Update an existing inventory item.
+
+        Args:
+            id_value (str): Unique identifier of the inventory item to update
+            data (Dict[str, Any]): Updated data
+
+        Returns:
+            Dict[str, Any]: Updated inventory item
+        """
+        self.log_operation("Updating inventory item", {
+            "id": id_value,
+            "data": data
+        })
+
+        # TODO: Implement actual database update
+        return data
+
+    def delete(
+            self,
+            id_value: str
+    ) -> bool:
+        """
+        Delete an inventory item.
+
+        Args:
+            id_value (str): Unique identifier of the inventory item to delete
+
+        Returns:
+            bool: True if deletion was successful, False otherwise
+        """
+        self.log_operation("Deleting inventory item", {"id": id_value})
+
+        # TODO: Implement actual database deletion
+        return False
+
+    def get_low_stock_items(
+            self,
+            threshold: float = 10.0
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve items with stock below a specified threshold.
+
+        Args:
+            threshold (float, optional): Minimum stock level. Defaults to 10.0.
+
+        Returns:
+            List[Dict[str, Any]]: List of low stock items
+        """
+        self.log_operation("Retrieving low stock items", {"threshold": threshold})
+
+        # TODO: Implement actual low stock retrieval
+        return []
+
+    def adjust_stock(
+            self,
+            item_id: str,
+            quantity_change: float,
+            reason: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Adjust the stock of an inventory item.
+
+        Args:
+            item_id (str): Unique identifier of the inventory item
+            quantity_change (float): Amount to add or subtract from current stock
+            reason (Optional[str], optional): Reason for stock adjustment
+
+        Returns:
+            Dict[str, Any]: Updated inventory item
+        """
+        self.log_operation("Adjusting stock", {
+            "item_id": item_id,
+            "quantity_change": quantity_change,
+            "reason": reason
+        })
+
+        # TODO: Implement actual stock adjustment
+        return {}
+
+    def get_stock_by_material_type(
+            self,
+            material_type: MaterialType
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve inventory items of a specific material type.
+
+        Args:
+            material_type (MaterialType): Type of material to filter by
+
+        Returns:
+            List[Dict[str, Any]]: List of inventory items of the specified type
+        """
+        self.log_operation("Retrieving stock by material type", {
+            "material_type": material_type
+        })
+
+        # TODO: Implement actual retrieval by material type
+        return []
