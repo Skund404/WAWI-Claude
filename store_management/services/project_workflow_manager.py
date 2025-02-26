@@ -1,5 +1,4 @@
-#!/usr/bin/env python3
-# Path: project_workflow_manager.py
+# services/project_workflow_manager.py
 """
 Comprehensive Project Workflow Manager for Leatherworking Project Management
 
@@ -15,7 +14,8 @@ from enum import Enum, auto
 from typing import Dict, List, Optional, Any
 
 from di.core import inject
-from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+from services.interfaces.material_service import IMaterialService
+from services.interfaces.project_service import IProjectService
 from services.material_management_service import MaterialManagementService
 
 

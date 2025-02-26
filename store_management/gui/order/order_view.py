@@ -1,13 +1,13 @@
 # gui/order/order_view.py
 """
-View for managing orders in a leatherworking store management system.
-Provides functionality to view, add, edit, and delete orders.
+Order view module for displaying and managing orders in the leatherworking store management application.
+This view allows users to see, create, edit, and delete orders, as well as filter and search through them.
 """
 
 import logging
 import tkinter as tk
 from tkinter import messagebox, ttk
-from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
+from typing import Any, Dict, List, Optional, Tuple, Type, Union, Callable
 
 from gui.base_view import BaseView
 from services.interfaces.order_service import IOrderService, OrderStatus
@@ -17,11 +17,10 @@ logger = logging.getLogger(__name__)
 
 
 class SearchDialog(tk.Toplevel):
-    """Dialog window for searching orders."""
+    """Dialog for searching through orders."""
 
     def __init__(self, parent: tk.Widget, columns: List[str], search_callback: Callable):
-        """
-        Initialize the search dialog.
+        """Initialize the search dialog.
 
         Args:
             parent: Parent widget
@@ -30,461 +29,476 @@ class SearchDialog(tk.Toplevel):
         """
         super().__init__(parent)
         self.title("Search Orders")
-        self.transient(parent)
+        self.geometry("400x200")
         self.resizable(False, False)
+        self.transient(parent)
+        self.grab_set()
 
+        self.columns = columns
         self.search_callback = search_callback
-        self.result = None
 
-        # Variables
-        self.search_field = tk.StringVar(value=columns[0] if columns else "")
-        self.search_text = tk.StringVar()
+        # Create widgets
+        main_frame = ttk.Frame(self, padding=10)
+        main_frame.pack(fill=tk.BOTH, expand=True)
 
-        # Create UI
-        frame = ttk.Frame(self, padding="10")
-        frame.pack(fill=tk.BOTH, expand=True)
-
-        # Search field selector
-        ttk.Label(frame, text="Search in:").grid(row=0, column=0, sticky=tk.W, pady=5)
-        field_combo = ttk.Combobox(frame, textvariable=self.search_field, values=columns)
-        field_combo.grid(row=0, column=1, sticky="ew", pady=5, padx=5)
-        field_combo.state(['readonly'])
+        # Search field selection
+        ttk.Label(main_frame, text="Search in:").grid(row=0, column=0, sticky=tk.W, pady=5)
+        self.field_var = tk.StringVar(value=columns[0] if columns else "")
+        field_combo = ttk.Combobox(main_frame, textvariable=self.field_var, values=columns)
+        field_combo.grid(row=0, column=1, sticky=tk.EW, pady=5)
 
         # Search text
-        ttk.Label(frame, text="Search for:").grid(row=1, column=0, sticky=tk.W, pady=5)
-        ttk.Entry(frame, textvariable=self.search_text, width=30).grid(
-            row=1, column=1, sticky="ew", pady=5, padx=5)
+        ttk.Label(main_frame, text="Search text:").grid(row=1, column=0, sticky=tk.W, pady=5)
+        self.search_var = tk.StringVar()
+        search_entry = ttk.Entry(main_frame, textvariable=self.search_var, width=30)
+        search_entry.grid(row=1, column=1, sticky=tk.EW, pady=5)
+        search_entry.focus_set()
+        search_entry.bind("<Return>", self._on_search)
+
+        # Exact match option
+        self.exact_match_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(main_frame, text="Exact match", variable=self.exact_match_var).grid(
+            row=2, column=0, columnspan=2, sticky=tk.W, pady=5
+        )
 
         # Buttons
-        button_frame = ttk.Frame(frame)
-        button_frame.grid(row=2, column=0, columnspan=2, pady=10)
+        button_frame = ttk.Frame(main_frame)
+        button_frame.grid(row=3, column=0, columnspan=2, pady=10)
 
         ttk.Button(button_frame, text="Search", command=self._on_search).pack(side=tk.LEFT, padx=5)
         ttk.Button(button_frame, text="Cancel", command=self.destroy).pack(side=tk.LEFT, padx=5)
 
         # Configure grid
-        frame.columnconfigure(1, weight=1)
+        main_frame.columnconfigure(1, weight=1)
 
-        # Set focus
-        self.search_text.set("")
-        self.bind("<Return>", self._on_search)
-        self.bind("<Escape>", lambda e: self.destroy())
-
-        # Center dialog
+        # Center the dialog
         self.update_idletasks()
         width = self.winfo_width()
         height = self.winfo_height()
-        x = (parent.winfo_width() - width) // 2 + parent.winfo_x()
-        y = (parent.winfo_height() - height) // 2 + parent.winfo_y()
-        self.geometry(f"{width}x{height}+{x}+{y}")
-
-        self.grab_set()
-        self.wait_window()
+        x = (self.winfo_screenwidth() // 2) - (width // 2)
+        y = (self.winfo_screenheight() // 2) - (height // 2)
+        self.geometry(f"+{x}+{y}")
 
     def _on_search(self, event=None):
-        """
-        Handle search button click or Enter key.
+        """Handle search button click or Enter key.
 
         Args:
             event: Event that triggered the search
         """
-        if not self.search_text.get().strip():
-            messagebox.showwarning("Warning", "Please enter search text.", parent=self)
+        field = self.field_var.get()
+        search_text = self.search_var.get()
+        exact_match = self.exact_match_var.get()
+
+        if not search_text:
+            messagebox.showwarning("Warning", "Please enter search text", parent=self)
             return
 
-        search_params = {
-            "field": self.search_field.get(),
-            "text": self.search_text.get().strip()
-        }
-
         self.destroy()
-        self.search_callback(search_params)
+        self.search_callback(field, search_text, exact_match)
 
 
 class OrderView(BaseView):
-    """
-    View for displaying and managing orders.
-
-    Provides a tabular interface for viewing orders, with functionality
-    to add, edit, and delete entries. Includes search and filter capabilities.
-    """
+    """View for displaying and managing orders."""
 
     def __init__(self, parent: tk.Widget, app: Any):
-        """
-        Initialize the order view.
+        """Initialize the order view.
 
         Args:
             parent: Parent widget
             app: Application instance
         """
         super().__init__(parent, app)
+        logger.info("Initializing Order View")
 
-        self._order_service = None
-        self._selected_order_id = None
+        self.order_service = self._get_service(IOrderService)
 
-        # Initialize UI components
-        self._create_ui()
-        self._load_data()
+        # Initialize variables
+        self.current_orders = []
+        self.selected_order_id = None
+
+        # Set up the layout
+        self._setup_ui()
+
+        # Load initial data
+        self._load_orders()
 
         logger.info("Order view initialized")
 
-    def get_service(self, service_type: Type) -> Any:
-        """
-        Retrieve a service from the dependency container.
+    def _setup_ui(self):
+        """Set up the user interface components."""
+        # Main layout - split into two frames
+        self.main_frame = ttk.Frame(self)
+        self.main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        Args:
-            service_type (Type): Service interface to retrieve
+        # Toolbar at the top
+        self._create_toolbar()
 
-        Returns:
-            Any: Service implementation instance
-        """
-        try:
-            return self._app.get_service(service_type)
-        except Exception as e:
-            logger.error(f"Failed to get service {service_type.__name__}: {str(e)}")
-            raise
+        # Orders frame with treeview
+        orders_frame = ttk.LabelFrame(self.main_frame, text="Orders")
+        orders_frame.pack(fill=tk.BOTH, expand=True, pady=5)
 
-    @property
-    def order_service(self) -> IOrderService:
-        """
-        Lazy-loaded order service property.
+        # Create orders treeview
+        columns = ("order_id", "customer_name", "order_date", "status", "total_amount")
+        self.orders_tree = ttk.Treeview(orders_frame, columns=columns, show="headings", selectmode="browse")
 
-        Returns:
-            IOrderService: Order service instance
-        """
-        if self._order_service is None:
-            self._order_service = self.get_service(IOrderService)
-        return self._order_service
+        # Configure columns
+        self.orders_tree.heading("order_id", text="Order ID")
+        self.orders_tree.heading("customer_name", text="Customer")
+        self.orders_tree.heading("order_date", text="Date")
+        self.orders_tree.heading("status", text="Status")
+        self.orders_tree.heading("total_amount", text="Total Amount")
 
-    def _create_ui(self) -> None:
-        """Create and configure UI components."""
-        # Configure frame
-        self.columnconfigure(0, weight=1)
-        self.rowconfigure(1, weight=1)
+        self.orders_tree.column("order_id", width=80, anchor=tk.CENTER)
+        self.orders_tree.column("customer_name", width=150)
+        self.orders_tree.column("order_date", width=100, anchor=tk.CENTER)
+        self.orders_tree.column("status", width=100, anchor=tk.CENTER)
+        self.orders_tree.column("total_amount", width=100, anchor=tk.E)
 
-        # Create toolbar
-        toolbar_frame = ttk.Frame(self, padding=5)
-        toolbar_frame.grid(row=0, column=0, sticky="ew")
+        # Add scrollbar
+        scrollbar = ttk.Scrollbar(orders_frame, orient=tk.VERTICAL, command=self.orders_tree.yview)
+        self.orders_tree.configure(yscroll=scrollbar.set)
 
-        # Add toolbar buttons
-        ttk.Button(toolbar_frame, text="Add Order", command=self._add_order).pack(side=tk.LEFT, padx=2)
-        ttk.Button(toolbar_frame, text="Edit", command=self._edit_selected).pack(side=tk.LEFT, padx=2)
-        ttk.Button(toolbar_frame, text="Delete", command=self._delete_selected).pack(side=tk.LEFT, padx=2)
-        ttk.Button(toolbar_frame, text="View Details", command=self._view_details).pack(side=tk.LEFT, padx=2)
-        ttk.Button(toolbar_frame, text="Refresh", command=self._load_data).pack(side=tk.LEFT, padx=2)
-        ttk.Separator(toolbar_frame, orient=tk.VERTICAL).pack(side=tk.LEFT, padx=5, fill=tk.Y)
-        ttk.Button(toolbar_frame, text="Search", command=self._show_search_dialog).pack(side=tk.LEFT, padx=2)
-        ttk.Button(toolbar_frame, text="Filter", command=self._show_filter_dialog).pack(side=tk.LEFT, padx=2)
-        ttk.Button(toolbar_frame, text="Reset View", command=self._reset_view).pack(side=tk.LEFT, padx=2)
-
-        # Create status filter dropdown
-        ttk.Label(toolbar_frame, text="Status:").pack(side=tk.LEFT, padx=(10, 2))
-        self.status_filter = ttk.Combobox(toolbar_frame, width=12, state="readonly")
-        self.status_filter.pack(side=tk.LEFT, padx=2)
-
-        # Populate status dropdown options
-        status_options = ["All"] + [status.name for status in OrderStatus]
-        self.status_filter.configure(values=status_options)
-        self.status_filter.current(0)  # Default to "All"
-        self.status_filter.bind("<<ComboboxSelected>>", self._on_status_filter_change)
-
-        # Create treeview
-        columns = (
-            "id", "order_number", "customer_name", "order_date",
-            "total_amount", "status", "payment_status", "items_count"
-        )
-        self.tree = ttk.Treeview(self, columns=columns, show="headings")
-
-        # Define column headings
-        self.tree.heading("id", text="ID")
-        self.tree.heading("order_number", text="Order #")
-        self.tree.heading("customer_name", text="Customer")
-        self.tree.heading("order_date", text="Date")
-        self.tree.heading("total_amount", text="Total")
-        self.tree.heading("status", text="Status")
-        self.tree.heading("payment_status", text="Payment")
-        self.tree.heading("items_count", text="Items")
-
-        # Configure column widths
-        self.tree.column("id", width=60, stretch=False)
-        self.tree.column("order_number", width=100)
-        self.tree.column("customer_name", width=180)
-        self.tree.column("order_date", width=100)
-        self.tree.column("total_amount", width=90, anchor=tk.E)
-        self.tree.column("status", width=100)
-        self.tree.column("payment_status", width=100)
-        self.tree.column("items_count", width=60, anchor=tk.CENTER)
-
-        # Add scrollbars
-        y_scrollbar = ttk.Scrollbar(self, orient=tk.VERTICAL, command=self.tree.yview)
-        x_scrollbar = ttk.Scrollbar(self, orient=tk.HORIZONTAL, command=self.tree.xview)
-        self.tree.configure(yscroll=y_scrollbar.set, xscroll=x_scrollbar.set)
-
-        # Grid layout
-        self.tree.grid(row=1, column=0, sticky="nsew")
-        y_scrollbar.grid(row=1, column=1, sticky="ns")
-        x_scrollbar.grid(row=2, column=0, sticky="ew")
-
-        # Add status bar
-        self.status_var = tk.StringVar()
-        status_bar = ttk.Label(self, textvariable=self.status_var, relief=tk.SUNKEN, anchor=tk.W)
-        status_bar.grid(row=3, column=0, columnspan=2, sticky="ew")
+        # Pack the treeview and scrollbar
+        self.orders_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
         # Bind events
-        self.tree.bind("<<TreeviewSelect>>", self._on_select)
-        self.tree.bind("<Double-1>", self._on_double_click)
+        self.orders_tree.bind("<<TreeviewSelect>>", self._on_order_select)
+        self.orders_tree.bind("<Double-1>", self._on_order_double_click)
 
-        # Set initial status
-        self.status_var.set("Ready")
+        # Order details frame at the bottom
+        self.details_frame = ttk.LabelFrame(self.main_frame, text="Order Details")
+        self.details_frame.pack(fill=tk.BOTH, expand=True, pady=5)
 
-    def _load_data(self) -> None:
-        """
-        Load orders from the order service and populate the treeview.
-        """
-        # Clear existing items
-        for item in self.tree.get_children():
-            self.tree.delete(item)
+        # Create order details treeview
+        details_columns = ("item_id", "product_name", "quantity", "unit_price", "total_price")
+        self.details_tree = ttk.Treeview(self.details_frame, columns=details_columns, show="headings",
+                                         selectmode="browse")
 
+        # Configure columns
+        self.details_tree.heading("item_id", text="Item ID")
+        self.details_tree.heading("product_name", text="Product")
+        self.details_tree.heading("quantity", text="Quantity")
+        self.details_tree.heading("unit_price", text="Unit Price")
+        self.details_tree.heading("total_price", text="Total Price")
+
+        self.details_tree.column("item_id", width=80, anchor=tk.CENTER)
+        self.details_tree.column("product_name", width=200)
+        self.details_tree.column("quantity", width=80, anchor=tk.CENTER)
+        self.details_tree.column("unit_price", width=100, anchor=tk.E)
+        self.details_tree.column("total_price", width=100, anchor=tk.E)
+
+        # Add scrollbar for details
+        details_scrollbar = ttk.Scrollbar(self.details_frame, orient=tk.VERTICAL, command=self.details_tree.yview)
+        self.details_tree.configure(yscroll=details_scrollbar.set)
+
+        # Pack the details treeview and scrollbar
+        self.details_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        details_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+    def _create_toolbar(self):
+        """Create toolbar with action buttons."""
+        toolbar = ttk.Frame(self.main_frame)
+        toolbar.pack(fill=tk.X, pady=(0, 10))
+
+        # Create toolbar buttons
+        ttk.Button(toolbar, text="New Order", command=self._on_new_order).pack(side=tk.LEFT, padx=2)
+        ttk.Button(toolbar, text="Edit Order", command=self._on_edit_order).pack(side=tk.LEFT, padx=2)
+        ttk.Button(toolbar, text="Delete Order", command=self._on_delete_order).pack(side=tk.LEFT, padx=2)
+
+        ttk.Separator(toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, padx=5, fill=tk.Y)
+
+        ttk.Button(toolbar, text="Search", command=self._on_search).pack(side=tk.LEFT, padx=2)
+        ttk.Button(toolbar, text="Filter", command=self._on_filter).pack(side=tk.LEFT, padx=2)
+        ttk.Button(toolbar, text="Reset", command=self._on_reset).pack(side=tk.LEFT, padx=2)
+
+        ttk.Separator(toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, padx=5, fill=tk.Y)
+
+        # Create status filter dropdown
+        ttk.Label(toolbar, text="Status:").pack(side=tk.LEFT, padx=2)
+        self.status_var = tk.StringVar(value="All")
+        statuses = ["All"] + [status.name for status in OrderStatus]
+        status_combo = ttk.Combobox(toolbar, textvariable=self.status_var, values=statuses, width=12, state="readonly")
+        status_combo.pack(side=tk.LEFT, padx=2)
+        status_combo.bind("<<ComboboxSelected>>", self._on_status_filter)
+
+    def _load_orders(self):
+        """Load orders from the database."""
         try:
-            # Get orders from service
-            orders = self.order_service.get_orders()
+            # Clear existing items
+            for item in self.orders_tree.get_children():
+                self.orders_tree.delete(item)
 
-            if not orders:
-                self.status_var.set("No orders found")
+            # Fetch orders from service
+            self.current_orders = self.order_service.get_all_orders()
+
+            if not self.current_orders:
                 logger.info("No orders found")
                 return
 
-            # Apply status filter if selected
-            status_filter = self.status_filter.get()
-            if status_filter != "All":
-                orders = [order for order in orders if order.get("status") == status_filter]
-
             # Populate treeview
-            for order in orders:
-                # Format data for display
-                total_amount = order.get("total_amount", 0)
-                formatted_total = f"${total_amount:.2f}" if total_amount else "N/A"
+            for order in self.current_orders:
+                # Format values for display
+                order_id = order.get("id", "")
+                customer_name = order.get("customer_name", "")
+                order_date = order.get("order_date", "")
+                status = order.get("status", "")
+                total_amount = order.get("total_amount", 0.0)
 
-                items_count = len(order.get("items", []))
+                # Format currency
+                formatted_total = f"${total_amount:.2f}" if total_amount else ""
 
-                self.tree.insert("", tk.END, values=(
-                    order.get("id", ""),
-                    order.get("order_number", ""),
-                    order.get("customer_name", ""),
-                    order.get("order_date", ""),
-                    formatted_total,
-                    order.get("status", ""),
-                    order.get("payment_status", ""),
-                    items_count
+                # Insert into treeview
+                self.orders_tree.insert("", "end", values=(
+                    order_id, customer_name, order_date, status, formatted_total
                 ))
 
-            # Update status
-            self.status_var.set(f"Loaded {len(orders)} orders")
-            logger.info(f"Loaded {len(orders)} orders")
-
+            logger.info(f"Loaded {len(self.current_orders)} orders")
         except Exception as e:
-            error_message = f"Error loading orders: {str(e)}"
-            self.show_error("Data Loading Error", error_message)
-            logger.error(error_message, exc_info=True)
-            self.status_var.set("Error loading data")
+            logger.error(f"Error loading orders: {str(e)}", exc_info=True)
+            self.show_error("Error", f"Failed to load orders: {str(e)}")
 
-    def _on_select(self, event=None) -> None:
-        """
-        Handle selection of an item in the treeview.
+    def _load_order_details(self, order_id: int):
+        """Load details for the selected order.
 
         Args:
-            event: Selection event
+            order_id: ID of the order to load details for
         """
-        selected_items = self.tree.selection()
+        try:
+            # Clear existing items
+            for item in self.details_tree.get_children():
+                self.details_tree.delete(item)
+
+            # Find order in current orders
+            selected_order = next((o for o in self.current_orders if o.get("id") == order_id), None)
+
+            if not selected_order:
+                logger.warning(f"Order {order_id} not found in current orders")
+                return
+
+            # Get order items
+            order_items = selected_order.get("items", [])
+
+            if not order_items:
+                logger.info(f"No items found for order {order_id}")
+                return
+
+            # Populate details treeview
+            for item in order_items:
+                item_id = item.get("id", "")
+                product_name = item.get("product_name", "")
+                quantity = item.get("quantity", 0)
+                unit_price = item.get("unit_price", 0.0)
+                total_price = quantity * unit_price
+
+                # Format currency
+                formatted_unit_price = f"${unit_price:.2f}" if unit_price else ""
+                formatted_total_price = f"${total_price:.2f}" if total_price else ""
+
+                # Insert into treeview
+                self.details_tree.insert("", "end", values=(
+                    item_id, product_name, quantity, formatted_unit_price, formatted_total_price
+                ))
+
+            logger.info(f"Loaded {len(order_items)} items for order {order_id}")
+        except Exception as e:
+            logger.error(f"Error loading order details: {str(e)}", exc_info=True)
+            self.show_error("Error", f"Failed to load order details: {str(e)}")
+
+    def _on_order_select(self, event=None):
+        """Handle order selection in treeview."""
+        selected_items = self.orders_tree.selection()
         if not selected_items:
-            self._selected_order_id = None
             return
 
-        # Get the first selected item
-        item = selected_items[0]
-        values = self.tree.item(item, "values")
+        # Get selected item
+        item_id = selected_items[0]
+        values = self.orders_tree.item(item_id, "values")
 
-        if values:
-            self._selected_order_id = values[0]  # ID is the first column
-
-    def _on_double_click(self, event=None) -> None:
-        """
-        Handle double-click on a treeview item.
-
-        Args:
-            event: Double-click event
-        """
-        self._view_details()
-
-    def _on_status_filter_change(self, event=None) -> None:
-        """
-        Handle status filter selection change.
-
-        Args:
-            event: ComboboxSelected event
-        """
-        self._load_data()
-
-    def _add_order(self) -> None:
-        """
-        Show dialog to add a new order.
-        """
-        # This would typically open an order entry dialog
-        # For now, display a placeholder message
-        self.show_info("Add Order", "Order entry dialog would open here.")
-        logger.info("Add order functionality called")
-
-    def _edit_selected(self) -> None:
-        """
-        Show dialog to edit the selected order.
-        """
-        if not self._selected_order_id:
-            self.show_warning("Warning", "Please select an order to edit.")
+        if not values:
             return
 
-        # This would typically open an order edit dialog
-        # For now, display a placeholder message
-        self.show_info("Edit Order", f"Edit dialog for order ID {self._selected_order_id} would open here.")
-        logger.info(f"Edit order called for ID: {self._selected_order_id}")
+        # Extract order ID from values
+        try:
+            order_id = int(values[0])
+            self.selected_order_id = order_id
+            self._load_order_details(order_id)
+        except (ValueError, IndexError) as e:
+            logger.error(f"Error processing selected order: {str(e)}")
 
-    def _delete_selected(self) -> None:
-        """
-        Delete the selected order after confirmation.
-        """
-        if not self._selected_order_id:
-            self.show_warning("Warning", "Please select an order to delete.")
+    def _on_order_double_click(self, event=None):
+        """Handle double-click on an order to edit it."""
+        if self.selected_order_id:
+            self._on_edit_order()
+
+    def _on_new_order(self):
+        """Handle new order button click."""
+        # This would open a dialog to create a new order
+        # For now, show a placeholder message
+        messagebox.showinfo("New Order", "Open new order dialog")
+        logger.info("New order dialog requested")
+
+    def _on_edit_order(self):
+        """Handle edit order button click."""
+        if not self.selected_order_id:
+            messagebox.showwarning("Warning", "Please select an order to edit")
+            return
+
+        # This would open a dialog to edit the selected order
+        # For now, show a placeholder message
+        messagebox.showinfo("Edit Order", f"Edit order {self.selected_order_id}")
+        logger.info(f"Edit order dialog requested for order {self.selected_order_id}")
+
+    def _on_delete_order(self):
+        """Handle delete order button click."""
+        if not self.selected_order_id:
+            messagebox.showwarning("Warning", "Please select an order to delete")
             return
 
         # Confirm deletion
-        if not messagebox.askyesno("Confirm Deletion",
-                                   "Are you sure you want to delete this order?\n"
-                                   "This action cannot be undone."):
-            return
+        confirm = messagebox.askyesno(
+            "Confirm Deletion",
+            f"Are you sure you want to delete order {self.selected_order_id}?",
+            icon="warning"
+        )
 
-        try:
-            # Delete order through service
-            result = self.order_service.delete_order(self._selected_order_id)
+        if confirm:
+            try:
+                # Delete the order
+                self.order_service.delete_order(self.selected_order_id)
 
-            if result:
-                self.show_info("Success", "Order deleted successfully!")
-                self._selected_order_id = None
-                self._load_data()  # Refresh the view
-            else:
-                self.show_error("Error", "Failed to delete order.")
+                # Reload orders
+                self._load_orders()
 
-        except Exception as e:
-            error_message = f"Error deleting order: {str(e)}"
-            self.show_error("Delete Error", error_message)
-            logger.error(error_message, exc_info=True)
+                # Clear selection
+                self.selected_order_id = None
 
-    def _view_details(self) -> None:
-        """
-        Show detailed view of the selected order.
-        """
-        if not self._selected_order_id:
-            self.show_warning("Warning", "Please select an order to view details.")
-            return
+                # Clear details
+                for item in self.details_tree.get_children():
+                    self.details_tree.delete(item)
 
-        try:
-            # Get order details from service
-            order = self.order_service.get_order_by_id(self._selected_order_id)
+                logger.info(f"Order {self.selected_order_id} deleted")
+            except Exception as e:
+                logger.error(f"Error deleting order: {str(e)}", exc_info=True)
+                self.show_error("Error", f"Failed to delete order: {str(e)}")
 
-            if not order:
-                self.show_error("Error", "Selected order not found.")
-                self._load_data()  # Refresh to ensure view is up-to-date
-                return
+    def _on_search(self):
+        """Handle search button click."""
+        # Get column names for search
+        columns = [self.orders_tree.heading(col)["text"] for col in self.orders_tree["columns"]]
 
-            # This would typically open an order details dialog
-            # For now, display a placeholder message
-            details = f"Order #{order.get('order_number', '')}\n" \
-                      f"Customer: {order.get('customer_name', '')}\n" \
-                      f"Status: {order.get('status', '')}\n" \
-                      f"Total: ${order.get('total_amount', 0):.2f}"
-
-            self.show_info("Order Details", details)
-            logger.info(f"View details called for order ID: {self._selected_order_id}")
-
-        except Exception as e:
-            error_message = f"Error viewing order details: {str(e)}"
-            self.show_error("View Error", error_message)
-            logger.error(error_message, exc_info=True)
-
-    def _show_search_dialog(self) -> None:
-        """
-        Show search dialog for orders.
-        """
-        columns = ["order_number", "customer_name", "status", "payment_status"]
+        # Open search dialog
         SearchDialog(self, columns, self._perform_search)
 
-    def _perform_search(self, search_params: Dict[str, str]) -> None:
-        """
-        Perform search based on parameters from search dialog.
+    def _perform_search(self, field: str, search_text: str, exact_match: bool):
+        """Perform search based on criteria.
 
         Args:
-            search_params: Dictionary with search field and text
+            field: Field to search in
+            search_text: Text to search for
+            exact_match: Whether to perform exact matching
         """
-        field = search_params.get("field", "")
-        text = search_params.get("text", "").lower()
+        logger.info(f"Performing search: field={field}, text={search_text}, exact={exact_match}")
 
-        if not field or not text:
-            return
+        # Get column index from heading text
+        column_indexes = {self.orders_tree.heading(col)["text"]: i for i, col in enumerate(self.orders_tree["columns"])}
+        column_index = column_indexes.get(field, 0)
 
-        try:
-            # Clear current items
-            for item in self.tree.get_children():
-                self.tree.delete(item)
+        # Clear current selection
+        self.orders_tree.selection_remove(self.orders_tree.selection())
 
-            # Get all orders and filter locally
-            all_orders = self.order_service.get_all_orders()
-            filtered_orders = []
+        found_items = []
 
-            for order in all_orders:
-                # Get field value and compare
-                value = str(order.get(field, "")).lower()
-                if text in value:
-                    filtered_orders.append(order)
+        # Search through the items
+        for item_id in self.orders_tree.get_children():
+            values = self.orders_tree.item(item_id, "values")
+            value = str(values[column_index]) if values and len(values) > column_index else ""
 
-            # Populate treeview with filtered orders
-            for order in filtered_orders:
-                total_amount = order.get("total_amount", 0)
-                formatted_total = f"${total_amount:.2f}" if total_amount else "N/A"
+            # Match according to search criteria
+            if exact_match:
+                if value == search_text:
+                    found_items.append(item_id)
+            else:
+                if search_text.lower() in value.lower():
+                    found_items.append(item_id)
 
-                items_count = len(order.get("items", []))
+        if found_items:
+            # Select the first match and ensure it's visible
+            self.orders_tree.selection_add(found_items[0])
+            self.orders_tree.see(found_items[0])
 
-                self.tree.insert("", tk.END, values=(
-                    order.get("id", ""),
-                    order.get("order_number", ""),
-                    order.get("customer_name", ""),
-                    order.get("order_date", ""),
-                    formatted_total,
-                    order.get("status", ""),
-                    order.get("payment_status", ""),
-                    items_count
-                ))
+            # Highlight all matches
+            for item_id in found_items:
+                self.orders_tree.item(item_id, tags=("match",))
 
-            # Update status
-            self.status_var.set(f"Found {len(filtered_orders)} orders matching '{text}' in {field}")
-            logger.info(f"Search performed: {len(filtered_orders)} orders found matching '{text}' in {field}")
+            # Configure tag for highlighting
+            self.orders_tree.tag_configure("match", background="#FFFFCC")
 
-        except Exception as e:
-            error_message = f"Error searching orders: {str(e)}"
-            self.show_error("Search Error", error_message)
-            logger.error(error_message, exc_info=True)
+            logger.info(f"Found {len(found_items)} matching orders")
+        else:
+            messagebox.showinfo("Search Results", "No matching orders found")
+            logger.info("No matching orders found")
 
-    def _show_filter_dialog(self) -> None:
-        """
-        Show filter dialog for orders.
-        """
-        # This would typically open a filter dialog
-        # For now, display a placeholder message
-        self.show_info("Filter Orders", "Filter dialog would open here.")
+    def _on_filter(self):
+        """Handle filter button click."""
+        # This would open a dialog to set up filtering criteria
+        # For now, show a placeholder message
+        messagebox.showinfo("Filter Orders", "Filter dialog would appear here")
         logger.info("Filter dialog requested")
 
-    def _reset_view(self) -> None:
-        """
-        Reset all filters and reload data.
-        """
-        self.status_filter.current(0)  # Reset to "All"
-        self._load_data()
-        self.status_var.set("View reset")
-        logger.info("View reset")
+    def _on_status_filter(self, event=None):
+        """Handle status filter selection."""
+        status = self.status_var.get()
+
+        logger.info(f"Filtering orders by status: {status}")
+
+        if status == "All":
+            # Show all orders
+            self._load_orders()
+        else:
+            try:
+                # Filter orders by status
+                filtered_orders = [
+                    order for order in self.current_orders
+                    if order.get("status", "") == status
+                ]
+
+                # Clear existing items
+                for item in self.orders_tree.get_children():
+                    self.orders_tree.delete(item)
+
+                # Populate treeview with filtered orders
+                for order in filtered_orders:
+                    # Format values for display
+                    order_id = order.get("id", "")
+                    customer_name = order.get("customer_name", "")
+                    order_date = order.get("order_date", "")
+                    status = order.get("status", "")
+                    total_amount = order.get("total_amount", 0.0)
+
+                    # Format currency
+                    formatted_total = f"${total_amount:.2f}" if total_amount else ""
+
+                    # Insert into treeview
+                    self.orders_tree.insert("", "end", values=(
+                        order_id, customer_name, order_date, status, formatted_total
+                    ))
+
+                logger.info(f"Filtered to {len(filtered_orders)} orders with status {status}")
+            except Exception as e:
+                logger.error(f"Error filtering orders: {str(e)}", exc_info=True)
+                self.show_error("Error", f"Failed to filter orders: {str(e)}")
+
+    def _on_reset(self):
+        """Handle reset button click to clear all filters and reload orders."""
+        # Reset status filter
+        self.status_var.set("All")
+
+        # Clear any tags or highlights
+        for item_id in self.orders_tree.get_children():
+            self.orders_tree.item(item_id, tags=())
+
+        # Reload all orders
+        self._load_orders()
+
+        logger.info("Reset filters and reloaded all orders")

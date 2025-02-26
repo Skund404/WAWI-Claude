@@ -1,10 +1,18 @@
+import tkinter as tk
+from tkinter import ttk, messagebox, filedialog  # Fixed missing imports
 from di.core import inject
-from services.interfaces import MaterialService, ProjectService, \
-    InventoryService, OrderService
+from services.implementations import MaterialService
+from services.interfaces.material_service import IMaterialService
+from services.interfaces.inventory_service import IInventoryService  # Added missing import
+from services.interfaces.project_service import IProjectService
+from database.models.metrics import MaterialUsageLog  # Corrected import
+from database.models.enums import MaterialType  # Corrected import
+from gui.base_view import BaseView
+#from utils.error_handler import ErrorHandler  # Added missing import
+from utils.error_handler import ApplicationError
 import logging
 from datetime import datetime, timedelta
 from typing import Any, List, Dict, Optional
-
 logger = logging.getLogger(__name__)
 
 
