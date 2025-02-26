@@ -1,46 +1,36 @@
-# Path: gui/main_window.py
-
+# gui/main_window.py - Updated with new inventory views
 """
-Main Window for the Leatherworking Store Management Application.
-
-Provides the primary application interface with navigation and core functionality.
+Main window for the leatherworking store management system.
+Sets up the UI framework and loads different view components.
 """
 
 import logging
 import tkinter as tk
 from tkinter import ttk
 
-# Import views
+from di.container import DependencyContainer
 from gui.leatherworking.leather_inventory import LeatherInventoryView
 from gui.leatherworking.pattern_library import PatternLibrary
 from gui.leatherworking.project_dashboard import ProjectDashboard
 from gui.order.order_view import OrderView
 from gui.shopping_list.shopping_list_view import ShoppingListView
-from gui.storage.storage_view import StorageView
-
-# Import services
+from gui.inventory.hardware_inventory import HardwareInventoryView
+from gui.inventory.product_inventory import ProductInventoryView
 from services.interfaces.inventory_service import IInventoryService
 from services.interfaces.material_service import IMaterialService
 from services.interfaces.order_service import IOrderService
 from services.interfaces.project_service import IProjectService
 
-# Import dependency injection
-from di.container import DependencyContainer
-
-# Configure logging
+# Configure logger
 logger = logging.getLogger(__name__)
 
 
 class MainWindow:
     """
-    Main application window managing different views and service interactions.
+    Main application window class.
 
-    Provides a tabbed interface for various application functionalities.
-
-    Attributes:
-        root (tk.Tk): The main application window
-        container (DependencyContainer): Dependency injection container
-        notebook (ttk.Notebook): Tabbed interface for different views
+    Sets up the main UI layout, menu, and manages the different views
+    of the application using a notebook with tabs.
     """
 
     def __init__(self, root: tk.Tk, container: DependencyContainer):
@@ -51,109 +41,119 @@ class MainWindow:
             root (tk.Tk): The root Tkinter window
             container (DependencyContainer): Dependency injection container
         """
-        # Store references
         self.root = root
         self.container = container
 
-        # Configure window
+        # Setup window properties
         self._setup_window()
 
-        # Create notebook (tabbed interface)
-        self._create_notebook()
-
-        # Create menu
+        # Create main components
         self._create_menu()
-
-        # Create status bar
+        self._create_notebook()
         self._create_status_bar()
 
         logger.info("Main window initialized successfully")
 
     def _setup_window(self):
-        """
-        Configure basic window settings.
-        """
-        # Set window size and position
-        window_width = 1200
-        window_height = 800
+        """Configure basic window settings."""
+        self.root.title("Leatherworking Store Management")
 
-        # Calculate screen center
+        # Set window size and position
+        width, height = 1200, 700
         screen_width = self.root.winfo_screenwidth()
         screen_height = self.root.winfo_screenheight()
+        x = (screen_width - width) // 2
+        y = (screen_height - height) // 2
+        self.root.geometry(f"{width}x{height}+{x}+{y}")
 
-        x = (screen_width - window_width) // 2
-        y = (screen_height - window_height) // 2
-
-        # Set window geometry
-        self.root.geometry(f'{window_width}x{window_height}+{x}+{y}')
-
-        # Configure window icon (if available)
-        # self.root.iconbitmap('path/to/icon.ico')
-
-    def _create_notebook(self):
-        """
-        Create a notebook with different application views.
-        """
-        # Create notebook (tabbed interface)
-        self.notebook = ttk.Notebook(self.root)
-        self.notebook.pack(expand=True, fill='both')
-
-        # Create views
-        views = [
-            ("Leather Inventory", LeatherInventoryView),
-            ("Pattern Library", PatternLibrary),
-            ("Projects", ProjectDashboard),
-            ("Orders", OrderView),
-            ("Shopping List", ShoppingListView),
-            ("Storage", StorageView)
-        ]
-
-        # Add views to notebook
-        for title, view_class in views:
-            try:
-                # Create view with container
-                view = view_class(self.notebook, self)
-                self.notebook.add(view, text=title)
-            except Exception as e:
-                logger.error(f"Failed to create {title} view: {e}")
+        # Configure grid
+        self.root.columnconfigure(0, weight=1)
+        self.root.rowconfigure(0, weight=1)
 
     def _create_menu(self):
-        """
-        Create the main application menu.
-        """
-        # Create main menu
-        main_menu = tk.Menu(self.root)
-        self.root.config(menu=main_menu)
+        """Create the main application menu."""
+        menubar = tk.Menu(self.root)
 
         # File menu
-        file_menu = tk.Menu(main_menu, tearoff=0)
-        main_menu.add_cascade(label="File", menu=file_menu)
+        file_menu = tk.Menu(menubar, tearoff=0)
         file_menu.add_command(label="New", command=self._on_new)
         file_menu.add_command(label="Open", command=self._on_open)
         file_menu.add_separator()
-        file_menu.add_command(label="Exit", command=self.root.quit)
+        file_menu.add_command(label="Exit", command=self.quit)
+        menubar.add_cascade(label="File", menu=file_menu)
 
         # Edit menu
-        edit_menu = tk.Menu(main_menu, tearoff=0)
-        main_menu.add_cascade(label="Edit", menu=edit_menu)
+        edit_menu = tk.Menu(menubar, tearoff=0)
         edit_menu.add_command(label="Undo", command=self._on_undo)
         edit_menu.add_command(label="Redo", command=self._on_redo)
+        menubar.add_cascade(label="Edit", menu=edit_menu)
+
+        # View menu
+        view_menu = tk.Menu(menubar, tearoff=0)
+        view_menu.add_command(label="Refresh", command=lambda: self.set_status("Refreshing data..."))
+        menubar.add_cascade(label="View", menu=view_menu)
+
+        # Help menu
+        help_menu = tk.Menu(menubar, tearoff=0)
+        help_menu.add_command(label="Help", command=lambda: self.set_status("Help would be shown here"))
+        help_menu.add_command(label="About", command=lambda: self.set_status("About information would be shown here"))
+        menubar.add_cascade(label="Help", menu=help_menu)
+
+        # Set the menu
+        self.root.config(menu=menubar)
+
+    def _create_notebook(self):
+        """Create a notebook with different application views."""
+        self.notebook = ttk.Notebook(self.root)
+        self.notebook.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
+
+        # Add tabs for each view
+        try:
+            # Material Inventory
+            inventory_frame = ttk.Frame(self.notebook)
+            LeatherInventoryView(inventory_frame, self)
+            self.notebook.add(inventory_frame, text="Leather Inventory")
+
+            # Hardware Inventory (NEW)
+            hardware_frame = ttk.Frame(self.notebook)
+            HardwareInventoryView(hardware_frame, self)
+            self.notebook.add(hardware_frame, text="Hardware Inventory")
+
+            # Product Inventory (RENAMED from Storage)
+            product_frame = ttk.Frame(self.notebook)
+            ProductInventoryView(product_frame, self)
+            self.notebook.add(product_frame, text="Product Inventory")
+
+            # Pattern Library
+            patterns_frame = ttk.Frame(self.notebook)
+            PatternLibrary(patterns_frame, self)
+            self.notebook.add(patterns_frame, text="Pattern Library")
+
+            # Project Dashboard
+            projects_frame = ttk.Frame(self.notebook)
+            ProjectDashboard(projects_frame, self)
+            self.notebook.add(projects_frame, text="Projects")
+
+            # Orders
+            orders_frame = ttk.Frame(self.notebook)
+            OrderView(orders_frame, self)
+            self.notebook.add(orders_frame, text="Orders")
+
+            # Shopping List
+            shopping_frame = ttk.Frame(self.notebook)
+            ShoppingListView(shopping_frame, self)
+            self.notebook.add(shopping_frame, text="Shopping List")
+
+        except Exception as e:
+            logger.error(f"Error creating views: {str(e)}", exc_info=True)
 
     def _create_status_bar(self):
-        """
-        Create a status bar at the bottom of the window.
-        """
+        """Create a status bar at the bottom of the window."""
         self.status_var = tk.StringVar()
-        self.status_var.set("Ready")
+        status_bar = ttk.Label(self.root, textvariable=self.status_var, relief=tk.SUNKEN, anchor=tk.W)
+        status_bar.grid(row=1, column=0, sticky="ew")
 
-        status_bar = tk.Label(
-            self.root,
-            textvariable=self.status_var,
-            bd=1,
-            relief=tk.SUNKEN,
-            anchor=tk.W
-        )
-        status_bar.pack(side=tk.BOTTOM, fill=tk.X)
+        self.status_var.set("Ready")
 
     def set_status(self, message: str):
         """
@@ -174,36 +174,29 @@ class MainWindow:
         Returns:
             Service implementation
         """
-        try:
-            return self.container.get(service_type)
-        except Exception as e:
-            logger.error(f"Failed to retrieve service {service_type}: {e}")
-            raise
+        return self.container.get_service(service_type)
 
     def _on_new(self):
-        """
-        Handle New action in the menu.
-        """
-        logger.info("New action triggered")
-        # Placeholder for new action
+        """Handle New action in the menu."""
+        self.set_status("New action selected")
 
     def _on_open(self):
-        """
-        Handle Open action in the menu.
-        """
-        logger.info("Open action triggered")
-        # Placeholder for open action
+        """Handle Open action in the menu."""
+        self.set_status("Open action selected")
+
+    def _on_save(self):
+        """Handle Save action in the menu."""
+        self.set_status("Save action selected")
 
     def _on_undo(self):
-        """
-        Handle Undo action in the menu.
-        """
-        logger.info("Undo action triggered")
-        # Placeholder for undo action
+        """Handle Undo action in the menu."""
+        self.set_status("Undo action selected")
 
     def _on_redo(self):
-        """
-        Handle Redo action in the menu.
-        """
-        logger.info("Redo action triggered")
-        # Placeholder for redo action
+        """Handle Redo action in the menu."""
+        self.set_status("Redo action selected")
+
+    def quit(self):
+        """Close the application."""
+        logger.info("Closing application")
+        self.root.quit()

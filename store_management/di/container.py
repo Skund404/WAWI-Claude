@@ -1,31 +1,26 @@
 # di/container.py
 """
-Dependency injection container for managing service dependencies.
+Dependency Injection Container for managing service registrations and instantiations.
+
+This module provides a flexible dependency injection mechanism
+for the leatherworking store management application.
 """
 
 import logging
-from typing import Any, Dict, Optional, Type
-
-# Configure logger
-logger = logging.getLogger(__name__)
+from typing import Any, Callable, Dict, Optional, Type
 
 
 class DependencyContainer:
     """
-    Container for managing dependency injection.
-    Provides registration and resolution of service dependencies.
+    A singleton dependency injection container for managing service registrations.
+
+    Provides methods to register, retrieve, and manage service implementations
+    across the application.
     """
 
     _instance = None
-
-    def get(self, service_type: Type) -> Any:
-        if service_type not in self._service_instances:
-            if service_type not in self._service_registry:
-                raise ValueError(f"Service not registered: {service_type}")
-            service_impl = self._service_registry[service_type]
-            service_instance = service_impl()
-            self._service_instances[service_type] = service_instance
-        return self._service_instances[service_type]
+    _service_registry: Dict[Type, Any] = {}
+    _service_instances: Dict[Type, Any] = {}
 
     def __new__(cls):
         """
@@ -34,89 +29,106 @@ class DependencyContainer:
         Returns:
             DependencyContainer: Singleton instance of the container
         """
-        if cls._instance is None:
-            logger.debug("Creating new DependencyContainer instance")
+        if not cls._instance:
             cls._instance = super().__new__(cls)
-            cls._instance._registrations = {}
-            cls._instance._instances = {}
+            cls._instance._initialize()
         return cls._instance
 
-    def __init__(self):
-        """Initialize the container if it hasn't been initialized yet."""
-        if not hasattr(self, '_registrations'):
-            self._registrations = {}
-            self._instances = {}
-            logger.debug("Initialized DependencyContainer")
+    def _initialize(self):
+        """
+        Initialize the dependency container's internal state.
+        """
+        self._service_registry = {}
+        self._service_instances = {}
+        self._logger = logging.getLogger(__name__)
 
-    def register(self, service_type: Type, service_impl: Type):
+    def register(self, service_type: Type, service_impl: Any):
         """
         Register a service implementation for a given service type.
 
         Args:
             service_type (Type): Service interface or abstract base class
-            service_impl (Type): Concrete service implementation
+            service_impl (Any): Concrete service implementation or factory
         """
-        logger.info(f"Registered service: {service_type.__name__} -> {service_impl.__name__}")
-        self._registrations[service_type] = service_impl
-        # Clear any cached instances of this type when re-registering
-        if service_type in self._instances:
-            del self._instances[service_type]
+        try:
+            self._service_registry[service_type] = service_impl
+            self._logger.info(f"Registered service: {service_type.__name__} -> {service_impl}")
+        except Exception as e:
+            self._logger.error(f"Error registering service {service_type}: {e}")
 
-    def resolve(self, service_type: Type) -> Any:
+    def get(self, service_type: Type):
         """
-        Resolve a service type to its implementation instance.
+        Retrieve a service instance, creating it if not already instantiated.
+
+        Alias for get_service to match the error log expectations.
 
         Args:
-            service_type (Type): Service interface or abstract base class to resolve
+            service_type (Type): Service interface to retrieve
 
         Returns:
-            Any: Instance of the registered implementation
+            Any: Service implementation instance
 
         Raises:
-            ValueError: If no implementation is registered for the requested type
+            ValueError: If no implementation is registered for the service type
         """
-        # Check if already instantiated
-        if service_type in self._instances:
-            logger.debug(f"Returning cached instance of {service_type.__name__}")
-            return self._instances[service_type]
+        return self.get_service(service_type)
 
-        # Check if type is registered
-        if service_type not in self._registrations:
-            error_msg = f"No implementation registered for {service_type.__name__}"
-            logger.error(error_msg)
-            raise ValueError(error_msg)
-
-        # Get implementation class
-        impl_class = self._registrations[service_type]
-        logger.debug(f"Creating new instance of {impl_class.__name__} for {service_type.__name__}")
-
-        # Create instance
-        try:
-            instance = impl_class()
-            # Cache the instance
-            self._instances[service_type] = instance
-            logger.debug(f"Successfully created {impl_class.__name__} instance")
-
-            # Debug instance
-            logger.debug(f"Instance methods: {[method for method in dir(instance) if not method.startswith('_')]}")
-
-            return instance
-        except Exception as e:
-            error_msg = f"Error creating instance of {impl_class.__name__}: {str(e)}"
-            logger.error(error_msg)
-            raise ValueError(error_msg) from e
-
-    def get_service(self, service_type: Type) -> Any:
+    def resolve(self, service_type: Type):
         """
-        Alternative name for resolve method, for compatibility with some views.
+        Resolve a service instance, creating it if not already instantiated.
+
+        Alias for get_service to match the error log expectations.
 
         Args:
-            service_type (Type): Service interface or abstract base class to resolve
+            service_type (Type): Service interface to resolve
 
         Returns:
-            Any: Instance of the registered implementation
+            Any: Service implementation instance
+
+        Raises:
+            ValueError: If no implementation is registered for the service type
         """
-        return self.resolve(service_type)
+        return self.get_service(service_type)
+
+    def get_service(self, service_type: Type):
+        """
+        Retrieve a service instance, creating it if not already instantiated.
+
+        Args:
+            service_type (Type): Service interface to retrieve
+
+        Returns:
+            Any: Service implementation instance
+
+        Raises:
+            ValueError: If no implementation is registered for the service type
+        """
+        try:
+            # Check if an instance already exists
+            if service_type in self._service_instances:
+                return self._service_instances[service_type]
+
+            # Find the implementation
+            if service_type not in self._service_registry:
+                raise ValueError(f"No implementation registered for {service_type.__name__}")
+
+            # Get the implementation
+            impl = self._service_registry[service_type]
+
+            # If it's a lambda or callable, invoke it
+            if callable(impl):
+                service_instance = impl()
+            else:
+                # Otherwise, assume it's a class and instantiate
+                service_instance = impl
+
+            # Cache the instance
+            self._service_instances[service_type] = service_instance
+
+            return service_instance
+        except Exception as e:
+            self._logger.error(f"Error getting service {service_type}: {e}")
+            raise
 
     def reset(self):
         """
@@ -124,6 +136,6 @@ class DependencyContainer:
 
         Useful for testing or reinitialization.
         """
-        logger.debug("Resetting dependency container")
-        self._registrations.clear()
-        self._instances.clear()
+        self._service_registry.clear()
+        self._service_instances.clear()
+        self._logger.info("Dependency container reset")

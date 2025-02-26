@@ -1,25 +1,30 @@
 # gui/storage/storage_view.py
 """
-StorageView module for displaying and managing storage locations for leatherworking materials.
+View for managing storage locations in a leatherworking store management system.
+Provides functionality to view, add, edit, and delete storage locations.
 """
 
-import tkinter as tk
-from tkinter import ttk, messagebox
 import logging
 import os
 import sqlite3
-from typing import Optional, List, Dict, Any, Tuple
+import tkinter as tk
+from tkinter import messagebox, ttk
+from typing import Any, Dict, List, Optional, Tuple, Type
 
 from gui.base_view import BaseView
 from services.interfaces.storage_service import IStorageService
-from di.core import inject
 
 # Configure logger
 logger = logging.getLogger(__name__)
 
 
 class StorageView(BaseView):
-    """View for managing storage locations for leatherworking materials."""
+    """
+    View for displaying and managing storage locations.
+
+    Provides a tabular interface for viewing storage locations, with functionality
+    to add, edit, and delete entries. Includes search and filter capabilities.
+    """
 
     def __init__(self, parent: ttk.Frame, app: tk.Tk):
         """
@@ -31,353 +36,367 @@ class StorageView(BaseView):
         """
         super().__init__(parent, app)
 
-        # Get storage service from dependency injection
-        self.storage_service = self.get_service(IStorageService)
+        self._storage_service = None
+        self._selected_storage_id = None
 
-        # UI components
-        self.tree = None
-        self.search_var = None
-        self.filter_var = None
-        self.status_bar = None
-
-        # Selected item
-        self.selected_id = None
-
-        # Create UI
+        # Initialize UI
         self.setup_ui()
 
-        # Load data
+        # Load initial data
         self.load_data()
 
-        logger.info("StorageView initialized")
+        logger.info("Storage view initialized")
 
-    def setup_ui(self):
+    def get_service(self, service_type: Type) -> Any:
+        """
+        Retrieve a service from the dependency container.
+
+        Args:
+            service_type (Type): Service interface to retrieve
+
+        Returns:
+            Any: Service implementation instance
+        """
+        try:
+            return self._app.get_service(service_type)
+        except Exception as e:
+            logger.error(f"Failed to get service {service_type.__name__}: {str(e)}")
+            raise
+
+    @property
+    def storage_service(self) -> IStorageService:
+        """
+        Lazy-loaded storage service property.
+
+        Returns:
+            IStorageService: Storage service instance
+        """
+        if self._storage_service is None:
+            self._storage_service = self.get_service(IStorageService)
+        return self._storage_service
+
+    def setup_ui(self) -> None:
         """Set up the user interface."""
-        self._setup_ui()
+        # Configure grid
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(1, weight=1)
 
-    def _setup_ui(self):
-        """Set up the user interface."""
-        # Control frame (top)
-        control_frame = ttk.Frame(self)
-        control_frame.pack(fill=tk.X, padx=5, pady=5)
+        # Create toolbar
+        toolbar_frame = ttk.Frame(self, padding=5)
+        toolbar_frame.grid(row=0, column=0, sticky="ew")
 
-        # Search
-        ttk.Label(control_frame, text="Search:").pack(side=tk.LEFT, padx=(0, 5))
+        # Add toolbar buttons
+        ttk.Button(toolbar_frame, text="Add Location", command=self._add_storage).pack(side=tk.LEFT, padx=2)
+        ttk.Button(toolbar_frame, text="Edit", command=self._edit_storage).pack(side=tk.LEFT, padx=2)
+        ttk.Button(toolbar_frame, text="Delete", command=self._delete_storage).pack(side=tk.LEFT, padx=2)
+        ttk.Button(toolbar_frame, text="Refresh", command=self.load_data).pack(side=tk.LEFT, padx=2)
+        ttk.Separator(toolbar_frame, orient=tk.VERTICAL).pack(side=tk.LEFT, padx=5, fill=tk.Y)
+
+        # Add search bar
+        ttk.Label(toolbar_frame, text="Search:").pack(side=tk.LEFT, padx=(10, 2))
         self.search_var = tk.StringVar()
-        search_entry = ttk.Entry(control_frame, textvariable=self.search_var, width=20)
-        search_entry.pack(side=tk.LEFT, padx=(0, 5))
-        search_entry.bind("<Return>", lambda e: self._search_storage())
+        search_entry = ttk.Entry(toolbar_frame, textvariable=self.search_var, width=20)
+        search_entry.pack(side=tk.LEFT, padx=2)
+        search_entry.bind("<Return>", self._search_storage)
+        ttk.Button(toolbar_frame, text="Search", command=self._search_storage).pack(side=tk.LEFT, padx=2)
+        ttk.Button(toolbar_frame, text="Clear", command=self._clear_search).pack(side=tk.LEFT, padx=2)
 
-        ttk.Button(control_frame, text="Search", command=self._search_storage).pack(side=tk.LEFT, padx=(0, 10))
+        # Create treeview for storage locations
+        columns = ("id", "name", "location_type", "capacity", "used_capacity", "description", "items_count")
+        self.tree = ttk.Treeview(self, columns=columns, show="headings")
 
-        # Filter by type
-        ttk.Label(control_frame, text="Type:").pack(side=tk.LEFT, padx=(0, 5))
-        self.filter_var = tk.StringVar(value="All")
-        storage_types = ["All", "SHELF", "BIN", "DRAWER", "CABINET", "RACK", "BOX", "OTHER"]
-        filter_combo = ttk.Combobox(control_frame, textvariable=self.filter_var, values=storage_types, width=10)
-        filter_combo.pack(side=tk.LEFT, padx=(0, 10))
-        filter_combo.bind("<<ComboboxSelected>>", lambda e: self.load_data())
+        # Configure column headings
+        self.tree.heading("id", text="ID", command=lambda: self._sort_column("id"))
+        self.tree.heading("name", text="Location Name", command=lambda: self._sort_column("name"))
+        self.tree.heading("location_type", text="Type", command=lambda: self._sort_column("location_type"))
+        self.tree.heading("capacity", text="Capacity", command=lambda: self._sort_column("capacity"))
+        self.tree.heading("used_capacity", text="Used", command=lambda: self._sort_column("used_capacity"))
+        self.tree.heading("description", text="Description", command=lambda: self._sort_column("description"))
+        self.tree.heading("items_count", text="Items", command=lambda: self._sort_column("items_count"))
 
-        # CRUD Buttons
-        ttk.Button(control_frame, text="Add", command=self._add_storage).pack(side=tk.LEFT, padx=2)
-        ttk.Button(control_frame, text="Edit", command=self._edit_storage).pack(side=tk.LEFT, padx=2)
-        ttk.Button(control_frame, text="Delete", command=self._delete_storage).pack(side=tk.LEFT, padx=2)
-        ttk.Button(control_frame, text="Refresh", command=self.load_data).pack(side=tk.LEFT, padx=2)
-
-        # Main content - Treeview
-        tree_frame = ttk.Frame(self)
-        tree_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
-
-        # Define columns
-        columns = ("id", "name", "location", "type", "capacity", "used", "remaining", "notes")
-
-        # Create treeview
-        self.tree = ttk.Treeview(tree_frame, columns=columns, show="headings")
-
-        # Define column properties
-        self.tree.column("id", width=50, minwidth=50)
-        self.tree.column("name", width=150, minwidth=100)
-        self.tree.column("location", width=150, minwidth=100)
-        self.tree.column("type", width=100, minwidth=80)
-        self.tree.column("capacity", width=80, minwidth=60)
-        self.tree.column("used", width=80, minwidth=60)
-        self.tree.column("remaining", width=80, minwidth=60)
-        self.tree.column("notes", width=200, minwidth=100)
-
-        # Define column headings
-        for col in columns:
-            self.tree.heading(col, text=col.title(), command=lambda _col=col: self._sort_column(_col))
+        # Configure column widths
+        self.tree.column("id", width=50, stretch=False)
+        self.tree.column("name", width=150)
+        self.tree.column("location_type", width=100)
+        self.tree.column("capacity", width=80, anchor=tk.E)
+        self.tree.column("used_capacity", width=80, anchor=tk.E)
+        self.tree.column("description", width=200)
+        self.tree.column("items_count", width=60, anchor=tk.CENTER)
 
         # Add scrollbars
-        vsb = ttk.Scrollbar(tree_frame, orient="vertical", command=self.tree.yview)
-        hsb = ttk.Scrollbar(tree_frame, orient="horizontal", command=self.tree.xview)
-        self.tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
+        y_scrollbar = ttk.Scrollbar(self, orient=tk.VERTICAL, command=self.tree.yview)
+        x_scrollbar = ttk.Scrollbar(self, orient=tk.HORIZONTAL, command=self.tree.xview)
+        self.tree.configure(yscroll=y_scrollbar.set, xscroll=x_scrollbar.set)
 
-        # Pack scrollbars and treeview
-        vsb.pack(side=tk.RIGHT, fill=tk.Y)
-        hsb.pack(side=tk.BOTTOM, fill=tk.X)
-        self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        # Grid layout
+        self.tree.grid(row=1, column=0, sticky="nsew")
+        y_scrollbar.grid(row=1, column=1, sticky="ns")
+        x_scrollbar.grid(row=2, column=0, sticky="ew")
+
+        # Add status bar
+        self.status_var = tk.StringVar()
+        status_bar = ttk.Label(self, textvariable=self.status_var, relief=tk.SUNKEN, anchor=tk.W)
+        status_bar.grid(row=3, column=0, columnspan=2, sticky="ew")
 
         # Bind events
         self.tree.bind("<<TreeviewSelect>>", self._on_select)
         self.tree.bind("<Double-1>", self._on_double_click)
 
-        # Status bar
-        self.status_bar = ttk.Label(self, text="Ready", relief=tk.SUNKEN, anchor=tk.W)
-        self.status_bar.pack(side=tk.BOTTOM, fill=tk.X)
+        # Set initial status
+        self.status_var.set("Ready")
 
-    def load_data(self):
-        """Load storage data from the database."""
+    def load_data(self) -> None:
+        """
+        Load storage data from the storage service and populate the treeview.
+        """
+        # Clear existing items
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+
         try:
-            # Clear existing data
-            for item in self.tree.get_children():
-                self.tree.delete(item)
+            # Get storage locations from service
+            storage_locations = self.storage_service.get_all_storage_locations()
 
-            # Get filter value
-            filter_type = self.filter_var.get() if hasattr(self, 'filter_var') else "All"
+            if not storage_locations:
+                self.status_var.set("No storage locations found")
+                logger.info("No storage locations found")
+                return
 
-            logger.info("Loading storage data directly from database")
-
-            # Get data from service
-            if self.storage_service:
-                storage_locations = self.storage_service.get_all_storage_locations()
-            else:
-                # Fallback to direct database access if service is not available
-                storage_locations = self._load_from_database()
-
-            # Filter by type if needed
-            if filter_type != "All":
-                storage_locations = [loc for loc in storage_locations if loc.get('type') == filter_type]
-
-            # Insert into treeview
+            # Populate treeview
             for location in storage_locations:
-                # Calculate usage stats
-                capacity = location.get('capacity', 0)
-                used = location.get('used_capacity', 0)
-                remaining = capacity - used if capacity > 0 else 0
+                # Calculate usage percentage
+                capacity = location.get("capacity", 0)
+                used_capacity = location.get("used_capacity", 0)
 
-                values = (
-                    location.get('id', ''),
-                    location.get('name', ''),
-                    location.get('location', ''),
-                    location.get('type', ''),
+                # Count items in storage
+                items_count = len(location.get("items", []))
+
+                self.tree.insert("", tk.END, values=(
+                    location.get("id", ""),
+                    location.get("name", ""),
+                    location.get("location_type", ""),
                     capacity,
-                    used,
-                    remaining,
-                    location.get('notes', '')
-                )
-
-                self.tree.insert('', 'end', values=values)
+                    used_capacity,
+                    location.get("description", ""),
+                    items_count
+                ))
 
             # Update status
-            count = len(storage_locations)
-            self.status_bar.config(text=f"Loaded {count} storage locations")
-            logger.info(f"Loaded {count} storage locations")
+            self.status_var.set(f"Loaded {len(storage_locations)} storage locations")
+            logger.info(f"Loaded {len(storage_locations)} storage locations")
 
         except Exception as e:
-            logger.error(f"Error loading storage data: {str(e)}")
-            messagebox.showerror("Error", f"Failed to load storage data: {str(e)}")
-            self.status_bar.config(text="Error loading data")
+            error_message = f"Error loading storage locations: {str(e)}"
+            self.show_error("Data Loading Error", error_message)
+            logger.error(error_message, exc_info=True)
+            self.status_var.set("Error loading data")
 
-    def _load_from_database(self) -> List[Dict[str, Any]]:
+    def _search_storage(self, event=None) -> None:
         """
-        Fallback method to load storage data directly from the database.
+        Search for storage locations matching the search term.
 
-        Returns:
-            List of dictionaries with storage data
+        Args:
+            event: Event that triggered the search (optional)
         """
-        try:
-            # Find database file
-            db_path = self._find_database_file()
-            if not db_path:
-                logger.error("Database file not found")
-                return []
-
-            # Connect to database
-            conn = sqlite3.connect(db_path)
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-
-            # Query storage data
-            cursor.execute("""
-                SELECT id, name, location, type, capacity, COALESCE(used_capacity, 0) as used_capacity, notes
-                FROM storage
-            """)
-
-            # Fetch results
-            rows = cursor.fetchall()
-
-            # Convert to list of dictionaries
-            result = []
-            for row in rows:
-                result.append({
-                    'id': row['id'],
-                    'name': row['name'],
-                    'location': row['location'],
-                    'type': row['type'],
-                    'capacity': row['capacity'],
-                    'used_capacity': row['used_capacity'],
-                    'notes': row['notes']
-                })
-
-            conn.close()
-            return result
-
-        except Exception as e:
-            logger.error(f"Error loading from database: {str(e)}")
-            return []
-
-    def _find_database_file(self) -> Optional[str]:
-        """
-        Find the database file path.
-
-        Returns:
-            Path to the database file or None if not found
-        """
-        # Look for database in common locations
-        possible_paths = [
-            os.path.join(os.getcwd(), "data", "store_management.db"),
-            os.path.join(os.getcwd(), "store_management.db"),
-            os.path.join(os.path.dirname(os.getcwd()), "data", "store_management.db")
-        ]
-
-        for path in possible_paths:
-            if os.path.exists(path):
-                return path
-
-        return None
-
-    def _search_storage(self):
-        """Search for storage locations matching the search term."""
         search_term = self.search_var.get().strip().lower()
+
         if not search_term:
             self.load_data()
             return
 
         try:
-            # Clear existing data
+            # Clear current items
             for item in self.tree.get_children():
                 self.tree.delete(item)
 
-            # Get all data
-            if self.storage_service:
-                storage_locations = self.storage_service.get_all_storage_locations()
-            else:
-                storage_locations = self._load_from_database()
+            # Get all storage locations and filter locally
+            storage_locations = self.storage_service.get_all_storage_locations()
 
-            # Filter by search term
+            # Filter locations based on search term
             filtered_locations = []
             for location in storage_locations:
-                # Search in name, location, and notes
-                name = str(location.get('name', '')).lower()
-                loc = str(location.get('location', '')).lower()
-                notes = str(location.get('notes', '')).lower()
+                # Check if the search term appears in any of the key fields
+                for field in ["name", "location_type", "description"]:
+                    value = str(location.get(field, "")).lower()
+                    if search_term in value:
+                        filtered_locations.append(location)
+                        break
 
-                if (search_term in name or search_term in loc or search_term in notes):
-                    filtered_locations.append(location)
-
-            # Insert into treeview
+            # Populate treeview with filtered locations
             for location in filtered_locations:
-                # Calculate usage stats
-                capacity = location.get('capacity', 0)
-                used = location.get('used_capacity', 0)
-                remaining = capacity - used if capacity > 0 else 0
+                capacity = location.get("capacity", 0)
+                used_capacity = location.get("used_capacity", 0)
 
-                values = (
-                    location.get('id', ''),
-                    location.get('name', ''),
-                    location.get('location', ''),
-                    location.get('type', ''),
+                # Count items in storage
+                items_count = len(location.get("items", []))
+
+                self.tree.insert("", tk.END, values=(
+                    location.get("id", ""),
+                    location.get("name", ""),
+                    location.get("location_type", ""),
                     capacity,
-                    used,
-                    remaining,
-                    location.get('notes', '')
-                )
-
-                self.tree.insert('', 'end', values=values)
+                    used_capacity,
+                    location.get("description", ""),
+                    items_count
+                ))
 
             # Update status
-            count = len(filtered_locations)
-            self.status_bar.config(text=f"Found {count} locations matching '{search_term}'")
+            self.status_var.set(f"Found {len(filtered_locations)} storage locations matching '{search_term}'")
+            logger.info(f"Search results: {len(filtered_locations)} locations for term '{search_term}'")
 
         except Exception as e:
-            logger.error(f"Error searching storage: {str(e)}")
-            messagebox.showerror("Error", f"Search failed: {str(e)}")
+            error_message = f"Error searching storage locations: {str(e)}"
+            self.show_error("Search Error", error_message)
+            logger.error(error_message, exc_info=True)
 
-    def _sort_column(self, column):
+    def _clear_search(self) -> None:
+        """Clear search field and reload all data."""
+        self.search_var.set("")
+        self.load_data()
+
+    def _sort_column(self, column: str) -> None:
         """
         Sort treeview by the specified column.
 
         Args:
             column: Column to sort by
         """
-        # Get all items from treeview
-        data = [(self.tree.set(item, column), item) for item in self.tree.get_children('')]
+        # Get current sorting direction
+        if hasattr(self, "_sort_column_name") and self._sort_column_name == column:
+            self._sort_asc = not self._sort_asc
+        else:
+            self._sort_column_name = column
+            self._sort_asc = True
 
-        # Check if column contains numbers
-        is_numeric = column in ('id', 'capacity', 'used', 'remaining')
+        # Sort function for different column types
+        def sort_by_column(item):
+            value = self.tree.set(item, column)
+            # Try to convert to numeric if possible for numeric sorting
+            try:
+                return float(value)
+            except (ValueError, TypeError):
+                return value.lower()  # Otherwise sort as lowercase string
 
-        # Sort data
-        if is_numeric:
-            # Convert to numbers for sorting
-            data = [(float(val) if val.replace('.', '', 1).isdigit() else 0, item) for val, item in data]
-        data.sort()
+        # Get all items and sort
+        items = self.tree.get_children("")
+        items = sorted(items, key=sort_by_column, reverse=not self._sort_asc)
 
-        # Rearrange items in the tree
-        for idx, (_, item) in enumerate(data):
-            self.tree.move(item, '', idx)
+        # Move items in the tree
+        for idx, item in enumerate(items):
+            self.tree.move(item, "", idx)
 
-    def _on_select(self, event):
-        """Handle selection of an item in the treeview."""
+        # Update column heading to show sort direction
+        for col in self.tree["columns"]:
+            if col == column:
+                direction = "▲" if self._sort_asc else "▼"
+                self.tree.heading(col, text=f"{self.tree.heading(col)['text'].split()[0]} {direction}")
+            else:
+                # Remove sort indicator from other columns
+                self.tree.heading(col, text=self.tree.heading(col)["text"].split()[0])
+
+    def _on_select(self, event=None) -> None:
+        """
+        Handle selection of an item in the treeview.
+
+        Args:
+            event: Selection event
+        """
         selected_items = self.tree.selection()
-        if selected_items:
-            # Get ID of selected item
-            item_values = self.tree.item(selected_items[0], 'values')
-            self.selected_id = item_values[0]
-
-    def _on_double_click(self, event):
-        """Handle double-click on a treeview item."""
-        region = self.tree.identify("region", event.x, event.y)
-        if region == "cell" and self.selected_id:
-            self._edit_storage()
-
-    def _add_storage(self):
-        """Show dialog to add a new storage location."""
-        # This would typically open a dialog for adding a storage location
-        # For now, let's display a placeholder message
-        messagebox.showinfo("Add Storage", "This would open a dialog to add a new storage location")
-
-    def _edit_storage(self):
-        """Show dialog to edit the selected storage location."""
-        if not self.selected_id:
-            messagebox.showinfo("No Selection", "Please select a storage location to edit")
+        if not selected_items:
+            self._selected_storage_id = None
             return
 
-        # This would typically open a dialog for editing the selected storage location
-        messagebox.showinfo("Edit Storage", f"This would open a dialog to edit storage location {self.selected_id}")
+        # Get the first selected item
+        item = selected_items[0]
+        values = self.tree.item(item, "values")
 
-    def _delete_storage(self):
-        """Delete the selected storage location."""
-        if not self.selected_id:
-            messagebox.showinfo("No Selection", "Please select a storage location to delete")
+        if values:
+            self._selected_storage_id = values[0]  # ID is the first column
+
+    def _on_double_click(self, event=None) -> None:
+        """
+        Handle double-click on a treeview item.
+
+        Args:
+            event: Double-click event
+        """
+        self._edit_storage()
+
+    def _add_storage(self) -> None:
+        """
+        Show dialog to add a new storage location.
+        """
+        # This would typically open a storage location entry dialog
+        # For now, display a placeholder message
+        self.show_info("Add Storage Location", "Storage location entry dialog would open here.")
+        logger.info("Add storage location functionality called")
+
+    def _edit_storage(self) -> None:
+        """
+        Show dialog to edit the selected storage location.
+        """
+        if not self._selected_storage_id:
+            self.show_warning("Warning", "Please select a storage location to edit.")
+            return
+
+        try:
+            # Get details of the selected storage location
+            location = self.storage_service.get_storage_location(self._selected_storage_id)
+
+            if not location:
+                self.show_error("Error", "Selected storage location not found.")
+                self.load_data()  # Refresh to ensure view is up-to-date
+                return
+
+            # This would typically open a storage location edit dialog
+            # For now, display a placeholder message
+            self.show_info("Edit Storage Location",
+                           f"Edit dialog for storage location '{location.get('name', '')}' would open here.")
+            logger.info(f"Edit storage location called for ID: {self._selected_storage_id}")
+
+        except Exception as e:
+            error_message = f"Error editing storage location: {str(e)}"
+            self.show_error("Edit Error", error_message)
+            logger.error(error_message, exc_info=True)
+
+    def _delete_storage(self) -> None:
+        """
+        Delete the selected storage location after confirmation.
+        """
+        if not self._selected_storage_id:
+            self.show_warning("Warning", "Please select a storage location to delete.")
             return
 
         # Confirm deletion
-        confirm = messagebox.askyesno(
-            "Confirm Delete",
-            f"Are you sure you want to delete this storage location?",
-            icon=messagebox.WARNING
-        )
+        if not messagebox.askyesno("Confirm Deletion",
+                                   "Are you sure you want to delete this storage location?\n"
+                                   "This action cannot be undone."):
+            return
 
-        if confirm:
-            try:
-                if self.storage_service:
-                    self.storage_service.delete_storage_location(self.selected_id)
-                    messagebox.showinfo("Success", "Storage location deleted successfully")
-                    self.load_data()
-                else:
-                    messagebox.showwarning("Not Implemented",
-                                           "Delete functionality is not available in direct database mode")
-            except Exception as e:
-                logger.error(f"Error deleting storage location: {str(e)}")
-                messagebox.showerror("Error", f"Failed to delete storage location: {str(e)}")
+        try:
+            # Check if storage contains items
+            location = self.storage_service.get_storage_location(self._selected_storage_id)
+
+            if location and location.get("items", []):
+                # Warn about deleting non-empty storage
+                if not messagebox.askyesno("Warning",
+                                           f"This storage location contains {len(location.get('items', []))} items. "
+                                           "Deleting it will remove these assignments.\n\n"
+                                           "Do you want to continue?",
+                                           icon=messagebox.WARNING):
+                    return
+
+            # Delete location through service
+            result = self.storage_service.delete_storage_location(self._selected_storage_id)
+
+            if result:
+                self.show_info("Success", "Storage location deleted successfully!")
+                self._selected_storage_id = None
+                self.load_data()  # Refresh the view
+            else:
+                self.show_error("Error", "Failed to delete storage location.")
+
+        except Exception as e:
+            error_message = f"Error deleting storage location: {str(e)}"
+            self.show_error("Delete Error", error_message)
+            logger.error(error_message, exc_info=True)

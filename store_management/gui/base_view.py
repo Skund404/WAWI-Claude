@@ -1,27 +1,27 @@
 # gui/base_view.py
 """
-Base view class for all GUI views in the leatherworking store management application.
+Base View class for the Leatherworking Store Management Application.
+
+Provides a common base for all GUI views with dependency injection
+and service access capabilities.
 """
 
+import abc
+import logging
 import tkinter as tk
 from tkinter import messagebox, ttk
-import logging
-from abc import ABC, abstractmethod
 from typing import Any, Type
 
 from di.container import DependencyContainer
-from services.interfaces.inventory_service import IInventoryService
-from services.interfaces.material_service import IMaterialService
-from services.interfaces.order_service import IOrderService
-from services.interfaces.project_service import IProjectService
-from services.interfaces.storage_service import IStorageService
-
-# Configure logger
-logger = logging.getLogger(__name__)
 
 
-class BaseView(ttk.Frame, ABC):
-    """Base class for all views in the application."""
+class BaseView(ttk.Frame, abc.ABC):
+    """
+    Base class for all GUI views in the application.
+
+    Provides common functionality for service access, error handling,
+    and basic view setup.
+    """
 
     def __init__(self, parent: tk.Widget, app: Any):
         """
@@ -29,171 +29,126 @@ class BaseView(ttk.Frame, ABC):
 
         Args:
             parent (tk.Widget): Parent widget
-            app (Any): Application instance
+            app (Any): Application instance with dependency container
         """
         super().__init__(parent)
-        self.parent = parent
-        self.app = app
 
-        # Create or get the singleton container
-        self.container = DependencyContainer()
+        # Store application reference
+        self._app = app
+        self._logger = logging.getLogger(self.__class__.__name__)
 
-        # Get commonly used services
-        # Note: Subclasses should use these properties or get_service for specific needs
-        self._material_service = None
-        self._project_service = None
-        self._order_service = None
-        self._inventory_service = None
-        self._storage_service = None
-
-        logger.debug(f"Initialized {self.__class__.__name__}")
-
-    @property
-    def material_service(self):
-        """Lazy-loaded MaterialService property."""
-        if self._material_service is None:
-            self._material_service = self.get_service(IMaterialService)
-        return self._material_service
-
-    @property
-    def project_service(self):
-        """Lazy-loaded ProjectService property."""
-        if self._project_service is None:
-            self._project_service = self.get_service(IProjectService)
-        return self._project_service
-
-    @property
-    def order_service(self):
-        """Lazy-loaded OrderService property."""
-        if self._order_service is None:
-            self._order_service = self.get_service(IOrderService)
-        return self._order_service
-
-    @property
-    def inventory_service(self):
-        """Lazy-loaded InventoryService property."""
-        if self._inventory_service is None:
-            self._inventory_service = self.get_service(IInventoryService)
-        return self._inventory_service
-
-    @property
-    def storage_service(self):
-        """Lazy-loaded StorageService property."""
-        if self._storage_service is None:
-            self._storage_service = self.get_service(IStorageService)
-        return self._storage_service
-
-    def get_service(self, service_type: Type) -> Any:
+    def _get_service(self, service_type: Type):
         """
-        Get a service from the dependency injection container.
+        Retrieve a service from the dependency container.
 
         Args:
-            service_type (Type): Service interface class
+            service_type (Type): Service interface to retrieve
 
         Returns:
             Any: Service implementation instance
         """
-        # First try to get from parent app if it has get_service method
-        if hasattr(self.app, 'get_service') and callable(getattr(self.app, 'get_service')):
-            try:
-                service = self.app.get_service(service_type)
-                logger.debug(f"Got {service_type.__name__} from app.get_service")
-
-                # Debug the obtained service
-                if service:
-                    logger.debug(f"Service type: {type(service)}")
-                    logger.debug(f"Service dir: {dir(service)}")
-
-                return service
-            except Exception as e:
-                logger.warning(f"Error getting {service_type.__name__} from app: {str(e)}")
-
-        # Fall back to container resolve
         try:
-            service = self.container.resolve(service_type)
-            logger.debug(f"Got {service_type.__name__} from container.resolve")
-
-            # Debug the obtained service
-            if service:
-                logger.debug(f"Service type: {type(service)}")
-                logger.debug(f"Service dir: {dir(service)}")
-
-            return service
+            # Ensure app has a get_service method (compatible with DependencyContainer)
+            return self._app.get_service(service_type)
         except Exception as e:
-            logger.error(f"Error resolving {service_type.__name__} from container: {str(e)}")
+            self._logger.error(f"Error retrieving service {service_type}: {e}")
+            self.show_error("Service Error", f"Could not load {service_type.__name__}")
             return None
 
-    @abstractmethod
-    def setup_ui(self) -> None:
+    @property
+    def material_service(self):
         """
-        Set up the user interface.
-        This method must be implemented by subclasses.
-        """
-        pass
+        Lazy-loaded material service property.
 
-    def load_data(self) -> None:
+        Returns:
+            IMaterialService: Material service instance
         """
-        Load data for the view.
-        Subclasses should override this method to load their specific data.
-        """
-        pass
+        from services.interfaces.material_service import IMaterialService
+        return self._get_service(IMaterialService)
 
-    def show_error(self, title: str, message: str) -> None:
+    @property
+    def order_service(self):
         """
-        Show an error message dialog.
+        Lazy-loaded order service property.
+
+        Returns:
+            IOrderService: Order service instance
+        """
+        from services.interfaces.order_service import IOrderService
+        return self._get_service(IOrderService)
+
+    @property
+    def project_service(self):
+        """
+        Lazy-loaded project service property.
+
+        Returns:
+            IProjectService: Project service instance
+        """
+        from services.interfaces.project_service import IProjectService
+        return self._get_service(IProjectService)
+
+    @property
+    def inventory_service(self):
+        """
+        Lazy-loaded inventory service property.
+
+        Returns:
+            IInventoryService: Inventory service instance
+        """
+        from services.interfaces.inventory_service import IInventoryService
+        return self._get_service(IInventoryService)
+
+    @property
+    def storage_service(self):
+        """
+        Lazy-loaded storage service property.
+
+        Returns:
+            IStorageService: Storage service instance
+        """
+        from services.interfaces.storage_service import IStorageService
+        return self._get_service(IStorageService)
+
+    def show_error(self, title: str, message: str):
+        """
+        Display an error message dialog.
 
         Args:
             title (str): Dialog title
-            message (str): Error message
+            message (str): Error message to display
         """
-        logger.error(f"{title}: {message}")
         messagebox.showerror(title, message)
 
-    def show_info(self, title: str, message: str) -> None:
+    def show_info(self, title: str, message: str):
         """
-        Show an information message dialog.
+        Display an informational message dialog.
 
         Args:
             title (str): Dialog title
-            message (str): Information message
+            message (str): Information message to display
         """
-        logger.info(f"{title}: {message}")
         messagebox.showinfo(title, message)
 
-    def show_warning(self, title: str, message: str) -> None:
+    def show_warning(self, title: str, message: str):
         """
-        Show a warning message dialog.
+        Display a warning message dialog.
 
         Args:
             title (str): Dialog title
-            message (str): Warning message
+            message (str): Warning message to display
         """
-        logger.warning(f"{title}: {message}")
         messagebox.showwarning(title, message)
 
     def confirm(self, title: str, message: str) -> bool:
         """
-        Show a confirmation dialog.
+        Display a confirmation dialog.
 
         Args:
             title (str): Dialog title
-            message (str): Confirmation message
+            message (str): Confirmation message to display
 
         Returns:
-            bool: True if user confirmed, False otherwise
+            bool: True if user confirms, False otherwise
         """
         return messagebox.askyesno(title, message)
-
-    def set_status(self, message: str) -> None:
-        """
-        Set status message if the view has a status bar.
-
-        Args:
-            message (str): Status message
-        """
-        if hasattr(self, 'status_bar') and self.status_bar:
-            self.status_bar.config(text=message)
-        elif hasattr(self, 'status_label') and self.status_label:
-            self.status_label.config(text=message)
-        else:
-            logger.debug(f"Status: {message}")
