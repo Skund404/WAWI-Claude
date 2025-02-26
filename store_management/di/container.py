@@ -18,6 +18,15 @@ class DependencyContainer:
 
     _instance = None
 
+    def get(self, service_type: Type) -> Any:
+        if service_type not in self._service_instances:
+            if service_type not in self._service_registry:
+                raise ValueError(f"Service not registered: {service_type}")
+            service_impl = self._service_registry[service_type]
+            service_instance = service_impl()
+            self._service_instances[service_type] = service_instance
+        return self._service_instances[service_type]
+
     def __new__(cls):
         """
         Implement singleton pattern for the dependency container.

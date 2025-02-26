@@ -1,271 +1,156 @@
 # services/implementations/order_service.py
-"""
-Implementation of the OrderService interface. Provides functionality
-for managing orders in the leatherworking store.
-"""
 
 import logging
+from typing import Any, Dict, List
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Union
 
 from services.interfaces.order_service import IOrderService, OrderStatus, PaymentStatus
-
-# Configure logger
-logger = logging.getLogger(__name__)
+from database.repositories.order_repository import OrderRepository
+from database.models.order import Order, OrderItem
 
 
 class OrderService(IOrderService):
-    """Implementation of the order service interface."""
-
-    def __init__(self):
-        """Initialize the Order Service."""
-        logger.info("OrderService initialized")
-
-    def get_order(self, order_id: Union[int, str]) -> Dict[str, Any]:
+    def __init__(self, order_repository: OrderRepository):
         """
-        Get an order by ID.
+        Initialize the Order Service.
 
         Args:
-            order_id: ID of the order to retrieve
+            order_repository (OrderRepository): Repository for order data access
+        """
+        self.order_repository = order_repository
+        logging.info("OrderService initialized")
+
+    def calculate_order_total(self, order_id: int) -> float:
+        """
+        Calculate the total amount for an order.
+
+        Args:
+            order_id (int): ID of the order
 
         Returns:
-            Dictionary representing the order
-
-        Raises:
-            NotFoundError: If order is not found
+            float: Total order amount
         """
-        logger.debug(f"Get order with ID: {order_id}")
+        order = self.order_repository.get_by_id(order_id)
+        if not order:
+            raise ValueError(f"Order not found: {order_id}")
 
-        # Return dummy data for now
-        return {
-            "id": order_id,
-            "customer_name": f"Customer {order_id}",
-            "date": datetime.now().strftime("%Y-%m-%d"),
-            "status": OrderStatus.PENDING.name,
-            "total_items": 3,
-            "total_amount": 150.00,
-            "payment_status": PaymentStatus.UNPAID.name
+        total = sum(item.quantity * item.unit_price for item in order.items)
+        return round(total, 2)
+
+    def generate_order_report(self, order_id: int) -> Dict[str, Any]:
+        """
+        Generate a detailed report for an order.
+
+        Args:
+            order_id (int): ID of the order
+
+        Returns:
+            Dict[str, Any]: Order report data
+        """
+        order = self.order_repository.get_by_id(order_id)
+        if not order:
+            raise ValueError(f"Order not found: {order_id}")
+
+        report_data = {
+            "order_id": order.id,
+            "customer_name": order.customer_name,
+            "order_date": order.order_date.strftime("%Y-%m-%d"),
+            "status": order.status.value,
+            "items": [],
+            "total_amount": self.calculate_order_total(order_id),
         }
 
-    def get_all_orders(self) -> List[Dict[str, Any]]:
-        """
-        Get all orders.
-
-        Returns:
-            List of dictionaries representing orders
-        """
-        logger.debug("Get all orders")
-
-        # Return dummy data for now
-        orders = []
-        statuses = [status.name for status in OrderStatus]
-        payment_statuses = [status.name for status in PaymentStatus]
-
-        base_date = datetime.now()
-
-        for i in range(1, 11):
-            order_date = (base_date - timedelta(days=i * 3)).strftime("%Y-%m-%d")
-            status_idx = (i - 1) % len(statuses)
-            payment_idx = (i - 1) % len(payment_statuses)
-
-            order = {
-                "id": i,
-                "customer_name": f"Customer {i}",
-                "date": order_date,
-                "status": statuses[status_idx],
-                "total_items": i + 2,
-                "total_amount": float(i * 50),
-                "payment_status": payment_statuses[payment_idx]
+        for item in order.items:
+            item_data = {
+                "product_name": item.product_name,
+                "quantity": item.quantity,
+                "unit_price": item.unit_price,
+                "subtotal": item.quantity * item.unit_price,
             }
-            orders.append(order)
+            report_data["items"].append(item_data)
 
-        logger.info(f"Retrieved {len(orders)} orders")
-        return orders
+        return report_data
 
-    def create_order(self, order_data: Dict[str, Any]) -> Dict[str, Any]:
+    def list_orders(self, status: OrderStatus = None,
+                    date_range: Tuple[datetime, datetime] = None,
+                    payment_status: PaymentStatus = None) -> List[Dict[str, Any]]:
         """
-        Create a new order.
+        List orders based on optional filters.
 
         Args:
-            order_data: Dictionary with order properties
+            status (OrderStatus, optional): Filter by order status. Defaults to None.
+            date_range (Tuple[datetime, datetime], optional): Filter by date range. Defaults to None.
+            payment_status (PaymentStatus, optional): Filter by payment status. Defaults to None.
 
         Returns:
-            Dictionary representing the created order
-
-        Raises:
-            ValidationError: If order data is invalid
+            List[Dict[str, Any]]: List of order data dictionaries
         """
-        logger.debug(f"Create order with data: {order_data}")
+        orders = self.order_repository.list(
+            status=status,
+            date_range=date_range,
+            payment_status=payment_status
+        )
 
-        # Return dummy data for now
-        return {
-            "id": 999,
-            "date": datetime.now().strftime("%Y-%m-%d"),
-            "status": OrderStatus.NEW.name,
-            **order_data
-        }
+        order_data_list = []
+        for order in orders:
+            order_data = {
+                "id": order.id,
+                "customer_name": order.customer_name,
+                "order_date": order.order_date.strftime("%Y-%m-%d"),
+                "status": order.status.value,
+                "total_amount": self.calculate_order_total(order.id),
+            }
+            order_data_list.append(order_data)
 
-    def update_order(self, order_id: Union[int, str], order_data: Dict[str, Any]) -> Dict[str, Any]:
+        return order_data_list
+
+    def process_payment(self, order_id: int) -> bool:
         """
-        Update an existing order.
+        Process payment for an order.
 
         Args:
-            order_id: ID of the order to update
-            order_data: Dictionary with updated order properties
+            order_id (int): ID of the order
 
         Returns:
-            Dictionary representing the updated order
-
-        Raises:
-            NotFoundError: If order is not found
-            ValidationError: If order data is invalid
+            bool: True if payment processed successfully, False otherwise
         """
-        logger.debug(f"Update order {order_id} with data: {order_data}")
+        order = self.order_repository.get_by_id(order_id)
+        if not order:
+            raise ValueError(f"Order not found: {order_id}")
 
-        # Get existing order and update it
-        order = self.get_order(order_id)
-        order.update(order_data)
+        if order.payment_status == PaymentStatus.PAID:
+            logging.warning(f"Payment already processed for order: {order_id}")
+            return True
 
-        logger.info(f"Updated order: {order_id}")
-        return order
+        # TODO: Integrate with payment gateway API to process payment
+        # Simulating payment processing success
+        order.payment_status = PaymentStatus.PAID
+        self.order_repository.update(order)
 
-    def delete_order(self, order_id: Union[int, str]) -> bool:
-        """
-        Delete an order.
-
-        Args:
-            order_id: ID of the order to delete
-
-        Returns:
-            True if deletion was successful
-
-        Raises:
-            NotFoundError: If order is not found
-        """
-        logger.debug(f"Delete order with ID: {order_id}")
-
-        # Pretend we deleted it
-        logger.info(f"Deleted order: {order_id}")
+        logging.info(f"Payment processed successfully for order: {order_id}")
         return True
 
-    def add_order_item(self, order_id: Union[int, str], item_data: Dict[str, Any]) -> Dict[str, Any]:
+    def search_orders(self, query: str) -> List[Dict[str, Any]]:
         """
-        Add an item to an order.
+        Search orders based on a query string.
 
         Args:
-            order_id: ID of the order
-            item_data: Dictionary with item properties
+            query (str): Search query
 
         Returns:
-            Dictionary representing the added item
-
-        Raises:
-            NotFoundError: If order is not found
-            ValidationError: If item data is invalid
+            List[Dict[str, Any]]: List of matching order data dictionaries
         """
-        logger.debug(f"Add item to order {order_id}: {item_data}")
+        orders = self.order_repository.search(query)
 
-        # Return dummy data for now
-        return {
-            "id": 1,
-            "order_id": order_id,
-            **item_data
-        }
-
-    def remove_order_item(self, order_id: Union[int, str], item_id: Union[int, str]) -> bool:
-        """
-        Remove an item from an order.
-
-        Args:
-            order_id: ID of the order
-            item_id: ID of the item to remove
-
-        Returns:
-            True if removal was successful
-
-        Raises:
-            NotFoundError: If order or item is not found
-        """
-        logger.debug(f"Remove item {item_id} from order {order_id}")
-
-        # Pretend we removed it
-        logger.info(f"Removed item {item_id} from order {order_id}")
-        return True
-
-    def get_order_items(self, order_id: Union[int, str]) -> List[Dict[str, Any]]:
-        """
-        Get all items in an order.
-
-        Args:
-            order_id: ID of the order
-
-        Returns:
-            List of dictionaries representing order items
-
-        Raises:
-            NotFoundError: If order is not found
-        """
-        logger.debug(f"Get items for order {order_id}")
-
-        # Return dummy data for now
-        items = []
-        for i in range(1, 4):
-            item = {
-                "id": i,
-                "order_id": order_id,
-                "product_id": i * 10,
-                "product_name": f"Product {i * 10}",
-                "quantity": i,
-                "unit_price": 50.0,
-                "total_price": 50.0 * i
+        order_data_list = []
+        for order in orders:
+            order_data = {
+                "id": order.id,
+                "customer_name": order.customer_name,
+                "order_date": order.order_date.strftime("%Y-%m-%d"),
+                "status": order.status.value,
+                "total_amount": self.calculate_order_total(order.id),
             }
-            items.append(item)
+            order_data_list.append(order_data)
 
-        logger.info(f"Retrieved {len(items)} items for order {order_id}")
-        return items
-
-    def update_order_status(self, order_id: Union[int, str], status: OrderStatus) -> Dict[str, Any]:
-        """
-        Update the status of an order.
-
-        Args:
-            order_id: ID of the order
-            status: New order status
-
-        Returns:
-            Dictionary representing the updated order
-
-        Raises:
-            NotFoundError: If order is not found
-        """
-        logger.debug(f"Update order {order_id} status to {status}")
-
-        # Get existing order and update status
-        order = self.get_order(order_id)
-        order["status"] = status.name
-
-        logger.info(f"Updated order {order_id} status to {status}")
-        return order
-
-    def update_payment_status(self, order_id: Union[int, str], status: PaymentStatus) -> Dict[str, Any]:
-        """
-        Update the payment status of an order.
-
-        Args:
-            order_id: ID of the order
-            status: New payment status
-
-        Returns:
-            Dictionary representing the updated order
-
-        Raises:
-            NotFoundError: If order is not found
-        """
-        logger.debug(f"Update order {order_id} payment status to {status}")
-
-        # Get existing order and update payment status
-        order = self.get_order(order_id)
-        order["payment_status"] = status.name
-
-        logger.info(f"Updated order {order_id} payment status to {status}")
-        return order
+        return order_data_list
