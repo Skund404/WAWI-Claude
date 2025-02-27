@@ -1,265 +1,395 @@
 # services/implementations/storage_service.py
-"""
-Implementation of the storage service interface.
-Provides functionality for managing storage locations for leatherworking materials.
-"""
-
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
-from services.interfaces.storage_service import IStorageService
-
-# Configure logger
-logger = logging.getLogger(__name__)
+from services.interfaces.storage_service import IStorageService, StorageLocationType, StorageCapacityStatus
 
 
 class StorageService(IStorageService):
-    """Implementation of the storage service interface."""
+    """Implementation of the Storage Service for managing storage locations and their contents."""
 
     def __init__(self):
         """Initialize the storage service."""
-        logger.info("StorageService initialized")
+        self.logger = logging.getLogger(__name__)
+        self.logger.info("StorageService initialized")
 
-    def get_storage_location(self, storage_id: int) -> Dict[str, Any]:
-        """
-        Get details of a specific storage location.
+        # In-memory storage for demonstration purposes
+        # In a real implementation, this would use the database
+        self._storage_locations = {}
+        self._storage_contents = {}
+
+    def create_storage_location(self, name: str, location_type: StorageLocationType,
+                                capacity: float, description: Optional[str] = None) -> Dict[str, Any]:
+        """Create a new storage location.
 
         Args:
-            storage_id: ID of the storage location
+            name: Name of the storage location
+            location_type: Type of the storage location
+            capacity: Storage capacity
+            description: Optional description
 
         Returns:
-            Dictionary with storage location details
-
-        Raises:
-            NotFoundError: If storage location not found
+            Dict[str, Any]: Created storage location data
         """
-        logger.debug(f"Get storage location with ID: {storage_id}")
-
-        # Return dummy data for now
-        return {
+        storage_id = f"ST{len(self._storage_locations) + 1:04d}"
+        storage_location = {
             "id": storage_id,
-            "name": f"Storage Location {storage_id}",
-            "location": f"Room {storage_id // 10 + 1}, Shelf {storage_id % 10 + 1}",
-            "type": "SHELF",
-            "capacity": 100,
-            "used_capacity": 30,
-            "notes": f"Sample storage location {storage_id}"
+            "name": name,
+            "type": location_type,
+            "capacity": capacity,
+            "description": description,
+            "used_capacity": 0.0,
         }
 
-    def get_all_storage_locations(self) -> List[Dict[str, Any]]:
-        """
-        Get all storage locations.
+        self._storage_locations[storage_id] = storage_location
+        self._storage_contents[storage_id] = []
 
-        Returns:
-            List of dictionaries with storage location details
-        """
-        logger.debug("Get all storage locations")
+        self.logger.info(f"Created storage location: {name} (ID: {storage_id})")
+        return storage_location
 
-        # Return dummy data for now
-        storage_types = ["SHELF", "BIN", "DRAWER", "CABINET", "RACK", "BOX"]
-        locations = []
-
-        for i in range(1, 6):
-            location = {
-                "id": i,
-                "name": f"Storage Location {i}",
-                "location": f"Room {i // 3 + 1}, Section {i % 3 + 1}",
-                "type": storage_types[i % len(storage_types)],
-                "capacity": 100,
-                "used_capacity": 20 * i,
-                "notes": f"Sample storage location {i}"
-            }
-            locations.append(location)
-
-        logger.info(f"Retrieved {len(locations)} storage locations")
-        return locations
-
-    def create_storage_location(self, storage_data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Create a new storage location.
+    def get_storage_location(self, storage_id: str) -> Optional[Dict[str, Any]]:
+        """Get storage location details by ID.
 
         Args:
-            storage_data: Dictionary with storage location data
+            storage_id: ID of the storage location to retrieve
 
         Returns:
-            Dictionary with created storage location details
-
-        Raises:
-            ValidationError: If storage data is invalid
+            Optional[Dict[str, Any]]: Storage location data or None if not found
         """
-        logger.debug(f"Create storage location with data: {storage_data}")
+        storage_location = self._storage_locations.get(storage_id)
+        if not storage_location:
+            self.logger.warning(f"Storage location not found: {storage_id}")
+            return None
 
-        # Return dummy data with a new ID
-        new_data = {
-            "id": 999,
-            **storage_data
-        }
+        return storage_location
 
-        logger.info(f"Created storage location: {new_data['id']} - {new_data.get('name', 'Unnamed')}")
-        return new_data
-
-    def update_storage_location(self, storage_id: int, storage_data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Update an existing storage location.
+    def update_storage_location(self, storage_id: str,
+                                updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Update a storage location.
 
         Args:
             storage_id: ID of the storage location to update
-            storage_data: Dictionary with updated storage location data
+            updates: Dictionary of fields to update
 
         Returns:
-            Dictionary with updated storage location details
-
-        Raises:
-            NotFoundError: If storage location not found
-            ValidationError: If storage data is invalid
+            Optional[Dict[str, Any]]: Updated storage location data or None if not found
         """
-        logger.debug(f"Update storage location {storage_id} with data: {storage_data}")
+        if storage_id not in self._storage_locations:
+            self.logger.warning(f"Cannot update non-existent storage location: {storage_id}")
+            return None
 
-        # Get current data and update it
-        current = self.get_storage_location(storage_id)
-        updated = {**current, **storage_data}
+        storage = self._storage_locations[storage_id]
 
-        logger.info(f"Updated storage location: {storage_id}")
-        return updated
+        # Update only valid fields
+        valid_fields = ["name", "type", "capacity", "description"]
+        for field, value in updates.items():
+            if field in valid_fields:
+                storage[field] = value
 
-    def delete_storage_location(self, storage_id: int) -> bool:
-        """
-        Delete a storage location.
+        self.logger.info(f"Updated storage location: {storage_id}")
+        return storage
+
+    def delete_storage_location(self, storage_id: str) -> bool:
+        """Delete a storage location if it exists and is empty.
 
         Args:
             storage_id: ID of the storage location to delete
 
         Returns:
-            True if deletion was successful
-
-        Raises:
-            NotFoundError: If storage location not found
+            bool: True if successful, False otherwise
         """
-        logger.debug(f"Delete storage location with ID: {storage_id}")
+        if storage_id not in self._storage_locations:
+            self.logger.warning(f"Cannot delete non-existent storage location: {storage_id}")
+            return False
 
-        # Pretend it was deleted
-        logger.info(f"Deleted storage location: {storage_id}")
+        # Check if storage is empty
+        if self._storage_contents.get(storage_id, []):
+            self.logger.warning(f"Cannot delete non-empty storage location: {storage_id}")
+            return False
+
+        # Delete the storage location
+        del self._storage_locations[storage_id]
+        if storage_id in self._storage_contents:
+            del self._storage_contents[storage_id]
+
+        self.logger.info(f"Deleted storage location: {storage_id}")
         return True
 
-    def assign_item_to_storage(self, storage_id: int, item_id: int, item_type: str) -> Dict[str, Any]:
+    def list_storage_locations(self, location_type: Optional[StorageLocationType] = None) -> List[Dict[str, Any]]:
+        """List all storage locations, optionally filtered by type.
+
+        Args:
+            location_type: Optional filter by location type
+
+        Returns:
+            List[Dict[str, Any]]: List of storage locations
         """
-        Assign an item to a storage location.
+        if location_type:
+            return [loc for loc in self._storage_locations.values() if loc["type"] == location_type]
+        return list(self._storage_locations.values())
+
+    def add_item_to_storage(self, storage_id: str, item_id: str, item_type: str,
+                            quantity: float, metadata: Optional[Dict[str, Any]] = None) -> bool:
+        """Add an item to a storage location.
 
         Args:
             storage_id: ID of the storage location
-            item_id: ID of the item to assign
-            item_type: Type of item ('material', 'tool', etc.)
+            item_id: ID of the item to add
+            item_type: Type of the item (e.g., 'PRODUCT', 'MATERIAL')
+            quantity: Quantity to add
+            metadata: Additional item metadata
 
         Returns:
-            Dictionary with storage assignment details
-
-        Raises:
-            NotFoundError: If storage location or item not found
-            ValidationError: If assignment is not valid
+            bool: True if successful, False otherwise
         """
-        logger.debug(f"Assign {item_type} {item_id} to storage {storage_id}")
+        if storage_id not in self._storage_locations:
+            self.logger.warning(f"Cannot add item to non-existent storage: {storage_id}")
+            return False
 
-        # Return dummy assignment data
-        assignment = {
-            "storage_id": storage_id,
+        # Add the item to storage
+        storage_item = {
             "item_id": item_id,
             "item_type": item_type,
-            "assignment_id": 1,
-            "date_assigned": "2025-02-26T01:00:00"
+            "quantity": quantity,
+            "metadata": metadata or {}
         }
 
-        logger.info(f"Assigned {item_type} {item_id} to storage {storage_id}")
-        return assignment
+        self._storage_contents.setdefault(storage_id, []).append(storage_item)
 
-    def remove_item_from_storage(self, storage_id: int, item_id: int, item_type: str) -> bool:
+        # Update used capacity (simplified calculation)
+        self._storage_locations[storage_id]["used_capacity"] += quantity
+
+        self.logger.info(f"Added item {item_id} to storage {storage_id}")
+        return True
+
+    def assign_item_to_storage(self, item_id: str, storage_id: str,
+                               quantity: Optional[float] = None) -> bool:
+        """Assign an item to a storage location.
+
+        Args:
+            item_id: ID of the item to assign
+            storage_id: ID of the storage location
+            quantity: Quantity to assign (if None, assigns all)
+
+        Returns:
+            bool: True if successful, False otherwise
         """
-        Remove an item from a storage location.
+        if storage_id not in self._storage_locations:
+            self.logger.warning(f"Cannot assign item to non-existent storage: {storage_id}")
+            return False
+
+        # This is a simplified implementation - in a real application,
+        # you would need to track items in an inventory system and update their location
+
+        # Check if the item already exists in the storage
+        storage_contents = self._storage_contents.get(storage_id, [])
+
+        for item in storage_contents:
+            if item["item_id"] == item_id:
+                # Item already exists in this storage, update quantity if specified
+                if quantity is not None:
+                    old_quantity = item["quantity"]
+                    item["quantity"] = quantity
+
+                    # Update used capacity
+                    self._storage_locations[storage_id]["used_capacity"] += (quantity - old_quantity)
+
+                    self.logger.info(f"Updated item {item_id} quantity in storage {storage_id}")
+                    return True
+
+        # Item doesn't exist in this storage yet
+        # In a real implementation, you'd check if the item exists elsewhere and handle accordingly
+        # For this demo, we'll create a new storage entry
+
+        storage_item = {
+            "item_id": item_id,
+            "item_type": "UNKNOWN",  # In a real implementation, you'd look this up
+            "quantity": quantity or 1.0,
+            "metadata": {}
+        }
+
+        self._storage_contents.setdefault(storage_id, []).append(storage_item)
+
+        # Update used capacity
+        self._storage_locations[storage_id]["used_capacity"] += storage_item["quantity"]
+
+        self.logger.info(f"Assigned item {item_id} to storage {storage_id}")
+        return True
+
+    def remove_item_from_storage(self, storage_id: str, item_id: str,
+                                 quantity: Optional[float] = None) -> bool:
+        """Remove an item from a storage location.
 
         Args:
             storage_id: ID of the storage location
             item_id: ID of the item to remove
-            item_type: Type of item ('material', 'tool', etc.)
+            quantity: Quantity to remove (if None, removes all)
 
         Returns:
-            True if removal was successful
-
-        Raises:
-            NotFoundError: If storage location or item not found
+            bool: True if successful, False otherwise
         """
-        logger.debug(f"Remove {item_type} {item_id} from storage {storage_id}")
+        if storage_id not in self._storage_locations:
+            self.logger.warning(f"Cannot remove item from non-existent storage: {storage_id}")
+            return False
 
-        # Pretend it was removed
-        logger.info(f"Removed {item_type} {item_id} from storage {storage_id}")
-        return True
+        items = self._storage_contents.get(storage_id, [])
+        for i, item in enumerate(items):
+            if item["item_id"] == item_id:
+                if quantity is None or quantity >= item["quantity"]:
+                    # Remove the entire item
+                    removed_qty = item["quantity"]
+                    items.pop(i)
+                else:
+                    # Reduce the quantity
+                    item["quantity"] -= quantity
+                    removed_qty = quantity
 
-    def get_items_in_storage(self, storage_id: int) -> List[Dict[str, Any]]:
-        """
-        Get all items in a storage location.
+                # Update used capacity
+                self._storage_locations[storage_id]["used_capacity"] -= removed_qty
+                self.logger.info(f"Removed {removed_qty} of item {item_id} from storage {storage_id}")
+                return True
+
+        self.logger.warning(f"Item {item_id} not found in storage {storage_id}")
+        return False
+
+    def get_storage_contents(self, storage_id: str) -> List[Dict[str, Any]]:
+        """Get the contents of a storage location.
 
         Args:
             storage_id: ID of the storage location
 
         Returns:
-            List of dictionaries with item details
-
-        Raises:
-            NotFoundError: If storage location not found
+            List[Dict[str, Any]]: List of items in the storage
         """
-        logger.debug(f"Get items in storage {storage_id}")
+        if storage_id not in self._storage_locations:
+            self.logger.warning(f"Cannot retrieve contents of non-existent storage: {storage_id}")
+            return []
 
-        # Return dummy items
-        items = []
-        for i in range(1, 4):
-            item = {
-                "id": i,
-                "name": f"Item {i}",
-                "type": ["material", "tool", "hardware"][i % 3],
-                "size": 10,
-                "quantity": i * 5
-            }
-            items.append(item)
+        return self._storage_contents.get(storage_id, [])
 
-        logger.info(f"Retrieved {len(items)} items in storage {storage_id}")
-        return items
-
-    def get_storage_utilization(self, storage_id: Optional[int] = None) -> Dict[str, Any]:
-        """
-        Get utilization statistics for storage locations.
+    def move_item_between_storage(self, from_storage_id: str, to_storage_id: str,
+                                  item_id: str, quantity: float) -> bool:
+        """Move an item between storage locations.
 
         Args:
-            storage_id: Optional ID to get stats for a specific location
+            from_storage_id: Source storage location ID
+            to_storage_id: Destination storage location ID
+            item_id: ID of the item to move
+            quantity: Quantity to move
 
         Returns:
-            Dictionary with utilization statistics
+            bool: True if successful, False otherwise
         """
-        logger.debug(f"Get storage utilization for storage ID: {storage_id}")
+        # Check that both storage locations exist
+        if from_storage_id not in self._storage_locations:
+            self.logger.warning(f"Source storage location not found: {from_storage_id}")
+            return False
 
-        if storage_id:
-            # Get utilization for a specific storage location
-            storage = self.get_storage_location(storage_id)
-            capacity = storage["capacity"]
-            used = storage["used_capacity"]
+        if to_storage_id not in self._storage_locations:
+            self.logger.warning(f"Destination storage location not found: {to_storage_id}")
+            return False
 
-            return {
-                "storage_id": storage_id,
-                "name": storage["name"],
-                "capacity": capacity,
-                "used_capacity": used,
-                "available_capacity": capacity - used,
-                "utilization_percentage": (used / capacity * 100) if capacity > 0 else 0,
-                "item_count": 3  # Dummy value
-            }
+        # Find the item in the source storage
+        source_items = self._storage_contents.get(from_storage_id, [])
+        found_item = None
+        for item in source_items:
+            if item["item_id"] == item_id:
+                found_item = item
+                break
+
+        if not found_item:
+            self.logger.warning(f"Item {item_id} not found in source storage {from_storage_id}")
+            return False
+
+        if found_item["quantity"] < quantity:
+            self.logger.warning(f"Insufficient quantity of item {item_id} in storage {from_storage_id}")
+            return False
+
+        # Remove from source storage
+        if not self.remove_item_from_storage(from_storage_id, item_id, quantity):
+            return False
+
+        # Add to destination storage
+        if not self.add_item_to_storage(
+                to_storage_id,
+                item_id,
+                found_item["item_type"],
+                quantity,
+                found_item.get("metadata")
+        ):
+            # Rollback the removal if adding fails
+            self.add_item_to_storage(
+                from_storage_id,
+                item_id,
+                found_item["item_type"],
+                quantity,
+                found_item.get("metadata")
+            )
+            return False
+
+        self.logger.info(f"Moved {quantity} of item {item_id} from {from_storage_id} to {to_storage_id}")
+        return True
+
+    def search_items_in_storage(self, query: str, location_type: Optional[StorageLocationType] = None) -> List[
+        Dict[str, Any]]:
+        """Search for items across all storage locations.
+
+        Args:
+            query: Search query string
+            location_type: Optional filter by location type
+
+        Returns:
+            List[Dict[str, Any]]: List of matching items with their storage information
+        """
+        results = []
+
+        # Get storage locations to search in
+        storage_locations = self.list_storage_locations(location_type)
+
+        for storage in storage_locations:
+            storage_id = storage["id"]
+            for item in self._storage_contents.get(storage_id, []):
+                # Simple string matching on item ID and metadata
+                item_matches = query.lower() in item["item_id"].lower()
+                metadata_matches = any(
+                    query.lower() in str(v).lower()
+                    for v in item.get("metadata", {}).values()
+                )
+
+                if item_matches or metadata_matches:
+                    results.append({
+                        "storage_id": storage_id,
+                        "storage_name": storage["name"],
+                        "item": item
+                    })
+
+        return results
+
+    def get_storage_capacity_status(self, storage_id: str) -> Optional[StorageCapacityStatus]:
+        """Get the capacity status of a storage location.
+
+        Args:
+            storage_id: ID of the storage location
+
+        Returns:
+            Optional[StorageCapacityStatus]: Capacity status or None if storage not found
+        """
+        if storage_id not in self._storage_locations:
+            self.logger.warning(f"Storage location not found: {storage_id}")
+            return None
+
+        storage = self._storage_locations[storage_id]
+        capacity = storage["capacity"]
+        used_capacity = storage["used_capacity"]
+
+        if used_capacity <= 0:
+            return StorageCapacityStatus.EMPTY
+
+        utilization = used_capacity / capacity
+
+        if utilization < 0.33:
+            return StorageCapacityStatus.PARTIALLY_FILLED
+        elif utilization < 0.9:
+            return StorageCapacityStatus.NEARLY_FULL
         else:
-            # Get overall utilization statistics
-            locations = self.get_all_storage_locations()
-
-            total_capacity = sum(loc["capacity"] for loc in locations)
-            total_used = sum(loc["used_capacity"] for loc in locations)
-
-            return {
-                "total_locations": len(locations),
-                "total_capacity": total_capacity,
-                "total_used_capacity": total_used,
-                "total_available_capacity": total_capacity - total_used,
-                "overall_utilization_percentage": (total_used / total_capacity * 100) if total_capacity > 0 else 0
-            }
+            return StorageCapacityStatus.FULL

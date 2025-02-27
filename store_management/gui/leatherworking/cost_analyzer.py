@@ -1,11 +1,35 @@
-from di.core import inject
-from services.interfaces import MaterialService, ProjectService, \
-    InventoryService, OrderService
+# gui/leatherworking/cost_analyzer.py
+"""
+Project Cost Analyzer for Leatherworking Projects.
+
+This module provides a comprehensive cost analysis tool for leatherworking projects,
+offering detailed insights into project expenses, profitability, and pricing strategies.
+"""
+
+import json
 import logging
-from decimal import Decimal
-from typing import Any, Dict, Optional
 import tkinter as tk
-from tkinter import ttk
+from decimal import Decimal
+from typing import Any, Dict, Optional, List
+
+import tkinter.ttk as ttk
+import tkinter.messagebox as messagebox
+import tkinter.filedialog
+
+from di.core import inject
+from services.interfaces import (
+    get_IProjectService,
+    get_IMaterialService,
+    ProjectType,
+    MaterialType,
+)
+from utils.circular_import_resolver import lazy_import
+from utils.error_handler import ErrorHandler
+
+# Lazy import to avoid circular dependencies
+Project = lazy_import('database.models.project', 'Project')
+
+from gui.base_view import BaseView
 
 logger = logging.getLogger(__name__)
 
@@ -13,60 +37,151 @@ logger = logging.getLogger(__name__)
 class ProjectCostAnalyzer(BaseView):
     """
     Analyze and track costs for leatherworking projects.
+
     Provides detailed cost breakdowns, profitability analysis,
     and pricing recommendations based on materials and labor.
+
+    Attributes:
+        project_service: Service for project-related operations
+        material_service: Service for material-related operations
+        error_handler: Handles error logging and reporting
+        current_project: Currently selected project
+        cost_data: Dictionary storing cost breakdown
+        labor_rate: Hourly labor rate for cost calculations
     """
 
-    @inject(MaterialService)
-    def __init__(self, parent: tk.Widget, app: Any) -> None:
+    @inject
+    def __init__(
+            self,
+            parent: tk.Widget,
+            app: Any,
+            project_service: get_IProjectService = None,
+            material_service: get_IMaterialService = None
+    ) -> None:
         """
         Initialize the project cost analyzer.
 
         Args:
             parent: Parent widget
             app: Application instance
+            project_service: Project service for data retrieval (optional)
+            material_service: Material service for cost calculations (optional)
         """
         super().__init__(parent, app)
-        self.project_service = self.get_service(IProjectService)
-        self.material_service = self.get_service(IMaterialService)
+
+        self.project_service = project_service
+        self.material_service = material_service
+
+        # Error handling
         self.error_handler = ErrorHandler()
+
+        # Project and cost tracking
         self.current_project: Optional[Project] = None
         self.cost_data: Dict[str, Decimal] = {}
         self.labor_rate = Decimal('25.00')
+
+        # UI Setup
         self.setup_ui()
         self.load_settings()
 
-    @inject(MaterialService)
     def setup_ui(self) -> None:
-        """Create and configure the UI components."""
-        self.toolbar = ttk.Frame(self)
-        self.toolbar.pack(fill=tk.X, padx=5, pady=5)
-        self.content = ttk.PanedWindow(self, orient=tk.HORIZONTAL)
-        self.content.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
-        self.create_toolbar()
-        self.create_project_section()
-        self.create_cost_section()
-        self.status_var = tk.StringVar()
-        ttk.Label(self, textvariable=self.status_var, relief=tk.SUNKEN).pack(fill=tk.X, pady=(5, 0))
+        """
+        Create and configure the UI components for the cost analyzer.
 
-    @inject(MaterialService)
+        Sets up toolbar, project list, and cost analysis sections.
+        """
+        try:
+            # Main layout
+            self.toolbar = ttk.Frame(self)
+            self.toolbar.pack(fill=tk.X, padx=5, pady=5)
+
+            self.content = ttk.PanedWindow(self, orient=tk.HORIZONTAL)
+            self.content.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+
+            # Create UI sections
+            self.create_toolbar()
+            self.create_project_section()
+            self.create_cost_section()
+
+            # Status bar
+            self.status_var = tk.StringVar()
+            ttk.Label(self, textvariable=self.status_var, relief=tk.SUNKEN).pack(fill=tk.X, pady=(5, 0))
+
+        except Exception as e:
+            logger.error(f"Error setting up UI: {e}")
+            messagebox.showerror("UI Setup Error", str(e))
+
     def create_toolbar(self) -> None:
-        """Create toolbar controls."""
-        ttk.Label(self.toolbar, text='Project Type:').pack(side=tk.LEFT, padx=5)
-        self.type_var = tk.StringVar(value='ALL')
-        type_combo = ttk.Combobox(self.toolbar, textvariable=self.type_var,
-                                   values=['ALL'] + [t.name for t in ProjectType], state='readonly', width=15)
-        type_combo.pack(side=tk.LEFT, padx=5)
-        type_combo.bind('<<ComboboxSelected>>', lambda _: self.load_projects())
-        ttk.Label(self.toolbar, text='Labor Rate ($/hr):').pack(side=tk.LEFT, padx=5)
-        self.labor_var = tk.StringVar(value=str(self.labor_rate))
-        labor_entry = ttk.Entry(self.toolbar, textvariable=self.labor_var, width=8)
-        labor_entry.pack(side=tk.LEFT)
-        labor_entry.bind('<FocusOut>', self.update_labor_rate)
-        ttk.Button(self.toolbar, text='Settings', command=self.show_settings_dialog).pack(side=tk.RIGHT, padx=5)
-        ttk.Button(self.toolbar, text='Export Analysis', command=self.export_analysis).pack(side=tk.RIGHT, padx=5)
+        """
+        Create toolbar controls for project type filtering and labor rate adjustment.
+        """
+        try:
+            # Project Type Selector
+            ttk.Label(self.toolbar, text='Project Type:').pack(side=tk.LEFT, padx=5)
+            self.type_var = tk.StringVar(value='ALL')
+            project_types = ['ALL'] + [t.name for t in ProjectType]
+            type_combo = ttk.Combobox(
+                self.toolbar,
+                textvariable=self.type_var,
+                values=project_types,
+                state='readonly',
+                width=15
+            )
+            type_combo.pack(side=tk.LEFT, padx=5)
+            type_combo.bind('<<ComboboxSelected>>', lambda _: self.load_projects())
 
-    @inject(MaterialService)
+            # Labor Rate Input
+            ttk.Label(self.toolbar, text='Labor Rate ($/hr):').pack(side=tk.LEFT, padx=5)
+            self.labor_var = tk.StringVar(value=str(self.labor_rate))
+            labor_entry = ttk.Entry(self.toolbar, textvariable=self.labor_var, width=8)
+            labor_entry.pack(side=tk.LEFT)
+            labor_entry.bind('<FocusOut>', self.update_labor_rate)
+
+            # Toolbar Buttons
+            ttk.Button(self.toolbar, text='Settings', command=self.show_settings_dialog).pack(side=tk.RIGHT, padx=5)
+            ttk.Button(self.toolbar, text='Export Analysis', command=self.export_analysis).pack(side=tk.RIGHT, padx=5)
+
+        except Exception as e:
+            logger.error(f"Error creating toolbar: {e}")
+            messagebox.showerror("Toolbar Error", str(e))
+
+    def show_settings_dialog(self) -> None:
+        """
+        Display a dialog for additional project cost analyzer settings.
+        """
+        # Placeholder for future settings dialog implementation
+        messagebox.showinfo("Settings", "Settings dialog not yet implemented")
+
+    def export_analysis(self) -> None:
+        """
+        Export the current project's cost analysis to a file.
+        """
+        if not self.current_project or not self.cost_data:
+            messagebox.showwarning("Export Error", "No project selected for export")
+            return
+
+        try:
+            # TODO: Implement comprehensive export functionality
+            export_data = {
+                'project_name': self.current_project.name,
+                'cost_breakdown': {k: float(v) for k, v in self.cost_data.items()}
+            }
+
+            # Prompt user for file save location
+            file_path = tkinter.filedialog.asksaveasfilename(
+                defaultextension=".json",
+                filetypes=[("JSON files", "*.json"), ("All files", "*.*")]
+            )
+
+            if file_path:
+                with open(file_path, 'w') as f:
+                    json.dump(export_data, f, indent=4)
+                messagebox.showinfo("Export Successful", f"Analysis exported to {file_path}")
+
+        except Exception as e:
+            logger.error(f"Error exporting analysis: {e}")
+            messagebox.showerror("Export Error", str(e))
+
     def create_project_section(self) -> None:
         """Create the project list section."""
         frame = ttk.LabelFrame(self.content, text='Projects')
@@ -84,7 +199,6 @@ class ProjectCostAnalyzer(BaseView):
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         self.project_tree.bind('<<TreeviewSelect>>', self.on_project_select)
 
-    @inject(MaterialService)
     def create_cost_section(self) -> None:
         """Create the cost analysis section."""
         frame = ttk.LabelFrame(self.content, text='Cost Analysis')
@@ -101,7 +215,6 @@ class ProjectCostAnalyzer(BaseView):
         notebook.add(pricing_frame, text='Pricing')
         self.create_pricing_recommendations(pricing_frame)
 
-    @inject(MaterialService)
     def create_cost_breakdown(self, parent: ttk.Frame) -> None:
         """
         Create the cost breakdown display.
@@ -122,7 +235,6 @@ class ProjectCostAnalyzer(BaseView):
         self.total_var = tk.StringVar()
         ttk.Label(total_frame, textvariable=self.total_var, font=('TkDefaultFont', 12, 'bold')).pack(side=tk.LEFT, padx=5)
 
-    @inject(MaterialService)
     def create_profitability_analysis(self, parent: ttk.Frame) -> None:
         """
         Create the profitability analysis display.
@@ -161,7 +273,6 @@ class ProjectCostAnalyzer(BaseView):
         self.profit_canvas = tk.Canvas(parent, bg='white', height=200)
         self.profit_canvas.pack(fill=tk.BOTH, expand=True, pady=10)
 
-    @inject(MaterialService)
     def create_pricing_recommendations(self, parent: ttk.Frame) -> None:
         """
         Create the pricing recommendations display.
@@ -189,7 +300,6 @@ class ProjectCostAnalyzer(BaseView):
         self.comp_canvas = tk.Canvas(comp_frame, bg='white', height=150)
         self.comp_canvas.pack(fill=tk.BOTH, expand=True, pady=5)
 
-    @inject(MaterialService)
     def load_projects(self) -> None:
         """Load and display project list."""
         try:
@@ -206,7 +316,6 @@ class ProjectCostAnalyzer(BaseView):
             logger.error(f'Error loading projects: {str(e)}')
             self.status_var.set('Error loading projects')
 
-    @inject(MaterialService)
     def calculate_materials_cost(self, project: Project) -> Decimal:
         """
         Calculate total materials cost for a project.
@@ -230,7 +339,6 @@ class ProjectCostAnalyzer(BaseView):
             logger.error(f'Error calculating materials cost: {str(e)}')
         return total
 
-    @inject(MaterialService)
     def calculate_component_cost(self, component: Any) -> Decimal:
         """
         Calculate cost for a specific component.
@@ -251,7 +359,6 @@ class ProjectCostAnalyzer(BaseView):
             logger.error(f'Error calculating component cost: {str(e)}')
         return Decimal('0')
 
-    @inject(MaterialService)
     def calculate_total_cost(self, project: Project) -> Decimal:
         """
         Calculate total project cost including labor and overhead.
@@ -274,7 +381,6 @@ class ProjectCostAnalyzer(BaseView):
             logger.error(f'Error calculating total cost: {str(e)}')
         return Decimal('0')
 
-    @inject(MaterialService)
     def update_cost_breakdown(self) -> None:
         """Update the cost breakdown display."""
         if not self.current_project:
@@ -311,14 +417,14 @@ class ProjectCostAnalyzer(BaseView):
 
             total_cost = materials_cost + labor_cost + overhead_cost
             self.total_var.set(f'${total_cost:.2f}')
-            self.cost_data = {'materials': materials_cost, 'labor': labor_cost, 'overhead': overhead_cost, 'total': total_cost}
+            self.cost_data = {'materials': materials_cost, 'labor': labor_cost, 'overhead': overhead_cost,
+                              'total': total_cost}
             self.update_profitability()
             self.update_pricing_recommendations()
         except Exception as e:
             logger.error(f'Error updating cost breakdown: {str(e)}')
             self.status_var.set('Error updating cost breakdown')
 
-    @inject(MaterialService)
     def on_project_select(self, event: Any) -> None:
         """
         Handle project selection in the treeview.
@@ -337,7 +443,6 @@ class ProjectCostAnalyzer(BaseView):
             logger.error(f'Error loading project details: {str(e)}')
             self.status_var.set('Error loading project details')
 
-    @inject(MaterialService)
     def cleanup(self) -> None:
         """Perform cleanup before view is destroyed."""
         try:
@@ -345,7 +450,6 @@ class ProjectCostAnalyzer(BaseView):
         except Exception as e:
             logger.error(f'Error during cleanup: {str(e)}')
 
-    @inject(MaterialService)
     def load_settings(self) -> None:
         """Load saved settings."""
         try:
@@ -356,7 +460,6 @@ class ProjectCostAnalyzer(BaseView):
         except Exception as e:
             logger.error(f'Error loading settings: {str(e)}')
 
-    @inject(MaterialService)
     def save_settings(self) -> None:
         """Save current settings."""
         try:
@@ -366,7 +469,6 @@ class ProjectCostAnalyzer(BaseView):
         except Exception as e:
             logger.error(f'Error saving settings: {str(e)}')
 
-    @inject(MaterialService)
     def update_labor_rate(self, *args) -> None:
         """Update the labor rate when changed."""
         try:
@@ -380,7 +482,6 @@ class ProjectCostAnalyzer(BaseView):
         except ValueError:
             self.labor_var.set(str(self.labor_rate))
 
-    @inject(MaterialService)
     def update_profitability(self, *args) -> None:
         """Update the profitability analysis display."""
         if not self.current_project or not self.cost_data:
@@ -400,7 +501,63 @@ class ProjectCostAnalyzer(BaseView):
             }
             for name, value in metrics.items():
                 self.profit_vars[name].set(value)
-            self.update_profitability_chart(total_cost, target_price)
         except Exception as e:
             logger.error(f'Error updating profitability: {str(e)}')
             self.status_var.set('Error updating profitability analysis')
+
+    def update_pricing_recommendations(self) -> None:
+        """Update the pricing recommendations display."""
+        if not self.current_project or not self.cost_data:
+            return
+        try:
+            total_cost = self.cost_data['total']
+            price_points = {
+                'economy_price': total_cost * Decimal('1.5'),
+                'standard_price': total_cost * Decimal('2.0'),
+                'premium_price': total_cost * Decimal('3.0')
+            }
+            for name, value in price_points.items():
+                self.price_vars[name].set(f'${value:.2f}')
+
+            # TODO: Implement market analysis and competitor comparison
+            market_analysis = "Market analysis not yet implemented"
+            self.market_text.configure(state=tk.NORMAL)
+            self.market_text.delete('1.0', tk.END)
+            self.market_text.insert(tk.END, market_analysis)
+            self.market_text.configure(state=tk.DISABLED)
+
+        except Exception as e:
+            logger.error(f'Error updating pricing: {str(e)}')
+            self.status_var.set('Error updating pricing recommendations')
+
+def main():
+    """
+    Standalone entry point for testing the ProjectCostAnalyzer.
+    This function creates a basic Tkinter window and demonstrates
+    the ProjectCostAnalyzer view in isolation.
+    """
+    import tkinter as tk
+    from di.container import DependencyContainer
+    from services.implementations.project_service import ProjectServiceImpl
+    from services.implementations.material_service import MaterialServiceImpl
+    from database.models.enums import ProjectType, MaterialType, ProjectStatus
+
+    # Create root window
+    root = tk.Tk()
+    root.title("Leatherworking Project Cost Analyzer")
+    root.geometry("1200x800")
+
+    # Setup dependency container (mock implementation for testing)
+    container = DependencyContainer()
+    container.register('IProjectService', ProjectServiceImpl())
+    container.register('IMaterialService', MaterialServiceImpl())
+
+    # Create the ProjectCostAnalyzer
+    cost_analyzer = ProjectCostAnalyzer(root, container)
+    cost_analyzer.pack(fill=tk.BOTH, expand=True)
+
+    # Start the Tkinter event loop
+    root.mainloop()
+
+if __name__ == "__main__":
+    main()

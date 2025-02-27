@@ -1,4 +1,4 @@
-# store_management/services/base_service.py
+# relative path: store_management/services/base_service.py
 """
 Base Service Implementation for Leatherworking Store Management.
 
@@ -9,11 +9,7 @@ import abc
 import logging
 from typing import Any, Dict, Generic, List, Optional, TypeVar
 
-from di.core import inject
-from utils.circular_import_resolver import CircularImportResolver
-
 T = TypeVar('T')
-
 
 class BaseApplicationException(Exception):
     """
@@ -53,26 +49,17 @@ class ValidationError(BaseApplicationException):
     pass
 
 
-class Service(abc.ABC, Generic[T]):
+class BaseService(abc.ABC, Generic[T]):
     """
     Abstract base class for service implementations.
 
     Provides a generic interface for basic CRUD operations.
     """
 
-    @inject('IMaterialService')
-    def __init__(
-            self,
-            material_service: Optional[Any] = None,
-            **kwargs
-    ):
+    def __init__(self):
         """
-        Initialize the service with optional dependencies.
-
-        Args:
-            material_service (Optional[Any], optional): Material service for additional operations
+        Initialize the base service with logging.
         """
-        self._material_service = material_service
         self.logger = logging.getLogger(self.__class__.__name__)
 
     @abc.abstractmethod
@@ -203,4 +190,4 @@ class Service(abc.ABC, Generic[T]):
             operation (str): Description of the operation
             details (Optional[Dict[str, Any]], optional): Additional operation details
         """
-        self.logger.info(f"{operation}: {details or {} }")
+        self.logger.info(f"{operation}: {details or {}}")

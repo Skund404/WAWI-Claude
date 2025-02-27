@@ -1,167 +1,80 @@
-# store_management/services/interfaces/hardware_service.py
+# relative path: store_management/services/interfaces/hardware_service.py
 """
-Interface for Hardware Service in Leatherworking Store Management.
+Hardware Service Interface for the Leatherworking Store Management application.
 
-Defines the contract for hardware-related operations.
+Defines the contract for hardware-related service operations.
 """
 
 from abc import ABC, abstractmethod
-from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Optional, List, Dict, Any
 
-from di.core import inject
-from utils.circular_import_resolver import CircularImportResolver
-
-class HardwareType(Enum):
-    """
-    Enumeration of possible hardware types in leatherworking.
-    """
-    BUCKLE = "Buckle"
-    SNAP = "Snap"
-    RIVET = "Rivet"
-    ZIPPER = "Zipper"
-    CLASP = "Clasp"
-    BUTTON = "Button"
-    D_RING = "D-Ring"
-    O_RING = "O-Ring"
-    MAGNETIC_CLOSURE = "Magnetic Closure"
-    OTHER = "Other"
-
-class HardwareMaterial(Enum):
-    """
-    Enumeration of possible hardware materials.
-    """
-    BRASS = "Brass"
-    STEEL = "Steel"
-    STAINLESS_STEEL = "Stainless Steel"
-    NICKEL = "Nickel"
-    SILVER = "Silver"
-    GOLD = "Gold"
-    BRONZE = "Bronze"
-    ALUMINUM = "Aluminum"
-    PLASTIC = "Plastic"
-    OTHER = "Other"
+from database.models.hardware import Hardware, HardwareType, HardwareMaterial, HardwareFinish
 
 class IHardwareService(ABC):
     """
-    Abstract base class defining the interface for hardware-related operations.
+    Interface defining hardware service operations.
     """
 
     @abstractmethod
-    @inject('IMaterialService')
-    @inject('IInventoryService')
-    def create_hardware(
-        self,
-        name: str,
-        hardware_type: HardwareType,
-        material: HardwareMaterial,
-        quantity: float = 1.0,
-        description: Optional[str] = None,
-        material_service: Optional[Any] = None,
-        inventory_service: Optional[Any] = None
-    ) -> Dict[str, Any]:
+    def get_low_stock_hardware(self, include_zero_stock: bool = False) -> List[Hardware]:
         """
-        Create a new hardware item.
+        Retrieve hardware items with low stock.
 
         Args:
-            name (str): Name of the hardware item
-            hardware_type (HardwareType): Type of hardware
-            material (HardwareMaterial): Material of the hardware
-            quantity (float, optional): Quantity of the hardware. Defaults to 1.0
-            description (Optional[str], optional): Description of the hardware
-            material_service (Optional[Any], optional): Material service for additional operations
-            inventory_service (Optional[Any], optional): Inventory service for tracking
+            include_zero_stock (bool): Whether to include hardware with zero stock
 
         Returns:
-            Dict[str, Any]: Details of the created hardware item
+            List[Hardware]: Hardware items below minimum stock level
         """
         pass
 
     @abstractmethod
-    def update_hardware(
-        self,
-        hardware_id: str,
-        updates: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def get_hardware_by_supplier(self, supplier_id: int) -> List[Hardware]:
         """
-        Update an existing hardware item.
+        Retrieve hardware items from a specific supplier.
 
         Args:
-            hardware_id (str): Unique identifier of the hardware item
-            updates (Dict[str, Any]): Dictionary of fields to update
+            supplier_id (int): Supplier identifier
 
         Returns:
-            Dict[str, Any]: Updated hardware item details
+            List[Hardware]: Hardware items from the specified supplier
         """
         pass
 
     @abstractmethod
-    def get_hardware(
-        self,
-        hardware_id: str
-    ) -> Optional[Dict[str, Any]]:
+    def generate_hardware_performance_report(self) -> List[Dict[str, Any]]:
         """
-        Retrieve a specific hardware item by its ID.
-
-        Args:
-            hardware_id (str): Unique identifier of the hardware item
+        Generate a performance report for hardware items.
 
         Returns:
-            Optional[Dict[str, Any]]: Hardware item details, or None if not found
+            List[Dict[str, Any]]: Performance metrics for hardware
         """
         pass
 
     @abstractmethod
-    def list_hardware(
+    def search_hardware(
         self,
         hardware_type: Optional[HardwareType] = None,
-        material: Optional[HardwareMaterial] = None
-    ) -> List[Dict[str, Any]]:
+        material: Optional[HardwareMaterial] = None,
+        finish: Optional[HardwareFinish] = None,
+        min_stock: Optional[int] = None,
+        max_stock: Optional[int] = None,
+        min_load_capacity: Optional[float] = None,
+        max_load_capacity: Optional[float] = None
+    ) -> List[Hardware]:
         """
-        List hardware items with optional filtering.
+        Advanced search for hardware with multiple filtering options.
 
         Args:
-            hardware_type (Optional[HardwareType], optional): Filter by hardware type
-            material (Optional[HardwareMaterial], optional): Filter by material
+            hardware_type (Optional[HardwareType]): Filter by hardware type
+            material (Optional[HardwareMaterial]): Filter by material
+            finish (Optional[HardwareFinish]): Filter by finish
+            min_stock (Optional[int]): Minimum current stock
+            max_stock (Optional[int]): Maximum current stock
+            min_load_capacity (Optional[float]): Minimum load capacity
+            max_load_capacity (Optional[float]): Maximum load capacity
 
         Returns:
-            List[Dict[str, Any]]: List of hardware items matching the criteria
-        """
-        pass
-
-    @abstractmethod
-    def delete_hardware(
-        self,
-        hardware_id: str
-    ) -> bool:
-        """
-        Delete a hardware item.
-
-        Args:
-            hardware_id (str): Unique identifier of the hardware item to delete
-
-        Returns:
-            bool: True if deletion was successful, False otherwise
-        """
-        pass
-
-    @abstractmethod
-    @inject('IInventoryService')
-    def check_hardware_availability(
-        self,
-        hardware_id: str,
-        required_quantity: float,
-        inventory_service: Optional[Any] = None
-    ) -> bool:
-        """
-        Check if a specific quantity of hardware is available.
-
-        Args:
-            hardware_id (str): Unique identifier of the hardware item
-            required_quantity (float): Quantity to check for availability
-            inventory_service (Optional[Any], optional): Inventory service for checking
-
-        Returns:
-            bool: True if the required quantity is available, False otherwise
+            List[Hardware]: Matching hardware items
         """
         pass

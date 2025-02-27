@@ -1,3 +1,4 @@
+# services/interfaces/__init__.py
 """
 Interfaces for all services used in the application.
 
@@ -49,8 +50,6 @@ INTERFACES = {
     'IPatternService': 'services.interfaces.pattern_service.IPatternService',
     'PatternStatus': 'services.interfaces.pattern_service.PatternStatus',
     'IHardwareService': 'services.interfaces.hardware_service.IHardwareService',
-    'HardwareType': 'services.interfaces.hardware_service.HardwareType',
-    'HardwareMaterial': 'services.interfaces.hardware_service.HardwareMaterial',
     'ISupplierService': 'services.interfaces.supplier_service.ISupplierService',
     'SupplierStatus': 'services.interfaces.supplier_service.SupplierStatus',
     'IShoppingListService': 'services.interfaces.shopping_list_service.IShoppingListService',
@@ -117,12 +116,10 @@ except ImportError as e:
     PatternStatus = None
 
 try:
-    from .hardware_service import IHardwareService, HardwareType, HardwareMaterial
+    from .hardware_service import IHardwareService
 except ImportError as e:
     logging.warning(f"Failed to import IHardwareService: {e}")
     IHardwareService = None
-    HardwareType = None
-    HardwareMaterial = None
 
 try:
     from .supplier_service import ISupplierService, SupplierStatus
@@ -168,6 +165,7 @@ except ImportError as e:
     HardwareService = IHardwareService if 'IHardwareService' in locals() else None
     SupplierService = ISupplierService if 'ISupplierService' in locals() else None
     ShoppingListService = IShoppingListService if 'IShoppingListService' in locals() else None
+
 
 # Lazy getters for interfaces that might have circular dependencies
 def get_interface(name: str) -> Optional[Type]:
