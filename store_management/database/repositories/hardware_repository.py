@@ -25,7 +25,6 @@ class HardwareRepository(BaseRepository[Hardware]):
     CRUD operations, filtering, and performance reporting.
     """
 
-    @inject('IMaterialService')
     def __init__(self, session, material_service: Optional[IMaterialService] = None):
         """
         Initialize the HardwareRepository with a database session.
@@ -53,14 +52,23 @@ class HardwareRepository(BaseRepository[Hardware]):
         """
         try:
             # Convert enum string values if provided
-            if 'hardware_type' in data:
-                data['hardware_type'] = HardwareType[data['hardware_type']]
+            if isinstance(data.get('hardware_type'), str):
+                try:
+                    data['hardware_type'] = HardwareType[data['hardware_type']]
+                except KeyError:
+                    raise ValueError(f"Invalid hardware type: {data['hardware_type']}")
 
-            if 'material' in data:
-                data['material'] = HardwareMaterial[data['material']]
+            if isinstance(data.get('material'), str):
+                try:
+                    data['material'] = HardwareMaterial[data['material']]
+                except KeyError:
+                    raise ValueError(f"Invalid material: {data['material']}")
 
-            if 'finish' in data:
-                data['finish'] = HardwareFinish[data['finish']]
+            if 'finish' in data and isinstance(data.get('finish'), str):
+                try:
+                    data['finish'] = HardwareFinish[data['finish']]
+                except KeyError:
+                    raise ValueError(f"Invalid finish: {data['finish']}")
 
             # Create hardware instance
             hardware = Hardware(**data)
@@ -139,15 +147,15 @@ class HardwareRepository(BaseRepository[Hardware]):
                 filter_conditions.append(Hardware.finish == finish)
 
             if min_stock is not None:
-                filter_conditions.append(Hardware.current_stock >= min_stock)
+                filter_conditions.append(Hardware.quantity >= min_stock)
 
             if max_stock is not None:
-                filter_conditions.append(Hardware.current_stock <= max_stock)
+                filter_conditions.append(Hardware.quantity <= max_stock)
 
-            if min_load_capacity is not None:
+            if min_load_capacity is not None and hasattr(Hardware, 'load_capacity'):
                 filter_conditions.append(Hardware.load_capacity >= min_load_capacity)
 
-            if max_load_capacity is not None:
+            if max_load_capacity is not None and hasattr(Hardware, 'load_capacity'):
                 filter_conditions.append(Hardware.load_capacity <= max_load_capacity)
 
             # Apply filters if any
@@ -181,14 +189,27 @@ class HardwareRepository(BaseRepository[Hardware]):
                 return None
 
             # Convert enum string values if provided
-            if 'hardware_type' in data:
-                data['hardware_type'] = HardwareType[data['hardware_type']]
+            if 'hardware_type' in data and isinstance(data.get('hardware_type'), str):
+                try:
+                    data['hardware_type'] = HardwareType[data['hardware_type']]
+                except KeyError:
+                    raise ValueError(f"Invalid hardware type: {data['hardware_type']}")
 
-            if 'material' in data:
-                data['material'] = HardwareMaterial[data['material']]
+            if 'material' in data and isinstance(data.get('material'), str):
+                try:
+                    data['material'] = HardwareMaterial[data['material']]
+                except KeyError:
+                    raise ValueError(f"Invalid material: {data['material']}")
 
             if 'finish' in data:
-                data['finish'] = HardwareFinish[data['finish']]
+                if isinstance(data.get('finish'), str):
+                    try:
+                        data['finish'] = HardwareFinish[data['finish']]
+                    except KeyError:
+                        raise ValueError(f"Invalid finish: {data['finish']}")
+                elif data['finish'] is None:
+                    # Allow setting finish to None
+                    pass
 
             # Update hardware attributes
             for key, value in data.items():
@@ -236,24 +257,18 @@ class HardwareRepository(BaseRepository[Hardware]):
             self.logger.error(f'Error deleting hardware: {e}')
             raise
 
-    def get_low_stock_hardware(self, include_zero_stock: bool = False) -> List[Hardware]:
+    def get_low_stock_hardware(self, threshold: int = 5) -> List[Hardware]:
         """
         Retrieve hardware items with low stock.
 
         Args:
-            include_zero_stock (bool): Whether to include hardware with zero stock
+            threshold (int): Threshold for low stock
 
         Returns:
-            List[Hardware]: Hardware items below minimum stock level
+            List[Hardware]: Hardware items below threshold
         """
         try:
-            query = select(Hardware)
-
-            if not include_zero_stock:
-                query = query.where(Hardware.current_stock > 0)
-
-            query = query.where(Hardware.current_stock <= Hardware.minimum_stock_level)
-
+            query = select(Hardware).where(Hardware.quantity <= threshold)
             results = self.session.execute(query).scalars().all()
             return list(results)
         except SQLAlchemyError as e:
@@ -278,38 +293,52 @@ class HardwareRepository(BaseRepository[Hardware]):
             self.logger.error(f'Error retrieving hardware for supplier {supplier_id}: {e}')
             raise
 
-    def generate_hardware_performance_report(self) -> List[Dict[str, Any]]:
+    def filter_by_finish(self, finish: HardwareFinish) -> List[Hardware]:
         """
-        Generate a performance report for hardware items.
+        Filter hardware items by finish type.
+
+        Args:
+            finish (HardwareFinish): The finish type to filter by
 
         Returns:
-            List[Dict[str, Any]]: Performance metrics for hardware
+            List[Hardware]: Hardware items with the specified finish
         """
         try:
-            query = select(Hardware)
-            hardware_items = self.session.execute(query).scalars().all()
-
-            hardware_report = []
-            for hardware in hardware_items:
-                # Assuming calculate_hardware_performance is a method on the Hardware model
-                performance_score = (
-                    hardware.calculate_hardware_performance()
-                    if hasattr(hardware, 'calculate_hardware_performance')
-                    else 0
-                )
-
-                hardware_report.append({
-                    'hardware_id': hardware.id,
-                    'name': hardware.name,
-                    'hardware_type': hardware.hardware_type.name,
-                    'performance_score': performance_score,
-                    'current_stock': hardware.current_stock,
-                    'load_capacity': hardware.load_capacity,
-                    'corrosion_resistance': hardware.corrosion_resistance
-                })
-
-            # Sort by performance score in descending order
-            return sorted(hardware_report, key=lambda x: x['performance_score'], reverse=True)
+            query = select(Hardware).where(Hardware.finish == finish)
+            results = self.session.execute(query).scalars().all()
+            return list(results)
         except SQLAlchemyError as e:
-            self.logger.error(f'Error generating hardware performance report: {e}')
+            self.logger.error(f'Error filtering hardware by finish: {e}')
             raise
+
+    @inject(IMaterialService)
+    def get_compatible_materials(self, hardware_id: int, material_service: IMaterialService) -> List[Dict[str, Any]]:
+        """
+        Get materials compatible with the hardware item.
+
+        Uses dependency injection to get the material service.
+
+        Args:
+            hardware_id: ID of the hardware item
+            material_service: Injected material service
+
+        Returns:
+            List[Dict[str, Any]]: List of compatible materials
+        """
+        hardware = self.get_by_id(hardware_id)
+        if not hardware:
+            return []
+
+        # Example implementation - adjust based on your business rules
+        compatible_materials = []
+
+        try:
+            # Get materials compatible with this hardware type
+            all_materials = material_service.get_all_materials()
+            for material in all_materials:
+                # Add your compatibility logic here
+                compatible_materials.append(material.to_dict())
+        except Exception as e:
+            self.logger.error(f"Error getting compatible materials: {str(e)}")
+
+        return compatible_materials

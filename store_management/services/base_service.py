@@ -1,8 +1,9 @@
-# relative path: store_management/services/base_service.py
+# services/base_service.py
 """
-Base Service Implementation for Leatherworking Store Management.
+Base service implementation with core abstractions and error handling.
 
-Provides a foundational abstract base class for service implementations.
+This module provides foundational classes and interfaces for service implementations,
+resolving circular import issues and providing a consistent base for services.
 """
 
 import abc
@@ -11,49 +12,121 @@ from typing import Any, Dict, Generic, List, Optional, TypeVar
 
 T = TypeVar('T')
 
+
 class BaseApplicationException(Exception):
     """
-    Base exception for application-specific errors.
+    Base exception for application-level errors with contextual information.
 
-    Provides a standard structure for application-level exceptions.
+    Attributes:
+        message (str): Primary error message
+        context (Optional[Dict[str, Any]]): Additional context for the error
     """
 
-    def __init__(
-            self,
-            message: str,
-            context: Optional[Dict[str, Any]] = None
-    ):
-        """
-        Initialize the application exception.
-
-        Args:
-            message (str): Error message
-            context (Optional[Dict[str, Any]], optional): Additional context about the error
-        """
+    def __init__(self, message: str, context: Optional[Dict[str, Any]] = None):
         super().__init__(message)
         self.context = context or {}
-        logging.error(f"{self.__class__.__name__}: {message}")
+        self.message = message
+        logging.error(f"Application Error: {message}, Context: {self.context}")
 
 
 class NotFoundError(BaseApplicationException):
     """
-    Exception raised when a requested resource is not found.
+    Exception raised when an entity or resource is not found.
+
+    Inherits contextual error handling from BaseApplicationException.
     """
-    pass
+
+    def __init__(self, message: str, context: Optional[Dict[str, Any]] = None):
+        super().__init__(f"Not Found: {message}", context)
 
 
 class ValidationError(BaseApplicationException):
     """
     Exception raised when data validation fails.
+
+    Inherits contextual error handling from BaseApplicationException.
     """
-    pass
+
+    def __init__(self, message: str, context: Optional[Dict[str, Any]] = None):
+        super().__init__(f"Validation Error: {message}", context)
 
 
-class BaseService(abc.ABC, Generic[T]):
+class IBaseService(abc.ABC):
     """
-    Abstract base class for service implementations.
+    Interface for base service operations with generic type support.
 
-    Provides a generic interface for basic CRUD operations.
+    Provides a standardized interface for core service methods.
+    """
+
+    @abc.abstractmethod
+    def create(self, data: Dict[str, Any]) -> T:
+        """
+        Create a new entity.
+
+        Args:
+            data (Dict[str, Any]): Data for creating the entity
+
+        Returns:
+            T: Created entity
+
+        Raises:
+            ValidationError: If data is invalid
+        """
+        pass
+
+    @abc.abstractmethod
+    def get_by_id(self, entity_id: Any) -> Optional[T]:
+        """
+        Retrieve an entity by its identifier.
+
+        Args:
+            entity_id (Any): Unique identifier for the entity
+
+        Returns:
+            Optional[T]: Retrieved entity or None if not found
+        """
+        pass
+
+    @abc.abstractmethod
+    def update(self, entity_id: Any, data: Dict[str, Any]) -> T:
+        """
+        Update an existing entity.
+
+        Args:
+            entity_id (Any): Unique identifier for the entity
+            data (Dict[str, Any]): Updated data for the entity
+
+        Returns:
+            T: Updated entity
+
+        Raises:
+            NotFoundError: If entity doesn't exist
+            ValidationError: If update data is invalid
+        """
+        pass
+
+    @abc.abstractmethod
+    def delete(self, entity_id: Any) -> bool:
+        """
+        Delete an entity by its identifier.
+
+        Args:
+            entity_id (Any): Unique identifier for the entity
+
+        Returns:
+            bool: True if deletion was successful, False otherwise
+
+        Raises:
+            NotFoundError: If entity doesn't exist
+        """
+        pass
+
+
+class BaseService(Generic[T], IBaseService):
+    """
+    Abstract base implementation of IBaseService with default method implementations.
+
+    Provides a basic implementation that can be extended by specific service classes.
     """
 
     def __init__(self):
@@ -62,132 +135,67 @@ class BaseService(abc.ABC, Generic[T]):
         """
         self.logger = logging.getLogger(self.__class__.__name__)
 
-    @abc.abstractmethod
-    def get_by_id(
-            self,
-            id_value: Any
-    ) -> Optional[T]:
+    def create(self, data: Dict[str, Any]) -> T:
         """
-        Retrieve an item by its unique identifier.
+        Default implementation for creating an entity.
 
         Args:
-            id_value (Any): Unique identifier for the item
+            data (Dict[str, Any]): Data for creating the entity
 
         Returns:
-            Optional[T]: Retrieved item or None if not found
-        """
-        pass
-
-    @abc.abstractmethod
-    def get_all(
-            self,
-            filters: Optional[Dict[str, Any]] = None,
-            limit: Optional[int] = None,
-            offset: Optional[int] = None
-    ) -> List[T]:
-        """
-        Retrieve all items, with optional filtering and pagination.
-
-        Args:
-            filters (Optional[Dict[str, Any]], optional): Filtering criteria
-            limit (Optional[int], optional): Maximum number of items to retrieve
-            offset (Optional[int], optional): Number of items to skip
-
-        Returns:
-            List[T]: List of retrieved items
-        """
-        pass
-
-    @abc.abstractmethod
-    def create(
-            self,
-            data: Dict[str, Any]
-    ) -> T:
-        """
-        Create a new item.
-
-        Args:
-            data (Dict[str, Any]): Data for creating the item
-
-        Returns:
-            T: Created item
-        """
-        pass
-
-    @abc.abstractmethod
-    def update(
-            self,
-            id_value: Any,
-            data: Dict[str, Any]
-    ) -> T:
-        """
-        Update an existing item.
-
-        Args:
-            id_value (Any): Unique identifier of the item to update
-            data (Dict[str, Any]): Updated data
-
-        Returns:
-            T: Updated item
-        """
-        pass
-
-    @abc.abstractmethod
-    def delete(
-            self,
-            id_value: Any
-    ) -> bool:
-        """
-        Delete an item.
-
-        Args:
-            id_value (Any): Unique identifier of the item to delete
-
-        Returns:
-            bool: True if deletion was successful, False otherwise
-        """
-        pass
-
-    def validate_data(
-            self,
-            data: Dict[str, Any],
-            required_fields: Optional[List[str]] = None
-    ) -> None:
-        """
-        Validate input data.
-
-        Args:
-            data (Dict[str, Any]): Data to validate
-            required_fields (Optional[List[str]], optional): List of required field names
+            T: Created entity
 
         Raises:
-            ValidationError: If validation fails
+            NotImplementedError: If not overridden by subclass
         """
-        if not data:
-            raise ValidationError("No data provided")
+        self.logger.info(f"Creating entity with data: {data}")
+        raise NotImplementedError("Subclasses must implement create method")
 
-        if required_fields:
-            missing_fields = [
-                field for field in required_fields
-                if field not in data or data[field] is None
-            ]
-
-            if missing_fields:
-                raise ValidationError(
-                    f"Missing required fields: {', '.join(missing_fields)}",
-                    {"missing_fields": missing_fields}
-                )
-
-    def log_operation(
-            self,
-            operation: str,
-            details: Optional[Dict[str, Any]] = None
-    ) -> None:
+    def get_by_id(self, entity_id: Any) -> Optional[T]:
         """
-        Log service operations.
+        Default implementation for retrieving an entity by ID.
 
         Args:
-            operation (str): Description of the operation
-            details (Optional[Dict[str, Any]], optional): Additional operation details
+            entity_id (Any): Unique identifier for the entity
+
+        Returns:
+            Optional[T]: Retrieved entity or None
+
+        Raises:
+            NotImplementedError: If not overridden by subclass
         """
-        self.logger.info(f"{operation}: {details or {}}")
+        self.logger.info(f"Retrieving entity with ID: {entity_id}")
+        raise NotImplementedError("Subclasses must implement get_by_id method")
+
+    def update(self, entity_id: Any, data: Dict[str, Any]) -> T:
+        """
+        Default implementation for updating an entity.
+
+        Args:
+            entity_id (Any): Unique identifier for the entity
+            data (Dict[str, Any]): Updated data for the entity
+
+        Returns:
+            T: Updated entity
+
+        Raises:
+            NotImplementedError: If not overridden by subclass
+        """
+        self.logger.info(f"Updating entity {entity_id} with data: {data}")
+        raise NotImplementedError("Subclasses must implement update method")
+
+    def delete(self, entity_id: Any) -> bool:
+        """
+        Default implementation for deleting an entity.
+
+        Args:
+            entity_id (Any): Unique identifier for the entity
+
+        Returns:
+            bool: True if deletion was successful
+
+        Raises:
+            NotImplementedError: If not overridden by subclass
+        """
+        self.logger.info(f"Deleting entity with ID: {entity_id}")
+        raise NotImplementedError("Subclasses must implement delete method")

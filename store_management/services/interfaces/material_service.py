@@ -8,6 +8,7 @@ which is responsible for managing materials used in leatherworking projects.
 from abc import ABC, abstractmethod
 import enum
 from typing import Any, Dict, List, Optional, Union
+from .base_service import IBaseService
 
 
 class MaterialType(enum.Enum):
@@ -20,22 +21,18 @@ class MaterialType(enum.Enum):
     OTHER = "other"
 
 
-class IMaterialService(ABC):
+class IMaterialService(IBaseService):
     """Interface for the Material Service."""
 
     @abstractmethod
-    def get_material(self, material_id: int) -> Dict[str, Any]:
-        """
-        Retrieve a material by its ID.
+    def get_all_materials(self, material_type: Optional[MaterialType] = None) -> List[Dict[str, Any]]:
+        """Get material by ID.
 
         Args:
-            material_id: Unique identifier of the material
+            material_id: ID of the material to retrieve
 
         Returns:
-            Dictionary containing material details
-
-        Raises:
-            NotFoundError: If material with given ID doesn't exist
+            Optional[Dict[str, Any]]: Material data if found, None otherwise
         """
         pass
 
@@ -58,70 +55,51 @@ class IMaterialService(ABC):
         pass
 
     @abstractmethod
-    def search_materials(self,
-                         search_term: str,
-                         material_type: Optional[MaterialType] = None) -> List[Dict[str, Any]]:
-        """
-        Search materials by name, description, or other attributes.
+    def search_materials(self, search_term: str) -> List[Dict[str, Any]]:
+        """Search for materials.
 
         Args:
             search_term: Term to search for
-            material_type: Optional filter by material type
 
         Returns:
-            List of dictionaries containing matching material details
+            List[Dict[str, Any]]: List of matching materials
         """
         pass
 
     @abstractmethod
     def create_material(self, material_data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Create a new material.
+        """Create a new material.
 
         Args:
-            material_data: Dictionary containing material details
+            material_data: Data for the new material
 
         Returns:
-            Dictionary containing the created material details
-
-        Raises:
-            ValidationError: If material data is invalid
+            Dict[str, Any]: Created material data
         """
         pass
 
     @abstractmethod
-    def update_material(self,
-                        material_id: int,
-                        material_data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Update an existing material.
+    def update_material(self, material_id: int, material_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Update an existing material.
 
         Args:
-            material_id: Unique identifier of the material to update
-            material_data: Dictionary containing updated material details
+            material_id: ID of the material to update
+            material_data: New material data
 
         Returns:
-            Dictionary containing the updated material details
-
-        Raises:
-            NotFoundError: If material with given ID doesn't exist
-            ValidationError: If material data is invalid
+            Optional[Dict[str, Any]]: Updated material data if successful, None otherwise
         """
         pass
 
     @abstractmethod
     def delete_material(self, material_id: int) -> bool:
-        """
-        Delete a material.
+        """Delete a material.
 
         Args:
-            material_id: Unique identifier of the material to delete
+            material_id: ID of the material to delete
 
         Returns:
-            True if deletion was successful, False otherwise
-
-        Raises:
-            NotFoundError: If material with given ID doesn't exist
+            bool: True if successful, False otherwise
         """
         pass
 

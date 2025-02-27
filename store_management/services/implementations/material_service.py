@@ -1,331 +1,477 @@
+# relative path: store_management/services/implementations/hardware_service.py
 """
-Material Service Implementation.
+Hardware Service Implementation for the Leatherworking Store Management application.
 
-This module provides a concrete implementation of the Material Service interface
-for managing materials used in leatherworking projects.
+Provides comprehensive functionality for managing hardware inventory.
 """
 
+from typing import Any, List, Dict, Optional, Union
 import logging
-from typing import Any, Dict, List, Optional
 
-# Try to import the interface
-try:
-    from services.interfaces.material_service import IMaterialService, MaterialType
-except ImportError:
-    # Create placeholder classes if imports fail
-    import enum
-
-    class MaterialType(enum.Enum):
-        """Types of materials used in leatherworking."""
-        LEATHER = "leather"
-        HARDWARE = "hardware"
-        THREAD = "thread"
-        LINING = "lining"
-        ADHESIVE = "adhesive"
-        OTHER = "other"
-
-    class IMaterialService:
-        """Placeholder for IMaterialService interface."""
-        pass
+from services.base_service import Service, ValidationError, NotFoundError
+from services.interfaces.hardware_service import IHardwareService
+from database.models.hardware import Hardware, HardwareType, HardwareMaterial, HardwareFinish
+from database.repositories.hardware_repository import HardwareRepository
+from database.sqlalchemy.session import get_db_session
+from ..base_service import Service
+from ..interfaces.material_service import IMaterialService, MaterialType
 
 
-class MaterialService(IMaterialService):
-    """
-    Implementation of the Material Service interface.
-
-    This service manages materials used in leatherworking projects,
-    including inventory tracking, cost calculations, and material transactions.
-    """
+class MaterialService(Service, IMaterialService):
+    """Implementation of the material service."""
 
     def __init__(self):
         """Initialize the Material Service."""
-        self.logger = logging.getLogger(__name__)
+        super().__init__()
         self.logger.info("MaterialService initialized")
+        self._materials = {}  # In-memory storage for development
 
-        # For demonstration purposes, we'll use an in-memory dictionary
-        self._materials = {}
-        self._material_types = {}
-        self._next_id = 1
-
-    def get_material(self, material_id: int) -> Dict[str, Any]:
-        """
-        Retrieve a material by its ID.
-
-        Args:
-            material_id: Unique identifier of the material
-
-        Returns:
-            Dictionary containing material details
-
-        Raises:
-            ValueError: If material with given ID doesn't exist
-        """
-        self.logger.debug(f"Getting material with ID: {material_id}")
-
-        if material_id not in self._materials:
-            raise ValueError(f"Material with ID {material_id} not found")
-
-        return self._materials[material_id]
-
-    def get_materials(self,
-                     material_type: Optional[MaterialType] = None,
-                     limit: int = 100,
-                     offset: int = 0) -> List[Dict[str, Any]]:
-        """
-        Get a list of materials, optionally filtered by type.
+    def get_all_materials(self, material_type: Optional[MaterialType] = None) -> List[Dict[str, Any]]:
+        """Get all materials, optionally filtered by type.
 
         Args:
             material_type: Optional filter by material type
-            limit: Maximum number of records to return
-            offset: Number of records to skip for pagination
 
         Returns:
-            List of dictionaries containing material details
+            List[Dict[str, Any]]: List of materials
         """
-        self.logger.debug(f"Getting materials with type: {material_type}, limit: {limit}, offset: {offset}")
-
-        # Start with all materials
         materials = list(self._materials.values())
-
-        # Filter by type if specified
         if material_type:
-            materials = [m for m in materials if m.get('material_type') == material_type]
+            return [m for m in materials if m.get('type') == material_type.value]
+        return materials
 
-        # Apply pagination
-        paginated = materials[offset:offset + limit]
+    def get_material_by_id(self, material_id: int) -> Optional[Dict[str, Any]]:
+        """Get material by ID.
 
-        return paginated
+        Args:
+            material_id: ID of the material to retrieve
 
-    def search_materials(self,
-                        search_term: str,
-                        material_type: Optional[MaterialType] = None) -> List[Dict[str, Any]]:
+        Returns:
+            Optional[Dict[str, Any]]: Material data if found, None otherwise
         """
-        Search materials by name, description, or other attributes.
+        return self._materials.get(material_id)
+
+    def create_material(self, material_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a new material.
+
+        Args:
+            material_data: Data for the new material
+
+        Returns:
+            Dict[str, Any]: Created material data
+        """
+        material_id = len(self._materials) + 1
+        material = {**material_data, 'id': material_id}
+        self._materials[material_id] = material
+        return material
+
+    def update_material(self, material_id: int, material_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Update an existing material.
+
+        Args:
+            material_id: ID of the material to update
+            material_data: New material data
+
+        Returns:
+            Optional[Dict[str, Any]]: Updated material data if successful, None otherwise
+        """
+        if material_id not in self._materials:
+            return None
+
+        updated_material = {**self._materials[material_id], **material_data, 'id': material_id}
+        self._materials[material_id] = updated_material
+        return updated_material
+
+    def delete_material(self, material_id: int) -> bool:
+        """Delete a material.
+
+        Args:
+            material_id: ID of the material to delete
+
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        if material_id not in self._materials:
+            return False
+
+        del self._materials[material_id]
+        return True
+
+    def search_materials(self, search_term: str) -> List[Dict[str, Any]]:
+        """Search for materials.
 
         Args:
             search_term: Term to search for
-            material_type: Optional filter by material type
 
         Returns:
-            List of dictionaries containing matching material details
+            List[Dict[str, Any]]: List of matching materials
         """
-        self.logger.debug(f"Searching materials with term: {search_term}, type: {material_type}")
-
         search_term = search_term.lower()
-        results = []
-
-        for material in self._materials.values():
-            # Check if search term matches name or description
-            name_match = search_term in material.get('name', '').lower()
-            desc_match = search_term in material.get('description', '').lower()
-
-            # Filter by type if specified
-            type_match = True
-            if material_type:
-                type_match = material.get('material_type') == material_type
-
-            if (name_match or desc_match) and type_match:
-                results.append(material)
-
-        return results
-
-    def create_material(self, material_data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Create a new material.
-
-        Args:
-            material_data: Dictionary containing material details
-
-        Returns:
-            Dictionary containing the created material details
-
-        Raises:
-            ValueError: If material data is invalid
-        """
-        self.logger.debug(f"Creating material with data: {material_data}")
-
-        # Validate required fields
-        required_fields = ['name', 'material_type']
-        for field in required_fields:
-            if field not in material_data:
-                raise ValueError(f"Missing required field: {field}")
-
-        # Create new material
-        material_id = self._next_id
-        self._next_id += 1
-
-        material = {
-            'id': material_id,
-            **material_data
-        }
-
-        # Store in dictionary
-        self._materials[material_id] = material
-
-        self.logger.info(f"Created material with ID: {material_id}")
-        return material
-
-    def update_material(self,
-                       material_id: int,
-                       material_data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Update an existing material.
-
-        Args:
-            material_id: Unique identifier of the material to update
-            material_data: Dictionary containing updated material details
-
-        Returns:
-            Dictionary containing the updated material details
-
-        Raises:
-            ValueError: If material with given ID doesn't exist
-        """
-        self.logger.debug(f"Updating material {material_id} with data: {material_data}")
-
-        # Check if material exists
-        if material_id not in self._materials:
-            raise ValueError(f"Material with ID {material_id} not found")
-
-        # Update the material
-        self._materials[material_id].update(material_data)
-
-        self.logger.info(f"Updated material with ID: {material_id}")
-        return self._materials[material_id]
-
-    def delete_material(self, material_id: int) -> bool:
-        """
-        Delete a material.
-
-        Args:
-            material_id: Unique identifier of the material to delete
-
-        Returns:
-            True if deletion was successful, False otherwise
-
-        Raises:
-            ValueError: If material with given ID doesn't exist
-        """
-        self.logger.debug(f"Deleting material with ID: {material_id}")
-
-        # Check if material exists
-        if material_id not in self._materials:
-            raise ValueError(f"Material with ID {material_id} not found")
-
-        # Delete the material
-        del self._materials[material_id]
-
-        self.logger.info(f"Deleted material with ID: {material_id}")
-        return True
-
-    def get_material_types(self) -> List[Dict[str, Any]]:
-        """
-        Get a list of all material types.
-
-        Returns:
-            List of dictionaries containing material type details
-        """
-        self.logger.debug("Getting all material types")
-
         return [
-            {"id": material_type.name, "name": material_type.value}
-            for material_type in MaterialType
+            material for material in self._materials.values()
+            if search_term in material.get('name', '').lower() or
+               search_term in material.get('description', '').lower()
         ]
 
-    def record_material_transaction(self,
-                                   material_id: int,
-                                   quantity: float,
-                                   transaction_type: str,
-                                   notes: Optional[str] = None) -> Dict[str, Any]:
+class HardwareService(Service[Hardware], IHardwareService):
+    """
+    Service for managing hardware inventory in the leatherworking store.
+
+    Provides methods for creating, retrieving, updating, and deleting
+    hardware items used in leatherworking projects.
+    """
+
+    def __init__(self, hardware_repository: Optional[HardwareRepository] = None):
         """
-        Record a material transaction (purchase, usage, etc.).
+        Initialize the hardware service.
 
         Args:
-            material_id: Unique identifier of the material
-            quantity: Quantity of material in the transaction
-            transaction_type: Type of transaction (purchase, usage, adjustment, etc.)
-            notes: Optional notes about the transaction
-
-        Returns:
-            Dictionary containing the transaction details
-
-        Raises:
-            ValueError: If material with given ID doesn't exist
+            hardware_repository (Optional[HardwareRepository], optional):
+            Repository for hardware data access. If not provided, a new one will be created.
         """
-        self.logger.debug(f"Recording transaction for material ID {material_id}")
+        super().__init__()
 
-        # Check if material exists
-        if material_id not in self._materials:
-            raise ValueError(f"Material with ID {material_id} not found")
+        # Use provided repository or create a new one
+        self._repository = hardware_repository or HardwareRepository(get_db_session())
 
-        # Create transaction record
-        transaction = {
-            'material_id': material_id,
-            'quantity': quantity,
-            'transaction_type': transaction_type,
-            'notes': notes
-        }
-
-        # Update material quantity
-        material = self._materials[material_id]
-        current_quantity = material.get('quantity', 0)
-        material['quantity'] = current_quantity + quantity
-
-        self.logger.info(f"Recorded transaction for material ID {material_id}")
-        return transaction
-
-    def get_material_transactions(self,
-                                 material_id: int,
-                                 start_date: Optional[str] = None,
-                                 end_date: Optional[str] = None) -> List[Dict[str, Any]]:
+    def get_by_id(self, id_value: int) -> Optional[Hardware]:
         """
-        Get a list of transactions for a specific material.
+        Retrieve a specific hardware item by its ID.
 
         Args:
-            material_id: Unique identifier of the material
-            start_date: Optional start date for filtering transactions
-            end_date: Optional end date for filtering transactions
+            id_value (int): Unique identifier for the hardware item
 
         Returns:
-            List of dictionaries containing transaction details
+            Optional[Hardware]: Hardware item or None if not found
 
         Raises:
-            ValueError: If material with given ID doesn't exist
+            NotFoundError: If no hardware item with the given ID exists
         """
-        self.logger.debug(f"Getting transactions for material ID {material_id}")
+        try:
+            hardware_item = self._repository.get_by_id(id_value)
 
-        # Check if material exists
-        if material_id not in self._materials:
-            raise ValueError(f"Material with ID {material_id} not found")
+            if not hardware_item:
+                raise NotFoundError(
+                    f"Hardware item with ID {id_value} not found",
+                    {"id": id_value}
+                )
 
-        # In this simple implementation, we don't store transactions
-        # In a real implementation, this would query a database
-        return []
+            self.log_operation("Retrieved hardware item", {"id": id_value})
+            return hardware_item
+        except Exception as e:
+            self.logger.error(f"Error retrieving hardware item: {e}")
+            raise
 
-    def calculate_material_cost(self,
-                               material_id: int,
-                               quantity: float) -> float:
+    def get_all(
+            self,
+            filters: Optional[Dict[str, Any]] = None,
+            limit: Optional[int] = None,
+            offset: Optional[int] = None
+    ) -> List[Hardware]:
         """
-        Calculate the cost of a specified quantity of material.
+        Retrieve all hardware items with optional filtering and pagination.
 
         Args:
-            material_id: Unique identifier of the material
-            quantity: Quantity of material to calculate cost for
+            filters (Optional[Dict[str, Any]], optional): Filtering criteria
+            limit (Optional[int], optional): Maximum number of items to retrieve
+            offset (Optional[int], optional): Number of items to skip
 
         Returns:
-            Calculated cost
+            List[Hardware]: List of hardware items
+        """
+        try:
+            # Apply filtering, limit, and offset
+            hardware_items = self._repository.get_all(
+                filters=filters,
+                limit=limit,
+                offset=offset
+            )
+
+            self.log_operation("Retrieved hardware items", {
+                "filter_count": len(hardware_items),
+                "filters": filters or {},
+                "limit": limit,
+                "offset": offset
+            })
+
+            return hardware_items
+        except Exception as e:
+            self.logger.error(f"Error retrieving hardware items: {e}")
+            return []
+
+    def create(self, data: Dict[str, Any]) -> Hardware:
+        """
+        Create a new hardware item.
+
+        Args:
+            data (Dict[str, Any]): Hardware item details
+
+        Returns:
+            Hardware: Created hardware item
 
         Raises:
-            ValueError: If material with given ID doesn't exist
+            ValidationError: If input data is invalid
         """
-        self.logger.debug(f"Calculating cost for {quantity} units of material ID {material_id}")
+        try:
+            # Validate input data
+            self.validate_data(
+                data,
+                required_fields=[
+                    'name',
+                    'hardware_type',
+                    'material',
+                    'quantity',
+                    'unit_price'
+                ]
+            )
 
-        # Check if material exists
-        if material_id not in self._materials:
-            raise ValueError(f"Material with ID {material_id} not found")
+            # Validate enum values
+            try:
+                hardware_type = HardwareType(data.get('hardware_type'))
+                material = HardwareMaterial(data.get('material'))
+                
+                # Handle finish if provided
+                finish = None
+                if 'finish' in data and data['finish']:
+                    finish = HardwareFinish(data['finish'])
+            except ValueError as e:
+                raise ValidationError(f"Invalid hardware type, material, or finish: {e}")
 
-        # Get material and calculate cost
-        material = self._materials[material_id]
-        unit_price = material.get('unit_price', 0)
+            # Prepare hardware data
+            hardware_data = {
+                'name': data['name'],
+                'hardware_type': hardware_type,
+                'material': material,
+                'quantity': float(data['quantity']),
+                'unit_price': float(data['unit_price']),
+                'description': data.get('description', ''),
+                'manufacturer': data.get('manufacturer', ''),
+                'supplier_id': data.get('supplier_id')
+            }
+            
+            # Add finish if it was provided
+            if 'finish' in data and data['finish']:
+                hardware_data['finish'] = finish
 
-        return unit_price * quantity
+            # Create hardware item
+            hardware_item = self._repository.create(hardware_data)
+
+            self.log_operation("Created hardware item", {"id": hardware_item.id})
+            return hardware_item
+
+        except (ValidationError, ValueError) as ve:
+            self.logger.error(f"Validation error creating hardware: {ve}")
+            raise
+        except Exception as e:
+            self.logger.error(f"Error creating hardware item: {e}")
+            raise
+
+    def update(self, id_value: int, data: Dict[str, Any]) -> Hardware:
+        """
+        Update an existing hardware item.
+
+        Args:
+            id_value (int): Unique identifier of the hardware item to update
+            data (Dict[str, Any]): Updated data
+
+        Returns:
+            Hardware: Updated hardware item
+
+        Raises:
+            ValidationError: If input data is invalid
+            NotFoundError: If the hardware item doesn't exist
+        """
+        try:
+            # Validate input data
+            self.validate_data(data)
+
+            # Prepare update data
+            update_data = {}
+
+            # Validate and add enum values if present
+            if 'hardware_type' in data:
+                try:
+                    update_data['hardware_type'] = HardwareType(data['hardware_type'])
+                except ValueError:
+                    raise ValidationError(f"Invalid hardware type: {data['hardware_type']}")
+
+            if 'material' in data:
+                try:
+                    update_data['material'] = HardwareMaterial(data['material'])
+                except ValueError:
+                    raise ValidationError(f"Invalid material: {data['material']}")
+                    
+            if 'finish' in data:
+                try:
+                    if data['finish']:
+                        update_data['finish'] = HardwareFinish(data['finish'])
+                    else:
+                        update_data['finish'] = None
+                except ValueError:
+                    raise ValidationError(f"Invalid finish: {data['finish']}")
+
+            # Add other updateable fields
+            updateable_fields = [
+                'name', 'quantity', 'unit_price',
+                'description', 'manufacturer', 'supplier_id'
+            ]
+
+            for field in updateable_fields:
+                if field in data:
+                    update_data[field] = data[field]
+
+            # Update hardware item
+            hardware_item = self._repository.update(id_value, update_data)
+
+            if not hardware_item:
+                raise NotFoundError(
+                    f"Hardware item with ID {id_value} not found",
+                    {"id": id_value}
+                )
+
+            self.log_operation("Updated hardware item", {
+                "id": id_value,
+                "updated_fields": list(update_data.keys())
+            })
+
+            return hardware_item
+
+        except (ValidationError, ValueError) as ve:
+            self.logger.error(f"Validation error updating hardware: {ve}")
+            raise
+        except Exception as e:
+            self.logger.error(f"Error updating hardware item: {e}")
+            raise
+
+    def delete(self, id_value: int) -> bool:
+        """
+        Delete a hardware item.
+
+        Args:
+            id_value (int): Unique identifier of the hardware item to delete
+
+        Returns:
+            bool: True if deletion was successful, False otherwise
+
+        Raises:
+            NotFoundError: If the hardware item doesn't exist
+        """
+        try:
+            # Verify item exists before deletion
+            existing_item = self.get_by_id(id_value)
+
+            # Perform deletion
+            deletion_result = self._repository.delete(id_value)
+
+            if not deletion_result:
+                raise NotFoundError(
+                    f"Failed to delete hardware item with ID {id_value}",
+                    {"id": id_value}
+                )
+
+            self.log_operation("Deleted hardware item", {"id": id_value})
+            return True
+
+        except NotFoundError:
+            self.logger.error(f"Cannot delete non-existent hardware item: {id_value}")
+            raise
+        except Exception as e:
+            self.logger.error(f"Error deleting hardware item: {e}")
+            raise
+
+    def search(
+            self,
+            query: str,
+            filters: Optional[Dict[str, Any]] = None
+    ) -> List[Hardware]:
+        """
+        Search for hardware items based on a query and optional filters.
+
+        Args:
+            query (str): Search query string
+            filters (Optional[Dict[str, Any]], optional): Additional filtering criteria
+
+        Returns:
+            List[Hardware]: List of matching hardware items
+        """
+        try:
+            # Prepare search filters
+            search_filters = filters or {}
+            search_filters['search_query'] = query
+
+            # Perform search
+            hardware_items = self._repository.search(search_filters)
+
+            self.log_operation("Searched hardware items", {
+                "query": query,
+                "result_count": len(hardware_items),
+                "filters": search_filters
+            })
+
+            return hardware_items
+        except Exception as e:
+            self.logger.error(f"Error searching hardware items: {e}")
+            return []
+            
+    def get_by_finish(self, finish: HardwareFinish) -> List[Hardware]:
+        """
+        Get hardware items by finish type.
+        
+        Args:
+            finish (HardwareFinish): The finish type to filter by
+            
+        Returns:
+            List[Hardware]: List of hardware items with the specified finish
+        """
+        try:
+            # Use repository to filter by finish
+            if hasattr(self._repository, 'filter_by_finish'):
+                hardware_items = self._repository.filter_by_finish(finish)
+            else:
+                # Fall back to generic filtering if specific method not available
+                hardware_items = self._repository.get_all(filters={'finish': finish})
+                
+            self.log_operation("Retrieved hardware items by finish", {
+                "finish": finish.value,
+                "result_count": len(hardware_items)
+            })
+            
+            return hardware_items
+        except Exception as e:
+            self.logger.error(f"Error retrieving hardware items by finish: {e}")
+            return []
+
+    def validate_data(
+            self,
+            data: Dict[str, Any],
+            required_fields: Optional[List[str]] = None
+    ) -> None:
+        """
+        Validate hardware item data with specific rules.
+
+        Args:
+            data (Dict[str, Any]): Data to validate
+            required_fields (Optional[List[str]], optional): List of required fields
+
+        Raises:
+            ValidationError: If validation fails
+        """
+        # Call parent validation method
+        super().validate_data(data, required_fields)
+
+        # Additional hardware-specific validations
+        if 'quantity' in data:
+            try:
+                quantity = float(data['quantity'])
+                if quantity < 0:
+                    raise ValidationError("Quantity cannot be negative")
+            except ValueError:
+                raise ValidationError("Quantity must be a valid number")
+
+        if 'unit_price' in data:
+            try:
+                unit_price = float(data['unit_price'])
+                if unit_price < 0:
+                    raise ValidationError("Unit price cannot be negative")
+            except ValueError:
+                raise ValidationError("Unit price must be a valid number")

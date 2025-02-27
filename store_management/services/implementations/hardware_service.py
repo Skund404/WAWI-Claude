@@ -7,14 +7,14 @@ Provides comprehensive functionality for managing hardware inventory.
 
 from typing import Any, List, Dict, Optional
 
-from services.base_service import Service, ValidationError, NotFoundError
+from services.base_service import BaseService, ValidationError, NotFoundError
 from services.interfaces.hardware_service import IHardwareService
-from database.models.hardware import Hardware, HardwareType, HardwareMaterial
+from database.models.hardware import Hardware, HardwareType, HardwareMaterial, HardwareFinish
 from database.repositories.hardware_repository import HardwareRepository
 from database.sqlalchemy.session import get_db_session
 
 
-class HardwareService(Service[Hardware], IHardwareService):
+class HardwareService(BaseService[Hardware], IHardwareService):
     """
     Service for managing hardware inventory in the leatherworking store.
 
@@ -128,22 +128,55 @@ class HardwareService(Service[Hardware], IHardwareService):
 
             # Validate enum values
             try:
-                hardware_type = HardwareType(data.get('hardware_type'))
-                material = HardwareMaterial(data.get('material'))
+                # Handle hardware_type - either as enum or string
+                if isinstance(data.get('hardware_type'), str):
+                    try:
+                        hardware_type = HardwareType[data.get('hardware_type')]
+                    except KeyError:
+                        hardware_type = HardwareType(data.get('hardware_type'))
+                else:
+                    hardware_type = data.get('hardware_type')
+
+                # Handle material - either as enum or string
+                if isinstance(data.get('material'), str):
+                    try:
+                        material = HardwareMaterial[data.get('material')]
+                    except KeyError:
+                        material = HardwareMaterial(data.get('material'))
+                else:
+                    material = data.get('material')
+
+                # Handle finish if provided
+                finish = None
+                if 'finish' in data and data['finish']:
+                    if isinstance(data['finish'], str):
+                        try:
+                            finish = HardwareFinish[data['finish']]
+                        except KeyError:
+                            finish = HardwareFinish(data['finish'])
+                    else:
+                        finish = data['finish']
             except ValueError as e:
-                raise ValidationError(f"Invalid hardware type or material: {e}")
+                raise ValidationError(f"Invalid hardware type, material, or finish: {e}")
 
             # Prepare hardware data
             hardware_data = {
                 'name': data['name'],
                 'hardware_type': hardware_type,
                 'material': material,
-                'quantity': float(data['quantity']),
-                'unit_price': float(data['unit_price']),
+                'quantity': int(float(data['quantity'])),
+                'price': float(data['unit_price']),
                 'description': data.get('description', ''),
-                'manufacturer': data.get('manufacturer', ''),
                 'supplier_id': data.get('supplier_id')
             }
+
+            # Add finish if it was provided
+            if finish is not None:
+                hardware_data['finish'] = finish
+
+            # Add size if provided
+            if 'size' in data:
+                hardware_data['size'] = float(data['size'])
 
             # Create hardware item
             hardware_item = self._repository.create(hardware_data)
@@ -183,25 +216,56 @@ class HardwareService(Service[Hardware], IHardwareService):
             # Validate and add enum values if present
             if 'hardware_type' in data:
                 try:
-                    update_data['hardware_type'] = HardwareType(data['hardware_type'])
+                    if isinstance(data['hardware_type'], str):
+                        try:
+                            update_data['hardware_type'] = HardwareType[data['hardware_type']]
+                        except KeyError:
+                            update_data['hardware_type'] = HardwareType(data['hardware_type'])
+                    else:
+                        update_data['hardware_type'] = data['hardware_type']
                 except ValueError:
                     raise ValidationError(f"Invalid hardware type: {data['hardware_type']}")
 
             if 'material' in data:
                 try:
-                    update_data['material'] = HardwareMaterial(data['material'])
+                    if isinstance(data['material'], str):
+                        try:
+                            update_data['material'] = HardwareMaterial[data['material']]
+                        except KeyError:
+                            update_data['material'] = HardwareMaterial(data['material'])
+                    else:
+                        update_data['material'] = data['material']
                 except ValueError:
                     raise ValidationError(f"Invalid material: {data['material']}")
 
+            if 'finish' in data:
+                try:
+                    if data['finish'] is None:
+                        update_data['finish'] = None
+                    elif isinstance(data['finish'], str):
+                        try:
+                            update_data['finish'] = HardwareFinish[data['finish']]
+                        except KeyError:
+                            update_data['finish'] = HardwareFinish(data['finish'])
+                    else:
+                        update_data['finish'] = data['finish']
+                except ValueError:
+                    raise ValidationError(f"Invalid finish: {data['finish']}")
+
             # Add other updateable fields
             updateable_fields = [
-                'name', 'quantity', 'unit_price',
-                'description', 'manufacturer', 'supplier_id'
+                'name', 'quantity', 'price', 'size',
+                'description', 'supplier_id', 'minimum_stock_level',
+                'corrosion_resistance', 'load_capacity'
             ]
 
             for field in updateable_fields:
                 if field in data:
                     update_data[field] = data[field]
+
+            # Handle unit_price conversion to price field
+            if 'unit_price' in data:
+                update_data['price'] = float(data['unit_price'])
 
             # Update hardware item
             hardware_item = self._repository.update(id_value, update_data)
@@ -294,6 +358,34 @@ class HardwareService(Service[Hardware], IHardwareService):
             return hardware_items
         except Exception as e:
             self.logger.error(f"Error searching hardware items: {e}")
+            return []
+
+    def get_by_finish(self, finish: HardwareFinish) -> List[Hardware]:
+        """
+        Get hardware items by finish type.
+
+        Args:
+            finish (HardwareFinish): The finish type to filter by
+
+        Returns:
+            List[Hardware]: List of hardware items with the specified finish
+        """
+        try:
+            # Use repository to filter by finish
+            if hasattr(self._repository, 'filter_by_finish'):
+                hardware_items = self._repository.filter_by_finish(finish)
+            else:
+                # Fall back to generic filtering if specific method not available
+                hardware_items = self._repository.get_all(filters={'finish': finish})
+
+            self.log_operation("Retrieved hardware items by finish", {
+                "finish": finish.value,
+                "result_count": len(hardware_items)
+            })
+
+            return hardware_items
+        except Exception as e:
+            self.logger.error(f"Error retrieving hardware items by finish: {e}")
             return []
 
     def validate_data(

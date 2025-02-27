@@ -1,88 +1,43 @@
+# services/interfaces/compatibility.py
 """
-Compatibility module for service interfaces.
+Compatibility module for service interfaces and type aliases.
 
-This module provides compatibility wrappers and aliases for services
-that may be using old import patterns. It helps transition from older
-naming conventions to the new interface-based approach.
+This module provides type aliases and compatibility imports for services
+to support consistent usage across the application.
 """
 
-import logging
-from typing import Any, Dict, Optional, Type
+from .base_service import IBaseService
+from .hardware_service import IHardwareService, HardwareType, HardwareMaterial
+from .inventory_service import IInventoryService
+from .material_service import IMaterialService, MaterialType
+from .order_service import IOrderService, OrderStatus, PaymentStatus
+from .pattern_service import IPatternService, PatternStatus
+from .project_service import IProjectService, ProjectType, SkillLevel
+from .shopping_list_service import IShoppingListService, ShoppingListStatus
+from .storage_service import IStorageService, StorageLocationType, StorageCapacityStatus
+from .supplier_service import ISupplierService, SupplierStatus
 
-# Import all interfaces
-try:
-    from .material_service import IMaterialService as MaterialService
-    from .order_service import IOrderService as OrderService
-    from .project_service import IProjectService as ProjectService
-    from .inventory_service import IInventoryService as InventoryService
-    from .storage_service import IStorageService as StorageService
-    from .pattern_service import IPatternService as PatternService
-    from .hardware_service import IHardwareService as HardwareService
-    from .supplier_service import ISupplierService as SupplierService
-    from .shopping_list_service import IShoppingListService as ShoppingListService
+# Type aliases for convenient imports
+HardwareService = IHardwareService
+InventoryService = IInventoryService
+MaterialService = IMaterialService
+OrderService = IOrderService
+PatternService = IPatternService
+ProjectService = IProjectService
+ShoppingListService = IShoppingListService
+StorageService = IStorageService
+SupplierService = ISupplierService
 
-    # Also import the actual interfaces
-    from .material_service import IMaterialService
-    from .order_service import IOrderService
-    from .project_service import IProjectService
-    from .inventory_service import IInventoryService
-    from .storage_service import IStorageService
-    from .pattern_service import IPatternService
-    from .hardware_service import IHardwareService
-    from .supplier_service import ISupplierService
-    from .shopping_list_service import IShoppingListService
-
-    # Import enum types
-    from .material_service import MaterialType
-    from .order_service import OrderStatus, PaymentStatus
-    from .project_service import ProjectType, SkillLevel
-    from .storage_service import StorageLocationType, StorageCapacityStatus
-    from .pattern_service import PatternStatus
-    from .hardware_service import HardwareType, HardwareMaterial
-    from .supplier_service import SupplierStatus
-    from .shopping_list_service import ShoppingListStatus
-
-    # Log successful import
-    logging.info("Successfully loaded service interface compatibility aliases")
-
-except ImportError as e:
-    logging.error(f"Failed to load service interface compatibility aliases: {e}")
-
-# Export all names to be accessible when importing from this module
+# Export commonly used enums and types
 __all__ = [
-    # Interface aliases (old naming convention)
-    'MaterialService',
-    'OrderService',
-    'ProjectService',
+    'IBaseService',
+    'HardwareService', 'HardwareType', 'HardwareMaterial',
     'InventoryService',
-    'StorageService',
-    'PatternService',
-    'HardwareService',
-    'SupplierService',
-    'ShoppingListService',
-
-    # Actual interfaces (new naming convention)
-    'IMaterialService',
-    'IOrderService',
-    'IProjectService',
-    'IInventoryService',
-    'IStorageService',
-    'IPatternService',
-    'IHardwareService',
-    'ISupplierService',
-    'IShoppingListService',
-
-    # Enum types
-    'MaterialType',
-    'OrderStatus',
-    'PaymentStatus',
-    'ProjectType',
-    'SkillLevel',
-    'StorageLocationType',
-    'StorageCapacityStatus',
-    'PatternStatus',
-    'HardwareType',
-    'HardwareMaterial',
-    'SupplierStatus',
-    'ShoppingListStatus'
+    'MaterialService', 'MaterialType',
+    'OrderService', 'OrderStatus', 'PaymentStatus',
+    'PatternService', 'PatternStatus',
+    'ProjectService', 'ProjectType', 'SkillLevel',
+    'ShoppingListService', 'ShoppingListStatus',
+    'StorageService', 'StorageLocationType', 'StorageCapacityStatus',
+    'SupplierService', 'SupplierStatus'
 ]

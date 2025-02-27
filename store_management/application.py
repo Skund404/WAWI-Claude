@@ -1,12 +1,10 @@
-# relative path: store_management/application.py
+# Path: application.py
 """
-Application class for the Leatherworking Store Management application.
-
-Provides centralized dependency injection and service management.
+Main application class for the leatherworking store management system.
 """
 
 import logging
-from typing import Type, Any, Optional
+from typing import Any, Optional, Type
 
 from di.container import DependencyContainer
 from di.setup import setup_dependency_injection
@@ -14,13 +12,10 @@ from di.setup import setup_dependency_injection
 
 class Application:
     """
-    Central application class managing dependency injection and services.
+    Main application class that coordinates the application components.
 
-    Provides a unified interface for retrieving services across the application
-    using the dependency injection container.
-
-    Attributes:
-        container (DependencyContainer): Dependency injection container
+    This class is responsible for initializing the dependency injection container,
+    setting up services, and providing access to those services.
     """
 
     def __init__(self):
@@ -29,51 +24,28 @@ class Application:
 
         Sets up the dependency injection container and configures services.
         """
-        logging.info("Initializing Application...")
+        # Configure logging
+        self.logger = logging.getLogger(__name__)
+        self.logger.info("Initializing application")
 
-        try:
-            # Setup dependency injection and get the container
-            self.container = DependencyContainer()
+        # Set up dependency injection
+        self.container = setup_dependency_injection()
+        self.logger.info("Dependency injection setup complete")
 
-            # Perform initial dependency injection setup
-            setup_dependency_injection()
-
-            logging.info("Application initialized successfully")
-        except Exception as e:
-            logging.error(f"Failed to initialize application: {e}")
-            raise
-
-    def get_service(self, service_type: Type[Any]) -> Any:
+    def get_service(self, service_type: Type) -> Any:
         """
-        Retrieve a service from the dependency injection container.
+        Get a service instance from the DI container.
 
         Args:
-            service_type (Type): The type/interface of the service to retrieve
+            service_type: The type of service to retrieve
 
         Returns:
-            The requested service instance
+            An instance of the requested service
 
         Raises:
-            ValueError: If the service cannot be retrieved
+            KeyError: If the service is not registered
         """
-        try:
-            # Directly use the container's get method
-            return self.container.get(service_type)
-        except Exception as e:
-            logging.error(f"Error getting service {service_type}: {e}")
-            raise ValueError(f"Service {service_type} not available") from e
-
-    def get(self, service_type: Type[Any]) -> Any:
-        """
-        Alias for get_service to maintain compatibility.
-
-        Args:
-            service_type (Type): The type/interface of the service to retrieve
-
-        Returns:
-            The requested service instance
-        """
-        return self.get_service(service_type)
+        return self.container.get(service_type)
 
     def run(self):
         """
@@ -82,7 +54,7 @@ class Application:
         This method is a placeholder for any additional startup logic
         and is called externally by run_fixed_app.py.
         """
-        logging.info("Application is running...")
+        self.logger.info("Application running")
 
     def quit(self):
         """
@@ -91,5 +63,4 @@ class Application:
         This method can be used to handle any necessary cleanup,
         such as closing database connections, saving state, etc.
         """
-        logging.info("Performing application cleanup...")
-        # Add any necessary cleanup logic here
+        self.logger.info("Application shutting down")

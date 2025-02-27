@@ -6,16 +6,11 @@ Defines classes for hardware items used in leatherworking.
 """
 
 import enum
-from datetime import datetime
-from typing import Dict, Any, Optional
-
-from sqlalchemy import (
-    Column, String, Integer, Float, ForeignKey, Enum, Boolean,
-    DateTime, Text
-)
+from sqlalchemy import Column, Integer, String, Float, Enum, ForeignKey, Boolean, DateTime
 from sqlalchemy.orm import relationship
-
 from database.models.base import Base, BaseModel
+from datetime import datetime
+from typing import Optional, Dict, Any
 
 
 class HardwareType(enum.Enum):
@@ -46,37 +41,45 @@ class HardwareMaterial(enum.Enum):
     OTHER = "other"
 
 
+class HardwareFinish(enum.Enum):
+    """Finish options for hardware items."""
+    POLISHED = "polished"
+    BRUSHED = "brushed"
+    ANTIQUE = "antique"
+    MATTE = "matte"
+    CHROME = "chrome"
+    NICKEL_PLATED = "nickel_plated"
+    BRASS_PLATED = "brass_plated"
+    GOLD_PLATED = "gold_plated"
+    BLACK_OXIDE = "black_oxide"
+    PAINTED = "painted"
+    POWDER_COATED = "powder_coated"
+    COPPER_PLATED = "copper_plated"
+    SATIN = "satin"
+    NATURAL = "natural"
+    OTHER = "other"
+
+
 class Hardware(Base, BaseModel):
-    """
-    Model for hardware items used in leatherworking.
+    """Hardware item model for leatherworking projects."""
+    __tablename__ = "hardware"
 
-    This model represents physical hardware components like buckles,
-    rivets, snaps, etc. that are used in leatherworking projects.
-    """
-    __tablename__ = 'hardware'
-
-    name = Column(String(255), nullable=False)
+    id = Column(Integer, primary_key=True)
+    name = Column(String(100), nullable=False)
+    description = Column(String(255), nullable=True)
     hardware_type = Column(Enum(HardwareType), nullable=False)
-    material = Column(Enum(HardwareMaterial), nullable=True)
-
-    # Inventory tracking
-    current_quantity = Column(Integer, default=0, nullable=False)
-    minimum_quantity = Column(Integer, default=1, nullable=False)
-    unit_cost = Column(Float, default=0.0, nullable=False)
-
-    # Physical properties
-    dimensions = Column(String(100), nullable=True)  # e.g., "25mm x 15mm"
-    weight = Column(Float, nullable=True)  # in grams
-    color = Column(String(50), nullable=True)
-    finish = Column(String(50), nullable=True)
-
-    # Supplier information
-    supplier_id = Column(Integer, ForeignKey('supplier.id'), nullable=True)
-    supplier = relationship("Supplier", backref="hardware_items")
-
-    # Product information
-    sku = Column(String(50), nullable=True)
-    notes = Column(Text, nullable=True)
+    material = Column(Enum(HardwareMaterial), nullable=False)
+    finish = Column(Enum(HardwareFinish), nullable=True)
+    size = Column(Float, nullable=True)
+    quantity = Column(Integer, default=0)
+    price = Column(Float, default=0.0)
+    minimum_stock_level = Column(Integer, default=5)
+    corrosion_resistance = Column(Integer, default=5)  # Scale of 1-10
+    load_capacity = Column(Float, nullable=True)  # In kilograms, for structural hardware
+    supplier_id = Column(Integer, ForeignKey("supplier.id"), nullable=True)
+    supplier = relationship("Supplier", back_populates="hardware_items")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     def __repr__(self) -> str:
         """
@@ -94,7 +97,7 @@ class Hardware(Base, BaseModel):
         Returns:
             bool: True if the quantity is below the minimum stock level
         """
-        return self.current_quantity < self.minimum_quantity
+        return self.quantity < self.minimum_stock_level
 
     def update_stock(self, quantity_change: int) -> None:
         """
@@ -103,22 +106,96 @@ class Hardware(Base, BaseModel):
         Args:
             quantity_change: Amount to change the quantity by (positive or negative)
         """
-        new_quantity = self.current_quantity + quantity_change
+        new_quantity = self.quantity + quantity_change
         if new_quantity < 0:
             raise ValueError("Stock cannot be negative")
 
-        self.current_quantity = new_quantity
+        self.quantity = new_quantity
 
-    def to_dict(self) -> Dict[str, Any]:
+    def calculate_hardware_performance(self) -> float:
         """
-        Convert the hardware to a dictionary.
+        Calculate a performance score for the hardware based on various factors.
+
+        This is a composite score considering material quality, corrosion resistance,
+        and load capacity if applicable.
 
         Returns:
-            Dict[str, Any]: Dictionary representation of the hardware
+            float: Performance score from 0-100
         """
-        result = super().to_dict()
-        result['hardware_type'] = self.hardware_type.name
-        if self.material:
-            result['material'] = self.material.name
-        result['supplier'] = self.supplier.name if self.supplier else None
-        return result
+        # Base score from corrosion resistance (0-50 points)
+        base_score = (self.corrosion_resistance / 10) * 50
+
+        # Material quality factor (0-30 points)
+        material_scores = {
+            HardwareMaterial.STAINLESS_STEEL: 30,
+            HardwareMaterial.BRASS: 25,
+            HardwareMaterial.STEEL: 20,
+            HardwareMaterial.BRONZE: 20,
+            HardwareMaterial.NICKEL: 18,
+            HardwareMaterial.ALUMINUM: 15,
+            HardwareMaterial.SILVER: 15,
+            HardwareMaterial.GOLD: 10,  # Good for appearance, not durability
+            HardwareMaterial.PLASTIC: 5,
+            HardwareMaterial.OTHER: 10
+        }
+        material_score = material_scores.get(self.material, 10)
+
+        # Finish quality factor (0-20 points)
+        finish_scores = {
+            HardwareFinish.POWDER_COATED: 20,
+            HardwareFinish.CHROME: 18,
+            HardwareFinish.NICKEL_PLATED: 16,
+            HardwareFinish.BLACK_OXIDE: 15,
+            HardwareFinish.BRASS_PLATED: 14,
+            HardwareFinish.COPPER_PLATED: 14,
+            HardwareFinish.GOLD_PLATED: 12,
+            HardwareFinish.POLISHED: 10,
+            HardwareFinish.BRUSHED: 10,
+            HardwareFinish.SATIN: 8,
+            HardwareFinish.MATTE: 7,
+            HardwareFinish.ANTIQUE: 6,
+            HardwareFinish.NATURAL: 5,
+            HardwareFinish.PAINTED: 12,
+            HardwareFinish.OTHER: 10
+        }
+        finish_score = finish_scores.get(self.finish, 5) if self.finish else 5
+
+        # Calculate total score
+        total_score = base_score + material_score + finish_score
+
+        # Add load capacity bonus for structural hardware (up to 10 bonus points)
+        if self.load_capacity and self.hardware_type in (HardwareType.BUCKLE, HardwareType.D_RING,
+                                                         HardwareType.O_RING, HardwareType.CLASP):
+            if self.load_capacity > 50:  # More than 50kg capacity
+                total_score += 10
+            elif self.load_capacity > 25:  # 25-50kg capacity
+                total_score += 5
+            elif self.load_capacity > 10:  # 10-25kg capacity
+                total_score += 2
+
+        # Cap at 100
+        return min(total_score, 100)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert the hardware item to a dictionary.
+
+        Returns:
+            Dict[str, Any]: Dictionary representation of the hardware item
+        """
+        return {
+            "id": self.id,
+            "name": self.name,
+            "description": self.description,
+            "hardware_type": self.hardware_type.value if self.hardware_type else None,
+            "material": self.material.value if self.material else None,
+            "finish": self.finish.value if self.finish else None,
+            "size": self.size,
+            "quantity": self.quantity,
+            "price": self.price,
+            "minimum_stock_level": self.minimum_stock_level,
+            "corrosion_resistance": self.corrosion_resistance,
+            "load_capacity": self.load_capacity,
+            "supplier_id": self.supplier_id,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at
+        }

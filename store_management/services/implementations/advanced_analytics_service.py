@@ -12,12 +12,11 @@ from datetime import datetime, timedelta
 
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
-from services.base_service import Service
-
+from services.base_service import BaseService, NotFoundError, ValidationError
 logger = logging.getLogger(__name__)
 
 
-class DashboardService(Service):
+class DashboardService(BaseService):
     """
     Service for managing and retrieving dashboard metrics and analytics.
     Handles data aggregation and metric calculations for the dashboard view.

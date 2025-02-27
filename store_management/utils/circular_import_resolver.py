@@ -25,6 +25,7 @@ class CircularImportResolver:
     _class_cache: Dict[str, Any] = {}
     _lazy_imports: Dict[str, Callable] = {}
     _registered_modules: Set[str] = set()
+    _import_stack: Set[str] = set()  # Track imports in process to detect circular dependencies
 
     @classmethod
     def get_module(cls, module_path: str) -> Any:
@@ -40,16 +41,31 @@ class CircularImportResolver:
         Raises:
             ImportError: If the module cannot be imported
         """
+        # Check for circular import
+        if module_path in cls._import_stack:
+            logging.debug(f"Potential circular import detected for {module_path}")
+            # Return from cache if available to break the cycle
+            if module_path in cls._module_cache:
+                return cls._module_cache[module_path]
+            raise ImportError(f"Circular import detected for {module_path}")
+
+        # Return cached module if available
         if module_path in cls._module_cache:
             return cls._module_cache[module_path]
 
         try:
+            # Add to import stack to detect circular imports
+            cls._import_stack.add(module_path)
+
             module = importlib.import_module(module_path)
             cls._module_cache[module_path] = module
             return module
         except ImportError as e:
             logging.error(f"Failed to import module {module_path}: {e}")
             raise
+        finally:
+            # Remove from import stack
+            cls._import_stack.discard(module_path)
 
     @classmethod
     def get_class(cls, module_path: str, class_name: str) -> Type:
@@ -118,6 +134,11 @@ class CircularImportResolver:
                     logging.error(f"Lazy import failed: {e}")
                     raise
 
+            # Preserve metadata
+            wrapper.__name__ = func.__name__
+            wrapper.__doc__ = func.__doc__
+            wrapper.__module__ = func.__module__
+
             return wrapper
 
         return decorator
@@ -167,8 +188,18 @@ class CircularImportResolver:
         if import_path not in cls._lazy_imports:
             raise KeyError(f"No lazy import registered for {import_path}")
 
-        loader = cls._lazy_imports[import_path]
-        return loader()
+        # Check if we're in a circular import situation
+        if import_path in cls._import_stack:
+            logging.debug(f"Circular resolution detected for {import_path}, returning partial result")
+            return None
+
+        try:
+            cls._import_stack.add(import_path)
+            loader = cls._lazy_imports[import_path]
+            result = loader()
+            return result
+        finally:
+            cls._import_stack.discard(import_path)
 
     @classmethod
     def is_module_registered(cls, module_path: str) -> bool:
@@ -190,6 +221,7 @@ class CircularImportResolver:
         cls._class_cache.clear()
         cls._lazy_imports.clear()
         cls._registered_modules.clear()
+        cls._import_stack.clear()
 
 
 # Function aliases for convenience

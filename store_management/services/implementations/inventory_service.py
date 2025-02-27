@@ -1,29 +1,169 @@
 # services/implementations/inventory_service.py
+"""
+Implementation of Inventory Service with core CRUD operations.
+"""
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
-from utils.circular_import_resolver import CircularImportResolver
+from database.models.inventory import Inventory
+from services.base_service import BaseService, NotFoundError, ValidationError
 from services.interfaces.inventory_service import IInventoryService
 from services.interfaces.material_service import MaterialType
 
+class InventoryService(BaseService[Inventory], IInventoryService):
+    """
+    Service implementation for managing inventory in the leatherworking application.
 
-class InventoryService(IInventoryService):
-    """Implementation of the Inventory Service for managing leatherworking inventory."""
+    Provides methods for creating, retrieving, updating, and deleting inventory items
+    with validation and error handling.
+    """
 
     def __init__(self):
-        """Initialize the inventory service."""
-        self.logger = logging.getLogger(__name__)
-        self.logger.info("InventoryService initialized")
+        """
+        Initialize the Inventory Service with data structures for tracking.
+        """
+        super().__init__()
 
-        # In-memory storage for demonstration purposes
-        self._inventory_items = {}
-        self._inventory_transactions = []
-        self._reserved_materials = {}
+        # Internal data structures for inventory tracking
+        self._inventory_items: Dict[str, Dict[str, Any]] = {}
+        self._leathers: Dict[str, Dict[str, Any]] = {}
+        self._parts: Dict[str, Dict[str, Any]] = {}
+        self._reserved_materials: Dict[str, List[Dict[str, Any]]] = {}
+        self._inventory_transactions: List[Dict[str, Any]] = []
 
-        # Specific collections for leathers and parts
-        self._leathers = {}
-        self._parts = {}
+        # Repository for data persistence (to be injected)
+        self.repository = None  # Replace with actual repository initialization
+
+    def create(self, data: Dict[str, Any]) -> Inventory:
+        """
+        Create a new inventory item.
+
+        Args:
+            data (Dict[str, Any]): Inventory item creation data
+
+        Returns:
+            Inventory: Created inventory item instance
+
+        Raises:
+            ValidationError: If inventory data is invalid
+        """
+        try:
+            # Validate inventory data
+            self._validate_inventory_data(data)
+
+            # Create inventory item
+            # Replace with actual repository creation method
+            inventory_item = Inventory(**data)
+
+            self.logger.info(f"Created inventory item: {inventory_item}")
+            return inventory_item
+        except Exception as e:
+            self.logger.error(f"Error creating inventory item: {e}")
+            raise ValidationError("Failed to create inventory item", {"data": data}) from e
+
+    def create(self, data: Dict[str, Any]) -> Inventory:
+        """
+        Create a new inventory item.
+
+        Args:
+            data (Dict[str, Any]): Inventory item creation data
+
+        Returns:
+            Inventory: Created inventory item instance
+
+        Raises:
+            ValidationError: If inventory data is invalid
+        """
+        try:
+            # Validate inventory data
+            self._validate_inventory_data(data)
+
+            # Create inventory item
+            # In a real implementation, this would use the repository
+            inventory_item = self.add_inventory_item(
+                item_type=data.get('item_type', MaterialType.LEATHER),
+                name=data['name'],
+                quantity=data['quantity'],
+                unit_price=data['unit_price'],
+                description=data.get('description'),
+                supplier_id=data.get('supplier_id'),
+                location_id=data.get('location_id'),
+                metadata=data.get('metadata')
+            )
+
+            self.logger.info(f"Created inventory item: {inventory_item}")
+            return inventory_item  # Note: This might need conversion to Inventory model
+        except Exception as e:
+            self.logger.error(f"Error creating inventory item: {e}")
+            raise ValidationError("Failed to create inventory item", {"data": data}) from e
+
+    def update(self, inventory_id: str, data: Dict[str, Any]) -> Inventory:
+        """
+        Update an existing inventory item.
+
+        Args:
+            inventory_id (str): Unique identifier for the inventory item
+            data (Dict[str, Any]): Updated inventory item data
+
+        Returns:
+            Inventory: Updated inventory item instance
+
+        Raises:
+            NotFoundError: If inventory item doesn't exist
+            ValidationError: If update data is invalid
+        """
+        try:
+            # Check if inventory item exists
+            existing_item = self.get_by_id(inventory_id)
+            if not existing_item:
+                raise NotFoundError(f"Inventory item with ID {inventory_id} not found")
+
+            # Validate update data
+            self._validate_inventory_data(data, is_update=True)
+
+            # Update inventory item
+            updated_item = self.update_inventory_item(inventory_id, data)
+
+            if not updated_item:
+                raise ValidationError(f"Failed to update inventory item {inventory_id}", {"data": data})
+
+            self.logger.info(f"Updated inventory item: {updated_item}")
+            return updated_item  # Note: This might need conversion to Inventory model
+        except Exception as e:
+            self.logger.error(f"Error updating inventory item: {e}")
+            raise ValidationError(f"Failed to update inventory item {inventory_id}", {"data": data}) from e
+
+    def delete(self, inventory_id: str) -> bool:
+        """
+        Delete an inventory item by its ID.
+
+        Args:
+            inventory_id (str): Unique identifier for the inventory item
+
+        Returns:
+            bool: True if deletion was successful
+
+        Raises:
+            NotFoundError: If inventory item doesn't exist
+        """
+        try:
+            # Check if inventory item exists
+            existing_item = self.get_by_id(inventory_id)
+            if not existing_item:
+                raise NotFoundError(f"Inventory item with ID {inventory_id} not found")
+
+            # Delete inventory item
+            success = self.delete_inventory_item(inventory_id)
+
+            if not success:
+                raise NotFoundError(f"Failed to delete inventory item {inventory_id}")
+
+            self.logger.info(f"Deleted inventory item with ID: {inventory_id}")
+            return True
+        except Exception as e:
+            self.logger.error(f"Error deleting inventory item: {e}")
+            raise NotFoundError(f"Failed to delete inventory item {inventory_id}") from e
 
     def add_inventory_item(self, item_type: MaterialType, name: str,
                            quantity: float, unit_price: float,
@@ -94,6 +234,29 @@ class InventoryService(IInventoryService):
 
         self.logger.info(f"Added inventory item: {name} (ID: {item_id})")
         return inventory_item
+
+    def get_by_id(self, inventory_id: str) -> Optional[Inventory]:
+        """
+        Retrieve an inventory item by its ID.
+
+        Args:
+            inventory_id (str): Unique identifier for the inventory item
+
+        Returns:
+            Optional[Inventory]: Retrieved inventory item or None if not found
+        """
+        try:
+            item = self.get_inventory_item(inventory_id)
+
+            if not item:
+                self.logger.warning(f"Inventory item not found with ID: {inventory_id}")
+                return None
+
+            return item  # Note: This might need conversion to Inventory model
+        except Exception as e:
+            self.logger.error(f"Error retrieving inventory item: {e}")
+            raise NotFoundError(f"Inventory item with ID {inventory_id} not found")
+
 
     def get_inventory_item(self, item_id: str) -> Optional[Dict[str, Any]]:
         """Get an inventory item by ID.
@@ -215,6 +378,33 @@ class InventoryService(IInventoryService):
 
         self.logger.info(f"Updated inventory item: {item_id}")
         return item
+
+    def _validate_inventory_data(self, data: Dict[str, Any], is_update: bool = False) -> None:
+        """
+        Validate inventory item data before creation or update.
+
+        Args:
+            data (Dict[str, Any]): Inventory item data to validate
+            is_update (bool, optional): Whether this is an update operation. Defaults to False.
+
+        Raises:
+            ValidationError: If data is invalid
+        """
+        # Basic validation checks
+        required_fields = ['name', 'quantity', 'unit_price']
+
+        if not is_update:
+            for field in required_fields:
+                if field not in data:
+                    raise ValidationError(f"Missing required field: {field}", {"data": data})
+
+        # Additional specific validations
+        if 'quantity' in data and data['quantity'] < 0:
+            raise ValidationError("Quantity cannot be negative", {"data": data})
+
+        # Validate material type if provided
+        if 'item_type' in data and data['item_type'] not in [t.value for t in MaterialType]:
+            raise ValidationError(f"Invalid material type: {data['item_type']}")
 
     def update_leather_area(self, leather_id: str, new_area: float) -> Optional[Dict[str, Any]]:
         """Update the area of a leather item.
