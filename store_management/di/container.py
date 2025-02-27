@@ -1,27 +1,35 @@
-# store_management/di/container.py
+# Path: di/container.py
 """
-Dependency Injection Container Implementation.
+Dependency injection container for the leatherworking store management application.
 
-Provides a flexible and extensible dependency injection mechanism
-for the Leatherworking Store Management application.
+This module provides a container for managing dependencies between various services,
+allowing for loose coupling and better testability.
 """
 
-import logging
 import inspect
+import logging
 from typing import Any, Callable, Dict, Optional, Type, TypeVar
 
+# Type variable for generic service types
 T = TypeVar('T')
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 
 class DependencyContainer:
     """
-    Centralized dependency injection container.
+    Container for dependency injection.
 
-    Manages service registrations, dependencies, and instantiations.
+    This class manages service dependencies and provides access to registered services.
+    It supports both instance and factory registration.
     """
+
     _instance = None
-    _services: Dict[Type, Callable[[], Any]] = {}
-    _instances: Dict[Type, Any] = {}
 
     def __new__(cls):
         """
@@ -31,144 +39,123 @@ class DependencyContainer:
             DependencyContainer: Singleton instance of the container
         """
         if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance._services = {}
-            cls._instance._instances = {}
+            cls._instance = super(DependencyContainer, cls).__new__(cls)
+            cls._instance._services: Dict[Type, Any] = {}
+            cls._instance._factories: Dict[Type, Callable] = {}
         return cls._instance
 
-    def register(
-            self,
-            service_type: Type[T],
-            service_factory: Optional[Callable[[], T]] = None
-    ) -> None:
+    def register(self, service_type: Type[T], service_impl: Any) -> None:
         """
-        Register a service implementation.
+        Register a service implementation for a given service type.
 
         Args:
-            service_type (Type[T]): Service interface or base class
-            service_factory (Optional[Callable[[], T]], optional):
-                Factory function to create service instance.
-                If None, uses default constructor.
+            service_type: The service interface/type
+            service_impl: Either a service instance or a factory function that creates one
+
+        Raises:
+            TypeError: If service_type is not a type
         """
         try:
-            # If no factory provided, use default constructor
-            if service_factory is None:
-                service_factory = lambda: service_type()
+            if not isinstance(service_type, type):
+                raise TypeError(f"Service type must be a class, got {type(service_type).__name__}")
 
-            # Register the service factory
-            self._services[service_type] = service_factory
-            logging.info(f"Registered service: {service_type.__name__}")
+            if callable(service_impl) and not isinstance(service_impl, type):
+                # It's a factory function
+                self._factories[service_type] = service_impl
+                logger.info(f"Registered factory for {service_type.__name__}")
+            elif isinstance(service_impl, type):
+                # It's a class, create a factory function
+                self._factories[service_type] = lambda: service_impl()
+                logger.info(f"Registered class {service_impl.__name__} for {service_type.__name__}")
+            else:
+                # It's an instance
+                self._services[service_type] = service_impl
+                logger.info(f"Registered instance of {type(service_impl).__name__} for {service_type.__name__}")
         except Exception as e:
-            logging.error(f"Failed to register service {service_type.__name__}: {e}")
+            logger.error(f"Failed to register service {service_type.__name__}: {e}")
             raise
 
     def get(self, service_type: Type[T]) -> T:
         """
-        Retrieve a service instance.
+        Get a service instance of the specified type.
 
         Args:
-            service_type (Type[T]): Service interface or base class to retrieve
+            service_type: The service interface/type to retrieve
 
         Returns:
-            T: Service instance
+            An instance of the requested service type
 
         Raises:
-            ValueError: If no implementation is found for the service type
+            KeyError: If no implementation is registered for the service type
         """
         try:
-            # Check if an instance already exists
-            if service_type in self._instances:
-                return self._instances[service_type]
+            # Check if we have an instance
+            if service_type in self._services:
+                return self._services[service_type]
 
-            # Find the factory for the service type
-            factory = self._find_service_factory(service_type)
+            # Check if we have a factory
+            if service_type in self._factories:
+                try:
+                    # Create an instance using the factory
+                    instance = self._factories[service_type]()
+                    # Cache the instance
+                    self._services[service_type] = instance
+                    return instance
+                except Exception as e:
+                    logger.error(f"Failed to create service {service_type.__name__}: {e}")
+                    return None
 
-            # Create and cache the instance
-            instance = factory()
-            self._instances[service_type] = instance
-
-            return instance
+            raise KeyError(f"No implementation found for {service_type.__name__}")
         except Exception as e:
-            logging.error(f"Failed to retrieve service {service_type.__name__}: {e}")
-            raise ValueError(f"No implementation found for {service_type.__name__}")
+            logger.error(f"Error retrieving service {service_type.__name__}: {e}")
+            raise
 
-    def _find_service_factory(self, service_type: Type[T]) -> Callable[[], T]:
+    def clear(self) -> None:
+        """Clear all registered services and factories."""
+        self._services.clear()
+        self._factories.clear()
+        logger.info("Cleared all registered services and factories")
+
+    @property
+    def registered_services(self) -> Dict[Type, Any]:
         """
-        Find the appropriate service factory for a given type.
-
-        Args:
-            service_type (Type[T]): Service type to find factory for
+        Get all registered service types and their implementations.
 
         Returns:
-            Callable[[], T]: Factory function for creating service instance
-
-        Raises:
-            ValueError: If no factory is found
+            Dictionary mapping service types to instances or factories
         """
-        # Direct match
-        if service_type in self._services:
-            return self._services[service_type]
-
-        # Check for subclass or interface implementations
-        matching_factories = [
-            factory for service, factory in self._services.items()
-            if issubclass(service, service_type)
-        ]
-
-        if matching_factories:
-            return matching_factories[0]
-
-        raise ValueError(f"No implementation found for {service_type.__name__}")
-
-    def reset(self) -> None:
-        """
-        Reset the dependency container, clearing all registered services and instances.
-        """
-        try:
-            self._services.clear()
-            self._instances.clear()
-            logging.info("Dependency container reset")
-        except Exception as e:
-            logging.error(f"Error resetting dependency container: {e}")
-
-    def inject(self, service_type: Type[T]) -> T:
-        """
-        Decorator for dependency injection.
-
-        Args:
-            service_type (Type[T]): Service type to inject
-
-        Returns:
-            T: Injected service instance
-        """
-
-        def decorator(func):
-            def wrapper(*args, **kwargs):
-                # Inject the service if not already provided
-                if not any(isinstance(arg, service_type) for arg in args):
-                    service = self.get(service_type)
-                    # If it's a method, inject as first argument after self
-                    if inspect.ismethod(func) or (
-                            inspect.isfunction(func) and
-                            len(inspect.signature(func).parameters) > 0
-                    ):
-                        args = list(args)
-                        args.insert(1, service)
-                    else:
-                        args = (service,) + args
-
-                return func(*args, **kwargs)
-
-            return wrapper
-
-        return decorator
+        services = {}
+        services.update(self._services)
+        services.update({k: f"Factory<{k.__name__}>" for k in self._factories})
+        return services
 
 
-def get_dependency_container() -> DependencyContainer:
+def inject(service_type: Type[T]) -> Callable:
     """
-    Get the singleton dependency injection container.
+    Decorator for injecting dependencies.
+
+    Args:
+        service_type: The service type to inject
 
     Returns:
-        DependencyContainer: Singleton container instance
+        Decorator function
+
+    Example:
+        @inject(IMaterialService)
+        def get_materials(material_service):
+            return material_service.get_materials()
     """
-    return DependencyContainer()
+    def decorator(func: Callable) -> Callable:
+        def wrapper(*args, **kwargs):
+            # Get container
+            container = DependencyContainer()
+
+            # Get the service
+            service = container.get(service_type)
+
+            # Call original function with service as first argument
+            return func(service, *args, **kwargs)
+
+        return wrapper
+
+    return decorator

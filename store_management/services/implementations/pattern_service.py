@@ -12,9 +12,10 @@ from datetime import datetime
 from sqlalchemy import or_
 
 from di.core import inject
-from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
-from models.pattern import Pattern
+from services.interfaces import IMaterialService, IProjectService, IInventoryService, IOrderService
+from database.models.pattern import Pattern
 from exceptions import ApplicationError, ValidationError
+
 
 logger = logging.getLogger(__name__)
 

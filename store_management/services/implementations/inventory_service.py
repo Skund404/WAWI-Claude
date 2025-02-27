@@ -5,12 +5,16 @@ Inventory Service Implementation for Leatherworking Store Management.
 Provides concrete implementation of inventory-related operations.
 """
 
+import logging
 from typing import Any, Dict, List, Optional
+from datetime import datetime
 
 from services.base_service import Service
 from services.interfaces.inventory_service import IInventoryService
 from services.interfaces.material_service import MaterialType
-
+from database.repositories.inventory_repository import InventoryRepository
+from database.sqlalchemy.core.manager_factory import get_manager
+from database.models.inventory import Inventory
 
 class InventoryService(Service[Dict[str, Any]], IInventoryService):
     """
@@ -18,6 +22,16 @@ class InventoryService(Service[Dict[str, Any]], IInventoryService):
 
     Manages inventory-related operations for leatherworking materials and products.
     """
+
+    def __init__(self, inventory_repository: Optional[InventoryRepository] = None):
+        """
+        Initialize the Inventory Service.
+
+        Args:
+            inventory_repository (Optional[InventoryRepository]): Repository for inventory operations
+        """
+        self._repository = inventory_repository or get_manager(Inventory)
+        self._logger = logging.getLogger(__name__)
 
     def get_by_id(
             self,
@@ -32,10 +46,21 @@ class InventoryService(Service[Dict[str, Any]], IInventoryService):
         Returns:
             Optional[Dict[str, Any]]: Retrieved inventory item or None if not found
         """
-        self.log_operation("Retrieving inventory item", {"id": id_value})
+        try:
+            self.log_operation("Retrieving inventory item", {"id": id_value})
 
-        # TODO: Implement actual database retrieval
-        return None
+            # Use repository to fetch the item
+            item = self._repository.get_by_id(id_value)
+
+            if item:
+                self._logger.info(f"Successfully retrieved inventory item {id_value}")
+                return self._convert_to_dict(item)
+
+            self._logger.warning(f"No inventory item found with ID {id_value}")
+            return None
+        except Exception as e:
+            self._logger.error(f"Error retrieving inventory item {id_value}: {e}")
+            raise
 
     def get_all(
             self,
@@ -54,14 +79,28 @@ class InventoryService(Service[Dict[str, Any]], IInventoryService):
         Returns:
             List[Dict[str, Any]]: List of retrieved inventory items
         """
-        self.log_operation("Retrieving inventory items", {
-            "filters": filters,
-            "limit": limit,
-            "offset": offset
-        })
+        try:
+            self.log_operation("Retrieving inventory items", {
+                "filters": filters,
+                "limit": limit,
+                "offset": offset
+            })
 
-        # TODO: Implement actual database retrieval
-        return []
+            # Use repository to fetch items
+            items = self._repository.search(
+                filter_criteria=filters or {},
+                limit=limit,
+                offset=offset
+            )
+
+            # Convert items to dictionaries
+            inventory_items = [self._convert_to_dict(item) for item in items]
+
+            self._logger.info(f"Retrieved {len(inventory_items)} inventory items")
+            return inventory_items
+        except Exception as e:
+            self._logger.error(f"Error retrieving inventory items: {e}")
+            raise
 
     def create(
             self,
@@ -76,17 +115,30 @@ class InventoryService(Service[Dict[str, Any]], IInventoryService):
         Returns:
             Dict[str, Any]: Created inventory item
         """
-        # Validate required fields
-        self.validate_data(data, [
-            'material_type',
-            'quantity',
-            'unit_of_measurement'
-        ])
+        try:
+            # Validate required fields
+            self.validate_data(data, [
+                'material_type',
+                'quantity',
+                'unit_of_measurement'
+            ])
 
-        self.log_operation("Creating inventory item", {"data": data})
+            # Add timestamp
+            data['created_at'] = datetime.now()
 
-        # TODO: Implement actual database creation
-        return data
+            self.log_operation("Creating inventory item", {"data": data})
+
+            # Use repository to create item
+            created_item = self._repository.create(**data)
+
+            # Convert and return
+            inventory_item = self._convert_to_dict(created_item)
+
+            self._logger.info(f"Created inventory item: {inventory_item}")
+            return inventory_item
+        except Exception as e:
+            self._logger.error(f"Error creating inventory item: {e}")
+            raise
 
     def update(
             self,
@@ -103,13 +155,26 @@ class InventoryService(Service[Dict[str, Any]], IInventoryService):
         Returns:
             Dict[str, Any]: Updated inventory item
         """
-        self.log_operation("Updating inventory item", {
-            "id": id_value,
-            "data": data
-        })
+        try:
+            # Add update timestamp
+            data['updated_at'] = datetime.now()
 
-        # TODO: Implement actual database update
-        return data
+            self.log_operation("Updating inventory item", {
+                "id": id_value,
+                "data": data
+            })
+
+            # Use repository to update item
+            updated_item = self._repository.update(id_value, **data)
+
+            # Convert and return
+            inventory_item = self._convert_to_dict(updated_item)
+
+            self._logger.info(f"Updated inventory item {id_value}")
+            return inventory_item
+        except Exception as e:
+            self._logger.error(f"Error updating inventory item {id_value}: {e}")
+            raise
 
     def delete(
             self,
@@ -124,10 +189,17 @@ class InventoryService(Service[Dict[str, Any]], IInventoryService):
         Returns:
             bool: True if deletion was successful, False otherwise
         """
-        self.log_operation("Deleting inventory item", {"id": id_value})
+        try:
+            self.log_operation("Deleting inventory item", {"id": id_value})
 
-        # TODO: Implement actual database deletion
-        return False
+            # Use repository to delete item
+            self._repository.delete(id_value)
+
+            self._logger.info(f"Deleted inventory item {id_value}")
+            return True
+        except Exception as e:
+            self._logger.error(f"Error deleting inventory item {id_value}: {e}")
+            return False
 
     def get_low_stock_items(
             self,
@@ -142,10 +214,22 @@ class InventoryService(Service[Dict[str, Any]], IInventoryService):
         Returns:
             List[Dict[str, Any]]: List of low stock items
         """
-        self.log_operation("Retrieving low stock items", {"threshold": threshold})
+        try:
+            self.log_operation("Retrieving low stock items", {"threshold": threshold})
 
-        # TODO: Implement actual low stock retrieval
-        return []
+            # Use repository to find low stock items
+            low_stock_items = self._repository.search(
+                filter_criteria={'quantity__lt': threshold}
+            )
+
+            # Convert items to dictionaries
+            inventory_items = [self._convert_to_dict(item) for item in low_stock_items]
+
+            self._logger.info(f"Found {len(inventory_items)} low stock items")
+            return inventory_items
+        except Exception as e:
+            self._logger.error(f"Error retrieving low stock items: {e}")
+            return []
 
     def adjust_stock(
             self,
@@ -164,14 +248,41 @@ class InventoryService(Service[Dict[str, Any]], IInventoryService):
         Returns:
             Dict[str, Any]: Updated inventory item
         """
-        self.log_operation("Adjusting stock", {
-            "item_id": item_id,
-            "quantity_change": quantity_change,
-            "reason": reason
-        })
+        try:
+            self.log_operation("Adjusting stock", {
+                "item_id": item_id,
+                "quantity_change": quantity_change,
+                "reason": reason
+            })
 
-        # TODO: Implement actual stock adjustment
-        return {}
+            # Retrieve current item
+            current_item = self._repository.get_by_id(item_id)
+
+            if not current_item:
+                raise ValueError(f"Inventory item {item_id} not found")
+
+            # Calculate new quantity
+            current_quantity = getattr(current_item, 'quantity', 0)
+            new_quantity = current_quantity + quantity_change
+
+            # Update with new quantity and track adjustment
+            update_data = {
+                'quantity': new_quantity,
+                'last_adjusted_at': datetime.now(),
+                'last_adjustment_reason': reason
+            }
+
+            # Use repository to update
+            updated_item = self._repository.update(item_id, **update_data)
+
+            # Convert and return
+            inventory_item = self._convert_to_dict(updated_item)
+
+            self._logger.info(f"Adjusted stock for item {item_id}: {quantity_change}")
+            return inventory_item
+        except Exception as e:
+            self._logger.error(f"Error adjusting stock for item {item_id}: {e}")
+            raise
 
     def get_stock_by_material_type(
             self,
@@ -186,9 +297,49 @@ class InventoryService(Service[Dict[str, Any]], IInventoryService):
         Returns:
             List[Dict[str, Any]]: List of inventory items of the specified type
         """
-        self.log_operation("Retrieving stock by material type", {
-            "material_type": material_type
-        })
+        try:
+            self.log_operation("Retrieving stock by material type", {
+                "material_type": material_type
+            })
 
-        # TODO: Implement actual retrieval by material type
-        return []
+            # Use repository to find items by material type
+            items = self._repository.search(
+                filter_criteria={'material_type': material_type}
+            )
+
+            # Convert items to dictionaries
+            inventory_items = [self._convert_to_dict(item) for item in items]
+
+            self._logger.info(f"Found {len(inventory_items)} items of type {material_type}")
+            return inventory_items
+        except Exception as e:
+            self._logger.error(f"Error retrieving stock for material type {material_type}: {e}")
+            return []
+
+    def _convert_to_dict(self, item: Any) -> Dict[str, Any]:
+        """
+        Convert an inventory item to a dictionary representation.
+
+        Args:
+            item (Any): Inventory item to convert
+
+        Returns:
+            Dict[str, Any]: Dictionary representation of the item
+        """
+        try:
+            # If item is already a dictionary, return it
+            if isinstance(item, dict):
+                return item
+
+            # Convert SQLAlchemy model to dictionary
+            return {
+                'id': getattr(item, 'id', None),
+                'material_type': getattr(item, 'material_type', None),
+                'quantity': getattr(item, 'quantity', 0),
+                'unit_of_measurement': getattr(item, 'unit_of_measurement', None),
+                'created_at': getattr(item, 'created_at', None),
+                'updated_at': getattr(item, 'updated_at', None)
+            }
+        except Exception as e:
+            self._logger.error(f"Error converting item to dictionary: {e}")
+            return {}

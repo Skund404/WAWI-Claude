@@ -1,7 +1,8 @@
-# services/interfaces/material_service.py
 """
-Interface definition for the material service. This service is responsible
-for managing all aspects of materials in the leatherworking store.
+Interface for the Material Service.
+
+This module defines the interface for the Material Service,
+which is responsible for managing materials used in leatherworking projects.
 """
 
 from abc import ABC, abstractmethod
@@ -10,7 +11,7 @@ from typing import Any, Dict, List, Optional, Union
 
 
 class MaterialType(enum.Enum):
-    """Enumeration of material types used in leatherworking."""
+    """Types of materials used in leatherworking."""
     LEATHER = "leather"
     HARDWARE = "hardware"
     THREAD = "thread"
@@ -20,7 +21,57 @@ class MaterialType(enum.Enum):
 
 
 class IMaterialService(ABC):
-    """Interface for material service operations."""
+    """Interface for the Material Service."""
+
+    @abstractmethod
+    def get_material(self, material_id: int) -> Dict[str, Any]:
+        """
+        Retrieve a material by its ID.
+
+        Args:
+            material_id: Unique identifier of the material
+
+        Returns:
+            Dictionary containing material details
+
+        Raises:
+            NotFoundError: If material with given ID doesn't exist
+        """
+        pass
+
+    @abstractmethod
+    def get_materials(self,
+                      material_type: Optional[MaterialType] = None,
+                      limit: int = 100,
+                      offset: int = 0) -> List[Dict[str, Any]]:
+        """
+        Get a list of materials, optionally filtered by type.
+
+        Args:
+            material_type: Optional filter by material type
+            limit: Maximum number of records to return
+            offset: Number of records to skip for pagination
+
+        Returns:
+            List of dictionaries containing material details
+        """
+        pass
+
+    @abstractmethod
+    def search_materials(self,
+                         search_term: str,
+                         material_type: Optional[MaterialType] = None) -> List[Dict[str, Any]]:
+        """
+        Search materials by name, description, or other attributes.
+
+        Args:
+            search_term: Term to search for
+            material_type: Optional filter by material type
+
+        Returns:
+            List of dictionaries containing matching material details
+        """
+        pass
 
     @abstractmethod
     def create_material(self, material_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -28,10 +79,10 @@ class IMaterialService(ABC):
         Create a new material.
 
         Args:
-            material_data: Dictionary with material properties
+            material_data: Dictionary containing material details
 
         Returns:
-            Dictionary representing the created material
+            Dictionary containing the created material details
 
         Raises:
             ValidationError: If material data is invalid
@@ -39,128 +90,111 @@ class IMaterialService(ABC):
         pass
 
     @abstractmethod
-    def get_material(self, material_id: Union[int, str]) -> Dict[str, Any]:
-        """
-        Retrieve a material by ID.
-
-        Args:
-            material_id: ID of the material to retrieve
-
-        Returns:
-            Dictionary representing the material
-
-        Raises:
-            NotFoundError: If material is not found
-        """
-        pass
-
-    @abstractmethod
-    def update_material(self, material_id: Union[int, str], material_data: Dict[str, Any]) -> Dict[str, Any]:
+    def update_material(self,
+                        material_id: int,
+                        material_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Update an existing material.
 
         Args:
-            material_id: ID of the material to update
-            material_data: Dictionary with updated material properties
+            material_id: Unique identifier of the material to update
+            material_data: Dictionary containing updated material details
 
         Returns:
-            Dictionary representing the updated material
+            Dictionary containing the updated material details
 
         Raises:
-            NotFoundError: If material is not found
+            NotFoundError: If material with given ID doesn't exist
             ValidationError: If material data is invalid
         """
         pass
 
     @abstractmethod
-    def delete_material(self, material_id: Union[int, str]) -> bool:
+    def delete_material(self, material_id: int) -> bool:
         """
         Delete a material.
 
         Args:
-            material_id: ID of the material to delete
+            material_id: Unique identifier of the material to delete
 
         Returns:
-            True if deletion was successful
+            True if deletion was successful, False otherwise
 
         Raises:
-            NotFoundError: If material is not found
+            NotFoundError: If material with given ID doesn't exist
         """
         pass
 
     @abstractmethod
-    def list_materials(self, material_type: Optional[MaterialType] = None) -> List[Dict[str, Any]]:
+    def get_material_types(self) -> List[Dict[str, Any]]:
         """
-        List all materials, optionally filtered by type.
-
-        Args:
-            material_type: Optional filter for material type
+        Get a list of all material types.
 
         Returns:
-            List of dictionaries representing materials
+            List of dictionaries containing material type details
         """
         pass
 
     @abstractmethod
-    def search_materials(self, query: str) -> List[Dict[str, Any]]:
+    def record_material_transaction(self,
+                                    material_id: int,
+                                    quantity: float,
+                                    transaction_type: str,
+                                    notes: Optional[str] = None) -> Dict[str, Any]:
         """
-        Search for materials by name or description.
+        Record a material transaction (purchase, usage, etc.).
 
         Args:
-            query: Search query string
+            material_id: Unique identifier of the material
+            quantity: Quantity of material in the transaction (positive for additions, negative for removals)
+            transaction_type: Type of transaction (purchase, usage, adjustment, etc.)
+            notes: Optional notes about the transaction
 
         Returns:
-            List of dictionaries representing matching materials
-        """
-        pass
-
-    @abstractmethod
-    def get_material_inventory(self, material_id: Union[int, str]) -> Dict[str, Any]:
-        """
-        Get inventory information for a material.
-
-        Args:
-            material_id: ID of the material
-
-        Returns:
-            Dictionary with inventory information
+            Dictionary containing the transaction details
 
         Raises:
-            NotFoundError: If material is not found
+            NotFoundError: If material with given ID doesn't exist
+            ValidationError: If transaction data is invalid
         """
         pass
 
     @abstractmethod
-    def update_material_inventory(self,
-                                  material_id: Union[int, str],
-                                  quantity_change: float,
-                                  notes: Optional[str] = None) -> Dict[str, Any]:
+    def get_material_transactions(self,
+                                  material_id: int,
+                                  start_date: Optional[str] = None,
+                                  end_date: Optional[str] = None) -> List[Dict[str, Any]]:
         """
-        Update inventory quantities for a material.
+        Get a list of transactions for a specific material.
 
         Args:
-            material_id: ID of the material
-            quantity_change: Amount to add (positive) or remove (negative)
-            notes: Optional notes about the inventory change
+            material_id: Unique identifier of the material
+            start_date: Optional start date for filtering transactions
+            end_date: Optional end date for filtering transactions
 
         Returns:
-            Dictionary with updated inventory information
+            List of dictionaries containing transaction details
 
         Raises:
-            NotFoundError: If material is not found
-            ValidationError: If quantity change is invalid
+            NotFoundError: If material with given ID doesn't exist
         """
         pass
 
     @abstractmethod
-    def get_low_stock_materials(self, threshold: Optional[float] = None) -> List[Dict[str, Any]]:
+    def calculate_material_cost(self,
+                                material_id: int,
+                                quantity: float) -> float:
         """
-        Get a list of materials with low stock levels.
+        Calculate the cost of a specified quantity of material.
 
         Args:
-            threshold: Optional custom threshold for low stock
+            material_id: Unique identifier of the material
+            quantity: Quantity of material to calculate cost for
 
         Returns:
-            List of dictionaries representing low stock materials
+            Calculated cost
+
+        Raises:
+            NotFoundError: If material with given ID doesn't exist
         """
         pass

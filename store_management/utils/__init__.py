@@ -9,6 +9,8 @@ from typing import Optional, Union
 from .circular_import_resolver import CircularImportResolver, get_module
 
 
+
+
 def get_logger(name: str, level: int = logging.INFO) -> logging.Logger:
     """
     Create and configure a logger for the given name.
@@ -76,3 +78,11 @@ def configure_logging(
 
 # Initialize the CircularImportResolver when the package is imported
 CircularImportResolver()
+
+
+# Import and re-export the CircularImportResolver
+try:
+    from .circular_import_resolver import CircularImportResolver, get_module, get_class, lazy_import
+    __all__ = ['CircularImportResolver', 'get_module', 'get_class', 'lazy_import']
+except ImportError as e:
+    logging.warning(f"Could not import CircularImportResolver: {e}")

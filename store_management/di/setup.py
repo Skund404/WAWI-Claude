@@ -1,59 +1,82 @@
-# store_management/di/setup.py
+# Path: di/setup.py
 """
 Dependency Injection Setup for the Leatherworking Store Management Application.
 
 Configures service implementations for various interfaces.
 """
 
+import os
+import sys
 import logging
-from typing import Any, Optional
+from typing import Any, Optional, Tuple, Type
+
+# Add project root to Python path
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, project_root)
+
+# Setup basic logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
 from di.container import DependencyContainer
 
-# Service Interfaces
-from services.interfaces.material_service import IMaterialService
-from services.interfaces.order_service import IOrderService
-from services.interfaces.project_service import IProjectService
-from services.interfaces.inventory_service import IInventoryService
-from services.interfaces.storage_service import IStorageService
-from services.interfaces.pattern_service import IPatternService
-from services.interfaces.hardware_service import IHardwareService
-from services.interfaces.supplier_service import ISupplierService
-from services.interfaces.shopping_list_service import IShoppingListService
-
-# Service Implementations
-from services.implementations.material_service import MaterialService
-from services.implementations.order_service import OrderService
-from services.implementations.project_service import ProjectService
-from services.implementations.inventory_service import InventoryService
-from services.implementations.storage_service import StorageService
-from services.implementations.pattern_service import PatternService
-from services.implementations.hardware_service import HardwareService
-from services.implementations.supplier_service import SupplierService
-from services.implementations.shopping_list_service import ShoppingListService
-
-
-def create_service(service_class: Any, *args: Any, **kwargs: Any) -> Any:
+# Standard direct import method
+def direct_import(module_path: str) -> Any:
     """
-    Create a service instance with optional arguments.
+    Standard direct import method.
 
     Args:
-        service_class (type): Service class to instantiate
-        *args: Positional arguments for service instantiation
-        **kwargs: Keyword arguments for service instantiation
+        module_path: Dot-separated path including module and class
 
     Returns:
-        Any: Instantiated service
+        The imported class or None if import fails
     """
-    return service_class(*args, **kwargs)
+    try:
+        module_name, class_name = module_path.rsplit('.', 1)
+        module = __import__(module_name, fromlist=[class_name])
+        return getattr(module, class_name)
+    except (ImportError, AttributeError) as e:
+        logging.error(f"Failed to import {module_path}: {e}")
+        return None
+
+# Service Interface Import Paths
+SERVICE_INTERFACES = [
+    'services.interfaces.material_service.IMaterialService',
+    'services.interfaces.order_service.IOrderService',
+    'services.interfaces.project_service.IProjectService',
+    'services.interfaces.inventory_service.IInventoryService',
+    'services.interfaces.storage_service.IStorageService',
+    'services.interfaces.pattern_service.IPatternService',
+    'services.interfaces.hardware_service.IHardwareService',
+    'services.interfaces.supplier_service.ISupplierService',
+    'services.interfaces.shopping_list_service.IShoppingListService'
+]
+
+# Service Implementation Import Paths
+SERVICE_IMPLEMENTATIONS = [
+    'services.implementations.material_service.MaterialService',
+    'services.implementations.order_service.OrderService',
+    'services.implementations.project_service.ProjectService',
+    'services.implementations.inventory_service.InventoryService',
+    'services.implementations.storage_service.StorageService',
+    'services.implementations.pattern_service.PatternService',
+    'services.implementations.hardware_service.HardwareService',
+    'services.implementations.supplier_service.SupplierService',
+    'services.implementations.shopping_list_service.ShoppingListService'
+]
 
 
-def setup_dependency_injection(container: Optional[DependencyContainer] = None) -> None:
+def setup_dependency_injection(container: Optional[DependencyContainer] = None) -> DependencyContainer:
     """
     Set up dependency injection by registering service implementations.
 
     Args:
         container (Optional[DependencyContainer]): Dependency injection container
+
+    Returns:
+        DependencyContainer: The configured container
     """
     try:
         logging.info("Setting up dependency injection...")
@@ -61,60 +84,68 @@ def setup_dependency_injection(container: Optional[DependencyContainer] = None) 
         # Use existing container or create a new one
         di_container = container or DependencyContainer()
 
-        # Define service mappings
-        service_mappings = [
-            (IMaterialService, MaterialService),
-            (IOrderService, OrderService),
-            (IProjectService, ProjectService),
-            (IInventoryService, InventoryService),
-            (IStorageService, StorageService),
-            (IPatternService, PatternService),
-            (IHardwareService, HardwareService),
-            (ISupplierService, SupplierService),
-            (IShoppingListService, ShoppingListService)
-        ]
+        # Import and register services one by one
+        for interface_path, implementation_path in zip(SERVICE_INTERFACES, SERVICE_IMPLEMENTATIONS):
+            try:
+                # Import interface
+                interface = direct_import(interface_path)
+                if interface is None:
+                    logging.warning(f"Skipping registration for {interface_path}: Interface not found")
+                    continue
 
-        # Register services
-        for interface, implementation in service_mappings:
-            di_container.register(
-                interface,
-                lambda impl=implementation: create_service(impl)
-            )
+                # Import implementation
+                implementation = direct_import(implementation_path)
+                if implementation is None:
+                    logging.warning(f"Skipping registration for {interface_path}: Implementation not found")
+                    continue
+
+                # Create instance if possible
+                try:
+                    instance = implementation()
+                    # Register the instance directly
+                    di_container.register(interface, instance)
+                    logging.info(f"Registered service: {interface.__name__}")
+                except Exception as e:
+                    # If instantiation fails, register the implementation class
+                    logging.error(f"Failed to create service {implementation.__name__}: {e}")
+                    di_container.register(interface, implementation)
+                    logging.info(f"Registered service with lazy initialization: {interface.__name__}")
+            except Exception as e:
+                logging.error(f"Error registering {implementation_path}: {e}")
 
         logging.info("Dependency injection setup completed successfully")
+        return di_container
 
     except Exception as e:
         logging.error(f"Dependency injection setup failed: {e}")
-        raise
+        # Return the container even if incomplete to avoid None errors
+        return container or DependencyContainer()
 
 
-def verify_dependency_injection() -> None:
+def verify_dependency_injection(container: Optional[DependencyContainer] = None) -> None:
     """
     Verify that dependency injection is working correctly.
 
     Attempts to retrieve each registered service and logs the results.
+
+    Args:
+        container (Optional[DependencyContainer]): Container to verify
     """
     try:
         logging.info("Verifying dependency injection...")
-        container = DependencyContainer()
+        di_container = container or DependencyContainer()
 
-        # List of service interfaces to verify
-        service_interfaces = [
-            IMaterialService,
-            IOrderService,
-            IProjectService,
-            IInventoryService,
-            IStorageService,
-            IPatternService,
-            IHardwareService,
-            ISupplierService,
-            IShoppingListService
-        ]
+        # Dynamically import and verify service interfaces
+        service_interfaces = []
+        for interface_path in SERVICE_INTERFACES:
+            interface = direct_import(interface_path)
+            if interface is not None:
+                service_interfaces.append(interface)
 
         # Attempt to retrieve each service
         for service_type in service_interfaces:
             try:
-                service = container.get(service_type)
+                service = di_container.get(service_type)
                 logging.info(f"Successfully retrieved {service_type.__name__}: {service}")
             except Exception as service_error:
                 logging.warning(f"Failed to retrieve {service_type.__name__}: {service_error}")
@@ -132,15 +163,11 @@ def main():
     Useful for manual testing and verification of the DI configuration.
     """
     try:
-        # Setup logging
-        logging.basicConfig(
-            level=logging.INFO,
-            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-        )
+        # Setup dependency injection
+        container = setup_dependency_injection()
 
-        # Setup and verify dependency injection
-        setup_dependency_injection()
-        verify_dependency_injection()
+        # Verify dependency injection
+        verify_dependency_injection(container)
 
     except Exception as e:
         logging.error(f"Dependency injection test failed: {e}")

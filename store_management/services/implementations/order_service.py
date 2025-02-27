@@ -1,201 +1,416 @@
-# store_management/services/implementations/order_service.py
 """
-Order Service Implementation for Leatherworking Store Management.
+Order Service Implementation.
 
-Provides concrete implementation of order-related operations.
+This module provides a concrete implementation of the Order Service interface
+for managing orders in the leatherworking store management application.
 """
 
+import logging
 from typing import Any, Dict, List, Optional
 
-from services.base_service import Service
-from services.interfaces.order_service import (
-    IOrderService,
-    OrderStatus,
-    PaymentStatus
-)
+# Try to import the interface
+try:
+    from services.interfaces.order_service import IOrderService, OrderStatus, PaymentStatus
+except ImportError:
+    # Create placeholder classes if imports fail
+    import enum
+
+    class OrderStatus(enum.Enum):
+        """Possible statuses for an order."""
+        PENDING = "pending"
+        PROCESSING = "processing"
+        SHIPPED = "shipped"
+        DELIVERED = "delivered"
+        CANCELLED = "cancelled"
+
+    class PaymentStatus(enum.Enum):
+        """Possible payment statuses for an order."""
+        UNPAID = "unpaid"
+        PARTIALLY_PAID = "partially_paid"
+        PAID = "paid"
+        REFUNDED = "refunded"
+
+    class IOrderService:
+        """Placeholder for IOrderService interface."""
+        pass
 
 
-class OrderService(Service[Dict[str, Any]], IOrderService):
+class OrderService(IOrderService):
     """
-    Concrete implementation of the Order Service.
+    Implementation of the Order Service interface.
 
-    Manages order-related operations for leatherworking products.
+    This service manages customer orders, including creation, updates,
+    and tracking of order status and payment information.
     """
 
-    def get_by_id(
-            self,
-            id_value: str
-    ) -> Optional[Dict[str, Any]]:
-        """
-        Retrieve an order by its unique identifier.
+    def __init__(self):
+        """Initialize the Order Service."""
+        self.logger = logging.getLogger(__name__)
+        self.logger.info("OrderService initialized")
 
-        Args:
-            id_value (str): Unique identifier for the order
+        # For demonstration purposes, we'll use in-memory dictionaries
+        self._orders = {}
+        self._order_items = {}
+        self._next_order_id = 1
+        self._next_item_id = 1
 
-        Returns:
-            Optional[Dict[str, Any]]: Retrieved order or None if not found
-        """
-        self.log_operation("Retrieving order", {"id": id_value})
-
-        # TODO: Implement actual database retrieval
-        return None
-
-    def get_all(
-            self,
-            filters: Optional[Dict[str, Any]] = None,
-            limit: Optional[int] = None,
-            offset: Optional[int] = None
-    ) -> List[Dict[str, Any]]:
-        """
-        Retrieve all orders, with optional filtering and pagination.
-
-        Args:
-            filters (Optional[Dict[str, Any]], optional): Filtering criteria
-            limit (Optional[int], optional): Maximum number of items to retrieve
-            offset (Optional[int], optional): Number of items to skip
-
-        Returns:
-            List[Dict[str, Any]]: List of retrieved orders
-        """
-        self.log_operation("Retrieving orders", {
-            "filters": filters,
-            "limit": limit,
-            "offset": offset
-        })
-
-        # TODO: Implement actual database retrieval
-        return []
-
-    def create(
-            self,
-            data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def create_order(self, order_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Create a new order.
 
         Args:
-            data (Dict[str, Any]): Data for creating the order
+            order_data: Dictionary containing order details
 
         Returns:
-            Dict[str, Any]: Created order
+            Dictionary containing the created order details
         """
-        # Validate required fields
-        self.validate_data(data, [
-            'customer_name',
-            'items',
-            'total_price'
-        ])
+        self.logger.debug(f"Creating order with data: {order_data}")
 
-        # Set default status if not provided
-        data.setdefault('status', OrderStatus.PENDING)
-        data.setdefault('payment_status', PaymentStatus.UNPAID)
+        # Create new order
+        order_id = self._next_order_id
+        self._next_order_id += 1
 
-        self.log_operation("Creating order", {"data": data})
+        order = {
+            'id': order_id,
+            'status': OrderStatus.PENDING.value,
+            'payment_status': PaymentStatus.UNPAID.value,
+            'items': [],
+            **order_data
+        }
 
-        # TODO: Implement actual database creation
-        return data
+        # Store in dictionary
+        self._orders[order_id] = order
 
-    def update(
-            self,
-            id_value: str,
-            data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self.logger.info(f"Created order with ID: {order_id}")
+        return order
+
+    def get_order(self, order_id: int) -> Dict[str, Any]:
+        """
+        Retrieve an order by its ID.
+
+        Args:
+            order_id: Unique identifier of the order
+
+        Returns:
+            Dictionary containing order details
+
+        Raises:
+            ValueError: If order with given ID doesn't exist
+        """
+        self.logger.debug(f"Getting order with ID: {order_id}")
+
+        if order_id not in self._orders:
+            raise ValueError(f"Order with ID {order_id} not found")
+
+        return self._orders[order_id]
+
+    def get_orders(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
+        """
+        Get a list of orders with pagination.
+
+        Args:
+            limit: Maximum number of records to return
+            offset: Number of records to skip for pagination
+
+        Returns:
+            List of dictionaries containing order details
+        """
+        self.logger.debug(f"Getting orders with limit: {limit}, offset: {offset}")
+
+        orders = list(self._orders.values())
+        return orders[offset:offset + limit]
+
+    def update_order(self, order_id: int, order_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Update an existing order.
 
         Args:
-            id_value (str): Unique identifier of the order to update
-            data (Dict[str, Any]): Updated data
+            order_id: Unique identifier of the order to update
+            order_data: Dictionary containing updated order details
 
         Returns:
-            Dict[str, Any]: Updated order
+            Dictionary containing the updated order details
+
+        Raises:
+            ValueError: If order with given ID doesn't exist
         """
-        self.log_operation("Updating order", {
-            "id": id_value,
-            "data": data
-        })
+        self.logger.debug(f"Updating order {order_id} with data: {order_data}")
 
-        # TODO: Implement actual database update
-        return data
+        if order_id not in self._orders:
+            raise ValueError(f"Order with ID {order_id} not found")
 
-    def delete(
-            self,
-            id_value: str
-    ) -> bool:
+        # Update the order
+        self._orders[order_id].update(order_data)
+
+        self.logger.info(f"Updated order with ID: {order_id}")
+        return self._orders[order_id]
+
+    def update_order_status(self, order_id: int, status: OrderStatus) -> Dict[str, Any]:
+        """
+        Update the status of an order.
+
+        Args:
+            order_id: Unique identifier of the order
+            status: New status for the order
+
+        Returns:
+            Dictionary containing the updated order details
+
+        Raises:
+            ValueError: If order with given ID doesn't exist
+        """
+        self.logger.debug(f"Updating status of order {order_id} to {status}")
+
+        if order_id not in self._orders:
+            raise ValueError(f"Order with ID {order_id} not found")
+
+        # Update the order status
+        self._orders[order_id]['status'] = status.value
+
+        self.logger.info(f"Updated status of order {order_id} to {status}")
+        return self._orders[order_id]
+
+    def process_payment(self, order_id: int, amount: float, payment_method: str) -> Dict[str, Any]:
+        """
+        Process a payment for an order.
+
+        Args:
+            order_id: Unique identifier of the order
+            amount: Payment amount
+            payment_method: Method of payment (e.g., credit card, cash)
+
+        Returns:
+            Dictionary containing payment details
+
+        Raises:
+            ValueError: If order with given ID doesn't exist
+        """
+        self.logger.debug(f"Processing payment of {amount} for order {order_id}")
+
+        if order_id not in self._orders:
+            raise ValueError(f"Order with ID {order_id} not found")
+
+        order = self._orders[order_id]
+
+        # Calculate total order value
+        total = self.calculate_order_total(order_id)
+
+        # Determine new payment status based on amount
+        if amount >= total:
+            payment_status = PaymentStatus.PAID
+        elif amount > 0:
+            payment_status = PaymentStatus.PARTIALLY_PAID
+        else:
+            payment_status = PaymentStatus.UNPAID
+
+        # Update payment status
+        order['payment_status'] = payment_status.value
+
+        # Create payment record
+        payment = {
+            'order_id': order_id,
+            'amount': amount,
+            'payment_method': payment_method,
+            'payment_status': payment_status.value
+        }
+
+        self.logger.info(f"Processed payment of {amount} for order {order_id}")
+        return payment
+
+    def delete_order(self, order_id: int) -> bool:
         """
         Delete an order.
 
         Args:
-            id_value (str): Unique identifier of the order to delete
+            order_id: Unique identifier of the order to delete
 
         Returns:
-            bool: True if deletion was successful, False otherwise
-        """
-        self.log_operation("Deleting order", {"id": id_value})
+            True if deletion was successful, False otherwise
 
-        # TODO: Implement actual database deletion
-        return False
-
-    def get_orders_by_status(
-            self,
-            status: OrderStatus
-    ) -> List[Dict[str, Any]]:
+        Raises:
+            ValueError: If order with given ID doesn't exist
         """
-        Retrieve orders by their current status.
+        self.logger.debug(f"Deleting order with ID: {order_id}")
+
+        if order_id not in self._orders:
+            raise ValueError(f"Order with ID {order_id} not found")
+
+        # Delete the order
+        del self._orders[order_id]
+
+        # Remove associated items
+        for item_id, item in list(self._order_items.items()):
+            if item.get('order_id') == order_id:
+                del self._order_items[item_id]
+
+        self.logger.info(f"Deleted order with ID: {order_id}")
+        return True
+
+    def add_order_item(self, order_id: int, item_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Add an item to an order.
 
         Args:
-            status (OrderStatus): Status to filter orders by
+            order_id: Unique identifier of the order
+            item_data: Dictionary containing item details
 
         Returns:
-            List[Dict[str, Any]]: List of orders with the specified status
-        """
-        self.log_operation("Retrieving orders by status", {"status": status})
+            Dictionary containing the created item details
 
-        # TODO: Implement actual retrieval by status
-        return []
-
-    def update_order_status(
-            self,
-            id_value: str,
-            new_status: OrderStatus
-    ) -> Dict[str, Any]:
+        Raises:
+            ValueError: If order with given ID doesn't exist
         """
-        Update the status of a specific order.
+        self.logger.debug(f"Adding item to order {order_id} with data: {item_data}")
+
+        if order_id not in self._orders:
+            raise ValueError(f"Order with ID {order_id} not found")
+
+        # Create new item
+        item_id = self._next_item_id
+        self._next_item_id += 1
+
+        item = {
+            'id': item_id,
+            'order_id': order_id,
+            **item_data
+        }
+
+        # Store in dictionaries
+        self._order_items[item_id] = item
+        self._orders[order_id]['items'].append(item_id)
+
+        self.logger.info(f"Added item {item_id} to order {order_id}")
+        return item
+
+    def remove_order_item(self, order_id: int, item_id: int) -> bool:
+        """
+        Remove an item from an order.
 
         Args:
-            id_value (str): Unique identifier of the order
-            new_status (OrderStatus): New status to set for the order
+            order_id: Unique identifier of the order
+            item_id: Unique identifier of the item to remove
 
         Returns:
-            Dict[str, Any]: Updated order details
-        """
-        self.log_operation("Updating order status", {
-            "id": id_value,
-            "new_status": new_status
-        })
+            True if removal was successful, False otherwise
 
-        # TODO: Implement actual status update
-        return {}
-
-    def process_payment(
-            self,
-            id_value: str,
-            payment_amount: float
-    ) -> Dict[str, Any]:
+        Raises:
+            ValueError: If order or item doesn't exist
         """
-        Process payment for an order.
+        self.logger.debug(f"Removing item {item_id} from order {order_id}")
+
+        if order_id not in self._orders:
+            raise ValueError(f"Order with ID {order_id} not found")
+
+        if item_id not in self._order_items:
+            raise ValueError(f"Item with ID {item_id} not found")
+
+        # Check if item belongs to the order
+        if self._order_items[item_id].get('order_id') != order_id:
+            raise ValueError(f"Item {item_id} does not belong to order {order_id}")
+
+        # Remove item
+        del self._order_items[item_id]
+        self._orders[order_id]['items'].remove(item_id)
+
+        self.logger.info(f"Removed item {item_id} from order {order_id}")
+        return True
+
+    def list_orders(self, status: Optional[OrderStatus] = None) -> List[Dict[str, Any]]:
+        """
+        List orders optionally filtered by status.
 
         Args:
-            id_value (str): Unique identifier of the order
-            payment_amount (float): Amount of payment received
+            status: Optional filter by order status
 
         Returns:
-            Dict[str, Any]: Updated order details after payment processing
+            List of dictionaries containing matching order details
         """
-        self.log_operation("Processing order payment", {
-            "id": id_value,
-            "payment_amount": payment_amount
-        })
+        self.logger.debug(f"Listing orders with status: {status}")
 
-        # TODO: Implement actual payment processing
-        return {}
+        # Filter by status if specified
+        if status:
+            status_value = status.value
+            return [order for order in self._orders.values() if order.get('status') == status_value]
+
+        return list(self._orders.values())
+
+    def search_orders(self, search_term: str) -> List[Dict[str, Any]]:
+        """
+        Search orders by customer name, order ID, or other attributes.
+
+        Args:
+            search_term: Term to search for
+
+        Returns:
+            List of dictionaries containing matching order details
+        """
+        self.logger.debug(f"Searching orders with term: {search_term}")
+
+        search_term = search_term.lower()
+        results = []
+
+        for order in self._orders.values():
+            # Check if search term matches order ID, customer name, or other fields
+            order_id_match = str(order.get('id', '')).lower() == search_term
+            customer_match = search_term in str(order.get('customer_name', '')).lower()
+
+            if order_id_match or customer_match:
+                results.append(order)
+
+        return results
+
+    def calculate_order_total(self, order_id: int) -> float:
+        """
+        Calculate the total amount for an order.
+
+        Args:
+            order_id: Unique identifier of the order
+
+        Returns:
+            Calculated order total
+
+        Raises:
+            ValueError: If order with given ID doesn't exist
+        """
+        self.logger.debug(f"Calculating total for order ID {order_id}")
+
+        if order_id not in self._orders:
+            raise ValueError(f"Order with ID {order_id} not found")
+
+        order = self._orders[order_id]
+        total = 0.0
+
+        # Sum up item costs
+        for item_id in order.get('items', []):
+            if item_id in self._order_items:
+                item = self._order_items[item_id]
+                quantity = item.get('quantity', 0)
+                unit_price = item.get('unit_price', 0)
+                total += quantity * unit_price
+
+        return total
+
+    def generate_order_report(self, start_date: Optional[str] = None, end_date: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Generate a report of orders within a date range.
+
+        Args:
+            start_date: Optional start date for filtering orders
+            end_date: Optional end date for filtering orders
+
+        Returns:
+            Dictionary containing the order report
+        """
+        self.logger.debug(f"Generating order report from {start_date} to {end_date}")
+
+        # In this simple implementation, we just return basic statistics
+        total_orders = len(self._orders)
+        total_revenue = sum(self.calculate_order_total(order_id) for order_id in self._orders)
+
+        report = {
+            'total_orders': total_orders,
+            'total_revenue': total_revenue,
+            'average_order_value': total_revenue / total_orders if total_orders > 0 else 0
+        }
+
+        return report
