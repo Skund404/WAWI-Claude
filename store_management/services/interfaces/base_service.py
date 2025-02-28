@@ -8,6 +8,7 @@ consistent service patterns across the application.
 
 import abc
 from typing import Any, Dict, Generic, List, Optional, TypeVar
+from typing import Callable
 
 T = TypeVar('T')
 

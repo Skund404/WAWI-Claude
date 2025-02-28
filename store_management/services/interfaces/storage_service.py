@@ -8,7 +8,7 @@ product assignment, and inventory tracking.
 
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, Callable
 
 class StorageLocationType(Enum):
     """

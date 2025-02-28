@@ -15,7 +15,9 @@ from di.core import inject
 from services.interfaces.material_service import IMaterialService
 from database.models.hardware import Hardware, HardwareType, HardwareMaterial, HardwareFinish
 from database.repositories.base_repository import BaseRepository
-
+from typing import Optional, Dict, Any, Callable
+from database.models.hardware import Hardware
+from database.models.material import Material
 
 class HardwareRepository(BaseRepository[Hardware]):
     """
@@ -311,16 +313,17 @@ class HardwareRepository(BaseRepository[Hardware]):
             self.logger.error(f'Error filtering hardware by finish: {e}')
             raise
 
-    @inject(IMaterialService)
-    def get_compatible_materials(self, hardware_id: int, material_service: IMaterialService) -> List[Dict[str, Any]]:
+    def get_compatible_materials(
+            self,
+            hardware_id: int,
+            compatibility_strategy: Optional[Callable[[Dict[str, Any], Hardware], bool]] = None
+    ) -> List[Dict[str, Any]]:
         """
-        Get materials compatible with the hardware item.
-
-        Uses dependency injection to get the material service.
+        Get materials compatible with the hardware item using a strategy pattern.
 
         Args:
             hardware_id: ID of the hardware item
-            material_service: Injected material service
+            compatibility_strategy: Optional function to determine material compatibility
 
         Returns:
             List[Dict[str, Any]]: List of compatible materials
@@ -329,16 +332,25 @@ class HardwareRepository(BaseRepository[Hardware]):
         if not hardware:
             return []
 
-        # Example implementation - adjust based on your business rules
-        compatible_materials = []
+        # Default compatibility strategy if none provided
+        def default_compatibility(material: Dict[str, Any], hardware: Hardware) -> bool:
+            # Implement basic compatibility logic without service dependency
+            # For example, based on material type, load capacity, etc.
+            return True
+
+        compatibility_check = compatibility_strategy or default_compatibility
 
         try:
-            # Get materials compatible with this hardware type
-            all_materials = material_service.get_all_materials()
-            for material in all_materials:
-                # Add your compatibility logic here
-                compatible_materials.append(material.to_dict())
+            # Retrieve materials through direct database query
+            materials_query = select(Material)
+            materials = self.session.execute(materials_query).scalars().all()
+
+            compatible_materials = [
+                material.to_dict() for material in materials
+                if compatibility_check(material.to_dict(), hardware)
+            ]
+
+            return compatible_materials
         except Exception as e:
             self.logger.error(f"Error getting compatible materials: {str(e)}")
-
-        return compatible_materials
+            return []

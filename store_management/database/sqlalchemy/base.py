@@ -8,7 +8,8 @@ from typing import Dict, Any
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import DeclarativeMeta
 from di.core import inject
-from services.interfaces import MaterialService
+
+
 
 Base: DeclarativeMeta = declarative_base()
 
@@ -19,7 +20,7 @@ class CustomBase:
     Provides a consistent __repr__ and to_dict method for all models.
     """
 
-    @inject(MaterialService)
+
     def __repr__(self) -> str:
         """
         Generate a string representation of the model.
@@ -35,7 +36,7 @@ class CustomBase:
         )
         return f'{self.__class__.__name__}({attrs})'
 
-    @inject(MaterialService)
+
     def to_dict(self) -> Dict[str, Any]:
         """
         Convert the model instance to a dictionary.

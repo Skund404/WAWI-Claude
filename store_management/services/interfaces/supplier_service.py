@@ -7,7 +7,7 @@ Defines the contract for supplier-related operations.
 
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Callable
 
 from di.core import inject
 from utils.circular_import_resolver import CircularImportResolver

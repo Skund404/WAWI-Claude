@@ -1,563 +1,552 @@
 # gui/leatherworking/cost_analyzer.py
-"""
-Project Cost Analyzer for Leatherworking Projects.
-
-This module provides a comprehensive cost analysis tool for leatherworking projects,
-offering detailed insights into project expenses, profitability, and pricing strategies.
-"""
-
-import json
 import logging
 import tkinter as tk
+from tkinter import messagebox as messagebox, ttk
+import json
 from decimal import Decimal
-from typing import Any, Dict, Optional, List
+from typing import Any, Dict, List, Optional
 
-import tkinter.ttk as ttk
-import tkinter.messagebox as messagebox
-import tkinter.filedialog
-
-from di.core import inject
-from services.interfaces import (
-    get_IProjectService,
-    get_IMaterialService,
-    ProjectType,
-    MaterialType,
-)
+from gui.base_view import BaseView
+from services.interfaces.project_service import IProjectService, ProjectType, SkillLevel
+from services.interfaces.material_service import IMaterialService, MaterialType
 from utils.circular_import_resolver import lazy_import
 from utils.error_handler import ErrorHandler
 
-# Lazy import to avoid circular dependencies
-Project = lazy_import('database.models.project', 'Project')
+# Use lazy imports to avoid circular dependencies
+MaterialServiceImpl = lazy_import('services.implementations.material_service.MaterialServiceImpl')
+ProjectServiceImpl = lazy_import('services.implementations.project_service.ProjectServiceImpl')
 
-from gui.base_view import BaseView
-
-logger = logging.getLogger(__name__)
+from database.models.enums import MaterialType, ProjectStatus, ProjectType
 
 
 class ProjectCostAnalyzer(BaseView):
     """
-    Analyze and track costs for leatherworking projects.
+    Cost analysis tool for leatherworking projects.
 
-    Provides detailed cost breakdowns, profitability analysis,
-    and pricing recommendations based on materials and labor.
-
-    Attributes:
-        project_service: Service for project-related operations
-        material_service: Service for material-related operations
-        error_handler: Handles error logging and reporting
-        current_project: Currently selected project
-        cost_data: Dictionary storing cost breakdown
-        labor_rate: Hourly labor rate for cost calculations
+    Provides functionality to:
+    - Calculate material costs for a project
+    - Estimate labor costs based on time and skill level
+    - Add tools and overhead costs
+    - Generate detailed cost breakdowns and pricing recommendations
     """
 
-    @inject
-    def __init__(
-            self,
-            parent: tk.Widget,
-            app: Any,
-            project_service: get_IProjectService = None,
-            material_service: get_IMaterialService = None
-    ) -> None:
+    def __init__(self, parent: tk.Widget, app: Any):
         """
         Initialize the project cost analyzer.
 
         Args:
             parent: Parent widget
-            app: Application instance
-            project_service: Project service for data retrieval (optional)
-            material_service: Material service for cost calculations (optional)
+            app: Application instance with dependency container
         """
         super().__init__(parent, app)
 
-        self.project_service = project_service
-        self.material_service = material_service
+        # Initialize state
+        self.project_data = {
+            "name": "",
+            "description": "",
+            "materials": [],
+            "labor_hours": 0.0,
+            "labor_rate": 15.0,  # Default hourly rate
+            "overhead_percentage": 15.0,  # Default overhead percentage
+            "profit_margin": 30.0,  # Default profit margin
+            "tools": [],
+            "total_material_cost": 0.0,
+            "total_labor_cost": 0.0,
+            "total_overhead": 0.0,
+            "total_cost": 0.0,
+            "suggested_price": 0.0
+        }
 
-        # Error handling
-        self.error_handler = ErrorHandler()
+        self._create_ui()
+        self._load_initial_data()
 
-        # Project and cost tracking
-        self.current_project: Optional[Project] = None
-        self.cost_data: Dict[str, Decimal] = {}
-        self.labor_rate = Decimal('25.00')
+    def _create_ui(self):
+        """Create the user interface."""
+        main_frame = ttk.Frame(self)
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        # UI Setup
-        self.setup_ui()
-        self.load_settings()
+        # Title and description
+        title_frame = ttk.Frame(main_frame)
+        title_frame.pack(fill=tk.X, pady=(0, 10))
 
-    def setup_ui(self) -> None:
-        """
-        Create and configure the UI components for the cost analyzer.
+        ttk.Label(title_frame, text="Project Cost Analyzer",
+                  font=("TkDefaultFont", 14, "bold")).pack(side=tk.LEFT)
 
-        Sets up toolbar, project list, and cost analysis sections.
-        """
-        try:
-            # Main layout
-            self.toolbar = ttk.Frame(self)
-            self.toolbar.pack(fill=tk.X, padx=5, pady=5)
-
-            self.content = ttk.PanedWindow(self, orient=tk.HORIZONTAL)
-            self.content.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
-
-            # Create UI sections
-            self.create_toolbar()
-            self.create_project_section()
-            self.create_cost_section()
-
-            # Status bar
-            self.status_var = tk.StringVar()
-            ttk.Label(self, textvariable=self.status_var, relief=tk.SUNKEN).pack(fill=tk.X, pady=(5, 0))
-
-        except Exception as e:
-            logger.error(f"Error setting up UI: {e}")
-            messagebox.showerror("UI Setup Error", str(e))
-
-    def create_toolbar(self) -> None:
-        """
-        Create toolbar controls for project type filtering and labor rate adjustment.
-        """
-        try:
-            # Project Type Selector
-            ttk.Label(self.toolbar, text='Project Type:').pack(side=tk.LEFT, padx=5)
-            self.type_var = tk.StringVar(value='ALL')
-            project_types = ['ALL'] + [t.name for t in ProjectType]
-            type_combo = ttk.Combobox(
-                self.toolbar,
-                textvariable=self.type_var,
-                values=project_types,
-                state='readonly',
-                width=15
-            )
-            type_combo.pack(side=tk.LEFT, padx=5)
-            type_combo.bind('<<ComboboxSelected>>', lambda _: self.load_projects())
-
-            # Labor Rate Input
-            ttk.Label(self.toolbar, text='Labor Rate ($/hr):').pack(side=tk.LEFT, padx=5)
-            self.labor_var = tk.StringVar(value=str(self.labor_rate))
-            labor_entry = ttk.Entry(self.toolbar, textvariable=self.labor_var, width=8)
-            labor_entry.pack(side=tk.LEFT)
-            labor_entry.bind('<FocusOut>', self.update_labor_rate)
-
-            # Toolbar Buttons
-            ttk.Button(self.toolbar, text='Settings', command=self.show_settings_dialog).pack(side=tk.RIGHT, padx=5)
-            ttk.Button(self.toolbar, text='Export Analysis', command=self.export_analysis).pack(side=tk.RIGHT, padx=5)
-
-        except Exception as e:
-            logger.error(f"Error creating toolbar: {e}")
-            messagebox.showerror("Toolbar Error", str(e))
-
-    def show_settings_dialog(self) -> None:
-        """
-        Display a dialog for additional project cost analyzer settings.
-        """
-        # Placeholder for future settings dialog implementation
-        messagebox.showinfo("Settings", "Settings dialog not yet implemented")
-
-    def export_analysis(self) -> None:
-        """
-        Export the current project's cost analysis to a file.
-        """
-        if not self.current_project or not self.cost_data:
-            messagebox.showwarning("Export Error", "No project selected for export")
-            return
-
-        try:
-            # TODO: Implement comprehensive export functionality
-            export_data = {
-                'project_name': self.current_project.name,
-                'cost_breakdown': {k: float(v) for k, v in self.cost_data.items()}
-            }
-
-            # Prompt user for file save location
-            file_path = tkinter.filedialog.asksaveasfilename(
-                defaultextension=".json",
-                filetypes=[("JSON files", "*.json"), ("All files", "*.*")]
-            )
-
-            if file_path:
-                with open(file_path, 'w') as f:
-                    json.dump(export_data, f, indent=4)
-                messagebox.showinfo("Export Successful", f"Analysis exported to {file_path}")
-
-        except Exception as e:
-            logger.error(f"Error exporting analysis: {e}")
-            messagebox.showerror("Export Error", str(e))
-
-    def create_project_section(self) -> None:
-        """Create the project list section."""
-        frame = ttk.LabelFrame(self.content, text='Projects')
-        self.content.add(frame, weight=1)
-        columns = 'name', 'type', 'status', 'materials_cost', 'total_cost'
-        self.project_tree = ttk.Treeview(frame, columns=columns, show='headings', height=15)
-        headings = {'name': 'Project Name', 'type': 'Type', 'status': 'Status',
-                    'materials_cost': 'Materials Cost', 'total_cost': 'Total Cost'}
-        for col, heading in headings.items():
-            self.project_tree.heading(col, text=heading)
-            self.project_tree.column(col, width=100)
-        scrollbar = ttk.Scrollbar(frame, orient=tk.VERTICAL, command=self.project_tree.yview)
-        self.project_tree.configure(yscrollcommand=scrollbar.set)
-        self.project_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        self.project_tree.bind('<<TreeviewSelect>>', self.on_project_select)
-
-    def create_cost_section(self) -> None:
-        """Create the cost analysis section."""
-        frame = ttk.LabelFrame(self.content, text='Cost Analysis')
-        self.content.add(frame, weight=1)
-        notebook = ttk.Notebook(frame)
+        # Create notebook for tabbed sections
+        notebook = ttk.Notebook(main_frame)
         notebook.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
-        breakdown_frame = ttk.Frame(notebook)
-        notebook.add(breakdown_frame, text='Cost Breakdown')
-        self.create_cost_breakdown(breakdown_frame)
-        profit_frame = ttk.Frame(notebook)
-        notebook.add(profit_frame, text='Profitability')
-        self.create_profitability_analysis(profit_frame)
-        pricing_frame = ttk.Frame(notebook)
-        notebook.add(pricing_frame, text='Pricing')
-        self.create_pricing_recommendations(pricing_frame)
 
-    def create_cost_breakdown(self, parent: ttk.Frame) -> None:
+        # Tab 1: Project Info
+        info_frame = ttk.Frame(notebook)
+        self._create_project_info_tab(info_frame)
+        notebook.add(info_frame, text="Project Info")
+
+        # Tab 2: Materials
+        materials_frame = ttk.Frame(notebook)
+        self._create_materials_tab(materials_frame)
+        notebook.add(materials_frame, text="Materials")
+
+        # Tab 3: Labor & Overhead
+        labor_frame = ttk.Frame(notebook)
+        self._create_labor_tab(labor_frame)
+        notebook.add(labor_frame, text="Labor & Overhead")
+
+        # Tab 4: Summary
+        summary_frame = ttk.Frame(notebook)
+        self._create_summary_tab(summary_frame)
+        notebook.add(summary_frame, text="Cost Summary")
+
+        # Bottom action buttons
+        action_frame = ttk.Frame(main_frame)
+        action_frame.pack(fill=tk.X, pady=(10, 0))
+
+        ttk.Button(action_frame, text="Calculate", command=self._calculate_costs).pack(side=tk.LEFT)
+        ttk.Button(action_frame, text="Save", command=self._save_analysis).pack(side=tk.LEFT, padx=5)
+        ttk.Button(action_frame, text="Export", command=self._export_analysis).pack(side=tk.LEFT)
+        ttk.Button(action_frame, text="Reset", command=self._reset_form).pack(side=tk.RIGHT)
+
+    def _create_project_info_tab(self, parent):
         """
-        Create the cost breakdown display.
+        Create the project info tab.
 
         Args:
-            parent: Parent frame
+            parent: Parent widget for the tab
         """
-        sections = [('Materials', 'materials_frame'), ('Labor', 'labor_frame'),
-                    ('Hardware', 'hardware_frame'), ('Overhead', 'overhead_frame')]
-        self.cost_frames = {}
-        for title, frame_name in sections:
-            frame = ttk.LabelFrame(parent, text=title)
-            frame.pack(fill=tk.X, padx=5, pady=5)
-            self.cost_frames[frame_name] = frame
-        total_frame = ttk.Frame(parent)
-        total_frame.pack(fill=tk.X, padx=5, pady=10)
-        ttk.Label(total_frame, text='Total Cost:', font=('TkDefaultFont', 10, 'bold')).pack(side=tk.LEFT)
-        self.total_var = tk.StringVar()
-        ttk.Label(total_frame, textvariable=self.total_var, font=('TkDefaultFont', 12, 'bold')).pack(side=tk.LEFT, padx=5)
+        frame = ttk.Frame(parent)
+        frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-    def create_profitability_analysis(self, parent: ttk.Frame) -> None:
+        # Project details
+        details_frame = ttk.LabelFrame(frame, text="Project Details")
+        details_frame.pack(fill=tk.X, pady=(0, 10))
+
+        detail_grid = ttk.Frame(details_frame)
+        detail_grid.pack(fill=tk.X, padx=10, pady=10)
+
+        # Project name
+        ttk.Label(detail_grid, text="Project Name:").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
+        self.name_var = tk.StringVar(value=self.project_data["name"])
+        ttk.Entry(detail_grid, textvariable=self.name_var, width=30).grid(
+            row=0, column=1, sticky=tk.W + tk.E, padx=5, pady=5)
+
+        # Project type
+        ttk.Label(detail_grid, text="Project Type:").grid(row=1, column=0, sticky=tk.W, padx=5, pady=5)
+        self.type_var = tk.StringVar()
+        type_combo = ttk.Combobox(detail_grid, textvariable=self.type_var, width=28)
+        type_combo['values'] = [t.name for t in ProjectType if t.name != "OTHER"]  # Exclude OTHER
+        type_combo.grid(row=1, column=1, sticky=tk.W + tk.E, padx=5, pady=5)
+        type_combo.current(0)  # Default to first type
+
+        # Skill level
+        ttk.Label(detail_grid, text="Skill Level:").grid(row=2, column=0, sticky=tk.W, padx=5, pady=5)
+        self.skill_var = tk.StringVar()
+        skill_combo = ttk.Combobox(detail_grid, textvariable=self.skill_var, width=28)
+        skill_combo['values'] = [s.name for s in SkillLevel]
+        skill_combo.grid(row=2, column=1, sticky=tk.W + tk.E, padx=5, pady=5)
+        skill_combo.current(1)  # Default to INTERMEDIATE
+
+        # Description
+        ttk.Label(detail_grid, text="Description:").grid(row=3, column=0, sticky=tk.NW, padx=5, pady=5)
+        self.description_text = tk.Text(detail_grid, height=4, width=30)
+        self.description_text.grid(row=3, column=1, sticky=tk.W + tk.E, padx=5, pady=5)
+        self.description_text.insert("1.0", self.project_data.get("description", ""))
+
+        # Configure the grid
+        detail_grid.columnconfigure(1, weight=1)
+
+        # Project dimensions
+        dim_frame = ttk.LabelFrame(frame, text="Project Dimensions")
+        dim_frame.pack(fill=tk.X, pady=(0, 10))
+
+        dim_grid = ttk.Frame(dim_frame)
+        dim_grid.pack(fill=tk.X, padx=10, pady=10)
+
+        # Width, height, depth
+        ttk.Label(dim_grid, text="Width:").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
+        self.width_var = tk.DoubleVar(value=0.0)
+        ttk.Spinbox(dim_grid, from_=0, to=1000, increment=0.5, textvariable=self.width_var, width=10).grid(
+            row=0, column=1, sticky=tk.W, padx=5, pady=5)
+        ttk.Label(dim_grid, text="cm").grid(row=0, column=2, sticky=tk.W)
+
+        ttk.Label(dim_grid, text="Height:").grid(row=1, column=0, sticky=tk.W, padx=5, pady=5)
+        self.height_var = tk.DoubleVar(value=0.0)
+        ttk.Spinbox(dim_grid, from_=0, to=1000, increment=0.5, textvariable=self.height_var, width=10).grid(
+            row=1, column=1, sticky=tk.W, padx=5, pady=5)
+        ttk.Label(dim_grid, text="cm").grid(row=1, column=2, sticky=tk.W)
+
+        ttk.Label(dim_grid, text="Depth:").grid(row=2, column=0, sticky=tk.W, padx=5, pady=5)
+        self.depth_var = tk.DoubleVar(value=0.0)
+        ttk.Spinbox(dim_grid, from_=0, to=1000, increment=0.5, textvariable=self.depth_var, width=10).grid(
+            row=2, column=1, sticky=tk.W, padx=5, pady=5)
+        ttk.Label(dim_grid, text="cm").grid(row=2, column=2, sticky=tk.W)
+
+        # Add notes frame
+        notes_frame = ttk.LabelFrame(frame, text="Notes")
+        notes_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+
+        self.notes_text = tk.Text(notes_frame, height=6)
+        self.notes_text.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        # Complexity factor
+        complexity_frame = ttk.LabelFrame(frame, text="Project Complexity")
+        complexity_frame.pack(fill=tk.X, pady=(0, 10))
+
+        complexity_grid = ttk.Frame(complexity_frame)
+        complexity_grid.pack(fill=tk.X, padx=10, pady=10)
+
+        ttk.Label(complexity_grid, text="Complexity Factor:").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
+        self.complexity_var = tk.DoubleVar(value=1.0)  # 1.0 = normal complexity
+        complexity_scale = ttk.Scale(complexity_grid, from_=0.5, to=2.0, orient=tk.HORIZONTAL,
+                                     variable=self.complexity_var, length=200)
+        complexity_scale.grid(row=0, column=1, sticky=tk.W + tk.E, padx=5, pady=5)
+
+        # Add labels for the scale
+        ttk.Label(complexity_grid, text="Simple").grid(row=1, column=1, sticky=tk.W, padx=5)
+        ttk.Label(complexity_grid, text="Complex").grid(row=1, column=1, sticky=tk.E, padx=5)
+
+        # Show numeric value
+        complexity_label = ttk.Label(complexity_grid, textvariable=self.complexity_var)
+        complexity_label.grid(row=0, column=2, padx=5, pady=5)
+
+        # Update label when scale changes
+        complexity_scale.bind("<Motion>", lambda e: self.complexity_var.set(round(self.complexity_var.get(), 2)))
+
+    def _create_materials_tab(self, parent):
         """
-        Create the profitability analysis display.
+        Create the materials tab.
 
         Args:
-            parent: Parent frame
+            parent: Parent widget for the tab
         """
-        metrics_frame = ttk.Frame(parent)
-        metrics_frame.pack(fill=tk.X, pady=5)
-        self.profit_vars = {}
-        row = 0
-        col = 0
-        metrics = [('Target Price', 'target_price'), ('Actual Cost', 'actual_cost'),
-                   ('Gross Profit', 'gross_profit'), ('Profit Margin', 'profit_margin'),
-                   ('Break-Even Point', 'break_even'), ('ROI', 'roi')]
-        for label, var_name in metrics:
-            metric_frame = ttk.Frame(metrics_frame)
-            metric_frame.grid(row=row, column=col, padx=5, pady=2, sticky='nsew')
-            ttk.Label(metric_frame, text=label + ':', font=('TkDefaultFont', 9, 'bold')).pack(anchor=tk.W)
-            var = tk.StringVar()
-            self.profit_vars[var_name] = var
-            ttk.Label(metric_frame, textvariable=var, font=('TkDefaultFont', 12)).pack(anchor=tk.W)
-            col += 1
-            if col > 2:
-                col = 0
-                row += 1
-        for i in range(3):
-            metrics_frame.grid_columnconfigure(i, weight=1)
-        margin_frame = ttk.Frame(parent)
-        margin_frame.pack(fill=tk.X, pady=10)
-        ttk.Label(margin_frame, text='Target Margin (%):').pack(side=tk.LEFT)
-        self.margin_var = tk.StringVar(value='40')
-        margin_scale = ttk.Scale(margin_frame, from_=0, to=100, orient=tk.HORIZONTAL,
-                                  variable=self.margin_var, command=self.update_profitability)
-        margin_scale.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
-        self.profit_canvas = tk.Canvas(parent, bg='white', height=200)
-        self.profit_canvas.pack(fill=tk.BOTH, expand=True, pady=10)
+        frame = ttk.Frame(parent)
+        frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-    def create_pricing_recommendations(self, parent: ttk.Frame) -> None:
+        # Material input
+        input_frame = ttk.LabelFrame(frame, text="Add Material")
+        input_frame.pack(fill=tk.X, pady=(0, 10))
+
+        input_grid = ttk.Frame(input_frame)
+        input_grid.pack(fill=tk.X, padx=10, pady=10)
+
+        # Material details
+        ttk.Label(input_grid, text="Name:").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
+        self.material_name_var = tk.StringVar()
+        ttk.Entry(input_grid, textvariable=self.material_name_var, width=20).grid(
+            row=0, column=1, sticky=tk.W + tk.E, padx=5, pady=5)
+
+        ttk.Label(input_grid, text="Type:").grid(row=0, column=2, sticky=tk.W, padx=5, pady=5)
+        self.material_type_var = tk.StringVar()
+        type_combo = ttk.Combobox(input_grid, textvariable=self.material_type_var, width=15)
+        type_combo['values'] = [t.name for t in MaterialType]
+        type_combo.grid(row=0, column=3, sticky=tk.W + tk.E, padx=5, pady=5)
+        type_combo.current(0)  # Default to first type
+
+        ttk.Label(input_grid, text="Quantity:").grid(row=1, column=0, sticky=tk.W, padx=5, pady=5)
+        self.material_quantity_var = tk.DoubleVar(value=1.0)
+        ttk.Spinbox(input_grid, from_=0, to=1000, increment=0.1, textvariable=self.material_quantity_var,
+                    width=10).grid(
+            row=1, column=1, sticky=tk.W, padx=5, pady=5)
+
+        ttk.Label(input_grid, text="Unit:").grid(row=1, column=2, sticky=tk.W, padx=5, pady=5)
+        self.material_unit_var = tk.StringVar(value="sq ft")
+        unit_combo = ttk.Combobox(input_grid, textvariable=self.material_unit_var, width=15)
+        unit_combo['values'] = ("sq ft", "sq m", "linear ft", "piece", "oz", "g")
+        unit_combo.grid(row=1, column=3, sticky=tk.W + tk.E, padx=5, pady=5)
+
+        ttk.Label(input_grid, text="Unit Price:").grid(row=2, column=0, sticky=tk.W, padx=5, pady=5)
+        self.material_price_var = tk.DoubleVar(value=0.0)
+        ttk.Spinbox(input_grid, from_=0, to=10000, increment=0.5, textvariable=self.material_price_var, width=10).grid(
+            row=2, column=1, sticky=tk.W, padx=5, pady=5)
+
+        ttk.Label(input_grid, text="Currency:").grid(row=2, column=2, sticky=tk.W, padx=5, pady=5)
+        self.currency_var = tk.StringVar(value="$")
+        currency_combo = ttk.Combobox(input_grid, textvariable=self.currency_var, width=5)
+        currency_combo['values'] = ("$", "€", "£", "¥")
+        currency_combo.grid(row=2, column=3, sticky=tk.W, padx=5, pady=5)
+
+        ttk.Label(input_grid, text="Waste %:").grid(row=3, column=0, sticky=tk.W, padx=5, pady=5)
+        self.material_waste_var = tk.DoubleVar(value=15.0)  # Default 15% waste
+        ttk.Spinbox(input_grid, from_=0, to=100, increment=1, textvariable=self.material_waste_var, width=10).grid(
+            row=3, column=1, sticky=tk.W, padx=5, pady=5)
+
+        # Add button
+        ttk.Button(input_grid, text="Add Material", command=self._add_material).grid(
+            row=4, column=0, columnspan=4, pady=10)
+
+        # Configure the grid
+        for i in range(4):
+            input_grid.columnconfigure(i, weight=1)
+
+        # Materials list
+        list_frame = ttk.LabelFrame(frame, text="Materials List")
+        list_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+
+        # Create treeview with scrollbar
+        tree_frame = ttk.Frame(list_frame)
+        tree_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        columns = ("name", "type", "quantity", "unit", "price", "waste", "total")
+        self.materials_tree = ttk.Treeview(tree_frame, columns=columns, show="headings")
+
+        # Define headings
+        self.materials_tree.heading("name", text="Name")
+        self.materials_tree.heading("type", text="Type")
+        self.materials_tree.heading("quantity", text="Quantity")
+        self.materials_tree.heading("unit", text="Unit")
+        self.materials_tree.heading("price", text="Unit Price")
+        self.materials_tree.heading("waste", text="Waste %")
+        self.materials_tree.heading("total", text="Total")
+
+        # Define columns
+        self.materials_tree.column("name", width=150, anchor=tk.W)
+        self.materials_tree.column("type", width=100, anchor=tk.W)
+        self.materials_tree.column("quantity", width=70, anchor=tk.CENTER)
+        self.materials_tree.column("unit", width=70, anchor=tk.CENTER)
+        self.materials_tree.column("price", width=80, anchor=tk.E)
+        self.materials_tree.column("waste", width=70, anchor=tk.CENTER)
+        self.materials_tree.column("total", width=80, anchor=tk.E)
+
+        # Add scrollbar
+        scrollbar = ttk.Scrollbar(tree_frame, orient=tk.VERTICAL, command=self.materials_tree.yview)
+        self.materials_tree.configure(yscrollcommand=scrollbar.set)
+
+        # Pack elements
+        self.materials_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # Bind double-click to remove
+        self.materials_tree.bind("<Double-1>", lambda e: self._remove_selected_material())
+
+        # Buttons for material list
+        button_frame = ttk.Frame(list_frame)
+        button_frame.pack(fill=tk.X, padx=10, pady=(0, 10))
+
+        ttk.Button(button_frame, text="Remove Selected", command=self._remove_selected_material).pack(side=tk.LEFT)
+        ttk.Button(button_frame, text="Clear All", command=self._clear_materials).pack(side=tk.LEFT, padx=5)
+
+        # Material totals
+        totals_frame = ttk.Frame(list_frame)
+        totals_frame.pack(fill=tk.X, padx=10, pady=(0, 10))
+
+        ttk.Label(totals_frame, text="Total Material Cost:").pack(side=tk.LEFT, padx=5)
+        self.total_materials_var = tk.StringVar(value="$0.00")
+        ttk.Label(totals_frame, textvariable=self.total_materials_var, font=("TkDefaultFont", 10, "bold")).pack(
+            side=tk.LEFT, padx=5)
+
+    def _create_labor_tab(self, parent):
         """
-        Create the pricing recommendations display.
+        Create the labor and overhead tab.
 
         Args:
-            parent: Parent frame
+            parent: Parent widget for the tab
         """
-        points_frame = ttk.LabelFrame(parent, text='Recommended Price Points')
-        points_frame.pack(fill=tk.X, padx=5, pady=5)
-        self.price_vars = {}
-        for label, var_name in [('Economy', 'economy_price'), ('Standard', 'standard_price'),
-                                ('Premium', 'premium_price')]:
-            frame = ttk.Frame(points_frame)
-            frame.pack(fill=tk.X, pady=2)
-            ttk.Label(frame, text=f'{label}:').pack(side=tk.LEFT)
-            var = tk.StringVar()
-            self.price_vars[var_name] = var
-            ttk.Label(frame, textvariable=var, font=('TkDefaultFont', 10, 'bold')).pack(side=tk.LEFT, padx=5)
-        analysis_frame = ttk.LabelFrame(parent, text='Market Analysis')
-        analysis_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
-        self.market_text = tk.Text(analysis_frame, wrap=tk.WORD, height=8, state=tk.DISABLED)
-        self.market_text.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
-        comp_frame = ttk.LabelFrame(parent, text='Competitor Comparison')
-        comp_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
-        self.comp_canvas = tk.Canvas(comp_frame, bg='white', height=150)
-        self.comp_canvas.pack(fill=tk.BOTH, expand=True, pady=5)
+        frame = ttk.Frame(parent)
+        frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-    def load_projects(self) -> None:
-        """Load and display project list."""
-        try:
-            project_type = None if self.type_var.get() == 'ALL' else ProjectType[self.type_var.get()]
-            projects = self.project_service.search_projects({'project_type': project_type})
-            self.project_tree.delete(*self.project_tree.get_children())
-            for project in projects:
-                materials_cost = self.calculate_materials_cost(project)
-                total_cost = self.calculate_total_cost(project)
-                values = (project.name, project.project_type.name, project.status.name,
-                          f'${materials_cost:.2f}', f'${total_cost:.2f}')
-                self.project_tree.insert('', tk.END, values=values, tags=(str(project.id),))
-        except Exception as e:
-            logger.error(f'Error loading projects: {str(e)}')
-            self.status_var.set('Error loading projects')
+        # Labor section
+        labor_frame = ttk.LabelFrame(frame, text="Labor")
+        labor_frame.pack(fill=tk.X, pady=(0, 10))
 
-    def calculate_materials_cost(self, project: Project) -> Decimal:
+        labor_grid = ttk.Frame(labor_frame)
+        labor_grid.pack(fill=tk.X, padx=10, pady=10)
+
+        # Labor hours
+        ttk.Label(labor_grid, text="Estimated Hours:").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
+        self.labor_hours_var = tk.DoubleVar(value=self.project_data.get("labor_hours", 0.0))
+        ttk.Spinbox(labor_grid, from_=0, to=1000, increment=0.5, textvariable=self.labor_hours_var, width=10).grid(
+            row=0, column=1, sticky=tk.W, padx=5, pady=5)
+
+        # Labor rate
+        ttk.Label(labor_grid, text="Hourly Rate:").grid(row=1, column=0, sticky=tk.W, padx=5, pady=5)
+        self.labor_rate_var = tk.DoubleVar(value=self.project_data.get("labor_rate", 15.0))
+        ttk.Spinbox(labor_grid, from_=0, to=1000, increment=0.5, textvariable=self.labor_rate_var, width=10).grid(
+            row=1, column=1, sticky=tk.W, padx=5, pady=5)
+        ttk.Label(labor_grid, text=self.currency_var.get() + "/hour").grid(row=1, column=2, sticky=tk.W)
+
+        # Calculate labor cost button
+        ttk.Button(labor_grid, text="Calculate Labor Cost", command=self._calculate_labor_cost).grid(
+            row=2, column=0, columnspan=3, pady=10)
+
+        # Labor cost result
+        ttk.Label(labor_grid, text="Total Labor Cost:").grid(row=3, column=0, sticky=tk.W, padx=5, pady=5)
+        self.total_labor_var = tk.StringVar(value=f"{self.currency_var.get()}0.00")
+        ttk.Label(labor_grid, textvariable=self.total_labor_var, font=("TkDefaultFont", 10, "bold")).grid(
+            row=3, column=1, columnspan=2, sticky=tk.W, padx=5, pady=5)
+
+        # Configure the grid
+        labor_grid.columnconfigure(1, weight=1)
+
+        # Overhead section
+        overhead_frame = ttk.LabelFrame(frame, text="Overhead & Profit")
+        overhead_frame.pack(fill=tk.X, pady=(0, 10))
+
+        overhead_grid = ttk.Frame(overhead_frame)
+        overhead_grid.pack(fill=tk.X, padx=10, pady=10)
+
+        # Overhead percentage
+        ttk.Label(overhead_grid, text="Overhead Percentage:").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
+        self.overhead_pct_var = tk.DoubleVar(value=self.project_data.get("overhead_percentage", 15.0))
+        ttk.Spinbox(overhead_grid, from_=0, to=100, increment=1, textvariable=self.overhead_pct_var, width=10).grid(
+            row=0, column=1, sticky=tk.W, padx=5, pady=5)
+        ttk.Label(overhead_grid, text="%").grid(row=0, column=2, sticky=tk.W)
+
+        # Profit margin
+        ttk.Label(overhead_grid, text="Profit Margin:").grid(row=1, column=0, sticky=tk.W, padx=5, pady=5)
+        self.profit_margin_var = tk.DoubleVar(value=self.project_data.get("profit_margin", 30.0))
+        ttk.Spinbox(overhead_grid, from_=0, to=100, increment=1, textvariable=self.profit_margin_var, width=10).grid(
+            row=1, column=1, sticky=tk.W, padx=5, pady=5)
+        ttk.Label(overhead_grid, text="%").grid(row=1, column=2, sticky=tk.W)
+
+        # Configure the grid
+        overhead_grid.columnconfigure(1, weight=1)
+
+        # Tools section
+        tools_frame = ttk.LabelFrame(frame, text="Tools & Equipment")
+        tools_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+
+        tools_grid = ttk.Frame(tools_frame)
+        tools_grid.pack(fill=tk.X, padx=10, pady=10)
+
+        # Tool name
+        ttk.Label(tools_grid, text="Tool Name:").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
+        self.tool_name_var = tk.StringVar()
+        ttk.Entry(tools_grid, textvariable=self.tool_name_var, width=20).grid(
+            row=0, column=1, sticky=tk.W + tk.E, padx=5, pady=5)
+
+        # Tool cost
+        ttk.Label(tools_grid, text="Cost:").grid(row=0, column=2, sticky=tk.W, padx=5, pady=5)
+        self.tool_cost_var = tk.DoubleVar(value=0.0)
+        ttk.Spinbox(tools_grid, from_=0, to=10000, increment=0.5, textvariable=self.tool_cost_var, width=10).grid(
+            row=0, column=3, sticky=tk.W, padx=5, pady=5)
+
+        # Tool usage
+        ttk.Label(tools_grid, text="Usage %:").grid(row=1, column=0, sticky=tk.W, padx=5, pady=5)
+        self.tool_usage_var = tk.DoubleVar(value=100.0)  # Default to 100% usage
+        ttk.Spinbox(tools_grid, from_=1, to=100, increment=1, textvariable=self.tool_usage_var, width=10).grid(
+            row=1, column=1, sticky=tk.W, padx=5, pady=5)
+        ttk.Label(tools_grid, text="(% of cost to allocate to this project)").grid(
+            row=1, column=2, columnspan=2, sticky=tk.W, padx=5, pady=5)
+
+        # Add tool button
+        ttk.Button(tools_grid, text="Add Tool", command=self._add_tool).grid(
+            row=2, column=0, columnspan=4, pady=10)
+
+        # Configure the grid
+        for i in range(4):
+            tools_grid.columnconfigure(i, weight=1)
+
+        # Tool list
+        list_frame = ttk.Frame(tools_frame)
+        list_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        # Create treeview with scrollbar
+        columns = ("name", "cost", "usage", "allocated")
+        self.tools_tree = ttk.Treeview(list_frame, columns=columns, show="headings", height=5)
+
+        # Define headings
+        self.tools_tree.heading("name", text="Tool Name")
+        self.tools_tree.heading("cost", text="Total Cost")
+        self.tools_tree.heading("usage", text="Usage %")
+        self.tools_tree.heading("allocated", text="Allocated Cost")
+
+        # Define columns
+        self.tools_tree.column("name", width=200, anchor=tk.W)
+        self.tools_tree.column("cost", width=100, anchor=tk.E)
+        self.tools_tree.column("usage", width=70, anchor=tk.CENTER)
+        self.tools_tree.column("allocated", width=100, anchor=tk.E)
+
+        # Add scrollbar
+        scrollbar = ttk.Scrollbar(list_frame, orient=tk.VERTICAL, command=self.tools_tree.yview)
+        self.tools_tree.configure(yscrollcommand=scrollbar.set)
+
+        # Pack elements
+        self.tools_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # Bind double-click to remove
+        self.tools_tree.bind("<Double-1>", lambda e: self._remove_selected_tool())
+
+        # Buttons for tool list
+        button_frame = ttk.Frame(tools_frame)
+        button_frame.pack(fill=tk.X, padx=10, pady=(0, 10))
+
+        ttk.Button(button_frame, text="Remove Selected", command=self._remove_selected_tool).pack(side=tk.LEFT)
+
+        # Tools total
+        ttk.Label(button_frame, text="Total Tool Cost:").pack(side=tk.LEFT, padx=(20, 5))
+        self.total_tools_var = tk.StringVar(value=f"{self.currency_var.get()}0.00")
+        ttk.Label(button_frame, textvariable=self.total_tools_var, font=("TkDefaultFont", 10, "bold")).pack(
+            side=tk.LEFT, padx=5)
+
+    def _create_summary_tab(self, parent):
         """
-        Calculate total materials cost for a project.
+        Create the cost summary tab.
 
         Args:
-            project: Project to calculate for
-
-        Returns:
-            Total materials cost
+            parent: Parent widget for the tab
         """
-        total = Decimal('0')
-        try:
-            for component in project.components:
-                if component.material_type == MaterialType.LEATHER:
-                    material = self.material_service.get_material(component.material_id)
-                    total += material.unit_cost * component.area
-                else:
-                    material = self.material_service.get_material(component.material_id)
-                    total += material.unit_cost * component.quantity
-        except Exception as e:
-            logger.error(f'Error calculating materials cost: {str(e)}')
-        return total
+        frame = ttk.Frame(parent)
+        frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-    def calculate_component_cost(self, component: Any) -> Decimal:
-        """
-        Calculate cost for a specific component.
+        # Cost breakdown
+        breakdown_frame = ttk.LabelFrame(frame, text="Cost Breakdown")
+        breakdown_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
 
-        Args:
-            component: Project component
+        breakdown_grid = ttk.Frame(breakdown_frame)
+        breakdown_grid.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        Returns:
-            Component cost
-        """
-        try:
-            material = self.material_service.get_material(component.material_id)
-            if component.material_type == MaterialType.LEATHER:
-                return material.unit_cost * component.area
-            else:
-                return material.unit_cost * component.quantity
-        except Exception as e:
-            logger.error(f'Error calculating component cost: {str(e)}')
-        return Decimal('0')
+        # Create the grid with cost items
+        ttk.Label(breakdown_grid, text="Materials Cost:").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
+        self.summary_materials_var = tk.StringVar(value=f"{self.currency_var.get()}0.00")
+        ttk.Label(breakdown_grid, textvariable=self.summary_materials_var).grid(
+            row=0, column=1, sticky=tk.E, padx=5, pady=5)
 
-    def calculate_total_cost(self, project: Project) -> Decimal:
-        """
-        Calculate total project cost including labor and overhead.
+        ttk.Label(breakdown_grid, text="Labor Cost:").grid(row=1, column=0, sticky=tk.W, padx=5, pady=5)
+        self.summary_labor_var = tk.StringVar(value=f"{self.currency_var.get()}0.00")
+        ttk.Label(breakdown_grid, textvariable=self.summary_labor_var).grid(
+            row=1, column=1, sticky=tk.E, padx=5, pady=5)
 
-        Args:
-            project: Project to calculate for
+        ttk.Label(breakdown_grid, text="Tool Cost:").grid(row=2, column=0, sticky=tk.W, padx=5, pady=5)
+        self.summary_tools_var = tk.StringVar(value=f"{self.currency_var.get()}0.00")
+        ttk.Label(breakdown_grid, textvariable=self.summary_tools_var).grid(
+            row=2, column=1, sticky=tk.E, padx=5, pady=5)
 
-        Returns:
-            Total project cost
-        """
-        try:
-            materials_cost = self.calculate_materials_cost(project)
-            labor_hours = project.estimated_hours or Decimal('0')
-            labor_cost = labor_hours * self.labor_rate
-            base_cost = materials_cost + labor_cost
-            overhead_rate = Decimal('0.15')
-            overhead_cost = base_cost * overhead_rate
-            return materials_cost + labor_cost + overhead_cost
-        except Exception as e:
-            logger.error(f'Error calculating total cost: {str(e)}')
-        return Decimal('0')
+        ttk.Label(breakdown_grid, text="Overhead:").grid(row=3, column=0, sticky=tk.W, padx=5, pady=5)
+        self.summary_overhead_var = tk.StringVar(value=f"{self.currency_var.get()}0.00")
+        ttk.Label(breakdown_grid, textvariable=self.summary_overhead_var).grid(
+            row=3, column=1, sticky=tk.E, padx=5, pady=5)
 
-    def update_cost_breakdown(self) -> None:
-        """Update the cost breakdown display."""
-        if not self.current_project:
-            return
-        try:
-            materials_cost = self.calculate_materials_cost(self.current_project)
-            labor_hours = self.current_project.estimated_hours or Decimal('0')
-            labor_cost = labor_hours * self.labor_rate
-            base_cost = materials_cost + labor_cost
-            overhead_cost = base_cost * Decimal('0.15')
+        ttk.Separator(breakdown_grid, orient=tk.HORIZONTAL).grid(
+            row=4, column=0, columnspan=2, sticky=tk.EW, pady=5)
 
-            materials_frame = self.cost_frames['materials_frame']
-            for widget in materials_frame.winfo_children():
-                widget.destroy()
-            for component in self.current_project.components:
-                cost = self.calculate_component_cost(component)
-                frame = ttk.Frame(materials_frame)
-                frame.pack(fill=tk.X, pady=1)
-                ttk.Label(frame, text=component.name).pack(side=tk.LEFT)
-                ttk.Label(frame, text=f'${cost:.2f}').pack(side=tk.RIGHT)
+        ttk.Label(breakdown_grid, text="Total Cost:").grid(row=5, column=0, sticky=tk.W, padx=5, pady=5)
+        self.summary_total_cost_var = tk.StringVar(value=f"{self.currency_var.get()}0.00")
+        ttk.Label(breakdown_grid, textvariable=self.summary_total_cost_var, font=("TkDefaultFont", 11, "bold")).grid(
+            row=5, column=1, sticky=tk.E, padx=5, pady=5)
 
-            labor_frame = self.cost_frames['labor_frame']
-            for widget in labor_frame.winfo_children():
-                widget.destroy()
-            ttk.Label(labor_frame, text=f'Hours: {labor_hours}').pack(side=tk.LEFT)
-            ttk.Label(labor_frame, text=f'Rate: ${self.labor_rate}/hr').pack(side=tk.LEFT, padx=10)
-            ttk.Label(labor_frame, text=f'Total: ${labor_cost:.2f}').pack(side=tk.RIGHT)
+        ttk.Label(breakdown_grid, text="Profit:").grid(row=6, column=0, sticky=tk.W, padx=5, pady=5)
+        self.summary_profit_var = tk.StringVar(value=f"{self.currency_var.get()}0.00")
+        ttk.Label(breakdown_grid, textvariable=self.summary_profit_var).grid(
+            row=6, column=1, sticky=tk.E, padx=5, pady=5)
 
-            overhead_frame = self.cost_frames['overhead_frame']
-            for widget in overhead_frame.winfo_children():
-                widget.destroy()
-            ttk.Label(overhead_frame, text='15% of base cost').pack(side=tk.LEFT)
-            ttk.Label(overhead_frame, text=f'${overhead_cost:.2f}').pack(side=tk.RIGHT)
+        ttk.Separator(breakdown_grid, orient=tk.HORIZONTAL).grid(
+            row=7, column=0, columnspan=2, sticky=tk.EW, pady=5)
 
-            total_cost = materials_cost + labor_cost + overhead_cost
-            self.total_var.set(f'${total_cost:.2f}')
-            self.cost_data = {'materials': materials_cost, 'labor': labor_cost, 'overhead': overhead_cost,
-                              'total': total_cost}
-            self.update_profitability()
-            self.update_pricing_recommendations()
-        except Exception as e:
-            logger.error(f'Error updating cost breakdown: {str(e)}')
-            self.status_var.set('Error updating cost breakdown')
+        ttk.Label(breakdown_grid, text="Suggested Price:").grid(row=8, column=0, sticky=tk.W, padx=5, pady=5)
+        self.summary_price_var = tk.StringVar(value=f"{self.currency_var.get()}0.00")
+        ttk.Label(breakdown_grid, textvariable=self.summary_price_var,
+                  font=("TkDefaultFont", 14, "bold")).grid(
+            row=8, column=1, sticky=tk.E, padx=5, pady=5)
 
-    def on_project_select(self, event: Any) -> None:
-        """
-        Handle project selection in the treeview.
+        # Configure the grid
+        breakdown_grid.columnconfigure(0, weight=1)
+        breakdown_grid.columnconfigure(1, weight=1)
 
-        Args:
-            event: Event data
-        """
-        selection = self.project_tree.selection()
-        if not selection:
-            return
-        try:
-            project_id = int(self.project_tree.item(selection[0], 'tags')[0])
-            self.current_project = self.project_service.get_project(project_id, include_components=True)
-            self.update_cost_breakdown()
-        except Exception as e:
-            logger.error(f'Error loading project details: {str(e)}')
-            self.status_var.set('Error loading project details')
+        # Pricing options
+        pricing_frame = ttk.LabelFrame(frame, text="Pricing Options")
+        pricing_frame.pack(fill=tk.X, pady=(0, 10))
 
-    def cleanup(self) -> None:
-        """Perform cleanup before view is destroyed."""
-        try:
-            self.save_settings()
-        except Exception as e:
-            logger.error(f'Error during cleanup: {str(e)}')
+        pricing_grid = ttk.Frame(pricing_frame)
+        pricing_grid.pack(fill=tk.X, padx=10, pady=10)
 
-    def load_settings(self) -> None:
-        """Load saved settings."""
-        try:
-            with open('cost_analyzer_settings.json', 'r') as f:
-                settings = json.load(f)
-            self.labor_rate = Decimal(str(settings.get('labor_rate', '25.00')))
-            self.labor_var.set(str(self.labor_rate))
-        except Exception as e:
-            logger.error(f'Error loading settings: {str(e)}')
-
-    def save_settings(self) -> None:
-        """Save current settings."""
-        try:
-            settings = {'labor_rate': str(self.labor_rate)}
-            with open('cost_analyzer_settings.json', 'w') as f:
-                json.dump(settings, f)
-        except Exception as e:
-            logger.error(f'Error saving settings: {str(e)}')
-
-    def update_labor_rate(self, *args) -> None:
-        """Update the labor rate when changed."""
-        try:
-            new_rate = Decimal(self.labor_var.get())
-            if new_rate <= 0:
-                raise ValueError('Labor rate must be positive')
-            self.labor_rate = new_rate
-            self.save_settings()
-            if self.current_project:
-                self.update_cost_breakdown()
-        except ValueError:
-            self.labor_var.set(str(self.labor_rate))
-
-    def update_profitability(self, *args) -> None:
-        """Update the profitability analysis display."""
-        if not self.current_project or not self.cost_data:
-            return
-        try:
-            target_margin = Decimal(self.margin_var.get()) / 100
-            total_cost = self.cost_data['total']
-            target_price = total_cost / (1 - target_margin)
-            gross_profit = target_price - total_cost
-            metrics = {
-                'target_price': f'${target_price:.2f}',
-                'actual_cost': f'${total_cost:.2f}',
-                'gross_profit': f'${gross_profit:.2f}',
-                'profit_margin': f'{target_margin * 100:.1f}%',
-                'break_even': f'{total_cost / target_price * 100:.1f}% of price',
-                'roi': f'{gross_profit / total_cost * 100:.1f}%'
-            }
-            for name, value in metrics.items():
-                self.profit_vars[name].set(value)
-        except Exception as e:
-            logger.error(f'Error updating profitability: {str(e)}')
-            self.status_var.set('Error updating profitability analysis')
-
-    def update_pricing_recommendations(self) -> None:
-        """Update the pricing recommendations display."""
-        if not self.current_project or not self.cost_data:
-            return
-        try:
-            total_cost = self.cost_data['total']
-            price_points = {
-                'economy_price': total_cost * Decimal('1.5'),
-                'standard_price': total_cost * Decimal('2.0'),
-                'premium_price': total_cost * Decimal('3.0')
-            }
-            for name, value in price_points.items():
-                self.price_vars[name].set(f'${value:.2f}')
-
-            # TODO: Implement market analysis and competitor comparison
-            market_analysis = "Market analysis not yet implemented"
-            self.market_text.configure(state=tk.NORMAL)
-            self.market_text.delete('1.0', tk.END)
-            self.market_text.insert(tk.END, market_analysis)
-            self.market_text.configure(state=tk.DISABLED)
-
-        except Exception as e:
-            logger.error(f'Error updating pricing: {str(e)}')
-            self.status_var.set('Error updating pricing recommendations')
-
-def main():
-    """
-    Standalone entry point for testing the ProjectCostAnalyzer.
-    This function creates a basic Tkinter window and demonstrates
-    the ProjectCostAnalyzer view in isolation.
-    """
-    import tkinter as tk
-    from di.container import DependencyContainer
-    from services.implementations.project_service import ProjectServiceImpl
-    from services.implementations.material_service import MaterialServiceImpl
-    from database.models.enums import ProjectType, MaterialType, ProjectStatus
-
-    # Create root window
-    root = tk.Tk()
-    root.title("Leatherworking Project Cost Analyzer")
-    root.geometry("1200x800")
-
-    # Setup dependency container (mock implementation for testing)
-    container = DependencyContainer()
-    container.register('IProjectService', ProjectServiceImpl())
-    container.register('IMaterialService', MaterialServiceImpl())
-
-    # Create the ProjectCostAnalyzer
-    cost_analyzer = ProjectCostAnalyzer(root, container)
-    cost_analyzer.pack(fill=tk.BOTH, expand=True)
-
-    # Start the Tkinter event loop
-    root.mainloop()
-
-if __name__ == "__main__":
-    main()
+        # Add price rounding
+        ttk.Label(pricing_grid, text="Price Rounding:").grid(row

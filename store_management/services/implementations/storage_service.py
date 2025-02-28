@@ -18,102 +18,93 @@ class StorageService(IStorageService):
         self._storage_locations = {}
         self._storage_contents = {}
 
-    def create_storage_location(self, name: str, location_type: StorageLocationType,
-                                capacity: float, description: Optional[str] = None) -> Dict[str, Any]:
+    def create_storage_location(self, storage_data: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new storage location.
 
         Args:
-            name: Name of the storage location
-            location_type: Type of the storage location
-            capacity: Storage capacity
-            description: Optional description
+            storage_data: Dictionary with storage location data
 
         Returns:
             Dict[str, Any]: Created storage location data
         """
-        storage_id = f"ST{len(self._storage_locations) + 1:04d}"
-        storage_location = {
-            "id": storage_id,
-            "name": name,
-            "type": location_type,
-            "capacity": capacity,
-            "description": description,
-            "used_capacity": 0.0,
-        }
+        self.logger.info("Creating new storage location")
 
-        self._storage_locations[storage_id] = storage_location
-        self._storage_contents[storage_id] = []
+        # Generate ID if none provided
+        if 'id' not in storage_data:
+            storage_data['id'] = len(self._storage_locations) + 1
 
-        self.logger.info(f"Created storage location: {name} (ID: {storage_id})")
-        return storage_location
+        # Convert type to enum if provided as string
+        if 'location_type' in storage_data and isinstance(storage_data['location_type'], str):
+            try:
+                storage_data['location_type'] = StorageLocationType[storage_data['location_type']]
+            except KeyError:
+                storage_data['location_type'] = StorageLocationType.OTHER
 
-    def get_storage_location(self, storage_id: str) -> Optional[Dict[str, Any]]:
-        """Get storage location details by ID.
+        # Add to storage
+        self._storage_locations.append(storage_data)
+
+        return storage_data
+
+    def get_storage_location(self, location_id: int) -> Optional[Dict[str, Any]]:
+        """Get a storage location by ID.
 
         Args:
-            storage_id: ID of the storage location to retrieve
+            location_id: ID of the storage location to retrieve
 
         Returns:
             Optional[Dict[str, Any]]: Storage location data or None if not found
         """
-        storage_location = self._storage_locations.get(storage_id)
-        if not storage_location:
-            self.logger.warning(f"Storage location not found: {storage_id}")
-            return None
+        self.logger.info(f"Getting storage location with ID {location_id}")
 
-        return storage_location
+        # Find storage location
+        for location in self._storage_locations:
+            if location['id'] == location_id:
+                return location
 
-    def update_storage_location(self, storage_id: str,
-                                updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Update a storage location.
+        return None
 
-        Args:
-            storage_id: ID of the storage location to update
-            updates: Dictionary of fields to update
-
-        Returns:
-            Optional[Dict[str, Any]]: Updated storage location data or None if not found
-        """
-        if storage_id not in self._storage_locations:
-            self.logger.warning(f"Cannot update non-existent storage location: {storage_id}")
-            return None
-
-        storage = self._storage_locations[storage_id]
-
-        # Update only valid fields
-        valid_fields = ["name", "type", "capacity", "description"]
-        for field, value in updates.items():
-            if field in valid_fields:
-                storage[field] = value
-
-        self.logger.info(f"Updated storage location: {storage_id}")
-        return storage
-
-    def delete_storage_location(self, storage_id: str) -> bool:
-        """Delete a storage location if it exists and is empty.
+    def update_storage_location(self, location_id: int, storage_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update an existing storage location.
 
         Args:
-            storage_id: ID of the storage location to delete
+            location_id: ID of the storage location to update
+            storage_data: Updated storage location data
 
         Returns:
-            bool: True if successful, False otherwise
+            Dict[str, Any]: Updated storage location data
         """
-        if storage_id not in self._storage_locations:
-            self.logger.warning(f"Cannot delete non-existent storage location: {storage_id}")
-            return False
+        self.logger.info(f"Updating storage location with ID {location_id}")
 
-        # Check if storage is empty
-        if self._storage_contents.get(storage_id, []):
-            self.logger.warning(f"Cannot delete non-empty storage location: {storage_id}")
-            return False
+        # Find storage location
+        for i, location in enumerate(self._storage_locations):
+            if location['id'] == location_id:
+                # Update data
+                self._storage_locations[i].update(storage_data)
+                return self._storage_locations[i]
 
-        # Delete the storage location
-        del self._storage_locations[storage_id]
-        if storage_id in self._storage_contents:
-            del self._storage_contents[storage_id]
+        # If not found, create new
+        storage_data['id'] = location_id
+        return self.create_storage_location(storage_data)
 
-        self.logger.info(f"Deleted storage location: {storage_id}")
-        return True
+    def delete_storage_location(self, location_id: int) -> bool:
+        """Delete a storage location.
+
+        Args:
+            location_id: ID of the storage location to delete
+
+        Returns:
+            bool: True if deleted, False if not found
+        """
+        self.logger.info(f"Deleting storage location with ID {location_id}")
+
+        # Find storage location
+        for i, location in enumerate(self._storage_locations):
+            if location['id'] == location_id:
+                # Remove from storage
+                self._storage_locations.pop(i)
+                return True
+
+        return False
 
     def list_storage_locations(self, location_type: Optional[StorageLocationType] = None) -> List[Dict[str, Any]]:
         """List all storage locations, optionally filtered by type.
@@ -160,6 +151,43 @@ class StorageService(IStorageService):
         self._storage_locations[storage_id]["used_capacity"] += quantity
 
         self.logger.info(f"Added item {item_id} to storage {storage_id}")
+        return True
+
+    def assign_product_to_storage(self, product_id: int, storage_id: int, quantity: int = 1) -> bool:
+        """Assign a product to a storage location.
+
+        Args:
+            product_id: ID of the product to assign
+            storage_id: ID of the storage location
+            quantity: Quantity to assign
+
+        Returns:
+            bool: True if successful
+        """
+        self.logger.info(f"Assigning product {product_id} to storage {storage_id}")
+
+        # Check if storage location exists
+        storage_location = self.get_storage_location(storage_id)
+        if not storage_location:
+            return False
+
+        # Add product to storage
+        if 'products' not in storage_location:
+            storage_location['products'] = []
+
+        # Check if product already in storage
+        for i, item in enumerate(storage_location['products']):
+            if item.get('product_id') == product_id:
+                # Update quantity
+                storage_location['products'][i]['quantity'] += quantity
+                return True
+
+        # Add new product entry
+        storage_location['products'].append({
+            'product_id': product_id,
+            'quantity': quantity
+        })
+
         return True
 
     def assign_item_to_storage(self, item_id: str, storage_id: str,
@@ -251,6 +279,32 @@ class StorageService(IStorageService):
 
         self.logger.warning(f"Item {item_id} not found in storage {storage_id}")
         return False
+
+    def get_all_storage_locations(self, location_type: Optional[Union[StorageLocationType, str]] = None) -> List[
+        Dict[str, Any]]:
+        """Get all storage locations, optionally filtered by type.
+
+        Args:
+            location_type: Optional location type to filter by
+
+        Returns:
+            List[Dict[str, Any]]: List of storage locations
+        """
+        self.logger.info("Getting all storage locations")
+
+        # Convert string type to enum if needed
+        if isinstance(location_type, str):
+            try:
+                location_type = StorageLocationType[location_type]
+            except KeyError:
+                location_type = None
+
+        # Filter by type if specified
+        if location_type is not None:
+            return [loc for loc in self._storage_locations
+                    if loc.get('location_type') == location_type]
+
+        return self._storage_locations
 
     def get_storage_contents(self, storage_id: str) -> List[Dict[str, Any]]:
         """Get the contents of a storage location.
@@ -365,31 +419,37 @@ class StorageService(IStorageService):
 
         return results
 
-    def get_storage_capacity_status(self, storage_id: str) -> Optional[StorageCapacityStatus]:
+    def get_storage_capacity_status(self, storage_id: int) -> StorageCapacityStatus:
         """Get the capacity status of a storage location.
 
         Args:
             storage_id: ID of the storage location
 
         Returns:
-            Optional[StorageCapacityStatus]: Capacity status or None if storage not found
+            StorageCapacityStatus: Capacity status
         """
-        if storage_id not in self._storage_locations:
-            self.logger.warning(f"Storage location not found: {storage_id}")
-            return None
+        self.logger.info(f"Getting capacity status for storage {storage_id}")
 
-        storage = self._storage_locations[storage_id]
-        capacity = storage["capacity"]
-        used_capacity = storage["used_capacity"]
-
-        if used_capacity <= 0:
+        # Get storage location
+        storage_location = self.get_storage_location(storage_id)
+        if not storage_location:
             return StorageCapacityStatus.EMPTY
 
-        utilization = used_capacity / capacity
+        # Check if products exist
+        if 'products' not in storage_location or not storage_location['products']:
+            return StorageCapacityStatus.EMPTY
 
-        if utilization < 0.33:
+        # Get capacity information
+        capacity = storage_location.get('capacity', 100)
+        used_capacity = sum(item.get('quantity', 0) for item in storage_location['products'])
+        percentage = (used_capacity / capacity) * 100
+
+        # Determine status
+        if percentage < 30:
+            return StorageCapacityStatus.EMPTY
+        elif percentage < 70:
             return StorageCapacityStatus.PARTIALLY_FILLED
-        elif utilization < 0.9:
+        elif percentage < 90:
             return StorageCapacityStatus.NEARLY_FULL
         else:
             return StorageCapacityStatus.FULL

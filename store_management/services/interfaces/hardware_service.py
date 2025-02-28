@@ -11,7 +11,7 @@ from database.sqlalchemy.session import get_db_session
 
 # services/interfaces/hardware_service.py
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 from utils.circular_import_resolver import lazy_import
 
 # Lazy import to avoid circular dependency if needed

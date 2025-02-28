@@ -112,6 +112,17 @@ class BaseView(ttk.Frame, abc.ABC):
             self._logger.error(f"Error retrieving service {service_type.__name__}: {e}")
             raise ValueError(f"Service {service_type.__name__} not available") from e
 
+    def _get_service(self, service_type: Type) -> Any:
+        """Internal method to get a service - maintains backward compatibility.
+
+        Args:
+            service_type (Type): The type of service to retrieve
+
+        Returns:
+            Any: The requested service instance
+        """
+        return self.get_service(service_type)
+
     def show_message(self,
                      message: str,
                      title: str = "Notification",
@@ -140,6 +151,45 @@ class BaseView(ttk.Frame, abc.ABC):
 
         method = message_methods.get(message_type.lower(), tkinter.messagebox.showinfo)
         return method(title, message)
+
+    def show_error(self, title: str, message: str):
+        """Show an error message dialog - for backward compatibility.
+
+        Args:
+            title (str): Dialog title
+            message (str): Error message to display
+        """
+        return self.show_message(message, title, "error")
+
+    def show_warning(self, title: str, message: str):
+        """Show a warning message dialog - for backward compatibility.
+
+        Args:
+            title (str): Dialog title
+            message (str): Warning message to display
+        """
+        return self.show_message(message, title, "warning")
+
+    def show_info(self, title: str, message: str):
+        """Show an information message dialog - for backward compatibility.
+
+        Args:
+            title (str): Dialog title
+            message (str): Information message to display
+        """
+        return self.show_message(message, title, "info")
+
+    def confirm(self, title: str, message: str) -> bool:
+        """Show a confirmation dialog - for backward compatibility.
+
+        Args:
+            title (str): Dialog title
+            message (str): Confirmation message
+
+        Returns:
+            bool: True if confirmed, False otherwise
+        """
+        return self.show_message(message, title, "question")
 
     def create_labeled_entry(self,
                              parent: Union[tk.Widget, ttk.Frame],
@@ -219,7 +269,7 @@ class BaseView(ttk.Frame, abc.ABC):
         self._undo_stack.append(action)
         self._redo_stack.clear()  # Clear redo stack when a new action is added
 
-    def undo(self):
+    def undo(self, event=None):
         """
         Undo the last action if possible.
         """
@@ -234,7 +284,7 @@ class BaseView(ttk.Frame, abc.ABC):
                 self._logger.error(f"Undo failed: {e}")
                 self.show_message(f"Undo failed: {e}", message_type="error")
 
-    def redo(self):
+    def redo(self, event=None):
         """
         Redo the last undone action if possible.
         """

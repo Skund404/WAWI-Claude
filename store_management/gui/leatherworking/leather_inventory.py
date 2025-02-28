@@ -1,387 +1,297 @@
 # gui/leatherworking/leather_inventory.py
 """
-View for managing leather inventory in a leatherworking store management system.
-Provides functionality to view, add, edit, and delete leather materials.
+Leather inventory view implementation for managing leather materials.
 """
-
 import logging
-import tkinter as tk
-from tkinter import messagebox, ttk
 from typing import Any, Dict, List, Optional, Tuple, Type
+
+import tkinter as tk
+import tkinter.messagebox
+from tkinter import ttk
 
 from gui.base_view import BaseView
 from gui.leatherworking.leather_dialog import LeatherDetailsDialog
 from services.interfaces.material_service import IMaterialService, MaterialType
 from services.interfaces.project_service import IProjectService
 
-# Configure logger
-logger = logging.getLogger(__name__)
-
 
 class LeatherInventoryView(BaseView):
-    """
-    View for displaying and managing leather inventory.
-
-    Provides a tabular interface for viewing leather materials, with functionality
-    to add, edit, and delete entries. Includes search and filter capabilities.
-    """
+    """View for managing leather inventory."""
 
     def __init__(self, parent: tk.Widget, app: Any):
-        """
-        Initialize the Leather Inventory View.
+        """Initialize the Leather Inventory View.
 
         Args:
             parent (tk.Widget): Parent widget
             app (Any): Application context providing access to services
         """
         super().__init__(parent, app)
+        self.logger = logging.getLogger(__name__)
+        self.logger.info("Initializing Leather Inventory View")
 
-        self._material_service = None
-        self._project_service = None
+        # Set up the layout
+        self._setup_ui()
 
-        self._search_var = tk.StringVar()
-        self._selected_material_id = None
-
-        # Initialize UI components
-        self._create_ui()
+        # Load initial data
         self._load_data()
 
-        logger.info("Leather inventory view initialized")
-
-    def get_service(self, service_type: Type) -> Any:
-        """Get a service from the application.
-
-        Args:
-            service_type (Type): The service interface type to retrieve
-
-        Returns:
-            Any: The service instance
-        """
-        return self.app.get_service(service_type)
-
-    @property
-    def material_service(self) -> IMaterialService:
-        """
-        Lazy-loaded material service property.
-
-        Returns:
-            IMaterialService: Material service instance
-        """
-        if self._material_service is None:
-            self._material_service = self.get_service(IMaterialService)
-        return self._material_service
-
-    @property
-    def project_service(self) -> IProjectService:
-        """
-        Lazy-loaded project service property.
-
-        Returns:
-            IProjectService: Project service instance
-        """
-        if self._project_service is None:
-            self._project_service = self.get_service(IProjectService)
-        return self._project_service
-
-    def _create_ui(self) -> None:
-        """Create and configure UI components."""
-        # Create frame layout
+    def _setup_ui(self):
+        """Set up the UI components."""
+        # Main layout
         self.columnconfigure(0, weight=1)
-        self.rowconfigure(1, weight=1)
+        self.rowconfigure(0, weight=0)  # Toolbar
+        self.rowconfigure(1, weight=1)  # Content
 
-        # Toolbar frame
-        toolbar_frame = ttk.Frame(self, padding="5")
-        toolbar_frame.grid(row=0, column=0, sticky="ew")
+        # Create toolbar
+        toolbar = ttk.Frame(self, padding=(5, 5, 5, 5))
+        toolbar.grid(row=0, column=0, sticky="ew")
 
-        # Search bar
-        ttk.Label(toolbar_frame, text="Search:").pack(side=tk.LEFT, padx=(0, 5))
-        search_entry = ttk.Entry(toolbar_frame, textvariable=self._search_var, width=30)
+        ttk.Button(toolbar, text="New", command=self.on_new).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(toolbar, text="Edit", command=self.on_edit).pack(side=tk.LEFT, padx=5)
+        ttk.Button(toolbar, text="Delete", command=self.on_delete).pack(side=tk.LEFT, padx=5)
+        ttk.Separator(toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, padx=10, fill=tk.Y)
+        ttk.Button(toolbar, text="Refresh", command=self.on_refresh).pack(side=tk.LEFT, padx=5)
+
+        # Search frame (right side of toolbar)
+        search_frame = ttk.Frame(toolbar)
+        search_frame.pack(side=tk.RIGHT)
+
+        ttk.Label(search_frame, text="Search:").pack(side=tk.LEFT, padx=(0, 5))
+        self.search_var = tk.StringVar()
+        search_entry = ttk.Entry(search_frame, textvariable=self.search_var, width=20)
         search_entry.pack(side=tk.LEFT, padx=(0, 5))
         search_entry.bind("<Return>", self._on_search)
 
-        ttk.Button(toolbar_frame, text="Search", command=self._on_search).pack(side=tk.LEFT, padx=(0, 10))
-        ttk.Button(toolbar_frame, text="Add Leather", command=self._add_leather).pack(side=tk.LEFT, padx=(0, 5))
-        ttk.Button(toolbar_frame, text="Edit", command=self._edit_selected).pack(side=tk.LEFT, padx=(0, 5))
-        ttk.Button(toolbar_frame, text="Delete", command=self._delete_selected).pack(side=tk.LEFT, padx=(0, 5))
-        ttk.Button(toolbar_frame, text="Refresh", command=self._load_data).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(search_frame, text="Search", command=self._on_search).pack(side=tk.LEFT)
 
-        # Treeview for data display
-        self.tree = ttk.Treeview(self, columns=(
-            "id", "name", "leather_type", "quality", "area", "thickness",
-            "color", "supplier", "price", "location"
-        ), show="headings")
+        # Create content area
+        content = ttk.Frame(self, padding=5)
+        content.grid(row=1, column=0, sticky="nsew")
+        content.columnconfigure(0, weight=1)
+        content.rowconfigure(0, weight=1)
+
+        # Create treeview for leather inventory
+        self.tree = ttk.Treeview(
+            content,
+            columns=("id", "name", "type", "quantity", "price", "grade", "thickness"),
+            show="headings",
+            selectmode="browse"
+        )
 
         # Configure column headings
         self.tree.heading("id", text="ID")
         self.tree.heading("name", text="Name")
-        self.tree.heading("leather_type", text="Type")
-        self.tree.heading("quality", text="Quality")
-        self.tree.heading("area", text="Area (ft²)")
-        self.tree.heading("thickness", text="Thickness (mm)")
-        self.tree.heading("color", text="Color")
-        self.tree.heading("supplier", text="Supplier")
-        self.tree.heading("price", text="Price ($)")
-        self.tree.heading("location", text="Storage Location")
+        self.tree.heading("type", text="Type")
+        self.tree.heading("quantity", text="Quantity")
+        self.tree.heading("price", text="Price")
+        self.tree.heading("grade", text="Grade")
+        self.tree.heading("thickness", text="Thickness")
 
         # Configure column widths
-        self.tree.column("id", width=50, stretch=False)
+        self.tree.column("id", width=50, anchor="center")
         self.tree.column("name", width=150)
-        self.tree.column("leather_type", width=100)
-        self.tree.column("quality", width=100)
-        self.tree.column("area", width=80, anchor=tk.E)
-        self.tree.column("thickness", width=100, anchor=tk.E)
-        self.tree.column("color", width=100)
-        self.tree.column("supplier", width=120)
-        self.tree.column("price", width=80, anchor=tk.E)
-        self.tree.column("location", width=120)
+        self.tree.column("type", width=100)
+        self.tree.column("quantity", width=80, anchor="center")
+        self.tree.column("price", width=80, anchor="e")
+        self.tree.column("grade", width=80, anchor="center")
+        self.tree.column("thickness", width=80, anchor="center")
 
-        # Setup scrollbars
-        y_scrollbar = ttk.Scrollbar(self, orient=tk.VERTICAL, command=self.tree.yview)
-        x_scrollbar = ttk.Scrollbar(self, orient=tk.HORIZONTAL, command=self.tree.xview)
-        self.tree.configure(yscrollcommand=y_scrollbar.set, xscrollcommand=x_scrollbar.set)
+        # Add scrollbars
+        vsb = ttk.Scrollbar(content, orient="vertical", command=self.tree.yview)
+        hsb = ttk.Scrollbar(content, orient="horizontal", command=self.tree.xview)
 
-        # Grid layout
-        self.tree.grid(row=1, column=0, sticky="nsew")
-        y_scrollbar.grid(row=1, column=1, sticky="ns")
-        x_scrollbar.grid(row=2, column=0, sticky="ew")
+        self.tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
+
+        # Grid layout for treeview and scrollbars
+        self.tree.grid(row=0, column=0, sticky="nsew")
+        vsb.grid(row=0, column=1, sticky="ns")
+        hsb.grid(row=1, column=0, sticky="ew")
 
         # Bind events
-        self.tree.bind("<Double-1>", self._on_double_click)
-        self.tree.bind("<<TreeviewSelect>>", self._on_select)
+        self.tree.bind("<Double-1>", self.on_edit)
 
-        # Status bar
-        self.status_var = tk.StringVar()
-        status_bar = ttk.Label(self, textvariable=self.status_var, relief=tk.SUNKEN, anchor=tk.W)
-        status_bar.grid(row=3, column=0, columnspan=2, sticky="ew")
-
-        self.status_var.set("Ready")
-
-    def _load_data(self) -> None:
-        """
-        Load leather data from the material service and populate the treeview.
-        """
-        # Clear existing items
-        for item in self.tree.get_children():
-            self.tree.delete(item)
-
+    def _load_data(self):
+        """Load leather inventory data."""
         try:
-            # Get leather materials from service
-            materials = self.material_service.list_materials(material_type=MaterialType.LEATHER)
+            material_service = self.get_service(IMaterialService)
 
-            if not materials:
-                self.status_var.set("No leather materials found")
-                logger.info("No leather materials found")
-                return
+            # Get leather materials (type LEATHER)
+            materials = material_service.get_materials(MaterialType.LEATHER)
 
-            # Populate treeview
+            # Clear existing items
+            for item in self.tree.get_children():
+                self.tree.delete(item)
+
+            # Add materials to the treeview
             for material in materials:
-                self.tree.insert("", tk.END, values=(
-                    material.get("id", ""),
-                    material.get("name", ""),
-                    material.get("leather_type", ""),
-                    material.get("quality_grade", ""),
-                    f"{material.get('area', 0):.2f}",
-                    f"{material.get('thickness', 0):.1f}",
-                    material.get("color", ""),
-                    material.get("supplier_name", ""),
-                    f"${material.get('price_per_unit', 0):.2f}",
-                    material.get("storage_location", "")
-                ))
+                self.tree.insert(
+                    "",
+                    "end",
+                    values=(
+                        material.get("id", ""),
+                        material.get("name", ""),
+                        material.get("type", "LEATHER"),
+                        material.get("quantity", 0),
+                        f"${material.get('unit_price', 0):.2f}",
+                        material.get("quality_grade", ""),
+                        material.get("thickness", "")
+                    )
+                )
 
-            # Update status
-            self.status_var.set(f"Loaded {len(materials)} leather materials")
-            logger.info(f"Loaded {len(materials)} leather materials")
+            self.logger.info(f"Loaded {len(materials)} leather materials")
 
         except Exception as e:
-            error_message = f"Error loading leather materials: {str(e)}"
-            self.show_error("Data Loading Error", error_message)
-            logger.error(error_message, exc_info=True)
-            self.status_var.set("Error loading data")
+            self.logger.error(f"Error loading leather inventory: {str(e)}")
+            self.show_error("Data Load Error", f"Failed to load leather inventory: {str(e)}")
 
-    def _on_search(self, event=None) -> None:
-        """
-        Handle search functionality.
+    def _on_search(self, event=None):
+        """Handle search functionality.
 
         Args:
-            event: Event triggering the search (optional)
+            event: The event that triggered the search (optional)
         """
-        search_term = self._search_var.get().strip().lower()
-
-        if not search_term:
+        search_text = self.search_var.get().strip()
+        if not search_text:
+            # If search is empty, reload all data
             self._load_data()
             return
 
         try:
-            # Clear current items
+            material_service = self.get_service(IMaterialService)
+
+            # Search leather materials
+            # Note: This assumes the service has a search functionality
+            materials = material_service.search_materials(search_text, material_type=MaterialType.LEATHER)
+
+            # Clear existing items
             for item in self.tree.get_children():
                 self.tree.delete(item)
 
-            # Get all materials and filter locally
-            materials = self.material_service.list_materials(material_type=MaterialType.LEATHER)
-
-            # Filter materials based on search term
-            filtered_materials = []
+            # Add materials to the treeview
             for material in materials:
-                # Check if the search term appears in any of the key fields
-                for field in ["name", "leather_type", "color", "supplier_name", "storage_location"]:
-                    value = str(material.get(field, "")).lower()
-                    if search_term in value:
-                        filtered_materials.append(material)
-                        break
+                self.tree.insert(
+                    "",
+                    "end",
+                    values=(
+                        material.get("id", ""),
+                        material.get("name", ""),
+                        material.get("type", "LEATHER"),
+                        material.get("quantity", 0),
+                        f"${material.get('unit_price', 0):.2f}",
+                        material.get("quality_grade", ""),
+                        material.get("thickness", "")
+                    )
+                )
 
-            # Populate treeview with filtered materials
-            for material in filtered_materials:
-                self.tree.insert("", tk.END, values=(
-                    material.get("id", ""),
-                    material.get("name", ""),
-                    material.get("leather_type", ""),
-                    material.get("quality_grade", ""),
-                    f"{material.get('area', 0):.2f}",
-                    f"{material.get('thickness', 0):.1f}",
-                    material.get("color", ""),
-                    material.get("supplier_name", ""),
-                    f"${material.get('price_per_unit', 0):.2f}",
-                    material.get("storage_location", "")
-                ))
-
-            # Update status
-            self.status_var.set(f"Found {len(filtered_materials)} leather materials matching '{search_term}'")
+            self.logger.info(f"Found {len(materials)} matching leather materials")
 
         except Exception as e:
-            error_message = f"Error searching leather materials: {str(e)}"
-            self.show_error("Search Error", error_message)
-            logger.error(error_message, exc_info=True)
-            self.status_var.set("Error during search")
+            self.logger.error(f"Error searching leather inventory: {str(e)}")
+            self.show_error("Search Error", f"Failed to search leather inventory: {str(e)}")
 
-    def _on_select(self, event=None) -> None:
-        """
-        Handle selection of an item in the treeview.
-
-        Args:
-            event: Selection event
-        """
-        selected_items = self.tree.selection()
-        if not selected_items:
-            self._selected_material_id = None
-            return
-
-        # Get the first selected item
-        item = selected_items[0]
-        values = self.tree.item(item, "values")
-
-        if values:
-            self._selected_material_id = values[0]  # ID is the first column
-
-    def _on_double_click(self, event=None) -> None:
-        """
-        Handle double-click on a treeview item.
-
-        Args:
-            event: Double-click event
-        """
-        self._edit_selected()
-
-    def _add_leather(self) -> None:
-        """
-        Show dialog to add a new leather material.
-        """
-        dialog = LeatherDetailsDialog(
-            self,
-            "Add New Leather Material",
-            None  # No existing data for a new entry
-        )
+    def on_new(self):
+        """Handle creating a new leather material."""
+        # Open dialog to create a new leather material
+        dialog = LeatherDetailsDialog(self, "Add Leather Material", None)
 
         if dialog.result:
             try:
-                # Add new leather through service
-                result = self.material_service.add_material(
-                    material_type=MaterialType.LEATHER,
-                    **dialog.result
-                )
+                # Set material type to LEATHER
+                dialog.result["type"] = MaterialType.LEATHER
 
-                if result and isinstance(result, dict) and "id" in result:
-                    self.show_info("Success", "Leather material added successfully!")
-                    self._load_data()  # Refresh the view
-                else:
-                    self.show_error("Error", "Failed to add leather material.")
+                # Add material to inventory
+                material_service = self.get_service(IMaterialService)
+                material = material_service.create(dialog.result)
+
+                # Refresh view
+                self._load_data()
+
+                # Select the new material
+                for item in self.tree.get_children():
+                    if self.tree.item(item, "values")[0] == str(material.get("id")):
+                        self.tree.selection_set(item)
+                        self.tree.see(item)
+                        break
+
+                self.logger.info(f"Created new leather material: {material.get('name')}")
 
             except Exception as e:
-                error_message = f"Error adding leather material: {str(e)}"
-                self.show_error("Add Error", error_message)
-                logger.error(error_message, exc_info=True)
+                self.logger.error(f"Error creating leather material: {str(e)}")
+                self.show_error("Creation Error", f"Failed to create leather material: {str(e)}")
 
-    def _edit_selected(self) -> None:
-        """
-        Show dialog to edit the selected leather material.
-        """
-        if not self._selected_material_id:
-            self.show_warning("Warning", "Please select a leather material to edit.")
+    def on_edit(self, event=None):
+        """Handle editing an existing leather material."""
+        selection = self.tree.selection()
+        if not selection:
+            self.show_info("No Selection", "Please select a leather material to edit.")
             return
 
+        # Get selected item ID
+        item_id = self.tree.item(selection[0], "values")[0]
+
         try:
-            # Get details of the selected material
-            material = self.material_service.get_material(self._selected_material_id)
+            # Get material details
+            material_service = self.get_service(IMaterialService)
+            material = material_service.get_by_id(int(item_id))
 
             if not material:
-                self.show_error("Error", "Selected material not found.")
-                self._load_data()  # Refresh to ensure view is up-to-date
+                self.show_error("Not Found", f"Leather material with ID {item_id} not found.")
                 return
 
             # Open dialog with existing data
-            dialog = LeatherDetailsDialog(
-                self,
-                f"Edit Leather Material: {material.get('name', '')}",
-                material
-            )
+            dialog = LeatherDetailsDialog(self, "Edit Leather Material", material)
 
             if dialog.result:
-                # Update material through service
-                result = self.material_service.update_material(
-                    material_id=self._selected_material_id,
-                    **dialog.result
-                )
+                # Update material
+                updated_material = material_service.update(int(item_id), dialog.result)
 
-                if result:
-                    self.show_info("Success", "Leather material updated successfully!")
-                    self._load_data()  # Refresh the view
-                else:
-                    self.show_error("Error", "Failed to update leather material.")
+                # Refresh view
+                self._load_data()
+
+                # Re-select the edited material
+                for item in self.tree.get_children():
+                    if self.tree.item(item, "values")[0] == str(updated_material.get("id")):
+                        self.tree.selection_set(item)
+                        self.tree.see(item)
+                        break
+
+                self.logger.info(f"Updated leather material: {updated_material.get('name')}")
 
         except Exception as e:
-            error_message = f"Error editing leather material: {str(e)}"
-            self.show_error("Edit Error", error_message)
-            logger.error(error_message, exc_info=True)
+            self.logger.error(f"Error editing leather material: {str(e)}")
+            self.show_error("Edit Error", f"Failed to edit leather material: {str(e)}")
 
-    def _delete_selected(self) -> None:
-        """
-        Delete the selected leather material after confirmation.
-        """
-        if not self._selected_material_id:
-            self.show_warning("Warning", "Please select a leather material to delete.")
+    def on_delete(self):
+        """Handle deleting a leather material."""
+        selection = self.tree.selection()
+        if not selection:
+            self.show_info("No Selection", "Please select a leather material to delete.")
             return
 
+        # Get selected item ID
+        item_id = self.tree.item(selection[0], "values")[0]
+        item_name = self.tree.item(selection[0], "values")[1]
+
         # Confirm deletion
-        if not messagebox.askyesno("Confirm Deletion",
-                                   "Are you sure you want to delete this leather material?\n"
-                                   "This action cannot be undone."):
+        if not self.confirm("Confirm Delete", f"Are you sure you want to delete the leather material '{item_name}'?"):
             return
 
         try:
-            # Check if material is used in any projects
-            # This would ideally be handled by the service with a method like:
-            # is_material_in_use = self.project_service.is_material_used(self._selected_material_id)
+            # Delete material
+            material_service = self.get_service(IMaterialService)
+            success = material_service.delete(int(item_id))
 
-            # Delete material through service
-            result = self.material_service.delete_material(self._selected_material_id)
-
-            if result:
-                self.show_info("Success", "Leather material deleted successfully!")
-                self._selected_material_id = None
-                self._load_data()  # Refresh the view
+            if success:
+                # Refresh view
+                self._load_data()
+                self.logger.info(f"Deleted leather material: {item_name}")
             else:
-                self.show_error("Error", "Failed to delete leather material.")
+                self.show_error("Delete Failed", f"Failed to delete leather material '{item_name}'.")
 
         except Exception as e:
-            error_message = f"Error deleting leather material: {str(e)}"
-            self.show_error("Delete Error", error_message)
-            logger.error(error_message, exc_info=True)
+            self.logger.error(f"Error deleting leather material: {str(e)}")
+            self.show_error("Delete Error", f"Failed to delete leather material: {str(e)}")
+
+    def on_refresh(self):
+        """Refresh the inventory view."""
+        self._load_data()

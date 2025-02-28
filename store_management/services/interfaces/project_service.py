@@ -8,7 +8,7 @@ which provide functionality related to managing projects in the system.
 
 import enum
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional, Union
+from typing import List, Dict, Any, Optional, Union, Callable
 
 
 class ProjectType(enum.Enum):

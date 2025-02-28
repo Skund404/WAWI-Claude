@@ -26,31 +26,51 @@ SERVICE_MAPPINGS = [
     ('services.interfaces.supplier_service.ISupplierService', 'services.implementations.supplier_service.SupplierService'),
 ]
 
-
 def setup_dependency_injection():
-    """Set up dependency injection container with all services."""
-    logger.info("Setting up dependency injection...")
+    """
+    Set up dependency injection container with all services.
 
-    # Initialize container
+    Implements a more robust lazy loading and registration strategy
+    to mitigate potential circular dependency issues.
+    """
+    logger.info("Setting up dependency injection...")
     container = DependencyContainer()
 
-    # Register each service implementation with its interface
+    # Register services with lazy loading
     for interface_path, implementation_path in SERVICE_MAPPINGS:
         try:
-            # Register the full interface path with the container
-            # to ensure correct service resolution by type
+            # Use CircularImportResolver for safe module loading
             implementation_module = '.'.join(implementation_path.split('.')[:-1])
             implementation_class = implementation_path.split('.')[-1]
 
-            # Register with the container using the full interface path
-            container.register_lazy(interface_path, implementation_module, implementation_class)
-            logger.info(f"Registered service with lazy resolution: {interface_path}")
+            # Wrap registration in a lazy loading mechanism
+            def create_lazy_registration(interface, module, cls):
+                def lazy_loader():
+                    try:
+                        # Use CircularImportResolver to safely import
+                        module_obj = CircularImportResolver.get_module(module)
+                        class_obj = getattr(module_obj, cls)
+                        return class_obj()
+                    except Exception as e:
+                        logger.error(f"Failed to lazily load {interface}: {e}")
+                        raise
+
+                return lazy_loader
+
+            # Register with enhanced lazy resolution
+            container.register(
+                interface_path,
+                create_lazy_registration(interface_path, implementation_module, implementation_class),
+            )
+
+            logger.info(f"Registered service with enhanced lazy resolution: {interface_path}")
+
         except Exception as e:
             logger.error(f"Error registering {implementation_path} for {interface_path}: {str(e)}")
+            # Optionally, you could add fallback or default implementation logic here
 
     logger.info("Dependency injection setup completed successfully")
     return container
-
 
 def verify_container(container):
     """Verify that all services can be resolved from the container."""
@@ -66,12 +86,10 @@ def verify_container(container):
 
     logger.info("Dependency injection verification completed")
 
-
 def main():
     """Main function for testing dependency injection setup."""
     container = setup_dependency_injection()
     verify_container(container)
-
 
 if __name__ == "__main__":
     main()

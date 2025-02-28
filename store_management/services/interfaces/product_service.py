@@ -7,7 +7,7 @@ Defines the abstract base interface for product-related operations.
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Callable
 
 from di.core import inject
 from services.interfaces import MaterialService
