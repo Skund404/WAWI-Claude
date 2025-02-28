@@ -562,3 +562,44 @@ class MaterialCalculator(BaseView):
 
             # Add to list
             self.add_material()
+
+    def set_status(self, message: str):
+        """Set the status message in the application."""
+        # Assuming you have a status label in your UI to display messages
+        if hasattr(self, 'status_label'):
+            self.status_label.config(text=message)
+        else:
+            logging.info(message)  # Fallback to logging if no status label exists
+
+
+class MockApp:
+    """Mock application for standalone testing."""
+
+    def get_service(self, service_type):
+        """
+        Mock service getter.
+
+        Args:
+            service_type: The service interface to get
+
+        Returns:
+            None
+        """
+        return None
+
+
+def main():
+    """Main function for standalone testing."""
+    root = tk.Tk()
+    root.title("Material Calculator")
+    root.geometry("800x600")
+
+    app = MockApp()
+    calculator_view = MaterialCalculator(root, app)
+    calculator_view.pack(fill=tk.BOTH, expand=True)
+
+    root.mainloop()
+
+
+if __name__ == "__main__":
+    main()

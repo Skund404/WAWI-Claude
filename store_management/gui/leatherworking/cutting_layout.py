@@ -53,6 +53,14 @@ class LeatherCuttingView(BaseView):
         self._setup_layout()
         self._add_sample_pieces()
 
+    def set_status(self, message: str):
+        """Set the status message in the application."""
+        # Assuming you have a status label in your UI to display messages
+        if hasattr(self, 'status_label'):
+            self.status_label.config(text=message)
+        else:
+            logging.info(message)  # Fallback to logging if no status label exists
+
     def _setup_layout(self):
         """Set up the main layout."""
         # Main container
@@ -670,17 +678,19 @@ class LeatherCuttingView(BaseView):
             """
             return None
 
-    def main():
-        """Main function for standalone testing."""
-        root = tk.Tk()
-        root.title("Leather Cutting Layout")
-        root.geometry("1000x700")
 
-        app = MockApp()
-        layout_view = LeatherCuttingView(root, app)
-        layout_view.pack(fill=tk.BOTH, expand=True)
+def main():
+    """Main function for standalone testing."""
+    root = tk.Tk()
+    root.title("Leather Cutting Layout")
+    root.geometry("1000x700")
 
-        root.mainloop()
+    app = LeatherCuttingView.MockApp()
+    layout_view = LeatherCuttingView(root, app)
+    layout_view.pack(fill=tk.BOTH, expand=True)
 
-    if __name__ == "__main__":
-        main()
+    root.mainloop()
+
+
+if __name__ == "__main__":
+    main()
