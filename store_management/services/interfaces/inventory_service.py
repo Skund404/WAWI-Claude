@@ -9,6 +9,10 @@ hardware, and other materials used in leatherworking projects.
 
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Optional, Union
+from utils.circular_import_resolver import lazy_import
+
+# Lazy import to avoid circular dependency
+MaterialType = lazy_import("services.interfaces.material_service.MaterialType")
 
 
 class IInventoryService(ABC):

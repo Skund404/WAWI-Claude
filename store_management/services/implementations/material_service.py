@@ -15,87 +15,183 @@ from database.repositories.hardware_repository import HardwareRepository
 from database.sqlalchemy.session import get_db_session
 from ..base_service import Service
 from ..interfaces.material_service import IMaterialService, MaterialType
+import logging
+from typing import Any, Dict, List, Optional
+from datetime import datetime
+
+from services.base_service import BaseService
+from services.interfaces.material_service import IMaterialService, MaterialType
+from utils.circular_import_resolver import lazy_import
 
 
-class MaterialService(Service, IMaterialService):
-    """Implementation of the material service."""
+class MaterialService(BaseService, IMaterialService):
+    """Implementation of material service for managing materials and transactions."""
 
     def __init__(self):
         """Initialize the Material Service."""
         super().__init__()
         self.logger.info("MaterialService initialized")
-        self._materials = {}  # In-memory storage for development
+        self._materials = {}
+        self._transactions = []
 
-    def get_all_materials(self, material_type: Optional[MaterialType] = None) -> List[Dict[str, Any]]:
-        """Get all materials, optionally filtered by type.
-
-        Args:
-            material_type: Optional filter by material type
-
-        Returns:
-            List[Dict[str, Any]]: List of materials
-        """
-        materials = list(self._materials.values())
-        if material_type:
-            return [m for m in materials if m.get('type') == material_type.value]
-        return materials
-
-    def get_material_by_id(self, material_id: int) -> Optional[Dict[str, Any]]:
-        """Get material by ID.
-
-        Args:
-            material_id: ID of the material to retrieve
-
-        Returns:
-            Optional[Dict[str, Any]]: Material data if found, None otherwise
-        """
-        return self._materials.get(material_id)
-
-    def create_material(self, material_data: Dict[str, Any]) -> Dict[str, Any]:
+    def create(self, material_data: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new material.
 
         Args:
-            material_data: Data for the new material
+            material_data: Material data
 
         Returns:
-            Dict[str, Any]: Created material data
+            Created material data
         """
-        material_id = len(self._materials) + 1
-        material = {**material_data, 'id': material_id}
+        material_id = material_data.get('id') or str(len(self._materials) + 1)
+        material = {
+            'id': material_id,
+            'name': material_data.get('name', ''),
+            'type': material_data.get('type', MaterialType.OTHER),
+            'quantity': material_data.get('quantity', 0),
+            'unit_price': material_data.get('unit_price', 0.0),
+            'created_at': datetime.now(),
+            'updated_at': datetime.now()
+        }
         self._materials[material_id] = material
         return material
 
-    def update_material(self, material_id: int, material_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def get_by_id(self, material_id: str) -> Optional[Dict[str, Any]]:
+        """Get material by ID.
+
+        Args:
+            material_id: Material ID
+
+        Returns:
+            Material data or None if not found
+        """
+        return self._materials.get(material_id)
+
+    def update(self, material_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Update an existing material.
 
         Args:
-            material_id: ID of the material to update
-            material_data: New material data
+            material_id: Material ID to update
+            updates: Updates to apply
 
         Returns:
-            Optional[Dict[str, Any]]: Updated material data if successful, None otherwise
+            Updated material data or None if not found
         """
-        if material_id not in self._materials:
+        material = self._materials.get(material_id)
+        if not material:
             return None
 
-        updated_material = {**self._materials[material_id], **material_data, 'id': material_id}
-        self._materials[material_id] = updated_material
-        return updated_material
+        material.update(updates)
+        material['updated_at'] = datetime.now()
+        return material
 
-    def delete_material(self, material_id: int) -> bool:
+    def delete(self, material_id: str) -> bool:
         """Delete a material.
 
         Args:
-            material_id: ID of the material to delete
+            material_id: Material ID to delete
 
         Returns:
-            bool: True if successful, False otherwise
+            True if deleted, False if not found
         """
-        if material_id not in self._materials:
-            return False
+        if material_id in self._materials:
+            del self._materials[material_id]
+            return True
+        return False
 
-        del self._materials[material_id]
-        return True
+    def get_materials(self, material_type: Optional[MaterialType] = None) -> List[Dict[str, Any]]:
+        """Get all materials, optionally filtered by type.
+
+        Args:
+            material_type: Optional material type filter
+
+        Returns:
+            List of material data
+        """
+        if material_type:
+            return [m for m in self._materials.values() if m.get('type') == material_type]
+        return list(self._materials.values())
+
+    def record_material_transaction(self, transaction_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Record a material transaction.
+
+        Args:
+            transaction_data: Transaction data
+
+        Returns:
+            Created transaction data
+        """
+        transaction_id = len(self._transactions) + 1
+        transaction = {
+            'id': transaction_id,
+            'material_id': transaction_data.get('material_id'),
+            'quantity': transaction_data.get('quantity', 0),
+            'type': transaction_data.get('type', 'use'),
+            'timestamp': datetime.now(),
+            'notes': transaction_data.get('notes', '')
+        }
+
+        self._transactions.append(transaction)
+
+        # Update material quantity if applicable
+        material_id = transaction.get('material_id')
+        if material_id in self._materials:
+            quantity_change = transaction.get('quantity', 0)
+            transaction_type = transaction.get('type')
+
+            if transaction_type == 'purchase':
+                self._materials[material_id]['quantity'] += quantity_change
+            elif transaction_type == 'use':
+                self._materials[material_id]['quantity'] -= quantity_change
+
+        return transaction
+
+    def get_material_transactions(self,
+                                  material_id: Optional[str] = None,
+                                  transaction_type: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Get material transactions with optional filtering.
+
+        Args:
+            material_id: Optional material ID filter
+            transaction_type: Optional transaction type filter
+
+        Returns:
+            List of transaction data
+        """
+        result = self._transactions
+
+        if material_id:
+            result = [t for t in result if t.get('material_id') == material_id]
+
+        if transaction_type:
+            result = [t for t in result if t.get('type') == transaction_type]
+
+        return result
+
+    def calculate_material_cost(self, material_id: str, quantity: float) -> float:
+        """Calculate cost for a given material quantity.
+
+        Args:
+            material_id: Material ID
+            quantity: Quantity of material
+
+        Returns:
+            Calculated cost
+        """
+        material = self._materials.get(material_id)
+        if not material:
+            return 0.0
+
+        unit_price = material.get('unit_price', 0.0)
+        return unit_price * quantity
+
+    def get_material_types(self) -> List[str]:
+        """Get all available material types.
+
+        Returns:
+            List of material type names
+        """
+        return [t.name for t in MaterialType]
 
     def search_materials(self, search_term: str) -> List[Dict[str, Any]]:
         """Search for materials.

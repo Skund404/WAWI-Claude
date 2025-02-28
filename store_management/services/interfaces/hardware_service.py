@@ -8,13 +8,15 @@ from services.base_service import Service, ValidationError, NotFoundError
 from database.models.hardware import Hardware, HardwareType, HardwareMaterial, HardwareFinish
 from database.repositories.hardware_repository import HardwareRepository
 from database.sqlalchemy.session import get_db_session
-from .base_service import IBaseService
 
 # services/interfaces/hardware_service.py
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
+from utils.circular_import_resolver import lazy_import
 
-
+# Lazy import to avoid circular dependency if needed
+# IMaterialService = lazy_import("services.interfaces.material_service.IMaterialService")
+from services.base_service import IBaseService
 
 
 class IHardwareService(IBaseService):
@@ -42,7 +44,10 @@ class IHardwareService(IBaseService):
         pass
 
     @abstractmethod
-    def create_hardware(self, hardware_data: Dict[str, Any]) -> Dict[str, Any]:
+    def create_hardware(
+            self,
+            hardware_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Create a new hardware item.
 
         Args:
@@ -54,15 +59,19 @@ class IHardwareService(IBaseService):
         pass
 
     @abstractmethod
-    def update_hardware(self, hardware_id: int, hardware_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def update_hardware(
+            self,
+            hardware_id: int,
+            updates: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Update an existing hardware item.
 
         Args:
             hardware_id: ID of the hardware to update
-            hardware_data: New hardware data
+            updates: Data to update
 
         Returns:
-            Optional[Dict[str, Any]]: Updated hardware data if successful, None otherwise
+            Dict[str, Any]: Updated hardware data
         """
         pass
 
@@ -74,7 +83,39 @@ class IHardwareService(IBaseService):
             hardware_id: ID of the hardware to delete
 
         Returns:
-            bool: True if successful, False otherwise
+            bool: True if successful
+        """
+        pass
+
+    @abstractmethod
+    def get_all_hardware(
+            self,
+            filters: Optional[Dict[str, Any]] = None
+    ) -> List[Dict[str, Any]]:
+        """Get all hardware items with optional filtering.
+
+        Args:
+            filters: Optional filtering criteria
+
+        Returns:
+            List[Dict[str, Any]]: List of hardware items
+        """
+        pass
+
+    @abstractmethod
+    def search_hardware(
+            self,
+            query: str,
+            filters: Optional[Dict[str, Any]] = None
+    ) -> List[Dict[str, Any]]:
+        """Search hardware items.
+
+        Args:
+            query: Search query string
+            filters: Optional additional filtering criteria
+
+        Returns:
+            List[Dict[str, Any]]: List of matching hardware items
         """
         pass
 

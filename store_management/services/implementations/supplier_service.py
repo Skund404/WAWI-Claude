@@ -1,250 +1,532 @@
-#!/usr/bin/env python3
-# Path: supplier_service.py
-"""
-Supplier Service Implementation
-
-Provides functionality for managing suppliers, evaluating supplier performance,
-and handling supplier-related operations.
-"""
+# services/implementations/supplier_service.py
+"""Implementation of the Supplier Service interface."""
 
 import logging
-from typing import Dict, List, Any, Optional
-from datetime import datetime, timedelta
-from sqlalchemy.orm import Session
-from sqlalchemy.exc import SQLAlchemyError
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
-from di.core import inject
-from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
-from services.base_service import Service
-from models.supplier import Supplier
-from models.order import Order
-from database.session import get_db
+from services.base_service import BaseService, NotFoundError, ValidationError
+from services.interfaces.supplier_service import ISupplierService, SupplierStatus
 
 
-class SupplierService(Service, ISupplierService):
-    """
-    Implementation of the Supplier Service.
+class SupplierService(BaseService, ISupplierService):
+    """Concrete implementation of the Supplier Service interface.
 
-    Provides methods for managing supplier-related operations.
+    Provides operations for managing suppliers in the leatherworking application.
     """
 
-    def __init__(self, session: Optional[Session] = None):
-        """
-        Initialize the Supplier Service.
+    def __init__(self):
+        """Initialize the supplier service."""
+        super().__init__()
+        self.logger = logging.getLogger(__name__)
+        self._suppliers = {}
+        self._supplier_products = {}
+        self._supplier_orders = {}
+        self._next_supplier_id = 1
 
-        Args:
-            session (Optional[Session]): SQLAlchemy database session
-        """
-        super().__init__(None)
-        self._session = session or get_db()
-        self._logger = logging.getLogger(__name__)
+        self.logger.info("SupplierService initialized")
 
     def get_all_suppliers(self) -> List[Dict[str, Any]]:
-        """
-        Retrieve all suppliers.
+        """Get all suppliers.
 
         Returns:
-            List[Dict[str, Any]]: List of supplier dictionaries
-
-        Raises:
-            SQLAlchemyError: If database operation fails
+            List[Dict[str, Any]]: List of all supplier data dictionaries
         """
-        try:
-            suppliers = self._session.query(Supplier).all()
-            return [supplier.to_dict() for supplier in suppliers]
-        except SQLAlchemyError as e:
-            self._logger.error(f'Error retrieving suppliers: {e}')
-            raise
+        self.logger.info("Retrieving all suppliers")
+        return list(self._suppliers.values())
 
-    def get_supplier_by_id(self, supplier_id: int) -> Optional[Dict[str, Any]]:
-        """
-        Retrieve a specific supplier by ID.
+    def get_supplier_by_id(self, supplier_id: int) -> Dict[str, Any]:
+        """Get a supplier by its ID.
 
         Args:
-            supplier_id (int): Unique identifier for the supplier
+            supplier_id (int): The supplier ID to retrieve
 
         Returns:
-            Optional[Dict[str, Any]]: Supplier details or None if not found
+            Dict[str, Any]: Supplier data dictionary
 
         Raises:
-            SQLAlchemyError: If database operation fails
+            NotFoundError: If the supplier doesn't exist
         """
-        try:
-            supplier = self._session.query(Supplier).get(supplier_id)
-            return supplier.to_dict(include_orders=True) if supplier else None
-        except SQLAlchemyError as e:
-            self._logger.error(f'Error retrieving supplier {supplier_id}: {e}')
-            raise
+        self.logger.info(f"Retrieving supplier with ID {supplier_id}")
+
+        if supplier_id not in self._suppliers:
+            self.logger.warning(f"Supplier with ID {supplier_id} not found")
+            raise NotFoundError(f"Supplier with ID {supplier_id} not found")
+
+        return self._suppliers[supplier_id]
 
     def create_supplier(self, supplier_data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Create a new supplier.
+        """Create a new supplier.
 
         Args:
-            supplier_data (Dict[str, Any]): Data for creating a new supplier
+            supplier_data (Dict[str, Any]): Supplier data to create
 
         Returns:
-            Dict[str, Any]: Created supplier details
+            Dict[str, Any]: Created supplier data
 
         Raises:
-            ValueError: If required fields are missing
-            SQLAlchemyError: If database operation fails
+            ValidationError: If the supplier data is invalid
         """
-        try:
-            required_fields = ['name', 'email']
-            for field in required_fields:
-                if field not in supplier_data:
-                    raise ValueError(f'Missing required field: {field}')
+        self.logger.info("Creating new supplier")
 
-            new_supplier = Supplier(**supplier_data)
-            self._session.add(new_supplier)
-            self._session.commit()
-            return new_supplier.to_dict()
+        # Validate required fields
+        if 'name' not in supplier_data:
+            self.logger.warning("Missing required field: name")
+            raise ValidationError("Supplier name is required")
 
-        except (SQLAlchemyError, ValueError) as e:
-            self._session.rollback()
-            self._logger.error(f'Error creating supplier: {e}')
-            raise
+        # Set default values
+        supplier_id = self._next_supplier_id
+        self._next_supplier_id += 1
+
+        # Create supplier
+        supplier = {
+            'id': supplier_id,
+            'created_at': datetime.now(),
+            'updated_at': datetime.now(),
+            'status': SupplierStatus.ACTIVE.name,
+            **supplier_data
+        }
+
+        self._suppliers[supplier_id] = supplier
+        self._supplier_products[supplier_id] = []
+        self._supplier_orders[supplier_id] = []
+
+        self.logger.info(f"Created supplier with ID {supplier_id}")
+        return supplier
 
     def update_supplier(self, supplier_id: int, supplier_data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Update an existing supplier.
+        """Update an existing supplier.
 
         Args:
-            supplier_id (int): Unique identifier for the supplier
-            supplier_data (Dict[str, Any]): Updated supplier information
+            supplier_id (int): ID of the supplier to update
+            supplier_data (Dict[str, Any]): New supplier data
 
         Returns:
-            Dict[str, Any]: Updated supplier details
+            Dict[str, Any]: Updated supplier data
 
         Raises:
-            ValueError: If supplier not found
-            SQLAlchemyError: If database operation fails
+            NotFoundError: If the supplier doesn't exist
+            ValidationError: If the supplier data is invalid
         """
-        try:
-            supplier = self._session.query(Supplier).get(supplier_id)
-            if not supplier:
-                raise ValueError(f'Supplier with ID {supplier_id} not found')
+        self.logger.info(f"Updating supplier with ID {supplier_id}")
 
-            for key, value in supplier_data.items():
-                if hasattr(supplier, key):
-                    setattr(supplier, key, value)
+        # Check if supplier exists
+        if supplier_id not in self._suppliers:
+            self.logger.warning(f"Supplier with ID {supplier_id} not found")
+            raise NotFoundError(f"Supplier with ID {supplier_id} not found")
 
-            self._session.commit()
-            return supplier.to_dict()
+        # Get current supplier
+        supplier = self._suppliers[supplier_id]
 
-        except SQLAlchemyError as e:
-            self._session.rollback()
-            self._logger.error(f'Error updating supplier {supplier_id}: {e}')
-            raise
+        # Update fields
+        for key, value in supplier_data.items():
+            if key not in ['id', 'created_at']:
+                supplier[key] = value
+
+        # Update timestamp
+        supplier['updated_at'] = datetime.now()
+
+        self.logger.info(f"Updated supplier with ID {supplier_id}")
+        return supplier
 
     def delete_supplier(self, supplier_id: int) -> bool:
-        """
-        Delete a supplier.
+        """Delete a supplier.
 
         Args:
-            supplier_id (int): Unique identifier for the supplier
+            supplier_id (int): ID of the supplier to delete
 
         Returns:
             bool: True if deletion was successful
 
         Raises:
-            ValueError: If supplier not found
-            SQLAlchemyError: If database operation fails
+            NotFoundError: If the supplier doesn't exist
         """
-        try:
-            supplier = self._session.query(Supplier).get(supplier_id)
-            if not supplier:
-                raise ValueError(f'Supplier with ID {supplier_id} not found')
+        self.logger.info(f"Deleting supplier with ID {supplier_id}")
 
-            self._session.delete(supplier)
-            self._session.commit()
-            return True
+        # Check if supplier exists
+        if supplier_id not in self._suppliers:
+            self.logger.warning(f"Supplier with ID {supplier_id} not found")
+            raise NotFoundError(f"Supplier with ID {supplier_id} not found")
 
-        except SQLAlchemyError as e:
-            self._session.rollback()
-            self._logger.error(f'Error deleting supplier {supplier_id}: {e}')
-            raise
+        # Delete supplier
+        del self._suppliers[supplier_id]
 
-    def get_supplier_performance(self, supplier_id: int, start_date: datetime,
-                                 end_date: datetime) -> Dict[str, Any]:
-        """
-        Get performance metrics for a specific supplier.
+        # Delete related data
+        self._supplier_products.pop(supplier_id, None)
+        self._supplier_orders.pop(supplier_id, None)
+
+        self.logger.info(f"Deleted supplier with ID {supplier_id}")
+        return True
+
+    def get_suppliers_by_status(self, status: SupplierStatus) -> List[Dict[str, Any]]:
+        """Get suppliers by their status.
 
         Args:
-            supplier_id (int): Unique identifier for the supplier
-            start_date (datetime): Start of the performance period
-            end_date (datetime): End of the performance period
+            status (SupplierStatus): The status to filter by
+
+        Returns:
+            List[Dict[str, Any]]: List of supplier data dictionaries with the specified status
+        """
+        self.logger.info(f"Retrieving suppliers with status {status}")
+
+        # Convert enum to string for comparison if needed
+        status_str = status.name if hasattr(status, 'name') else str(status)
+
+        return [
+            supplier for supplier in self._suppliers.values()
+            if supplier.get('status') == status_str
+        ]
+
+    def change_supplier_status(self, supplier_id: int, new_status: SupplierStatus) -> Dict[str, Any]:
+        """Change a supplier's status.
+
+        Args:
+            supplier_id (int): ID of the supplier to update
+            new_status (SupplierStatus): New status for the supplier
+
+        Returns:
+            Dict[str, Any]: Updated supplier data
+
+        Raises:
+            NotFoundError: If the supplier doesn't exist
+        """
+        self.logger.info(f"Changing supplier {supplier_id} status to {new_status}")
+
+        # Check if supplier exists
+        if supplier_id not in self._suppliers:
+            self.logger.warning(f"Supplier with ID {supplier_id} not found")
+            raise NotFoundError(f"Supplier with ID {supplier_id} not found")
+
+        # Get current supplier
+        supplier = self._suppliers[supplier_id]
+
+        # Update status
+        supplier['status'] = new_status.name if hasattr(new_status, 'name') else str(new_status)
+        supplier['updated_at'] = datetime.now()
+
+        self.logger.info(f"Changed supplier {supplier_id} status to {new_status}")
+        return supplier
+
+    def search_suppliers(self, search_term: str) -> List[Dict[str, Any]]:
+        """Search for suppliers by name, contact, or description.
+
+        Args:
+            search_term (str): The search term to filter by
+
+        Returns:
+            List[Dict[str, Any]]: List of matching supplier data dictionaries
+        """
+        self.logger.info(f"Searching suppliers with term '{search_term}'")
+
+        search_term = search_term.lower()
+        results = []
+
+        for supplier in self._suppliers.values():
+            if (
+                search_term in supplier.get('name', '').lower() or
+                search_term in supplier.get('contact', '').lower() or
+                search_term in supplier.get('email', '').lower() or
+                search_term in supplier.get('phone', '').lower() or
+                search_term in supplier.get('description', '').lower()
+            ):
+                results.append(supplier)
+
+        return results
+
+    def get_supplier_products(self, supplier_id: int) -> List[Dict[str, Any]]:
+        """Get all products provided by a supplier.
+
+        Args:
+            supplier_id (int): ID of the supplier to get products for
+
+        Returns:
+            List[Dict[str, Any]]: List of product data dictionaries
+
+        Raises:
+            NotFoundError: If the supplier doesn't exist
+        """
+        self.logger.info(f"Retrieving products for supplier {supplier_id}")
+
+        # Check if supplier exists
+        if supplier_id not in self._suppliers:
+            self.logger.warning(f"Supplier with ID {supplier_id} not found")
+            raise NotFoundError(f"Supplier with ID {supplier_id} not found")
+
+        # Return products
+        return self._supplier_products.get(supplier_id, [])
+
+    def add_product_to_supplier(self, supplier_id: int, product_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Add a product to a supplier.
+
+        Args:
+            supplier_id (int): ID of the supplier to add the product to
+            product_data (Dict[str, Any]): Product data to add
+
+        Returns:
+            Dict[str, Any]: Added product data
+
+        Raises:
+            NotFoundError: If the supplier doesn't exist
+            ValidationError: If the product data is invalid
+        """
+        self.logger.info(f"Adding product to supplier {supplier_id}")
+
+        # Check if supplier exists
+        if supplier_id not in self._suppliers:
+            self.logger.warning(f"Supplier with ID {supplier_id} not found")
+            raise NotFoundError(f"Supplier with ID {supplier_id} not found")
+
+        # Validate product data
+        if 'name' not in product_data:
+            self.logger.warning("Missing required field: name")
+            raise ValidationError("Product name is required")
+
+        # Create product
+        product = {
+            'id': len(self._supplier_products.get(supplier_id, [])) + 1,
+            'supplier_id': supplier_id,
+            'created_at': datetime.now(),
+            'updated_at': datetime.now(),
+            **product_data
+        }
+
+        # Add product to supplier
+        if supplier_id not in self._supplier_products:
+            self._supplier_products[supplier_id] = []
+
+        self._supplier_products[supplier_id].append(product)
+
+        # Update supplier
+        self._suppliers[supplier_id]['updated_at'] = datetime.now()
+
+        self.logger.info(f"Added product {product['id']} to supplier {supplier_id}")
+        return product
+
+    def get_supplier_orders(self, supplier_id: int) -> List[Dict[str, Any]]:
+        """Get all orders placed with a supplier.
+
+        Args:
+            supplier_id (int): ID of the supplier to get orders for
+
+        Returns:
+            List[Dict[str, Any]]: List of order data dictionaries
+
+        Raises:
+            NotFoundError: If the supplier doesn't exist
+        """
+        self.logger.info(f"Retrieving orders for supplier {supplier_id}")
+
+        # Check if supplier exists
+        if supplier_id not in self._suppliers:
+            self.logger.warning(f"Supplier with ID {supplier_id} not found")
+            raise NotFoundError(f"Supplier with ID {supplier_id} not found")
+
+        # Return orders
+        return self._supplier_orders.get(supplier_id, [])
+
+    def add_order_to_supplier(self, supplier_id: int, order_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Add an order to a supplier.
+
+        Args:
+            supplier_id (int): ID of the supplier to add the order to
+            order_data (Dict[str, Any]): Order data to add
+
+        Returns:
+            Dict[str, Any]: Added order data
+
+        Raises:
+            NotFoundError: If the supplier doesn't exist
+            ValidationError: If the order data is invalid
+        """
+        self.logger.info(f"Adding order to supplier {supplier_id}")
+
+        # Check if supplier exists
+        if supplier_id not in self._suppliers:
+            self.logger.warning(f"Supplier with ID {supplier_id} not found")
+            raise NotFoundError(f"Supplier with ID {supplier_id} not found")
+
+        # Validate order data
+        if 'items' not in order_data or not order_data['items']:
+            self.logger.warning("Missing required field: items")
+            raise ValidationError("Order must have at least one item")
+
+        # Create order
+        order = {
+            'id': len(self._supplier_orders.get(supplier_id, [])) + 1,
+            'supplier_id': supplier_id,
+            'created_at': datetime.now(),
+            'updated_at': datetime.now(),
+            'status': 'new',
+            **order_data
+        }
+
+        # Add order to supplier
+        if supplier_id not in self._supplier_orders:
+            self._supplier_orders[supplier_id] = []
+
+        self._supplier_orders[supplier_id].append(order)
+
+        # Update supplier
+        self._suppliers[supplier_id]['updated_at'] = datetime.now()
+
+        self.logger.info(f"Added order {order['id']} to supplier {supplier_id}")
+        return order
+
+    # IBaseService implementation methods
+
+    def create(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a new supplier.
+
+        Args:
+            data (Dict[str, Any]): Data for creating the supplier
+
+        Returns:
+            Dict[str, Any]: Created supplier
+
+        Raises:
+            ValidationError: If data is invalid
+        """
+        return self.create_supplier(data)
+
+    def get_by_id(self, entity_id: Any) -> Optional[Dict[str, Any]]:
+        """Retrieve a supplier by its identifier.
+
+        Args:
+            entity_id (Any): Unique identifier for the supplier
+
+        Returns:
+            Optional[Dict[str, Any]]: Retrieved supplier or None if not found
+        """
+        try:
+            return self.get_supplier_by_id(int(entity_id))
+        except NotFoundError:
+            return None
+
+    def update(self, entity_id: Any, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update an existing supplier.
+
+        Args:
+            entity_id (Any): Unique identifier for the supplier
+            data (Dict[str, Any]): Updated data for the supplier
+
+        Returns:
+            Dict[str, Any]: Updated supplier
+
+        Raises:
+            NotFoundError: If supplier doesn't exist
+            ValidationError: If update data is invalid
+        """
+        return self.update_supplier(int(entity_id), data)
+
+    def delete(self, entity_id: Any) -> bool:
+        """Delete a supplier by its identifier.
+
+        Args:
+            entity_id (Any): Unique identifier for the supplier
+
+        Returns:
+            bool: True if deletion was successful, False otherwise
+
+        Raises:
+            NotFoundError: If supplier doesn't exist
+        """
+        return self.delete_supplier(int(entity_id))
+
+    def list_suppliers(self) -> List[Dict[str, Any]]:
+        """List all suppliers.
+
+        Returns:
+            List[Dict[str, Any]]: List of all suppliers
+        """
+        return self.get_all_suppliers()
+
+    def get_supplier(self, supplier_id: int) -> Dict[str, Any]:
+        """Get a supplier by its ID.
+
+        Args:
+            supplier_id (int): The ID of the supplier to retrieve
+
+        Returns:
+            Dict[str, Any]: The supplier data
+
+        Raises:
+            NotFoundError: If the supplier doesn't exist
+        """
+        return self.get_supplier_by_id(supplier_id)
+
+    def evaluate_supplier_performance(self, supplier_id: int) -> Dict[str, Any]:
+        """Evaluate the performance of a supplier.
+
+        Args:
+            supplier_id (int): The ID of the supplier to evaluate
 
         Returns:
             Dict[str, Any]: Supplier performance metrics
 
         Raises:
-            ValueError: If supplier not found
-            SQLAlchemyError: If database operation fails
+            NotFoundError: If the supplier doesn't exist
         """
-        try:
-            supplier = self._session.query(Supplier).get(supplier_id)
-            if not supplier:
-                raise ValueError(f'Supplier with ID {supplier_id} not found')
+        self.logger.info(f"Evaluating performance of supplier {supplier_id}")
 
-            orders = supplier.orders.filter(Order.created_at.between(start_date, end_date)).all()
+        # Check if supplier exists
+        if supplier_id not in self._suppliers:
+            self.logger.warning(f"Supplier with ID {supplier_id} not found")
+            raise NotFoundError(f"Supplier with ID {supplier_id} not found")
 
-            performance = {
-                'total_orders': len(orders),
-                'total_value': sum(order.total_amount for order in orders),
-                'on_time_delivery_rate': self._calculate_on_time_delivery(orders),
-                'supplier_rating': supplier.rating
+        # Get supplier
+        supplier = self._suppliers[supplier_id]
+
+        # Get orders
+        orders = self._supplier_orders.get(supplier_id, [])
+        total_orders = len(orders)
+
+        if total_orders == 0:
+            return {
+                'supplier_id': supplier_id,
+                'supplier_name': supplier.get('name', ''),
+                'total_orders': 0,
+                'rating': supplier.get('rating', 0),
+                'on_time_delivery_rate': 0,
+                'quality_rating': 0,
+                'response_time': 0,
+                'performance_score': 0
             }
 
-            return performance
+        # Calculate performance metrics
+        on_time_orders = sum(1 for order in orders if order.get('delivered_on_time', False))
+        on_time_delivery_rate = (on_time_orders / total_orders) * 100 if total_orders > 0 else 0
 
-        except SQLAlchemyError as e:
-            self._logger.error(f'Error calculating supplier performance: {e}')
-            raise
+        # Average quality rating (1-5)
+        quality_ratings = [order.get('quality_rating', 0) for order in orders if 'quality_rating' in order]
+        quality_rating = sum(quality_ratings) / len(quality_ratings) if quality_ratings else 0
 
-    def generate_supplier_report(self) -> List[Dict[str, Any]]:
-        """
-        Generate a comprehensive report of all suppliers.
+        # Average response time in hours
+        response_times = [order.get('response_time', 0) for order in orders if 'response_time' in order]
+        response_time = sum(response_times) / len(response_times) if response_times else 0
 
-        Returns:
-            List[Dict[str, Any]]: Detailed supplier report
+        # Overall performance score (weighted average)
+        weights = {
+            'on_time_delivery': 0.4,
+            'quality': 0.4,
+            'response_time': 0.2
+        }
 
-        Raises:
-            SQLAlchemyError: If database operation fails
-        """
-        try:
-            suppliers = self._session.query(Supplier).all()
-            report = []
+        # Normalize response time (lower is better) - assume 24 hours is the baseline
+        normalized_response_time = max(0, 100 - (response_time / 24 * 100))
 
-            for supplier in suppliers:
-                end_date = datetime.now()
-                start_date = end_date - timedelta(days=30)
+        performance_score = (
+            weights['on_time_delivery'] * on_time_delivery_rate +
+            weights['quality'] * (quality_rating / 5 * 100) +
+            weights['response_time'] * normalized_response_time
+        )
 
-                performance = self.get_supplier_performance(supplier.id, start_date, end_date)
-                supplier_report = supplier.to_dict()
-                supplier_report.update(performance)
-                report.append(supplier_report)
-
-            return report
-
-        except SQLAlchemyError as e:
-            self._logger.error(f'Error generating supplier report: {e}')
-            raise
-
-    def _calculate_on_time_delivery(self, orders: List['Order']) -> float:
-        """
-        Calculate on-time delivery rate for a set of orders.
-
-        Args:
-            orders (List[Order]): List of orders to analyze
-
-        Returns:
-            float: Percentage of on-time deliveries
-        """
-        if not orders:
-            return 0.0
-
-        on_time_deliveries = sum(1 for order in orders
-                                 if order.delivery_date <= order.expected_delivery_date)
-        return on_time_deliveries / len(orders) * 100
+        return {
+            'supplier_id': supplier_id,
+            'supplier_name': supplier.get('name', ''),
+            'total_orders': total_orders,
+            'rating': supplier.get('rating', 0),
+            'on_time_delivery_rate': round(on_time_delivery_rate, 2),
+            'quality_rating': round(quality_rating, 2),
+            'response_time': round(response_time, 2),
+            'performance_score': round(performance_score, 2)
+        }

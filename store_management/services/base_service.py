@@ -1,11 +1,4 @@
 # services/base_service.py
-"""
-Base service implementation with core abstractions and error handling.
-
-This module provides foundational classes and interfaces for service implementations,
-resolving circular import issues and providing a consistent base for services.
-"""
-
 import abc
 import logging
 from typing import Any, Dict, Generic, List, Optional, TypeVar
@@ -14,188 +7,97 @@ T = TypeVar('T')
 
 
 class BaseApplicationException(Exception):
-    """
-    Base exception for application-level errors with contextual information.
-
-    Attributes:
-        message (str): Primary error message
-        context (Optional[Dict[str, Any]]): Additional context for the error
-    """
+    """Base exception class for application errors with context support."""
 
     def __init__(self, message: str, context: Optional[Dict[str, Any]] = None):
-        super().__init__(message)
-        self.context = context or {}
+        """Initialize with message and context.
+
+        Args:
+            message: The error message
+            context: Additional context for the error
+        """
         self.message = message
-        logging.error(f"Application Error: {message}, Context: {self.context}")
+        self.context = context or {}
+        super().__init__(message)
 
 
 class NotFoundError(BaseApplicationException):
-    """
-    Exception raised when an entity or resource is not found.
-
-    Inherits contextual error handling from BaseApplicationException.
-    """
-
-    def __init__(self, message: str, context: Optional[Dict[str, Any]] = None):
-        super().__init__(f"Not Found: {message}", context)
+    """Exception raised when an entity or resource is not found."""
+    pass
 
 
 class ValidationError(BaseApplicationException):
-    """
-    Exception raised when data validation fails.
-
-    Inherits contextual error handling from BaseApplicationException.
-    """
-
-    def __init__(self, message: str, context: Optional[Dict[str, Any]] = None):
-        super().__init__(f"Validation Error: {message}", context)
+    """Exception raised when data validation fails."""
+    pass
 
 
 class IBaseService(abc.ABC):
-    """
-    Interface for base service operations with generic type support.
+    """Interface for base service operations."""
 
-    Provides a standardized interface for core service methods.
-    """
-
-    @abc.abstractmethod
-    def create(self, data: Dict[str, Any]) -> T:
-        """
-        Create a new entity.
+    def validate_data(self, data: Dict[str, Any], required_fields: Optional[List[str]] = None) -> None:
+        """Validate input data against requirements.
 
         Args:
-            data (Dict[str, Any]): Data for creating the entity
-
-        Returns:
-            T: Created entity
+            data: Data to validate
+            required_fields: List of required field names
 
         Raises:
-            ValidationError: If data is invalid
+            ValidationError: If validation fails
         """
-        pass
+        # Check required fields
+        if required_fields:
+            missing_fields = [field for field in required_fields if field not in data]
+            if missing_fields:
+                raise ValidationError(
+                    f"Missing required fields: {', '.join(missing_fields)}",
+                    {"missing_fields": missing_fields}
+                )
 
-    @abc.abstractmethod
-    def get_by_id(self, entity_id: Any) -> Optional[T]:
-        """
-        Retrieve an entity by its identifier.
+    def log_operation(self, operation: str, details: Optional[Dict[str, Any]] = None) -> None:
+        """Log a service operation with details.
 
         Args:
-            entity_id (Any): Unique identifier for the entity
-
-        Returns:
-            Optional[T]: Retrieved entity or None if not found
+            operation: Description of the operation
+            details: Additional details about the operation
         """
-        pass
-
-    @abc.abstractmethod
-    def update(self, entity_id: Any, data: Dict[str, Any]) -> T:
-        """
-        Update an existing entity.
-
-        Args:
-            entity_id (Any): Unique identifier for the entity
-            data (Dict[str, Any]): Updated data for the entity
-
-        Returns:
-            T: Updated entity
-
-        Raises:
-            NotFoundError: If entity doesn't exist
-            ValidationError: If update data is invalid
-        """
-        pass
-
-    @abc.abstractmethod
-    def delete(self, entity_id: Any) -> bool:
-        """
-        Delete an entity by its identifier.
-
-        Args:
-            entity_id (Any): Unique identifier for the entity
-
-        Returns:
-            bool: True if deletion was successful, False otherwise
-
-        Raises:
-            NotFoundError: If entity doesn't exist
-        """
-        pass
+        self.logger.info(f"{operation}: {details or {} }")
 
 
-class BaseService(Generic[T], IBaseService):
-    """
-    Abstract base implementation of IBaseService with default method implementations.
-
-    Provides a basic implementation that can be extended by specific service classes.
-    """
+class BaseService(Generic[T]):
+    """Base service implementation with common functionality."""
 
     def __init__(self):
-        """
-        Initialize the base service with logging.
-        """
+        """Initialize the base service with logging."""
         self.logger = logging.getLogger(self.__class__.__name__)
 
-    def create(self, data: Dict[str, Any]) -> T:
-        """
-        Default implementation for creating an entity.
+    def validate_data(self, data: Dict[str, Any], required_fields: Optional[List[str]] = None) -> None:
+        """Validate input data against requirements.
 
         Args:
-            data (Dict[str, Any]): Data for creating the entity
-
-        Returns:
-            T: Created entity
+            data: Data to validate
+            required_fields: List of required field names
 
         Raises:
-            NotImplementedError: If not overridden by subclass
+            ValidationError: If validation fails
         """
-        self.logger.info(f"Creating entity with data: {data}")
-        raise NotImplementedError("Subclasses must implement create method")
+        # Check required fields
+        if required_fields:
+            missing_fields = [field for field in required_fields if field not in data]
+            if missing_fields:
+                raise ValidationError(
+                    f"Missing required fields: {', '.join(missing_fields)}",
+                    {"missing_fields": missing_fields}
+                )
 
-    def get_by_id(self, entity_id: Any) -> Optional[T]:
-        """
-        Default implementation for retrieving an entity by ID.
+    def log_operation(self, operation: str, details: Optional[Dict[str, Any]] = None) -> None:
+        """Log a service operation with details.
 
         Args:
-            entity_id (Any): Unique identifier for the entity
-
-        Returns:
-            Optional[T]: Retrieved entity or None
-
-        Raises:
-            NotImplementedError: If not overridden by subclass
+            operation: Description of the operation
+            details: Additional details about the operation
         """
-        self.logger.info(f"Retrieving entity with ID: {entity_id}")
-        raise NotImplementedError("Subclasses must implement get_by_id method")
+        self.logger.info(f"{operation}: {details or {} }")
 
-    def update(self, entity_id: Any, data: Dict[str, Any]) -> T:
-        """
-        Default implementation for updating an entity.
 
-        Args:
-            entity_id (Any): Unique identifier for the entity
-            data (Dict[str, Any]): Updated data for the entity
-
-        Returns:
-            T: Updated entity
-
-        Raises:
-            NotImplementedError: If not overridden by subclass
-        """
-        self.logger.info(f"Updating entity {entity_id} with data: {data}")
-        raise NotImplementedError("Subclasses must implement update method")
-
-    def delete(self, entity_id: Any) -> bool:
-        """
-        Default implementation for deleting an entity.
-
-        Args:
-            entity_id (Any): Unique identifier for the entity
-
-        Returns:
-            bool: True if deletion was successful
-
-        Raises:
-            NotImplementedError: If not overridden by subclass
-        """
-        self.logger.info(f"Deleting entity with ID: {entity_id}")
-        raise NotImplementedError("Subclasses must implement delete method")
+# Add this for backwards compatibility
+Service = BaseService

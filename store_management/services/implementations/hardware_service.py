@@ -6,12 +6,14 @@ Provides comprehensive functionality for managing hardware inventory.
 """
 
 from typing import Any, List, Dict, Optional
+import logging
 
 from services.base_service import BaseService, ValidationError, NotFoundError
 from services.interfaces.hardware_service import IHardwareService
 from database.models.hardware import Hardware, HardwareType, HardwareMaterial, HardwareFinish
 from database.repositories.hardware_repository import HardwareRepository
 from database.sqlalchemy.session import get_db_session
+from utils.error_handler import ApplicationError
 
 
 class HardwareService(BaseService[Hardware], IHardwareService):
@@ -31,315 +33,183 @@ class HardwareService(BaseService[Hardware], IHardwareService):
             Repository for hardware data access. If not provided, a new one will be created.
         """
         super().__init__()
+        self.logger = logging.getLogger(self.__class__.__name__)
 
         # Use provided repository or create a new one
         self._repository = hardware_repository or HardwareRepository(get_db_session())
 
-    def get_by_id(self, id_value: int) -> Optional[Hardware]:
+    def _validate_enum_input(self, enum_class, value: Any) -> Any:
         """
-        Retrieve a specific hardware item by its ID.
+        Validate and convert enum input.
 
         Args:
-            id_value (int): Unique identifier for the hardware item
+            enum_class: Enum class to validate against
+            value: Input value to validate
 
         Returns:
-            Optional[Hardware]: Hardware item or None if not found
+            Validated enum value
 
         Raises:
-            NotFoundError: If no hardware item with the given ID exists
+            ValidationError: If input cannot be converted to enum
         """
+        if value is None:
+            return None
+
         try:
-            hardware_item = self._repository.get_by_id(id_value)
+            # If it's already an enum, return it
+            if isinstance(value, enum_class):
+                return value
 
-            if not hardware_item:
-                raise NotFoundError(
-                    f"Hardware item with ID {id_value} not found",
-                    {"id": id_value}
-                )
+            # Try converting string to enum
+            if isinstance(value, str):
+                try:
+                    # First try exact match (enum name)
+                    return enum_class[value.upper()]
+                except KeyError:
+                    # If exact match fails, try value-based matching
+                    return enum_class(value)
+        except (ValueError, KeyError) as e:
+            raise ValidationError(f"Invalid {enum_class.__name__}: {value}") from e
 
-            self.log_operation("Retrieved hardware item", {"id": id_value})
-            return hardware_item
-        except Exception as e:
-            self.logger.error(f"Error retrieving hardware item: {e}")
-            raise
-
-    def get_all(
-            self,
-            filters: Optional[Dict[str, Any]] = None,
-            limit: Optional[int] = None,
-            offset: Optional[int] = None
-    ) -> List[Hardware]:
+    def _sanitize_hardware_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Retrieve all hardware items with optional filtering and pagination.
+        Sanitize and validate hardware data before creating or updating.
 
         Args:
-            filters (Optional[Dict[str, Any]], optional): Filtering criteria
-            limit (Optional[int], optional): Maximum number of items to retrieve
-            offset (Optional[int], optional): Number of items to skip
+            data (Dict[str, Any]): Raw hardware data
 
         Returns:
-            List[Hardware]: List of hardware items
+            Dict[str, Any]: Sanitized and validated hardware data
         """
-        try:
-            # Apply filtering, limit, and offset
-            hardware_items = self._repository.get_all(
-                filters=filters,
-                limit=limit,
-                offset=offset
-            )
+        sanitized_data = {}
 
-            self.log_operation("Retrieved hardware items", {
-                "filter_count": len(hardware_items),
-                "filters": filters or {},
-                "limit": limit,
-                "offset": offset
-            })
+        # Validate and convert enum fields
+        enum_fields = [
+            ('hardware_type', HardwareType),
+            ('material', HardwareMaterial),
+            ('finish', HardwareFinish)
+        ]
 
-            return hardware_items
-        except Exception as e:
-            self.logger.error(f"Error retrieving hardware items: {e}")
-            return []
+        for field, enum_class in enum_fields:
+            if field in data:
+                sanitized_data[field] = self._validate_enum_input(enum_class, data[field])
 
-    def create(self, data: Dict[str, Any]) -> Hardware:
-        """
-        Create a new hardware item.
+        # Numeric field validations
+        numeric_fields = {
+            'quantity': int,
+            'price': float,
+            'size': float,
+            'minimum_stock_level': int
+        }
+
+        for field, converter in numeric_fields.items():
+            if field in data:
+                try:
+                    value = converter(data[field])
+                    if value < 0:
+                        raise ValidationError(f"{field.replace('_', ' ').title()} cannot be negative")
+                    sanitized_data[field] = value
+                except ValueError:
+                    raise ValidationError(f"Invalid {field.replace('_', ' ')}: {data[field]}")
+
+        # String fields
+        string_fields = [
+            'name', 'description', 'supplier_id',
+            'corrosion_resistance', 'load_capacity'
+        ]
+        for field in string_fields:
+            if field in data:
+                sanitized_data[field] = str(data[field]).strip() or None
+
+        return sanitized_data
+
+    def create_hardware(self, hardware_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a new hardware item.
 
         Args:
-            data (Dict[str, Any]): Hardware item details
+            hardware_data: Hardware data dictionary
 
         Returns:
-            Hardware: Created hardware item
-
-        Raises:
-            ValidationError: If input data is invalid
+            Dict: Created hardware data
         """
         try:
-            # Validate input data
-            self.validate_data(
-                data,
-                required_fields=[
-                    'name',
-                    'hardware_type',
-                    'material',
-                    'quantity',
-                    'unit_price'
-                ]
-            )
+            # Validate and sanitize input data
+            sanitized_data = self._sanitize_hardware_data(hardware_data)
 
-            # Validate enum values
-            try:
-                # Handle hardware_type - either as enum or string
-                if isinstance(data.get('hardware_type'), str):
-                    try:
-                        hardware_type = HardwareType[data.get('hardware_type')]
-                    except KeyError:
-                        hardware_type = HardwareType(data.get('hardware_type'))
-                else:
-                    hardware_type = data.get('hardware_type')
-
-                # Handle material - either as enum or string
-                if isinstance(data.get('material'), str):
-                    try:
-                        material = HardwareMaterial[data.get('material')]
-                    except KeyError:
-                        material = HardwareMaterial(data.get('material'))
-                else:
-                    material = data.get('material')
-
-                # Handle finish if provided
-                finish = None
-                if 'finish' in data and data['finish']:
-                    if isinstance(data['finish'], str):
-                        try:
-                            finish = HardwareFinish[data['finish']]
-                        except KeyError:
-                            finish = HardwareFinish(data['finish'])
-                    else:
-                        finish = data['finish']
-            except ValueError as e:
-                raise ValidationError(f"Invalid hardware type, material, or finish: {e}")
-
-            # Prepare hardware data
-            hardware_data = {
-                'name': data['name'],
-                'hardware_type': hardware_type,
-                'material': material,
-                'quantity': int(float(data['quantity'])),
-                'price': float(data['unit_price']),
-                'description': data.get('description', ''),
-                'supplier_id': data.get('supplier_id')
-            }
-
-            # Add finish if it was provided
-            if finish is not None:
-                hardware_data['finish'] = finish
-
-            # Add size if provided
-            if 'size' in data:
-                hardware_data['size'] = float(data['size'])
+            # Ensure required fields are present
+            required_fields = ['name', 'hardware_type', 'material', 'quantity', 'price']
+            for field in required_fields:
+                if field not in sanitized_data:
+                    raise ValidationError(f"Missing required field: {field}")
 
             # Create hardware item
-            hardware_item = self._repository.create(hardware_data)
-
-            self.log_operation("Created hardware item", {"id": hardware_item.id})
-            return hardware_item
-
-        except (ValidationError, ValueError) as ve:
-            self.logger.error(f"Validation error creating hardware: {ve}")
-            raise
-        except Exception as e:
-            self.logger.error(f"Error creating hardware item: {e}")
+            hardware = self.create(sanitized_data)
+            return self._convert_to_dict(hardware)
+        except (ValidationError, ApplicationError) as e:
+            self.logger.error(f"Error creating hardware: {e}")
             raise
 
-    def update(self, id_value: int, data: Dict[str, Any]) -> Hardware:
-        """
-        Update an existing hardware item.
+    def update_hardware(self, hardware_id: int, updates: Dict[str, Any]) -> Dict[str, Any]:
+        """Update an existing hardware item.
 
         Args:
-            id_value (int): Unique identifier of the hardware item to update
-            data (Dict[str, Any]): Updated data
+            hardware_id: ID of the hardware to update
+            updates: Data to update
 
         Returns:
-            Hardware: Updated hardware item
-
-        Raises:
-            ValidationError: If input data is invalid
-            NotFoundError: If the hardware item doesn't exist
+            Dict: Updated hardware data
         """
         try:
-            # Validate input data
-            self.validate_data(data)
-
-            # Prepare update data
-            update_data = {}
-
-            # Validate and add enum values if present
-            if 'hardware_type' in data:
-                try:
-                    if isinstance(data['hardware_type'], str):
-                        try:
-                            update_data['hardware_type'] = HardwareType[data['hardware_type']]
-                        except KeyError:
-                            update_data['hardware_type'] = HardwareType(data['hardware_type'])
-                    else:
-                        update_data['hardware_type'] = data['hardware_type']
-                except ValueError:
-                    raise ValidationError(f"Invalid hardware type: {data['hardware_type']}")
-
-            if 'material' in data:
-                try:
-                    if isinstance(data['material'], str):
-                        try:
-                            update_data['material'] = HardwareMaterial[data['material']]
-                        except KeyError:
-                            update_data['material'] = HardwareMaterial(data['material'])
-                    else:
-                        update_data['material'] = data['material']
-                except ValueError:
-                    raise ValidationError(f"Invalid material: {data['material']}")
-
-            if 'finish' in data:
-                try:
-                    if data['finish'] is None:
-                        update_data['finish'] = None
-                    elif isinstance(data['finish'], str):
-                        try:
-                            update_data['finish'] = HardwareFinish[data['finish']]
-                        except KeyError:
-                            update_data['finish'] = HardwareFinish(data['finish'])
-                    else:
-                        update_data['finish'] = data['finish']
-                except ValueError:
-                    raise ValidationError(f"Invalid finish: {data['finish']}")
-
-            # Add other updateable fields
-            updateable_fields = [
-                'name', 'quantity', 'price', 'size',
-                'description', 'supplier_id', 'minimum_stock_level',
-                'corrosion_resistance', 'load_capacity'
-            ]
-
-            for field in updateable_fields:
-                if field in data:
-                    update_data[field] = data[field]
-
-            # Handle unit_price conversion to price field
-            if 'unit_price' in data:
-                update_data['price'] = float(data['unit_price'])
+            # Validate and sanitize input data
+            sanitized_updates = self._sanitize_hardware_data(updates)
 
             # Update hardware item
-            hardware_item = self._repository.update(id_value, update_data)
-
-            if not hardware_item:
-                raise NotFoundError(
-                    f"Hardware item with ID {id_value} not found",
-                    {"id": id_value}
-                )
-
-            self.log_operation("Updated hardware item", {
-                "id": id_value,
-                "updated_fields": list(update_data.keys())
-            })
-
-            return hardware_item
-
-        except (ValidationError, ValueError) as ve:
-            self.logger.error(f"Validation error updating hardware: {ve}")
-            raise
-        except Exception as e:
-            self.logger.error(f"Error updating hardware item: {e}")
+            hardware = self.update(hardware_id, sanitized_updates)
+            return self._convert_to_dict(hardware)
+        except (ValidationError, ApplicationError) as e:
+            self.logger.error(f"Error updating hardware: {e}")
             raise
 
-    def delete(self, id_value: int) -> bool:
-        """
-        Delete a hardware item.
+    def get_hardware_by_id(self, hardware_id: int) -> Optional[Dict[str, Any]]:
+        """Get hardware item by ID.
 
         Args:
-            id_value (int): Unique identifier of the hardware item to delete
+            hardware_id: ID of the hardware to retrieve
 
         Returns:
-            bool: True if deletion was successful, False otherwise
-
-        Raises:
-            NotFoundError: If the hardware item doesn't exist
+            Dict or None: Hardware data if found
         """
         try:
-            # Verify item exists before deletion
-            existing_item = self.get_by_id(id_value)
-
-            # Perform deletion
-            deletion_result = self._repository.delete(id_value)
-
-            if not deletion_result:
-                raise NotFoundError(
-                    f"Failed to delete hardware item with ID {id_value}",
-                    {"id": id_value}
-                )
-
-            self.log_operation("Deleted hardware item", {"id": id_value})
-            return True
-
+            hardware = self.get_by_id(hardware_id)
+            return self._convert_to_dict(hardware)
         except NotFoundError:
-            self.logger.error(f"Cannot delete non-existent hardware item: {id_value}")
-            raise
-        except Exception as e:
-            self.logger.error(f"Error deleting hardware item: {e}")
-            raise
+            return None
 
-    def search(
-            self,
-            query: str,
-            filters: Optional[Dict[str, Any]] = None
-    ) -> List[Hardware]:
-        """
-        Search for hardware items based on a query and optional filters.
+    def get_all_hardware(self, filters: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+        """Get all hardware items with optional filtering.
 
         Args:
-            query (str): Search query string
-            filters (Optional[Dict[str, Any]], optional): Additional filtering criteria
+            filters: Optional filtering criteria
 
         Returns:
-            List[Hardware]: List of matching hardware items
+            List of hardware items as dictionaries
+        """
+        hardware_list = self.get_all(filters=filters)
+        return [self._convert_to_dict(h) for h in hardware_list]
+
+    def search_hardware(
+        self,
+        query: str,
+        filters: Optional[Dict[str, Any]] = None
+    ) -> List[Dict[str, Any]]:
+        """Search hardware items.
+
+        Args:
+            query: Search query string
+            filters: Optional additional filtering criteria
+
+        Returns:
+            List of matching hardware items as dictionaries
         """
         try:
             # Prepare search filters
@@ -347,46 +217,56 @@ class HardwareService(BaseService[Hardware], IHardwareService):
             search_filters['search_query'] = query
 
             # Perform search
-            hardware_items = self._repository.search(search_filters)
-
-            self.log_operation("Searched hardware items", {
-                "query": query,
-                "result_count": len(hardware_items),
-                "filters": search_filters
-            })
-
-            return hardware_items
+            hardware_items = self.search(query, search_filters)
+            return [self._convert_to_dict(item) for item in hardware_items]
         except Exception as e:
             self.logger.error(f"Error searching hardware items: {e}")
             return []
 
-    def get_by_finish(self, finish: HardwareFinish) -> List[Hardware]:
-        """
-        Get hardware items by finish type.
+    def delete_hardware(self, hardware_id: int) -> bool:
+        """Delete a hardware item.
 
         Args:
-            finish (HardwareFinish): The finish type to filter by
+            hardware_id: ID of the hardware to delete
 
         Returns:
-            List[Hardware]: List of hardware items with the specified finish
+            bool: True if successful
         """
-        try:
-            # Use repository to filter by finish
-            if hasattr(self._repository, 'filter_by_finish'):
-                hardware_items = self._repository.filter_by_finish(finish)
-            else:
-                # Fall back to generic filtering if specific method not available
-                hardware_items = self._repository.get_all(filters={'finish': finish})
+        return self.delete(hardware_id)
 
-            self.log_operation("Retrieved hardware items by finish", {
-                "finish": finish.value,
-                "result_count": len(hardware_items)
-            })
+    def _convert_to_dict(self, hardware: Hardware) -> Dict[str, Any]:
+        """Convert Hardware model to dictionary.
 
-            return hardware_items
-        except Exception as e:
-            self.logger.error(f"Error retrieving hardware items by finish: {e}")
-            return []
+        Args:
+            hardware: Hardware model instance
+
+        Returns:
+            Dict representation of the hardware
+        """
+        if not hardware:
+            return None
+
+        # Safely extract enum values
+        def safe_enum_value(enum_val):
+            return enum_val.value if enum_val is not None else None
+
+        return {
+            'id': hardware.id,
+            'name': hardware.name,
+            'description': getattr(hardware, 'description', ''),
+            'type': safe_enum_value(getattr(hardware, 'hardware_type', None)),
+            'material': safe_enum_value(getattr(hardware, 'material', None)),
+            'finish': safe_enum_value(getattr(hardware, 'finish', None)),
+            'quantity': getattr(hardware, 'quantity', 0),
+            'unit_price': getattr(hardware, 'price', 0.0),
+            'supplier_id': getattr(hardware, 'supplier_id', None),
+            'created_at': getattr(hardware, 'created_at', None),
+            'updated_at': getattr(hardware, 'updated_at', None),
+            'size': getattr(hardware, 'size', None),
+            'minimum_stock_level': getattr(hardware, 'minimum_stock_level', None),
+            'corrosion_resistance': getattr(hardware, 'corrosion_resistance', None),
+            'load_capacity': getattr(hardware, 'load_capacity', None)
+        }
 
     def validate_data(
             self,

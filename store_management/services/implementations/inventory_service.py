@@ -1,1068 +1,246 @@
 # services/implementations/inventory_service.py
-"""
-Implementation of Inventory Service with core CRUD operations.
-"""
 import logging
-from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
-from database.models.inventory import Inventory
-from services.base_service import BaseService, NotFoundError, ValidationError
+from services.base_service import BaseService
 from services.interfaces.inventory_service import IInventoryService
 from services.interfaces.material_service import MaterialType
 
-class InventoryService(BaseService[Inventory], IInventoryService):
-    """
-    Service implementation for managing inventory in the leatherworking application.
 
-    Provides methods for creating, retrieving, updating, and deleting inventory items
-    with validation and error handling.
-    """
+class InventoryService(BaseService, IInventoryService):
+    """Implementation of inventory service."""
 
     def __init__(self):
-        """
-        Initialize the Inventory Service with data structures for tracking.
-        """
+        """Initialize the Inventory Service with data structures for tracking."""
         super().__init__()
+        self.logger.info("InventoryService initialized")
+        # Initialize data structures for tracking inventory
+        self._inventory = {}
+        self._reservations = {}
 
-        # Internal data structures for inventory tracking
-        self._inventory_items: Dict[str, Dict[str, Any]] = {}
-        self._leathers: Dict[str, Dict[str, Any]] = {}
-        self._parts: Dict[str, Dict[str, Any]] = {}
-        self._reserved_materials: Dict[str, List[Dict[str, Any]]] = {}
-        self._inventory_transactions: List[Dict[str, Any]] = []
-
-        # Repository for data persistence (to be injected)
-        self.repository = None  # Replace with actual repository initialization
-
-    def create(self, data: Dict[str, Any]) -> Inventory:
-        """
-        Create a new inventory item.
+    def check_material_availability(self, material_id: str, quantity: float) -> bool:
+        """Check if a material is available in the specified quantity.
 
         Args:
-            data (Dict[str, Any]): Inventory item creation data
+            material_id: ID of the material to check
+            quantity: Quantity required
 
         Returns:
-            Inventory: Created inventory item instance
-
-        Raises:
-            ValidationError: If inventory data is invalid
+            bool: True if available, False otherwise
         """
-        try:
-            # Validate inventory data
-            self._validate_inventory_data(data)
+        self.logger.debug(f"Checking availability of material {material_id}, quantity {quantity}")
+        # Simple implementation for now
+        if material_id not in self._inventory:
+            return False
+        return self._inventory[material_id].get('quantity', 0) >= quantity
 
-            # Create inventory item
-            # Replace with actual repository creation method
-            inventory_item = Inventory(**data)
-
-            self.logger.info(f"Created inventory item: {inventory_item}")
-            return inventory_item
-        except Exception as e:
-            self.logger.error(f"Error creating inventory item: {e}")
-            raise ValidationError("Failed to create inventory item", {"data": data}) from e
-
-    def create(self, data: Dict[str, Any]) -> Inventory:
-        """
-        Create a new inventory item.
+    def reserve_materials(self, materials: List[Dict[str, Any]], project_id: str) -> bool:
+        """Reserve materials for a specific project.
 
         Args:
-            data (Dict[str, Any]): Inventory item creation data
+            materials: List of materials with quantities
+            project_id: ID of the project to reserve for
 
         Returns:
-            Inventory: Created inventory item instance
-
-        Raises:
-            ValidationError: If inventory data is invalid
+            bool: True if reservation successful, False otherwise
         """
-        try:
-            # Validate inventory data
-            self._validate_inventory_data(data)
+        self.logger.debug(f"Reserving materials for project {project_id}")
 
-            # Create inventory item
-            # In a real implementation, this would use the repository
-            inventory_item = self.add_inventory_item(
-                item_type=data.get('item_type', MaterialType.LEATHER),
-                name=data['name'],
-                quantity=data['quantity'],
-                unit_price=data['unit_price'],
-                description=data.get('description'),
-                supplier_id=data.get('supplier_id'),
-                location_id=data.get('location_id'),
-                metadata=data.get('metadata')
-            )
+        # Check if all materials are available
+        for material in materials:
+            if not self.check_material_availability(material['id'], material['quantity']):
+                return False
 
-            self.logger.info(f"Created inventory item: {inventory_item}")
-            return inventory_item  # Note: This might need conversion to Inventory model
-        except Exception as e:
-            self.logger.error(f"Error creating inventory item: {e}")
-            raise ValidationError("Failed to create inventory item", {"data": data}) from e
+        # Reserve materials
+        for material in materials:
+            if material['id'] not in self._reservations:
+                self._reservations[material['id']] = {}
 
-    def update(self, inventory_id: str, data: Dict[str, Any]) -> Inventory:
-        """
-        Update an existing inventory item.
+            self._reservations[material['id']][project_id] = material['quantity']
+
+            # Update available quantity
+            current_quantity = self._inventory[material['id']].get('quantity', 0)
+            self._inventory[material['id']]['quantity'] = current_quantity - material['quantity']
+
+        return True
+
+    def release_reserved_materials(self, project_id: str) -> bool:
+        """Release materials reserved for a specific project.
 
         Args:
-            inventory_id (str): Unique identifier for the inventory item
-            data (Dict[str, Any]): Updated inventory item data
+            project_id: ID of the project to release reservations for
 
         Returns:
-            Inventory: Updated inventory item instance
-
-        Raises:
-            NotFoundError: If inventory item doesn't exist
-            ValidationError: If update data is invalid
+            bool: True if release successful, False otherwise
         """
-        try:
-            # Check if inventory item exists
-            existing_item = self.get_by_id(inventory_id)
-            if not existing_item:
-                raise NotFoundError(f"Inventory item with ID {inventory_id} not found")
+        self.logger.debug(f"Releasing reserved materials for project {project_id}")
 
-            # Validate update data
-            self._validate_inventory_data(data, is_update=True)
+        # Find all materials reserved for this project
+        released_materials = {}
 
-            # Update inventory item
-            updated_item = self.update_inventory_item(inventory_id, data)
+        for material_id, reservations in self._reservations.items():
+            if project_id in reservations:
+                released_quantity = reservations[project_id]
+                released_materials[material_id] = released_quantity
 
-            if not updated_item:
-                raise ValidationError(f"Failed to update inventory item {inventory_id}", {"data": data})
+                # Remove reservation
+                del reservations[project_id]
 
-            self.logger.info(f"Updated inventory item: {updated_item}")
-            return updated_item  # Note: This might need conversion to Inventory model
-        except Exception as e:
-            self.logger.error(f"Error updating inventory item: {e}")
-            raise ValidationError(f"Failed to update inventory item {inventory_id}", {"data": data}) from e
+                # Update available quantity
+                current_quantity = self._inventory[material_id].get('quantity', 0)
+                self._inventory[material_id]['quantity'] = current_quantity + released_quantity
 
-    def delete(self, inventory_id: str) -> bool:
-        """
-        Delete an inventory item by its ID.
+        return len(released_materials) > 0
 
-        Args:
-            inventory_id (str): Unique identifier for the inventory item
-
-        Returns:
-            bool: True if deletion was successful
-
-        Raises:
-            NotFoundError: If inventory item doesn't exist
-        """
-        try:
-            # Check if inventory item exists
-            existing_item = self.get_by_id(inventory_id)
-            if not existing_item:
-                raise NotFoundError(f"Inventory item with ID {inventory_id} not found")
-
-            # Delete inventory item
-            success = self.delete_inventory_item(inventory_id)
-
-            if not success:
-                raise NotFoundError(f"Failed to delete inventory item {inventory_id}")
-
-            self.logger.info(f"Deleted inventory item with ID: {inventory_id}")
-            return True
-        except Exception as e:
-            self.logger.error(f"Error deleting inventory item: {e}")
-            raise NotFoundError(f"Failed to delete inventory item {inventory_id}") from e
-
-    def add_inventory_item(self, item_type: MaterialType, name: str,
-                           quantity: float, unit_price: float,
-                           description: Optional[str] = None,
-                           supplier_id: Optional[str] = None,
-                           location_id: Optional[str] = None,
-                           metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """Add a new item to inventory.
-
-        Args:
-            item_type: Type of material
-            name: Item name
-            quantity: Initial quantity
-            unit_price: Price per unit
-            description: Optional description
-            supplier_id: Optional supplier ID
-            location_id: Optional storage location ID
-            metadata: Additional item metadata
-
-        Returns:
-            Dict[str, Any]: Created inventory item
-        """
-        item_id = f"INV{len(self._inventory_items) + 1:04d}"
-        now = datetime.now()
-
-        inventory_item = {
-            "id": item_id,
-            "item_type": item_type,
-            "name": name,
-            "quantity": quantity,
-            "unit_price": unit_price,
-            "description": description,
-            "supplier_id": supplier_id,
-            "location_id": location_id,
-            "created_at": now,
-            "updated_at": now,
-            "metadata": metadata or {},
-            "status": "IN_STOCK"
-        }
-
-        self._inventory_items[item_id] = inventory_item
-
-        # Add to specific collections based on type
-        if item_type == MaterialType.LEATHER:
-            leather_id = f"L{len(self._leathers) + 1:04d}"
-            leather = inventory_item.copy()
-            leather["leather_id"] = leather_id
-            leather["area"] = metadata.get("area", 0.0) if metadata else 0.0
-            leather["thickness"] = metadata.get("thickness", 0.0) if metadata else 0.0
-            leather["quality_grade"] = metadata.get("quality_grade", "STANDARD") if metadata else "STANDARD"
-            self._leathers[leather_id] = leather
-
-        elif item_type in [MaterialType.HARDWARE, MaterialType.THREAD, MaterialType.ADHESIVE]:
-            part_id = f"P{len(self._parts) + 1:04d}"
-            part = inventory_item.copy()
-            part["part_id"] = part_id
-            part["part_number"] = metadata.get("part_number", "") if metadata else ""
-            part["reorder_level"] = metadata.get("reorder_level", 5) if metadata else 5
-            self._parts[part_id] = part
-
-        # Record the initial transaction
-        self._record_transaction(
-            item_id=item_id,
-            transaction_type="INITIAL",
-            quantity=quantity,
-            unit_price=unit_price
-        )
-
-        self.logger.info(f"Added inventory item: {name} (ID: {item_id})")
-        return inventory_item
-
-    def get_by_id(self, inventory_id: str) -> Optional[Inventory]:
-        """
-        Retrieve an inventory item by its ID.
-
-        Args:
-            inventory_id (str): Unique identifier for the inventory item
-
-        Returns:
-            Optional[Inventory]: Retrieved inventory item or None if not found
-        """
-        try:
-            item = self.get_inventory_item(inventory_id)
-
-            if not item:
-                self.logger.warning(f"Inventory item not found with ID: {inventory_id}")
-                return None
-
-            return item  # Note: This might need conversion to Inventory model
-        except Exception as e:
-            self.logger.error(f"Error retrieving inventory item: {e}")
-            raise NotFoundError(f"Inventory item with ID {inventory_id} not found")
-
-
-    def get_inventory_item(self, item_id: str) -> Optional[Dict[str, Any]]:
-        """Get an inventory item by ID.
-
-        Args:
-            item_id: ID of the inventory item to retrieve
-
-        Returns:
-            Optional[Dict[str, Any]]: Inventory item data or None if not found
-        """
-        item = self._inventory_items.get(item_id)
-        if not item:
-            self.logger.warning(f"Inventory item not found: {item_id}")
-            return None
-
-        return item
-
-    def update_inventory_item(self, item_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Update an inventory item.
-
-        Args:
-            item_id: ID of the inventory item to update
-            updates: Dictionary of fields to update
-
-        Returns:
-            Optional[Dict[str, Any]]: Updated inventory item or None if not found
-        """
-        if item_id not in self._inventory_items:
-            self.logger.warning(f"Cannot update non-existent inventory item: {item_id}")
-            return None
-
-        item = self._inventory_items[item_id]
-
-        # Update only valid fields
-        valid_fields = [
-            "name", "description", "unit_price", "supplier_id",
-            "location_id", "metadata", "status"
-        ]
-
-        for field, value in updates.items():
-            if field in valid_fields:
-                item[field] = value
-
-        # Special handling for quantity
-        if "quantity" in updates:
-            old_quantity = item["quantity"]
-            new_quantity = updates["quantity"]
-            quantity_change = new_quantity - old_quantity
-
-            if quantity_change != 0:
-                transaction_type = "INCREASE" if quantity_change > 0 else "DECREASE"
-                self._record_transaction(
-                    item_id=item_id,
-                    transaction_type=transaction_type,
-                    quantity=abs(quantity_change),
-                    unit_price=item["unit_price"]
-                )
-
-                item["quantity"] = new_quantity
-
-        # Always update the 'updated_at' timestamp
-        item["updated_at"] = datetime.now()
-
-        # Update status based on quantity
-        if item["quantity"] <= 0:
-            item["status"] = "OUT_OF_STOCK"
-        elif item["quantity"] < 10:  # Arbitrary low threshold
-            item["status"] = "LOW_STOCK"
-        else:
-            item["status"] = "IN_STOCK"
-
-        # Update in specific collections if needed
-        item_type = item.get("item_type")
-        if item_type == MaterialType.LEATHER:
-            # Find the corresponding leather entry
-            for leather_id, leather in self._leathers.items():
-                if leather.get("id") == item_id:
-                    # Update leather with applicable fields
-                    for field in valid_fields:
-                        if field in updates:
-                            leather[field] = updates[field]
-
-                    if "quantity" in updates:
-                        leather["quantity"] = new_quantity
-
-                    if "metadata" in updates and updates["metadata"]:
-                        if "area" in updates["metadata"]:
-                            leather["area"] = updates["metadata"]["area"]
-                        if "thickness" in updates["metadata"]:
-                            leather["thickness"] = updates["metadata"]["thickness"]
-                        if "quality_grade" in updates["metadata"]:
-                            leather["quality_grade"] = updates["metadata"]["quality_grade"]
-
-                    leather["updated_at"] = item["updated_at"]
-                    leather["status"] = item["status"]
-                    break
-
-        elif item_type in [MaterialType.HARDWARE, MaterialType.THREAD, MaterialType.ADHESIVE]:
-            # Find the corresponding part entry
-            for part_id, part in self._parts.items():
-                if part.get("id") == item_id:
-                    # Update part with applicable fields
-                    for field in valid_fields:
-                        if field in updates:
-                            part[field] = updates[field]
-
-                    if "quantity" in updates:
-                        part["quantity"] = new_quantity
-
-                    if "metadata" in updates and updates["metadata"]:
-                        if "part_number" in updates["metadata"]:
-                            part["part_number"] = updates["metadata"]["part_number"]
-                        if "reorder_level" in updates["metadata"]:
-                            part["reorder_level"] = updates["metadata"]["reorder_level"]
-
-                    part["updated_at"] = item["updated_at"]
-                    part["status"] = item["status"]
-                    break
-
-        self.logger.info(f"Updated inventory item: {item_id}")
-        return item
-
-    def _validate_inventory_data(self, data: Dict[str, Any], is_update: bool = False) -> None:
-        """
-        Validate inventory item data before creation or update.
-
-        Args:
-            data (Dict[str, Any]): Inventory item data to validate
-            is_update (bool, optional): Whether this is an update operation. Defaults to False.
-
-        Raises:
-            ValidationError: If data is invalid
-        """
-        # Basic validation checks
-        required_fields = ['name', 'quantity', 'unit_price']
-
-        if not is_update:
-            for field in required_fields:
-                if field not in data:
-                    raise ValidationError(f"Missing required field: {field}", {"data": data})
-
-        # Additional specific validations
-        if 'quantity' in data and data['quantity'] < 0:
-            raise ValidationError("Quantity cannot be negative", {"data": data})
-
-        # Validate material type if provided
-        if 'item_type' in data and data['item_type'] not in [t.value for t in MaterialType]:
-            raise ValidationError(f"Invalid material type: {data['item_type']}")
-
-    def update_leather_area(self, leather_id: str, new_area: float) -> Optional[Dict[str, Any]]:
-        """Update the area of a leather item.
+    def update_leather_area(self, leather_id: str, used_area: float) -> bool:
+        """Update remaining area of leather after cutting.
 
         Args:
             leather_id: ID of the leather
-            new_area: New area value
+            used_area: Area used in square units
 
         Returns:
-            Optional[Dict[str, Any]]: Updated leather item or None if not found
+            bool: True if update successful, False otherwise
         """
-        if leather_id not in self._leathers:
-            self.logger.warning(f"Cannot update non-existent leather: {leather_id}")
-            return None
+        self.logger.debug(f"Updating leather {leather_id} area, used {used_area} units")
 
-        leather = self._leathers[leather_id]
-        old_area = leather.get("area", 0.0)
-        leather["area"] = new_area
-        leather["updated_at"] = datetime.now()
+        if leather_id not in self._inventory:
+            return False
 
-        # Update the main inventory item if it exists
-        inventory_id = leather.get("id")
-        if inventory_id and inventory_id in self._inventory_items:
-            if "metadata" not in self._inventory_items[inventory_id]:
-                self._inventory_items[inventory_id]["metadata"] = {}
+        leather = self._inventory[leather_id]
+        if 'area' not in leather:
+            return False
 
-            self._inventory_items[inventory_id]["metadata"]["area"] = new_area
-            self._inventory_items[inventory_id]["updated_at"] = leather["updated_at"]
+        current_area = leather['area']
+        if current_area < used_area:
+            return False
 
-        self.logger.info(f"Updated leather {leather_id} area from {old_area} to {new_area}")
-        return leather
+        leather['area'] = current_area - used_area
+        return True
 
-    def update_part_stock(self, part_id: str, new_quantity: float,
-                          transaction_note: Optional[str] = None) -> Optional[Dict[str, Any]]:
-        """Update the stock quantity of a part.
+    def update_part_stock(self, part_id: str, quantity_change: int) -> bool:
+        """Update stock level of a part.
 
         Args:
             part_id: ID of the part
-            new_quantity: New quantity value
-            transaction_note: Optional note about the transaction
-
-        Returns:
-            Optional[Dict[str, Any]]: Updated part or None if not found
-        """
-        if part_id not in self._parts:
-            self.logger.warning(f"Cannot update non-existent part: {part_id}")
-            return None
-
-        part = self._parts[part_id]
-        old_quantity = part.get("quantity", 0.0)
-        quantity_change = new_quantity - old_quantity
-
-        part["quantity"] = new_quantity
-        part["updated_at"] = datetime.now()
-
-        # Update status based on quantity
-        reorder_level = part.get("reorder_level", 5)
-        if new_quantity <= 0:
-            part["status"] = "OUT_OF_STOCK"
-        elif new_quantity < reorder_level:
-            part["status"] = "LOW_STOCK"
-        else:
-            part["status"] = "IN_STOCK"
-
-        # Update the main inventory item if it exists
-        inventory_id = part.get("id")
-        if inventory_id and inventory_id in self._inventory_items:
-            self._inventory_items[inventory_id]["quantity"] = new_quantity
-            self._inventory_items[inventory_id]["updated_at"] = part["updated_at"]
-            self._inventory_items[inventory_id]["status"] = part["status"]
-
-            # Record transaction
-            transaction_type = "INCREASE" if quantity_change > 0 else "DECREASE"
-            self._record_transaction(
-                item_id=inventory_id,
-                transaction_type=transaction_type,
-                quantity=abs(quantity_change),
-                unit_price=self._inventory_items[inventory_id].get("unit_price", 0.0),
-                notes=transaction_note
-            )
-
-        self.logger.info(f"Updated part {part_id} quantity from {old_quantity} to {new_quantity}")
-        return part
-
-    def delete_inventory_item(self, item_id: str) -> bool:
-        """Delete an inventory item.
-
-        Args:
-            item_id: ID of the inventory item to delete
-
-        Returns:
-            bool: True if successful, False otherwise
-        """
-        if item_id not in self._inventory_items:
-            self.logger.warning(f"Cannot delete non-existent inventory item: {item_id}")
-            return False
-
-        item = self._inventory_items[item_id]
-        item_type = item.get("item_type")
-
-        # Remove from specific collections if needed
-        if item_type == MaterialType.LEATHER:
-            # Find and remove from leathers
-            leather_to_remove = None
-            for leather_id, leather in self._leathers.items():
-                if leather.get("id") == item_id:
-                    leather_to_remove = leather_id
-                    break
-
-            if leather_to_remove:
-                del self._leathers[leather_to_remove]
-
-        elif item_type in [MaterialType.HARDWARE, MaterialType.THREAD, MaterialType.ADHESIVE]:
-            # Find and remove from parts
-            part_to_remove = None
-            for part_id, part in self._parts.items():
-                if part.get("id") == item_id:
-                    part_to_remove = part_id
-                    break
-
-            if part_to_remove:
-                del self._parts[part_to_remove]
-
-        # Remove from main inventory
-        del self._inventory_items[item_id]
-
-        self.logger.info(f"Deleted inventory item: {item_id}")
-        return True
-
-    def list_inventory_items(self, item_type: Optional[MaterialType] = None,
-                             location_id: Optional[str] = None) -> List[Dict[str, Any]]:
-        """List all inventory items, optionally filtered by type or location.
-
-        Args:
-            item_type: Optional filter by item type
-            location_id: Optional filter by storage location
-
-        Returns:
-            List[Dict[str, Any]]: List of inventory items
-        """
-        result = []
-
-        for item in self._inventory_items.values():
-            if item_type and item["item_type"] != item_type:
-                continue
-
-            if location_id and item["location_id"] != location_id:
-                continue
-
-            result.append(item)
-
-        return result
-
-    def search_inventory(self, query: str) -> List[Dict[str, Any]]:
-        """Search for inventory items by name or description.
-
-        Args:
-            query: Search query string
-
-        Returns:
-            List[Dict[str, Any]]: List of matching inventory items
-        """
-        query = query.lower()
-        results = []
-
-        for item in self._inventory_items.values():
-            if (query in item["name"].lower() or
-                    (item["description"] and query in item["description"].lower())):
-                results.append(item)
-
-        return results
-
-    def get_low_stock_items(self, threshold: float = 10.0) -> List[Dict[str, Any]]:
-        """Get inventory items with quantity below the threshold.
-
-        Args:
-            threshold: Quantity threshold
-
-        Returns:
-            List[Dict[str, Any]]: List of low stock items
-        """
-        return [item for item in self._inventory_items.values() if item["quantity"] < threshold]
-
-    def get_low_stock_leather(self, area_threshold: float = 5.0) -> List[Dict[str, Any]]:
-        """Get leather items with area below the threshold.
-
-        Args:
-            area_threshold: Area threshold in square feet/meters
-
-        Returns:
-            List[Dict[str, Any]]: List of low stock leather items
-        """
-        return [leather for leather in self._leathers.values()
-                if leather.get("area", 0.0) < area_threshold]
-
-    def get_low_stock_parts(self) -> List[Dict[str, Any]]:
-        """Get parts where quantity is below reorder level.
-
-        Returns:
-            List[Dict[str, Any]]: List of parts below reorder level
-        """
-        low_stock_parts = []
-        for part in self._parts.values():
-            reorder_level = part.get("reorder_level", 5)
-            if part.get("quantity", 0) < reorder_level:
-                low_stock_parts.append(part)
-
-        return low_stock_parts
-
-    def adjust_inventory_quantity(self, item_id: str, quantity_change: float,
-                                  notes: Optional[str] = None) -> Optional[Dict[str, Any]]:
-        """Adjust the quantity of an inventory item.
-
-        Args:
-            item_id: ID of the inventory item
             quantity_change: Amount to change (positive or negative)
-            notes: Optional notes about the adjustment
 
         Returns:
-            Optional[Dict[str, Any]]: Updated inventory item or None if not found
+            bool: True if update successful, False otherwise
         """
-        if item_id not in self._inventory_items:
-            self.logger.warning(f"Cannot adjust quantity for non-existent item: {item_id}")
-            return None
+        self.logger.debug(f"Updating part {part_id} stock by {quantity_change}")
 
-        item = self._inventory_items[item_id]
-        old_quantity = item["quantity"]
-        new_quantity = max(0, old_quantity + quantity_change)  # Prevent negative inventory
-
-        transaction_type = "INCREASE" if quantity_change > 0 else "DECREASE"
-        self._record_transaction(
-            item_id=item_id,
-            transaction_type=transaction_type,
-            quantity=abs(quantity_change),
-            unit_price=item["unit_price"],
-            notes=notes
-        )
-
-        item["quantity"] = new_quantity
-        item["updated_at"] = datetime.now()
-
-        # Update status based on quantity
-        if new_quantity <= 0:
-            item["status"] = "OUT_OF_STOCK"
-        elif new_quantity < 10:  # Arbitrary low threshold
-            item["status"] = "LOW_STOCK"
-        else:
-            item["status"] = "IN_STOCK"
-
-        # Update in specific collections if needed
-        item_type = item.get("item_type")
-        if item_type == MaterialType.LEATHER:
-            # Find and update leather
-            for leather_id, leather in self._leathers.items():
-                if leather.get("id") == item_id:
-                    leather["quantity"] = new_quantity
-                    leather["updated_at"] = item["updated_at"]
-                    leather["status"] = item["status"]
-                    break
-
-        elif item_type in [MaterialType.HARDWARE, MaterialType.THREAD, MaterialType.ADHESIVE]:
-            # Find and update part
-            for part_id, part in self._parts.items():
-                if part.get("id") == item_id:
-                    part["quantity"] = new_quantity
-                    part["updated_at"] = item["updated_at"]
-                    part["status"] = item["status"]
-                    break
-
-        self.logger.info(f"Adjusted inventory item {item_id} quantity from {old_quantity} to {new_quantity}")
-        return item
-
-    def transfer_inventory(self, item_id: str, to_location_id: str,
-                           quantity: Optional[float] = None,
-                           notes: Optional[str] = None) -> Optional[Dict[str, Any]]:
-        """Transfer inventory to a different location.
-
-        Args:
-            item_id: ID of the inventory item
-            to_location_id: ID of the destination location
-            quantity: Quantity to transfer (if None, transfers all)
-            notes: Optional notes about the transfer
-
-        Returns:
-            Optional[Dict[str, Any]]: Updated inventory item or None if not found
-        """
-        if item_id not in self._inventory_items:
-            self.logger.warning(f"Cannot transfer non-existent item: {item_id}")
-            return None
-
-        item = self._inventory_items[item_id]
-
-        if quantity is None or quantity >= item["quantity"]:
-            # Transfer all quantity
-            transfer_quantity = item["quantity"]
-
-            # Update location
-            from_location = item["location_id"]
-            item["location_id"] = to_location_id
-
-            self.logger.info(f"Transferred all inventory of item {item_id} from {from_location} to {to_location_id}")
-        else:
-            # Split the inventory
-            transfer_quantity = quantity
-            remaining_quantity = item["quantity"] - quantity
-
-            # Create a new inventory item at the destination
-            new_item = self.add_inventory_item(
-                item_type=item["item_type"],
-                name=item["name"],
-                quantity=transfer_quantity,
-                unit_price=item["unit_price"],
-                description=item["description"],
-                supplier_id=item["supplier_id"],
-                location_id=to_location_id,
-                metadata=item["metadata"].copy()
-            )
-
-            # Reduce the quantity of the original item
-            item["quantity"] = remaining_quantity
-            item["updated_at"] = datetime.now()
-
-            self.logger.info(
-                f"Transferred {transfer_quantity} of item {item_id} to new item {new_item['id']} at location {to_location_id}"
-            )
-
-        # Record the transaction
-        self._record_transaction(
-            item_id=item_id,
-            transaction_type="TRANSFER",
-            quantity=transfer_quantity,
-            unit_price=item["unit_price"],
-            notes=f"Transferred to location {to_location_id}. {notes}" if notes else f"Transferred to location {to_location_id}"
-        )
-
-        return item
-
-    def reserve_materials(self, materials: List[Dict[str, Any]],
-                          project_id: str) -> Tuple[bool, List[Dict[str, Any]]]:
-        """Reserve materials for a project.
-
-        Args:
-            materials: List of materials to reserve (each with item_id and quantity)
-            project_id: ID of the project reserving the materials
-
-        Returns:
-            Tuple[bool, List[Dict[str, Any]]]: Success flag and list of unavailable materials
-        """
-        unavailable = []
-        reserved_items = []
-
-        # First check availability
-        for material in materials:
-            item_id = material.get("item_id")
-            quantity = material.get("quantity", 0)
-
-            if not item_id or not quantity:
-                continue
-
-            if item_id not in self._inventory_items:
-                unavailable.append({
-                    "item_id": item_id,
-                    "name": material.get("name", "Unknown"),
-                    "requested": quantity,
-                    "available": 0,
-                    "reason": "ITEM_NOT_FOUND"
-                })
-                continue
-
-            item = self._inventory_items[item_id]
-            available = item["quantity"]
-
-            # Check for existing reservations
-            reserved = 0
-            for res in self._reserved_materials.values():
-                for res_item in res:
-                    if res_item.get("item_id") == item_id:
-                        reserved += res_item.get("quantity", 0)
-
-            available_after_reservations = available - reserved
-
-            if available_after_reservations < quantity:
-                unavailable.append({
-                    "item_id": item_id,
-                    "name": item["name"],
-                    "requested": quantity,
-                    "available": available_after_reservations,
-                    "reason": "INSUFFICIENT_QUANTITY"
-                })
-                continue
-
-            # Item is available
-            reserved_items.append({
-                "item_id": item_id,
-                "name": item["name"],
-                "quantity": quantity,
-                "unit_price": item["unit_price"],
-                "reservation_time": datetime.now()
-            })
-
-        # If any items are unavailable, return failure
-        if unavailable:
-            return False, unavailable
-
-        # All items are available, reserve them
-        self._reserved_materials[project_id] = reserved_items
-
-        # Log the reservation
-        self.logger.info(f"Reserved {len(reserved_items)} materials for project {project_id}")
-
-        return True, []
-
-    def release_reserved_materials(self, project_id: str) -> bool:
-        """Release materials that were reserved for a project.
-
-        Args:
-            project_id: ID of the project
-
-        Returns:
-            bool: True if successful, False otherwise
-        """
-        if project_id not in self._reserved_materials:
-            self.logger.warning(f"No materials reserved for project {project_id}")
+        if part_id not in self._inventory:
             return False
 
-        # Remove the reservations
-        del self._reserved_materials[project_id]
+        part = self._inventory[part_id]
+        current_quantity = part.get('quantity', 0)
+        new_quantity = current_quantity + quantity_change
 
-        self.logger.info(f"Released reserved materials for project {project_id}")
+        if new_quantity < 0:
+            return False
+
+        part['quantity'] = new_quantity
         return True
 
-    def check_material_availability(self, materials: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Check availability of materials.
+    def get_low_stock_leather(self, threshold_area: float = 1.0) -> List[Dict[str, Any]]:
+        """Get leather items below specified area threshold.
 
         Args:
-            materials: List of materials to check (each with item_id and quantity)
+            threshold_area: Area threshold in square units
 
         Returns:
-            List[Dict[str, Any]]: Availability status for each material
+            List of leather items below threshold
         """
-        availability = []
+        low_stock = []
 
-        for material in materials:
-            item_id = material.get("item_id")
-            quantity = material.get("quantity", 0)
-
-            if not item_id or not quantity:
-                continue
-
-            if item_id not in self._inventory_items:
-                availability.append({
-                    "item_id": item_id,
-                    "name": material.get("name", "Unknown"),
-                    "requested": quantity,
-                    "available": 0,
-                    "sufficient": False,
-                    "status": "NOT_FOUND"
+        for item_id, item in self._inventory.items():
+            if item.get('type') == 'leather' and item.get('area', 0) < threshold_area:
+                low_stock.append({
+                    'id': item_id,
+                    'name': item.get('name', ''),
+                    'area': item.get('area', 0),
+                    'type': item.get('type', '')
                 })
-                continue
 
-            item = self._inventory_items[item_id]
-            available = item["quantity"]
+        return low_stock
 
-            # Check for existing reservations
-            reserved = 0
-            for res in self._reserved_materials.values():
-                for res_item in res:
-                    if res_item.get("item_id") == item_id:
-                        reserved += res_item.get("quantity", 0)
+    # Add to services/implementations/inventory_service.py
 
-            available_after_reservations = available - reserved
-
-            availability.append({
-                "item_id": item_id,
-                "name": item["name"],
-                "requested": quantity,
-                "available": available,
-                "available_unreserved": available_after_reservations,
-                "reserved": reserved,
-                "sufficient": available_after_reservations >= quantity,
-                "status": item["status"]
-            })
-
-        return availability
-
-    def get_inventory_value(self, item_type: Optional[MaterialType] = None) -> Dict[str, float]:
-        """Calculate the total value of inventory.
-
-        Args:
-            item_type: Optional filter by item type
+    def get_inventory_value(self) -> float:
+        """Calculate total inventory value.
 
         Returns:
-            Dict[str, float]: Dictionary with total value and item type breakdown
+            float: Total value of all inventory items
         """
         total_value = 0.0
-        type_breakdown = {}
 
-        for item in self._inventory_items.values():
-            if item_type and item["item_type"] != item_type:
-                continue
+        for item in self._inventory.values():
+            # Calculate based on item type
+            if item.get('type') == 'leather':
+                # Leather is valued by area
+                area = item.get('area', 0)
+                price_per_area = item.get('price_per_area', 0.0)
+                total_value += area * price_per_area
+            else:
+                # Other items valued by quantity
+                quantity = item.get('quantity', 0)
+                unit_price = item.get('unit_price', 0.0)
+                total_value += quantity * unit_price
 
-            item_value = item["quantity"] * item["unit_price"]
-            total_value += item_value
+        return total_value
 
-            # Add to type breakdown
-            item_type_str = str(item["item_type"])
-            if item_type_str not in type_breakdown:
-                type_breakdown[item_type_str] = 0.0
-            type_breakdown[item_type_str] += item_value
+    def get_low_stock_parts(self, threshold_quantity: int = 5) -> List[Dict[str, Any]]:
+        """Get parts below specified quantity threshold.
 
-        return {
-            "total_value": total_value,
-            "breakdown": type_breakdown
-        }
+        Args:
+            threshold_quantity: Quantity threshold
 
-    def generate_inventory_report(self, include_details: bool = False) -> Dict[str, Any]:
+        Returns:
+            List of parts below threshold
+        """
+        low_stock = []
+
+        for item_id, item in self._inventory.items():
+            if item.get('type') != 'leather' and item.get('quantity', 0) < threshold_quantity:
+                low_stock.append({
+                    'id': item_id,
+                    'name': item.get('name', ''),
+                    'quantity': item.get('quantity', 0),
+                    'type': item.get('type', '')
+                })
+
+        return low_stock
+
+    def generate_inventory_report(self) -> Dict[str, Any]:
         """Generate a comprehensive inventory report.
 
-        Args:
-            include_details: Whether to include detailed item information
-
         Returns:
-            Dict[str, Any]: Inventory report
+            Dict containing inventory statistics and data
         """
-        # Count items and value by type
-        type_counts = {}
-        type_values = {}
-        total_items = 0
-        total_value = 0.0
-        low_stock_count = 0
-        out_of_stock_count = 0
+        total_leather_area = 0
+        total_parts = 0
+        leather_count = 0
+        part_types = {}
 
-        for item in self._inventory_items.values():
-            item_type = str(item["item_type"])
+        for item in self._inventory.values():
+            if item.get('type') == 'leather':
+                total_leather_area += item.get('area', 0)
+                leather_count += 1
+            else:
+                item_type = item.get('type', 'unknown')
+                total_parts += item.get('quantity', 0)
 
-            # Count
-            if item_type not in type_counts:
-                type_counts[item_type] = 0
-            type_counts[item_type] += 1
-            total_items += 1
+                if item_type not in part_types:
+                    part_types[item_type] = 0
 
-            # Value
-            item_value = item["quantity"] * item["unit_price"]
-            if item_type not in type_values:
-                type_values[item_type] = 0.0
-            type_values[item_type] += item_value
-            total_value += item_value
+                part_types[item_type] += item.get('quantity', 0)
 
-            # Stock status
-            if item["status"] == "LOW_STOCK":
-                low_stock_count += 1
-            elif item["status"] == "OUT_OF_STOCK":
-                out_of_stock_count += 1
-
-        # Calculate leather stats
-        total_leather_area = sum(leather.get("area", 0.0) for leather in self._leathers.values())
-        leather_count = len(self._leathers)
-
-        # Calculate parts stats
-        parts_below_reorder = [
-            part for part in self._parts.values()
-            if part.get("quantity", 0) < part.get("reorder_level", 5)
-        ]
-
-        report = {
-            "generated_at": datetime.now().isoformat(),
-            "summary": {
-                "total_items": total_items,
-                "total_value": total_value,
-                "leather_count": leather_count,
-                "total_leather_area": total_leather_area,
-                "parts_count": len(self._parts),
-                "parts_below_reorder": len(parts_below_reorder),
-                "low_stock_count": low_stock_count,
-                "out_of_stock_count": out_of_stock_count
-            },
-            "by_type": {
-                "counts": type_counts,
-                "values": type_values
-            },
-            "recommended_actions": []
+        return {
+            'total_leather_area': total_leather_area,
+            'leather_count': leather_count,
+            'total_parts': total_parts,
+            'part_types': part_types,
+            'low_stock_leather': self.get_low_stock_leather(),
+            'low_stock_parts': self.get_low_stock_parts()
         }
-
-        # Add recommended actions
-        if out_of_stock_count > 0:
-            report["recommended_actions"].append({
-                "type": "RESTOCK",
-                "priority": "HIGH",
-                "description": f"Restock {out_of_stock_count} out-of-stock items."
-            })
-
-        if low_stock_count > 0:
-            report["recommended_actions"].append({
-                "type": "ORDER",
-                "priority": "MEDIUM",
-                "description": f"Order {low_stock_count} low-stock items soon."
-            })
-
-        if len(parts_below_reorder) > 0:
-            report["recommended_actions"].append({
-                "type": "REORDER",
-                "priority": "MEDIUM",
-                "description": f"Reorder {len(parts_below_reorder)} parts that are below reorder level."
-            })
-
-        # Add details if requested
-        if include_details:
-            report["items"] = list(self._inventory_items.values())
-            report["leathers"] = list(self._leathers.values())
-            report["parts"] = list(self._parts.values())
-            report["reserved_materials"] = self._reserved_materials
-
-        self.logger.info(f"Generated inventory report with {total_items} items")
-        return report
-
-    def get_inventory_transactions(self, item_id: Optional[str] = None,
-                                   limit: int = 100) -> List[Dict[str, Any]]:
-        """Get inventory transactions history.
-
-        Args:
-            item_id: Optional filter by item ID
-            limit: Maximum number of transactions to return
-
-        Returns:
-            List[Dict[str, Any]]: List of inventory transactions
-        """
-        transactions = self._inventory_transactions
-
-        if item_id:
-            transactions = [t for t in transactions if t["item_id"] == item_id]
-
-        # Return most recent transactions first
-        return sorted(transactions, key=lambda t: t["timestamp"], reverse=True)[:limit]
-
-    def _record_transaction(self, item_id: str, transaction_type: str, quantity: float,
-                            unit_price: float, notes: Optional[str] = None) -> Dict[str, Any]:
-        """Record an inventory transaction.
-
-        Args:
-            item_id: ID of the inventory item
-            transaction_type: Type of transaction
-            quantity: Quantity involved
-            unit_price: Unit price at time of transaction
-            notes: Optional notes about the transaction
-
-        Returns:
-            Dict[str, Any]: Recorded transaction
-        """
-        transaction = {
-            "id": f"TX{len(self._inventory_transactions) + 1:06d}",
-            "item_id": item_id,
-            "transaction_type": transaction_type,
-            "quantity": quantity,
-            "unit_price": unit_price,
-            "total_value": quantity * unit_price,
-            "timestamp": datetime.now(),
-            "notes": notes
-        }
-
-        self._inventory_transactions.append(transaction)
-        return transaction

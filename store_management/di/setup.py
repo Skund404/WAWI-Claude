@@ -1,4 +1,6 @@
 # di/setup.py
+"""Setup dependency injection container with service registrations."""
+
 import logging
 import os
 import sys
@@ -25,12 +27,6 @@ SERVICE_MAPPINGS = [
 ]
 
 
-
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
-
-
 def setup_dependency_injection():
     """Set up dependency injection container with all services."""
     logger.info("Setting up dependency injection...")
@@ -41,14 +37,14 @@ def setup_dependency_injection():
     # Register each service implementation with its interface
     for interface_path, implementation_path in SERVICE_MAPPINGS:
         try:
-            # Extract the interface name and implementation class name
-            interface_name = interface_path.split('.')[-1]
+            # Register the full interface path with the container
+            # to ensure correct service resolution by type
             implementation_module = '.'.join(implementation_path.split('.')[:-1])
             implementation_class = implementation_path.split('.')[-1]
 
-            # Register with the container
-            container.register_lazy(interface_name, implementation_module, implementation_class)
-            logger.info(f"Registered service with lazy resolution: {interface_name}")
+            # Register with the container using the full interface path
+            container.register_lazy(interface_path, implementation_module, implementation_class)
+            logger.info(f"Registered service with lazy resolution: {interface_path}")
         except Exception as e:
             logger.error(f"Error registering {implementation_path} for {interface_path}: {str(e)}")
 
@@ -62,13 +58,11 @@ def verify_container(container):
 
     for interface_path, _ in SERVICE_MAPPINGS:
         try:
-            interface_name = interface_path.split('.')[-1]
-
-            # Try to resolve the service
-            service = container.get(interface_name)
-            logger.info(f"Successfully resolved {interface_name}: {service}")
+            # Try to resolve the service using the full interface path
+            service = container.get(interface_path)
+            logger.info(f"Successfully resolved {interface_path}: {service.__class__.__name__}")
         except Exception as e:
-            logger.warning(f"Failed to retrieve {interface_name}: {str(e)}")
+            logger.error(f"Failed to retrieve {interface_path}: {str(e)}")
 
     logger.info("Dependency injection verification completed")
 
@@ -77,6 +71,7 @@ def main():
     """Main function for testing dependency injection setup."""
     container = setup_dependency_injection()
     verify_container(container)
+
 
 if __name__ == "__main__":
     main()
