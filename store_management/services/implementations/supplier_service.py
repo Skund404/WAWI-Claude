@@ -1,342 +1,232 @@
 # services/implementations/supplier_service.py
-"""
-Robust implementation of the Supplier Service for managing supplier-related operations.
-"""
-
 import logging
-from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from services.base_service import BaseService, NotFoundError, ValidationError
 from services.interfaces.supplier_service import ISupplierService, SupplierStatus
+from utils.circular_import_resolver import lazy_import, resolve_lazy_import
 
-# Configure specific logger for this module
 logger = logging.getLogger(__name__)
+
+# Lazily import models to avoid circular imports
+Supplier = lazy_import('database.models.supplier', 'Supplier')
+
 
 class SupplierService(BaseService, ISupplierService):
     """
-    Comprehensive Supplier Service implementation with robust error handling.
+    Implementation of the Supplier Service interface.
+    Manages supplier data and operations in the leatherworking store management system.
     """
 
     def __init__(self):
-        """
-        Initialize the supplier service with logging and optional in-memory storage.
-        """
+        """Initialize the Supplier Service with in-memory storage."""
         super().__init__()
-        self._suppliers: Dict[str, Dict[str, Any]] = {}
-        logger.info("SupplierService initialized successfully")
+        self.logger = logging.getLogger(__name__)
+        self.suppliers = {}
+        self._create_sample_suppliers()
+        self.logger.info("SupplierService initialized with sample data")
 
-    def _safe_import(self, module_path: str):
-        """
-        Safely import a module with detailed error logging.
+    def _create_sample_suppliers(self) -> None:
+        """Create sample suppliers for testing."""
+        sample_suppliers = [
+            {
+                'id': 1,
+                'name': 'Premium Leathers Inc.',
+                'contact': 'John Smith',
+                'email': 'john@premiumleathers.com',
+                'phone': '555-123-4567',
+                'address': '123 Tannery Lane, Leatherburg, LT 12345',
+                'notes': 'Excellent quality, sometimes delayed shipments',
+                'status': SupplierStatus.ACTIVE.name,
+                'rating': 4.5
+            },
+            {
+                'id': 2,
+                'name': 'Budget Hardware Supply',
+                'contact': 'Sarah Johnson',
+                'email': 'sales@budgethardware.com',
+                'phone': '555-987-6543',
+                'address': '456 Hardware Blvd, Buckleton, BK 67890',
+                'notes': 'Good prices, variable quality',
+                'status': SupplierStatus.ACTIVE.name,
+                'rating': 3.5
+            },
+            {
+                'id': 3,
+                'name': 'Exotic Leathers Ltd.',
+                'contact': 'Michael Wong',
+                'email': 'michael@exoticleathers.com',
+                'phone': '555-555-1212',
+                'address': '789 Exotic Way, Hideville, HV 54321',
+                'notes': 'Specialized in rare leathers, premium pricing',
+                'status': SupplierStatus.ACTIVE.name,
+                'rating': 4.8
+            },
+            {
+                'id': 4,
+                'name': 'Thread Masters Co.',
+                'contact': 'Emily Davis',
+                'email': 'emily@threadmasters.com',
+                'phone': '555-222-3333',
+                'address': '321 Thread Street, Sewington, SW 13579',
+                'notes': 'High quality threads, good customer service',
+                'status': SupplierStatus.ACTIVE.name,
+                'rating': 4.2
+            },
+            {
+                'id': 5,
+                'name': 'Old Supplier LLC',
+                'contact': 'Robert Brown',
+                'email': 'robert@oldsupplier.com',
+                'phone': '555-444-5555',
+                'address': '555 Former Ave, Pastville, PV 97531',
+                'notes': 'No longer in business',
+                'status': SupplierStatus.INACTIVE.name,
+                'rating': 2.0
+            }
+        ]
 
-        Args:
-            module_path (str): Full import path for the module
-
-        Returns:
-            Imported module or None if import fails
-        """
-        try:
-            import importlib
-            module_name, class_name = module_path.rsplit('.', 1)
-            module = importlib.import_module(module_name)
-            return getattr(module, class_name)
-        except ImportError as e:
-            logger.error(f"Import error for {module_path}: {e}")
-        except AttributeError as e:
-            logger.error(f"Attribute error importing {module_path}: {e}")
-        return None
-
-    def _get_db_session(self):
-        """
-        Get a database session with robust error handling.
-
-        Returns:
-            SQLAlchemy session or None
-        """
-        try:
-            from database.sqlalchemy.session import get_db_session
-            return get_db_session()
-        except Exception as e:
-            logger.error(f"Failed to get database session: {e}")
-            return None
+        for supplier in sample_suppliers:
+            self.suppliers[supplier['id']] = supplier
 
     def _convert_to_dict(self, supplier) -> Dict[str, Any]:
         """
-        Convert a Supplier model to a dictionary with robust handling.
+        Convert a Supplier model to a dictionary.
 
         Args:
-            supplier: Supplier model instance
+            supplier: Supplier instance to convert
 
         Returns:
-            Dictionary representation of the supplier
+            Dict[str, Any]: Dictionary representation of the supplier
         """
         try:
+            if isinstance(supplier, dict):
+                return supplier
+
             return {
-                'id': getattr(supplier, 'id', None),
-                'name': getattr(supplier, 'name', ''),
-                'contact_name': getattr(supplier, 'contact_name', ''),
-                'email': getattr(supplier, 'email', ''),
-                'phone': getattr(supplier, 'phone', ''),
-                'address': getattr(supplier, 'address', ''),
-                'website': getattr(supplier, 'website', ''),
-                'notes': getattr(supplier, 'notes', ''),
-                'rating': getattr(supplier, 'rating', 0.0),
-                'status': getattr(supplier.status, 'name', str(supplier.status))
-                    if hasattr(supplier, 'status') else SupplierStatus.ACTIVE.name,
-                'created_at': (supplier.created_at.isoformat()
-                    if hasattr(supplier.created_at, 'isoformat')
-                    else str(supplier.created_at))
-                    if hasattr(supplier, 'created_at') else datetime.now().isoformat(),
-                'updated_at': (supplier.updated_at.isoformat()
-                    if hasattr(supplier.updated_at, 'isoformat')
-                    else str(supplier.updated_at))
-                    if hasattr(supplier, 'updated_at') else datetime.now().isoformat()
+                "id": supplier.get("id", 0),
+                "name": supplier.get("name", ""),
+                "contact_name": supplier.get("contact_name", ""),
+                "email": supplier.get("email", ""),
+                "phone": supplier.get("phone", ""),
+                "address": supplier.get("address", ""),
+                "status": supplier.get("status", SupplierStatus.ACTIVE),
+                "notes": supplier.get("notes", ""),
+                "rating": supplier.get("rating", 0.0),
+                "created_at": supplier.get("created_at", None),
+                "updated_at": supplier.get("updated_at", None)
             }
         except Exception as e:
             logger.error(f"Error converting supplier to dict: {e}")
-            return {}
+            return {"id": 0, "name": "Unknown", "status": SupplierStatus.INACTIVE}
 
-    def create_supplier(self, supplier_data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Create a new supplier with comprehensive validation.
-
-        Args:
-            supplier_data (Dict[str, Any]): Supplier details
+    def get_all_suppliers(self) -> List[Dict[str, Any]]:
+        """Get all suppliers.
 
         Returns:
-            Dict[str, Any]: Created supplier details
+            List of supplier dictionaries
         """
-        logger.info("Attempting to create supplier")
-
-        # Basic validation
-        if not supplier_data.get('name'):
-            raise ValidationError("Supplier name is required")
-
-        try:
-            # Try database approach first
-            Supplier = self._safe_import('database.models.supplier.Supplier')
-            session = self._get_db_session()
-
-            if Supplier and session:
-                try:
-                    supplier = Supplier(
-                        name=supplier_data['name'],
-                        contact_name=supplier_data.get('contact_name', ''),
-                        email=supplier_data.get('email', ''),
-                        phone=supplier_data.get('phone', ''),
-                        address=supplier_data.get('address', ''),
-                        website=supplier_data.get('website', ''),
-                        status=supplier_data.get('status', SupplierStatus.ACTIVE),
-                        notes=supplier_data.get('notes', ''),
-                        rating=supplier_data.get('rating', 0.0)
-                    )
-                    session.add(supplier)
-                    session.commit()
-                    session.refresh(supplier)
-                    return self._convert_to_dict(supplier)
-                except Exception as db_err:
-                    logger.warning(f"Database creation failed: {db_err}")
-                    session.rollback()
-
-            # Fallback to in-memory storage
-            supplier_id = str(len(self._suppliers) + 1)
-            supplier = {
-                'id': supplier_id,
-                'name': supplier_data['name'],
-                'contact_name': supplier_data.get('contact_name', ''),
-                'email': supplier_data.get('email', ''),
-                'phone': supplier_data.get('phone', ''),
-                'address': supplier_data.get('address', ''),
-                'website': supplier_data.get('website', ''),
-                'status': supplier_data.get('status', SupplierStatus.ACTIVE.name),
-                'notes': supplier_data.get('notes', ''),
-                'rating': supplier_data.get('rating', 0.0),
-                'created_at': datetime.now().isoformat(),
-                'updated_at': datetime.now().isoformat()
-            }
-            self._suppliers[supplier_id] = supplier
-            logger.info(f"Created supplier with ID {supplier_id} in memory")
-            return supplier
-
-        except Exception as e:
-            logger.error(f"Comprehensive supplier creation failed: {e}")
-            raise ValidationError(f"Could not create supplier: {e}")
-
-    def get_all_suppliers(self, status: Optional[SupplierStatus] = None) -> List[Dict[str, Any]]:
-        """
-        Get all suppliers, with optional status filtering.
-
-        Args:
-            status (Optional[SupplierStatus]): Optional status to filter suppliers
-
-        Returns:
-            List[Dict[str, Any]]: List of suppliers
-        """
-        logger.info("Retrieving all suppliers")
-        try:
-            # Try database approach
-            Supplier = self._safe_import('database.models.supplier.Supplier')
-            session = self._get_db_session()
-
-            if Supplier and session:
-                try:
-                    query = session.query(Supplier)
-                    if status is not None:
-                        query = query.filter(Supplier.status == status)
-                    suppliers = query.all()
-                    return [self._convert_to_dict(supplier) for supplier in suppliers]
-                except Exception as db_err:
-                    logger.warning(f"Database retrieval failed: {db_err}")
-                finally:
-                    session.close()
-
-            # Fallback to in-memory suppliers
-            suppliers = list(self._suppliers.values())
-            if status:
-                suppliers = [s for s in suppliers if s.get('status') == status.name]
-            return suppliers
-
-        except Exception as e:
-            logger.error(f"Failed to retrieve suppliers: {e}")
-            return list(self._suppliers.values())
+        self.logger.debug(f"Returning {len(self.suppliers)} suppliers")
+        return list(self.suppliers.values())
 
     def get_supplier_by_id(self, supplier_id: int) -> Dict[str, Any]:
-        """
-        Get a supplier by their unique identifier.
+        """Get a supplier by ID.
 
         Args:
-            supplier_id (int): Unique identifier of the supplier
+            supplier_id: ID of the supplier to retrieve
 
         Returns:
-            Dict[str, Any]: Supplier details
+            Supplier dictionary
 
         Raises:
-            NotFoundError: If supplier is not found
+            NotFoundError: If supplier not found
         """
-        logger.info(f"Retrieving supplier with ID: {supplier_id}")
-        try:
-            # Try database approach
-            Supplier = self._safe_import('database.models.supplier.Supplier')
-            session = self._get_db_session()
-
-            if Supplier and session:
-                try:
-                    supplier = session.query(Supplier).filter(Supplier.id == supplier_id).first()
-                    if supplier:
-                        return self._convert_to_dict(supplier)
-                except Exception as db_err:
-                    logger.warning(f"Database retrieval failed: {db_err}")
-                finally:
-                    session.close()
-
-            # Fallback to in-memory storage
-            supplier = self._suppliers.get(str(supplier_id))
-            if supplier:
-                return supplier
-
+        if supplier_id not in self.suppliers:
+            self.logger.warning(f"Supplier with ID {supplier_id} not found")
             raise NotFoundError(f"Supplier with ID {supplier_id} not found")
 
-        except Exception as e:
-            logger.error(f"Failed to retrieve supplier: {e}")
+        self.logger.debug(f"Retrieved supplier with ID {supplier_id}")
+        return self.suppliers[supplier_id]
+
+    def create_supplier(self, supplier_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a new supplier.
+
+        Args:
+            supplier_data: Supplier data dictionary
+
+        Returns:
+            Created supplier dictionary
+
+        Raises:
+            ValidationError: If required fields are missing
+        """
+        # Validate required fields
+        if 'name' not in supplier_data:
+            self.logger.error("Supplier name is required")
+            raise ValidationError("Supplier name is required")
+
+        # Generate new ID
+        new_id = max(self.suppliers.keys() or [0]) + 1
+
+        supplier = {
+            'id': new_id,
+            'name': supplier_data['name'],
+            'contact': supplier_data.get('contact', ''),
+            'email': supplier_data.get('email', ''),
+            'phone': supplier_data.get('phone', ''),
+            'address': supplier_data.get('address', ''),
+            'notes': supplier_data.get('notes', ''),
+            'status': supplier_data.get('status', SupplierStatus.ACTIVE.name),
+            'rating': supplier_data.get('rating', 0)
+        }
+
+        self.suppliers[new_id] = supplier
+        self.logger.info(f"Created new supplier with ID {new_id}")
+
+        return supplier
+
+    def update_supplier(self, supplier_id: int, supplier_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update an existing supplier.
+
+        Args:
+            supplier_id: ID of the supplier to update
+            supplier_data: Updated supplier data
+
+        Returns:
+            Updated supplier dictionary
+
+        Raises:
+            NotFoundError: If supplier not found
+        """
+        if supplier_id not in self.suppliers:
+            self.logger.warning(f"Supplier with ID {supplier_id} not found for update")
             raise NotFoundError(f"Supplier with ID {supplier_id} not found")
 
-    def update_supplier(self, supplier_id: int, update_data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Update a supplier's details.
+        supplier = self.suppliers[supplier_id]
+
+        # Update fields
+        for key, value in supplier_data.items():
+            if key != 'id':  # Don't update ID
+                supplier[key] = value
+
+        self.logger.info(f"Updated supplier with ID {supplier_id}")
+        return supplier
+
+    def delete_supplier(self, supplier_id: int) -> None:
+        """Delete a supplier.
 
         Args:
-            supplier_id (int): ID of the supplier to update
-            update_data (Dict[str, Any]): Updated details
-
-        Returns:
-            Dict[str, Any]: Updated supplier details
+            supplier_id: ID of the supplier to delete
 
         Raises:
-            NotFoundError: If supplier is not found
+            NotFoundError: If supplier not found
         """
-        logger.info(f"Updating supplier with ID: {supplier_id}")
-        try:
-            # Try database approach
-            Supplier = self._safe_import('database.models.supplier.Supplier')
-            session = self._get_db_session()
+        if supplier_id not in self.suppliers:
+            self.logger.warning(f"Supplier with ID {supplier_id} not found for deletion")
+            raise NotFoundError(f"Supplier with ID {supplier_id} not found")
 
-            if Supplier and session:
-                try:
-                    supplier = session.query(Supplier).filter(Supplier.id == supplier_id).first()
-                    if not supplier:
-                        raise NotFoundError(f"Supplier with ID {supplier_id} not found")
-
-                    for key, value in update_data.items():
-                        if hasattr(supplier, key) and key not in ['id', 'created_at']:
-                            setattr(supplier, key, value)
-
-                    session.commit()
-                    session.refresh(supplier)
-                    return self._convert_to_dict(supplier)
-                except Exception as db_err:
-                    logger.warning(f"Database update failed: {db_err}")
-                    session.rollback()
-
-            # Fallback to in-memory storage
-            supplier_str_id = str(supplier_id)
-            if supplier_str_id not in self._suppliers:
-                raise NotFoundError(f"Supplier with ID {supplier_id} not found")
-
-            supplier = self._suppliers[supplier_str_id]
-            for key, value in update_data.items():
-                if key not in ['id', 'created_at']:
-                    supplier[key] = value
-            supplier['updated_at'] = datetime.now().isoformat()
-            return supplier
-
-        except Exception as e:
-            logger.error(f"Failed to update supplier: {e}")
-            raise
-
-    def delete_supplier(self, supplier_id: int) -> bool:
-        """
-        Delete a supplier.
-
-        Args:
-            supplier_id (int): ID of the supplier to delete
-
-        Returns:
-            bool: Whether deletion was successful
-
-        Raises:
-            NotFoundError: If supplier is not found
-        """
-        logger.info(f"Deleting supplier with ID: {supplier_id}")
-        try:
-            # Try database approach
-            Supplier = self._safe_import('database.models.supplier.Supplier')
-            session = self._get_db_session()
-
-            if Supplier and session:
-                try:
-                    supplier = session.query(Supplier).filter(Supplier.id == supplier_id).first()
-                    if not supplier:
-                        raise NotFoundError(f"Supplier with ID {supplier_id} not found")
-
-                    session.delete(supplier)
-                    session.commit()
-                    return True
-                except Exception as db_err:
-                    logger.warning(f"Database deletion failed: {db_err}")
-                    session.rollback()
-
-            # Fallback to in-memory storage
-            supplier_str_id = str(supplier_id)
-            if supplier_str_id not in self._suppliers:
-                raise NotFoundError(f"Supplier with ID {supplier_id} not found")
-
-            del self._suppliers[supplier_str_id]
-            return True
-
-        except Exception as e:
-            logger.error(f"Failed to delete supplier: {e}")
-            raise
+        del self.suppliers[supplier_id]
+        self.logger.info(f"Deleted supplier with ID {supplier_id}")
 
     def search_suppliers(self, search_term: str) -> List[Dict[str, Any]]:
         """
@@ -348,43 +238,25 @@ class SupplierService(BaseService, ISupplierService):
         Returns:
             List[Dict[str, Any]]: List of matching suppliers
         """
-        logger.info(f"Searching suppliers with term: {search_term}")
-        try:
-            # Try database approach
-            Supplier = self._safe_import('database.models.supplier.Supplier')
-            session = self._get_db_session()
+        logger.info(f"Searching for suppliers with term: {search_term}")
 
-            if Supplier and session:
-                try:
-                    from sqlalchemy import or_
-                    search_pattern = f"%{search_term}%"
-                    suppliers = session.query(Supplier).filter(
-                        or_(
-                            Supplier.name.ilike(search_pattern),
-                            Supplier.contact_name.ilike(search_pattern),
-                            Supplier.email.ilike(search_pattern),
-                            Supplier.notes.ilike(search_pattern)
-                        )
-                    ).all()
-                    return [self._convert_to_dict(supplier) for supplier in suppliers]
-                except Exception as db_err:
-                    logger.warning(f"Database search failed: {db_err}")
-                finally:
-                    session.close()
+        if not search_term:
+            return self.get_all_suppliers()
 
-            # Fallback to in-memory search
-            search_lower = search_term.lower()
-            return [
-                s for s in self._suppliers.values()
-                if (search_lower in s.get('name', '').lower() or
-                    search_lower in s.get('contact_name', '').lower() or
-                    search_lower in s.get('email', '').lower() or
-                    search_lower in s.get('notes', '').lower())
-            ]
+        # Convert search term to lowercase for case-insensitive search
+        search_term = search_term.lower()
 
-        except Exception as e:
-            logger.error(f"Failed to search suppliers: {e}")
-            return []
+        # Search in relevant fields
+        results = []
+        for supplier in self._suppliers.values():
+            if (search_term in supplier.get("name", "").lower() or
+                    search_term in supplier.get("contact_name", "").lower() or
+                    search_term in supplier.get("email", "").lower() or
+                    search_term in supplier.get("notes", "").lower()):
+                results.append(supplier)
+
+        logger.info(f"Found {len(results)} suppliers matching search term")
+        return results
 
     def get_suppliers_by_status(self, status: SupplierStatus) -> List[Dict[str, Any]]:
         """
@@ -397,4 +269,72 @@ class SupplierService(BaseService, ISupplierService):
             List[Dict[str, Any]]: List of suppliers with the given status
         """
         logger.info(f"Getting suppliers with status: {status}")
-        return [s for s in self.get_all_suppliers() if s.get('status') == status.name]
+
+        return [
+            supplier for supplier in self._suppliers.values()
+            if supplier.get("status") == status
+        ]
+
+    # Implementation of IBaseService abstract methods
+
+    def create(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Create a new supplier.
+
+        Args:
+            data (Dict[str, Any]): Data for creating the supplier
+
+        Returns:
+            Dict[str, Any]: Created supplier
+
+        Raises:
+            ValidationError: If data is invalid
+        """
+        return self.create_supplier(data)
+
+    def get_by_id(self, entity_id: Any) -> Optional[Dict[str, Any]]:
+        """
+        Retrieve a supplier by its identifier.
+
+        Args:
+            entity_id (Any): Unique identifier for the supplier
+
+        Returns:
+            Optional[Dict[str, Any]]: Retrieved supplier or None if not found
+        """
+        try:
+            return self.get_supplier_by_id(entity_id)
+        except NotFoundError:
+            return None
+
+    def update(self, entity_id: Any, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Update an existing supplier.
+
+        Args:
+            entity_id (Any): Unique identifier for the supplier
+            data (Dict[str, Any]): Updated data for the supplier
+
+        Returns:
+            Dict[str, Any]: Updated supplier
+
+        Raises:
+            NotFoundError: If supplier doesn't exist
+            ValidationError: If update data is invalid
+        """
+        return self.update_supplier(entity_id, data)
+
+    def delete(self, entity_id: Any) -> bool:
+        """
+        Delete a supplier by its identifier.
+
+        Args:
+            entity_id (Any): Unique identifier for the supplier
+
+        Returns:
+            bool: True if deletion was successful, False otherwise
+
+        Raises:
+            NotFoundError: If supplier doesn't exist
+        """
+        return self.delete_supplier(entity_id)

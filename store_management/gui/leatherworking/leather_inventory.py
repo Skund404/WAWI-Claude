@@ -1,25 +1,36 @@
 # gui/leatherworking/leather_inventory.py
 """
-Leather inventory view implementation for managing leather materials.
+Advanced leather inventory view with comprehensive management features.
 """
 import logging
-from typing import Any, Dict, List, Optional, Tuple, Type
+from typing import Any, Dict, List, Optional, Tuple, Union
+from functools import lru_cache
 
 import tkinter as tk
 import tkinter.messagebox
-from tkinter import ttk
+from tkinter import ttk, simpledialog, filedialog
+
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 from gui.base_view import BaseView
 from gui.leatherworking.leather_dialog import LeatherDetailsDialog
 from services.interfaces.material_service import IMaterialService, MaterialType
 from services.interfaces.project_service import IProjectService
 
+# Additional imports for advanced features
+from utils.validators import DataSanitizer
+from utils.notifications import StatusNotification
+from utils.performance_tracker import PERFORMANCE_TRACKER
+from utils.exporters import OrderExporter
+from config.pattern_config import PATTERN_CONFIG
+
 
 class LeatherInventoryView(BaseView):
-    """View for managing leather inventory."""
+    """Advanced view for managing leather inventory with comprehensive features."""
 
     def __init__(self, parent: tk.Widget, app: Any):
-        """Initialize the Leather Inventory View.
+        """Initialize the Advanced Leather Inventory View.
 
         Args:
             parent (tk.Widget): Parent widget
@@ -27,30 +38,46 @@ class LeatherInventoryView(BaseView):
         """
         super().__init__(parent, app)
         self.logger = logging.getLogger(__name__)
-        self.logger.info("Initializing Leather Inventory View")
+        self.notification_manager = StatusNotification(self)
 
-        # Set up the layout
+        # Caching and performance tracking
+        self.material_service = self.get_service(IMaterialService)
+        self.current_sort = {"column": None, "reverse": False}
+        self.filter_criteria = {
+            "type": "All",
+            "min_price": None,
+            "max_price": None,
+            "min_quantity": None,
+            "max_quantity": None,
+            "grade": "All"
+        }
+
+        # Setup UI
         self._setup_ui()
-
-        # Load initial data
         self._load_data()
 
     def _setup_ui(self):
-        """Set up the UI components."""
+        """Set up the advanced UI components."""
         # Main layout
         self.columnconfigure(0, weight=1)
         self.rowconfigure(0, weight=0)  # Toolbar
         self.rowconfigure(1, weight=1)  # Content
+        self.rowconfigure(2, weight=0)  # Additional controls
 
         # Create toolbar
         toolbar = ttk.Frame(self, padding=(5, 5, 5, 5))
         toolbar.grid(row=0, column=0, sticky="ew")
 
+        # Toolbar buttons
         ttk.Button(toolbar, text="New", command=self.on_new).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(toolbar, text="Edit", command=self.on_edit).pack(side=tk.LEFT, padx=5)
         ttk.Button(toolbar, text="Delete", command=self.on_delete).pack(side=tk.LEFT, padx=5)
         ttk.Separator(toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, padx=10, fill=tk.Y)
         ttk.Button(toolbar, text="Refresh", command=self.on_refresh).pack(side=tk.LEFT, padx=5)
+        ttk.Button(toolbar, text="Export", command=self.export_inventory).pack(side=tk.LEFT, padx=5)
+        ttk.Button(toolbar, text="Visualize", command=self.visualize_inventory_data).pack(side=tk.LEFT, padx=5)
+        ttk.Button(toolbar, text="Batch Update", command=self.batch_update_materials).pack(side=tk.LEFT, padx=5)
+        ttk.Button(toolbar, text="Batch Delete", command=self.batch_delete_materials).pack(side=tk.LEFT, padx=5)
 
         # Search frame (right side of toolbar)
         search_frame = ttk.Frame(toolbar)
@@ -75,26 +102,23 @@ class LeatherInventoryView(BaseView):
             content,
             columns=("id", "name", "type", "quantity", "price", "grade", "thickness"),
             show="headings",
-            selectmode="browse"
+            selectmode="extended"  # Changed to support multiple selections
         )
 
-        # Configure column headings
-        self.tree.heading("id", text="ID")
-        self.tree.heading("name", text="Name")
-        self.tree.heading("type", text="Type")
-        self.tree.heading("quantity", text="Quantity")
-        self.tree.heading("price", text="Price")
-        self.tree.heading("grade", text="Grade")
-        self.tree.heading("thickness", text="Thickness")
+        # Configure column headings with sorting
+        columns_config = [
+            ("id", "ID", 50, "center"),
+            ("name", "Name", 150, "w"),
+            ("type", "Type", 100, "center"),
+            ("quantity", "Quantity", 80, "center"),
+            ("price", "Price", 80, "e"),
+            ("grade", "Grade", 80, "center"),
+            ("thickness", "Thickness", 80, "center")
+        ]
 
-        # Configure column widths
-        self.tree.column("id", width=50, anchor="center")
-        self.tree.column("name", width=150)
-        self.tree.column("type", width=100)
-        self.tree.column("quantity", width=80, anchor="center")
-        self.tree.column("price", width=80, anchor="e")
-        self.tree.column("grade", width=80, anchor="center")
-        self.tree.column("thickness", width=80, anchor="center")
+        for col, heading, width, anchor in columns_config:
+            self.tree.heading(col, text=heading, command=lambda c=col: self._sort_column(c, False))
+            self.tree.column(col, width=width, anchor=anchor)
 
         # Add scrollbars
         vsb = ttk.Scrollbar(content, orient="vertical", command=self.tree.yview)
@@ -110,13 +134,59 @@ class LeatherInventoryView(BaseView):
         # Bind events
         self.tree.bind("<Double-1>", self.on_edit)
 
-    def _load_data(self):
-        """Load leather inventory data."""
-        try:
-            material_service = self.get_service(IMaterialService)
+        # Advanced filter and action buttons
+        action_frame = ttk.Frame(self)
+        action_frame.grid(row=2, column=0, sticky="ew", pady=5)
 
-            # Get leather materials (type LEATHER)
-            materials = material_service.get_materials(MaterialType.LEATHER)
+        ttk.Button(action_frame, text="Advanced Filter", command=self._show_advanced_filter).pack(side=tk.LEFT, padx=5)
+        ttk.Button(action_frame, text="Reset Filter", command=self._reset_filter).pack(side=tk.LEFT, padx=5)
+
+    @PERFORMANCE_TRACKER.track_performance(cache_enabled=True)
+    def _load_data(self, reset_filter: bool = False):
+        """Load leather inventory data with advanced filtering and sorting.
+
+        Args:
+            reset_filter (bool): Reset filter criteria if True
+        """
+        try:
+            # Reset filter if requested
+            if reset_filter:
+                self._reset_filter()
+
+            # Prepare filter parameters
+            filter_params = {
+                "material_type": MaterialType.LEATHER
+            }
+
+            # Apply specific filters
+            if self.filter_criteria["type"] != "All":
+                filter_params["type"] = self.filter_criteria["type"]
+
+            if self.filter_criteria["grade"] != "All":
+                filter_params["quality_grade"] = self.filter_criteria["grade"]
+
+            # Price range filter
+            if self.filter_criteria["min_price"] is not None:
+                filter_params["min_price"] = self.filter_criteria["min_price"]
+            if self.filter_criteria["max_price"] is not None:
+                filter_params["max_price"] = self.filter_criteria["max_price"]
+
+            # Quantity range filter
+            if self.filter_criteria["min_quantity"] is not None:
+                filter_params["min_quantity"] = self.filter_criteria["min_quantity"]
+            if self.filter_criteria["max_quantity"] is not None:
+                filter_params["max_quantity"] = self.filter_criteria["max_quantity"]
+
+            # Retrieve materials
+            materials = self.cached_get_materials(**filter_params)
+
+            # Sort if a sort column is defined
+            if self.current_sort["column"]:
+                materials = self._sort_materials(
+                    materials,
+                    self.current_sort["column"],
+                    self.current_sort["reverse"]
+                )
 
             # Clear existing items
             for item in self.tree.get_children():
@@ -124,25 +194,183 @@ class LeatherInventoryView(BaseView):
 
             # Add materials to the treeview
             for material in materials:
+                sanitized_material = DataSanitizer.sanitize_dict(material)
                 self.tree.insert(
                     "",
                     "end",
                     values=(
-                        material.get("id", ""),
-                        material.get("name", ""),
-                        material.get("type", "LEATHER"),
-                        material.get("quantity", 0),
-                        f"${material.get('unit_price', 0):.2f}",
-                        material.get("quality_grade", ""),
-                        material.get("thickness", "")
+                        sanitized_material.get("id", ""),
+                        sanitized_material.get("name", ""),
+                        sanitized_material.get("type", "LEATHER"),
+                        sanitized_material.get("quantity", 0),
+                        f"${sanitized_material.get('unit_price', 0):.2f}",
+                        sanitized_material.get("quality_grade", ""),
+                        sanitized_material.get("thickness", "")
                     )
                 )
 
+            # Update status
+            self.notification_manager.show_info(
+                f"Loaded {len(materials)} leather materials with current filters"
+            )
             self.logger.info(f"Loaded {len(materials)} leather materials")
 
         except Exception as e:
             self.logger.error(f"Error loading leather inventory: {str(e)}")
             self.show_error("Data Load Error", f"Failed to load leather inventory: {str(e)}")
+
+    @lru_cache(maxsize=10)
+    def cached_get_materials(self, **kwargs):
+        """Cached method for retrieving materials.
+
+        Args:
+            **kwargs: Filter parameters for material retrieval
+
+        Returns:
+            List of materials
+        """
+        return self.material_service.get_materials(**kwargs)
+
+    def _sort_column(self, col: str, reverse: bool):
+        """Sort treeview column.
+
+        Args:
+            col (str): Column to sort
+            reverse (bool): Reverse sorting order
+        """
+        # Update sorting state
+        self.current_sort = {"column": col, "reverse": not reverse}
+
+        # Reload data with sorting
+        self._load_data()
+
+    def _sort_materials(self, materials: List[Dict], col: str, reverse: bool) -> List[Dict]:
+        """Sort materials based on a specific column.
+
+        Args:
+            materials (List[Dict]): List of materials to sort
+            col (str): Column to sort by
+            reverse (bool): Reverse sorting order
+
+        Returns:
+            List[Dict]: Sorted materials
+        """
+        # Column mapping for sorting
+        sort_key_map = {
+            "id": lambda x: x.get("id", 0),
+            "name": lambda x: x.get("name", "").lower(),
+            "type": lambda x: x.get("type", "").lower(),
+            "quantity": lambda x: float(x.get("quantity", 0)),
+            "price": lambda x: float(x.get("unit_price", 0)),
+            "grade": lambda x: x.get("quality_grade", "").lower(),
+            "thickness": lambda x: float(x.get("thickness", 0))
+        }
+
+        return sorted(materials, key=sort_key_map.get(col, lambda x: x), reverse=reverse)
+
+    def _show_advanced_filter(self):
+        """Show advanced filter dialog."""
+        filter_dialog = tk.Toplevel(self)
+        filter_dialog.title("Advanced Leather Inventory Filter")
+        filter_dialog.geometry("400x500")
+
+        # Type filter
+        ttk.Label(filter_dialog, text="Leather Type:").pack(pady=(10, 0))
+        type_var = tk.StringVar(value=self.filter_criteria["type"])
+        type_dropdown = ttk.Combobox(
+            filter_dialog,
+            textvariable=type_var,
+            values=["All", "Full Grain", "Top Grain", "Split", "Other"],
+            state="readonly"
+        )
+        type_dropdown.pack(pady=(0, 10))
+
+        # Grade filter
+        ttk.Label(filter_dialog, text="Quality Grade:").pack(pady=(10, 0))
+        grade_var = tk.StringVar(value=self.filter_criteria["grade"])
+        grade_dropdown = ttk.Combobox(
+            filter_dialog,
+            textvariable=grade_var,
+            values=["All", "Premium", "Standard", "Economy"],
+            state="readonly"
+        )
+        grade_dropdown.pack(pady=(0, 10))
+
+        # Price range
+        ttk.Label(filter_dialog, text="Price Range:").pack(pady=(10, 0))
+        price_frame = ttk.Frame(filter_dialog)
+        price_frame.pack(pady=(0, 10))
+
+        min_price_var = tk.StringVar(value=str(self.filter_criteria["min_price"] or ""))
+        max_price_var = tk.StringVar(value=str(self.filter_criteria["max_price"] or ""))
+
+        ttk.Label(price_frame, text="Min $").pack(side=tk.LEFT)
+        min_price_entry = ttk.Entry(price_frame, textvariable=min_price_var, width=10)
+        min_price_entry.pack(side=tk.LEFT, padx=5)
+
+        ttk.Label(price_frame, text="Max $").pack(side=tk.LEFT)
+        max_price_entry = ttk.Entry(price_frame, textvariable=max_price_var, width=10)
+        max_price_entry.pack(side=tk.LEFT, padx=5)
+
+        # Quantity range
+        ttk.Label(filter_dialog, text="Quantity Range:").pack(pady=(10, 0))
+        qty_frame = ttk.Frame(filter_dialog)
+        qty_frame.pack(pady=(0, 10))
+
+        min_qty_var = tk.StringVar(value=str(self.filter_criteria["min_quantity"] or ""))
+        max_qty_var = tk.StringVar(value=str(self.filter_criteria["max_quantity"] or ""))
+
+        ttk.Label(qty_frame, text="Min Qty").pack(side=tk.LEFT)
+        min_qty_entry = ttk.Entry(qty_frame, textvariable=min_qty_var, width=10)
+        min_qty_entry.pack(side=tk.LEFT, padx=5)
+
+        ttk.Label(qty_frame, text="Max Qty").pack(side=tk.LEFT)
+        max_qty_entry = ttk.Entry(qty_frame, textvariable=max_qty_var, width=10)
+        max_qty_entry.pack(side=tk.LEFT, padx=5)
+
+        # Apply and Reset buttons
+        button_frame = ttk.Frame(filter_dialog)
+        button_frame.pack(pady=20)
+
+        def apply_filter():
+            try:
+                # Parse and validate inputs
+                self.filter_criteria = {
+                    "type": type_var.get(),
+                    "grade": grade_var.get(),
+                    "min_price": float(min_price_var.get()) if min_price_var.get() else None,
+                    "max_price": float(max_price_var.get()) if max_price_var.get() else None,
+                    "min_quantity": float(min_qty_var.get()) if min_qty_var.get() else None,
+                    "max_quantity": float(max_qty_var.get()) if max_qty_var.get() else None
+                }
+
+                # Reload data with new filters
+                self._load_data()
+                filter_dialog.destroy()
+            except ValueError:
+                self.show_error("Invalid Input", "Please enter valid numeric values for price and quantity.")
+
+        def reset_filter():
+            # Reset all filter criteria
+            self._load_data(reset_filter=True)
+            filter_dialog.destroy()
+
+        ttk.Button(button_frame, text="Apply", command=apply_filter).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Reset", command=reset_filter).pack(side=tk.LEFT, padx=5)
+
+    def _reset_filter(self):
+        """Reset all filter criteria to default state."""
+        self.filter_criteria = {
+            "type": "All",
+            "min_price": None,
+            "max_price": None,
+            "min_quantity": None,
+            "max_quantity": None,
+            "grade": "All"
+        }
+        self.current_sort = {"column": None, "reverse": False}
+        self._load_data()
+        self.notification_manager.show_info("Filters and sorting reset")
 
     def _on_search(self, event=None):
         """Handle search functionality.
@@ -157,11 +385,11 @@ class LeatherInventoryView(BaseView):
             return
 
         try:
-            material_service = self.get_service(IMaterialService)
-
             # Search leather materials
-            # Note: This assumes the service has a search functionality
-            materials = material_service.search_materials(search_text, material_type=MaterialType.LEATHER)
+            materials = self.material_service.search_materials(
+                search_text,
+                material_type=MaterialType.LEATHER
+            )
 
             # Clear existing items
             for item in self.tree.get_children():
@@ -169,21 +397,23 @@ class LeatherInventoryView(BaseView):
 
             # Add materials to the treeview
             for material in materials:
+                sanitized_material = DataSanitizer.sanitize_dict(material)
                 self.tree.insert(
                     "",
                     "end",
                     values=(
-                        material.get("id", ""),
-                        material.get("name", ""),
-                        material.get("type", "LEATHER"),
-                        material.get("quantity", 0),
-                        f"${material.get('unit_price', 0):.2f}",
-                        material.get("quality_grade", ""),
-                        material.get("thickness", "")
+                        sanitized_material.get("id", ""),
+                        sanitized_material.get("name", ""),
+                        sanitized_material.get("type", "LEATHER"),
+                        sanitized_material.get("quantity", 0),
+                        f"${sanitized_material.get('unit_price', 0):.2f}",
+                        sanitized_material.get("quality_grade", ""),
+                        sanitized_material.get("thickness", "")
                     )
                 )
 
-            self.logger.info(f"Found {len(materials)} matching leather materials")
+            self.notification_manager.show_info(f"Found {len(materials)} matching leather materials")
+            self.logger.info(f"Search found {len(materials)} materials")
 
         except Exception as e:
             self.logger.error(f"Error searching leather inventory: {str(e)}")
@@ -200,8 +430,7 @@ class LeatherInventoryView(BaseView):
                 dialog.result["type"] = MaterialType.LEATHER
 
                 # Add material to inventory
-                material_service = self.get_service(IMaterialService)
-                material = material_service.create(dialog.result)
+                material = self.material_service.create(dialog.result)
 
                 # Refresh view
                 self._load_data()
@@ -213,6 +442,7 @@ class LeatherInventoryView(BaseView):
                         self.tree.see(item)
                         break
 
+                self.notification_manager.show_success(f"Created new leather material: {material.get('name')}")
                 self.logger.info(f"Created new leather material: {material.get('name')}")
 
             except Exception as e:
@@ -231,8 +461,7 @@ class LeatherInventoryView(BaseView):
 
         try:
             # Get material details
-            material_service = self.get_service(IMaterialService)
-            material = material_service.get_by_id(int(item_id))
+            material = self.material_service.get_by_id(int(item_id))
 
             if not material:
                 self.show_error("Not Found", f"Leather material with ID {item_id} not found.")
@@ -243,7 +472,7 @@ class LeatherInventoryView(BaseView):
 
             if dialog.result:
                 # Update material
-                updated_material = material_service.update(int(item_id), dialog.result)
+                updated_material = self.material_service.update(int(item_id), dialog.result)
 
                 # Refresh view
                 self._load_data()
@@ -255,6 +484,7 @@ class LeatherInventoryView(BaseView):
                         self.tree.see(item)
                         break
 
+                self.notification_manager.show_success(f"Updated leather material: {updated_material.get('name')}")
                 self.logger.info(f"Updated leather material: {updated_material.get('name')}")
 
         except Exception as e:
@@ -268,22 +498,24 @@ class LeatherInventoryView(BaseView):
             self.show_info("No Selection", "Please select a leather material to delete.")
             return
 
-        # Get selected item ID
+        # Get selected item ID and name
         item_id = self.tree.item(selection[0], "values")[0]
         item_name = self.tree.item(selection[0], "values")[1]
 
         # Confirm deletion
-        if not self.confirm("Confirm Delete", f"Are you sure you want to delete the leather material '{item_name}'?"):
+        if not self.confirm("Confirm Delete",
+                            f"Are you sure you want to delete the leather material '{item_name}'?"):
             return
 
         try:
             # Delete material
-            material_service = self.get_service(IMaterialService)
-            success = material_service.delete(int(item_id))
+            success = self.material_service.delete(int(item_id))
 
             if success:
                 # Refresh view
                 self._load_data()
+
+                self.notification_manager.show_success(f"Deleted leather material: {item_name}")
                 self.logger.info(f"Deleted leather material: {item_name}")
             else:
                 self.show_error("Delete Failed", f"Failed to delete leather material '{item_name}'.")
@@ -295,3 +527,212 @@ class LeatherInventoryView(BaseView):
     def on_refresh(self):
         """Refresh the inventory view."""
         self._load_data()
+        self.notification_manager.show_info("Inventory refreshed")
+
+    def export_inventory(self):
+        """Export current leather inventory to CSV or Excel."""
+        try:
+            # Retrieve current filtered materials
+            filter_params = {
+                "material_type": MaterialType.LEATHER
+            }
+
+            # Apply existing filters
+            if self.filter_criteria["type"] != "All":
+                filter_params["type"] = self.filter_criteria["type"]
+
+            if self.filter_criteria["grade"] != "All":
+                filter_params["quality_grade"] = self.filter_criteria["grade"]
+
+            if self.filter_criteria["min_price"] is not None:
+                filter_params["min_price"] = self.filter_criteria["min_price"]
+            if self.filter_criteria["max_price"] is not None:
+                filter_params["max_price"] = self.filter_criteria["max_price"]
+
+            if self.filter_criteria["min_quantity"] is not None:
+                filter_params["min_quantity"] = self.filter_criteria["min_quantity"]
+            if self.filter_criteria["max_quantity"] is not None:
+                filter_params["max_quantity"] = self.filter_criteria["max_quantity"]
+
+            # Retrieve materials
+            materials = self.material_service.get_materials(**filter_params)
+
+            # Prepare data for export
+            export_data = [
+                {
+                    "ID": m.get("id", ""),
+                    "Name": m.get("name", ""),
+                    "Type": m.get("type", ""),
+                    "Quantity": m.get("quantity", 0),
+                    "Unit Price": m.get("unit_price", 0),
+                    "Quality Grade": m.get("quality_grade", ""),
+                    "Thickness": m.get("thickness", "")
+                } for m in materials
+            ]
+
+            # Open file dialog to choose export location
+            export_path = filedialog.asksaveasfilename(
+                defaultextension=".csv",
+                filetypes=[("CSV files", "*.csv"), ("Excel files", "*.xlsx")]
+            )
+
+            if export_path:
+                # Use OrderExporter to export data
+                if export_path.endswith('.csv'):
+                    OrderExporter.export_to_csv(export_data, export_path)
+                else:
+                    OrderExporter.export_to_excel(export_data, export_path)
+
+                self.notification_manager.show_success(f"Inventory exported to {export_path}")
+                self.logger.info(f"Exported leather inventory to {export_path}")
+
+        except Exception as e:
+            self.logger.error(f"Export failed: {str(e)}")
+            self.show_error("Export Error", f"Failed to export inventory: {str(e)}")
+
+    def visualize_inventory_data(self):
+        """Create advanced visualizations of leather inventory data."""
+        try:
+            # Retrieve all leather materials
+            materials = self.material_service.get_materials(material_type=MaterialType.LEATHER)
+
+            # Create visualization window
+            viz_window = tk.Toplevel(self)
+            viz_window.title("Leather Inventory Visualization")
+            viz_window.geometry("800x600")
+
+            # Create notebook for multiple visualization tabs
+            notebook = ttk.Notebook(viz_window)
+            notebook.pack(expand=True, fill='both', padx=10, pady=10)
+
+            # 1. Quantity Distribution Pie Chart
+            def create_quantity_distribution_tab():
+                frame = ttk.Frame(notebook)
+                notebook.add(frame, text="Quantity Distribution")
+
+                # Prepare data
+                types = {}
+                for material in materials:
+                    mat_type = material.get('type', 'Unknown')
+                    quantity = material.get('quantity', 0)
+                    types[mat_type] = types.get(mat_type, 0) + quantity
+
+                # Create pie chart
+                fig, ax = plt.subplots(figsize=(8, 6))
+                ax.pie(
+                    list(types.values()),
+                    labels=list(types.keys()),
+                    autopct='%1.1f%%',
+                    startangle=90
+                )
+                ax.axis('equal')
+                plt.title('Leather Inventory Quantity by Type')
+
+                # Embed in Tkinter
+                canvas = FigureCanvasTkAgg(fig, master=frame)
+                canvas_widget = canvas.get_tk_widget()
+                canvas_widget.pack(expand=True, fill='both')
+
+                return frame
+
+            # 2. Price Histogram
+            def create_price_histogram_tab():
+                frame = ttk.Frame(notebook)
+                notebook.add(frame, text="Price Distribution")
+
+                # Prepare data
+                prices = [material.get('unit_price', 0) for material in materials]
+
+                # Create histogram
+                fig, ax = plt.subplots(figsize=(8, 6))
+                ax.hist(prices, bins=10, edgecolor='black')
+                plt.title('Distribution of Leather Material Prices')
+                plt.xlabel('Price')
+                plt.ylabel('Frequency')
+
+                # Embed in Tkinter
+                canvas = FigureCanvasTkAgg(fig, master=frame)
+                canvas_widget = canvas.get_tk_widget()
+                canvas_widget.pack(expand=True, fill='both')
+
+                return frame
+
+            # 3. Quality Grade Breakdown Bar Chart
+            def create_grade_breakdown_tab():
+                frame = ttk.Frame(notebook)
+                notebook.add(frame, text="Quality Grade Breakdown")
+
+                # Prepare data
+                grades = {}
+                for material in materials:
+                    grade = material.get('quality_grade', 'Unknown')
+                    grades[grade] = grades.get(grade, 0) + 1
+
+                # Create bar chart
+                fig, ax = plt.subplots(figsize=(8, 6))
+                ax.bar(list(grades.keys()), list(grades.values()))
+                plt.title('Leather Materials by Quality Grade')
+                plt.xlabel('Quality Grade')
+                plt.ylabel('Number of Materials')
+                plt.xticks(rotation=45)
+
+                # Embed in Tkinter
+                canvas = FigureCanvasTkAgg(fig, master=frame)
+                canvas_widget = canvas.get_tk_widget()
+                canvas_widget.pack(expand=True, fill='both')
+
+                return frame
+
+            # Create tabs
+            create_quantity_distribution_tab()
+            create_price_histogram_tab()
+            create_grade_breakdown_tab()
+
+            self.logger.info("Inventory visualization created")
+            self.notification_manager.show_info("Inventory visualization generated")
+
+        except Exception as e:
+            self.logger.error(f"Visualization error: {str(e)}")
+            self.show_error("Visualization Error", f"Failed to create inventory visualization: {str(e)}")
+
+    def batch_update_materials(self):
+        """Implement batch update for selected materials."""
+        # Get selected materials
+        selected_items = self.tree.selection()
+
+        if not selected_items:
+            self.show_info("No Selection", "Please select materials to update.")
+            return
+
+        # Create batch update dialog
+        batch_dialog = tk.Toplevel(self)
+        batch_dialog.title("Batch Update Leather Materials")
+        batch_dialog.geometry("400x500")
+
+        # Update fields
+        ttk.Label(batch_dialog, text="Fields to Update:").pack(pady=(10, 0))
+
+        # Checkboxes for updateable fields
+        update_fields = {
+            "price": tk.BooleanVar(),
+            "quantity": tk.BooleanVar(),
+            "grade": tk.BooleanVar(),
+            "thickness": tk.BooleanVar()
+        }
+
+        field_frames = {}
+        for field, var in update_fields.items():
+            frame = ttk.Frame(batch_dialog)
+            frame.pack(fill='x', padx=20, pady=5)
+
+            cb = ttk.Checkbutton(frame, text=field.capitalize(), variable=var)
+            cb.pack(side=tk.LEFT)
+
+            # Entry for new value
+            entry = ttk.Entry(frame, state='disabled', width=20)
+            entry.pack(side=tk.RIGHT, padx=10)
+
+            # Enable/disable entry when checkbox is checked
+            def create_toggle_callback(entry_widget, var):
+                def callback():
+                    entry
