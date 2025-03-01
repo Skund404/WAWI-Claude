@@ -1,157 +1,127 @@
-# store_management/services/interfaces/supplier_service.py
+# services/interfaces/supplier_service.py
 """
-Interface for Supplier Service in Leatherworking Store Management.
-
-Defines the contract for supplier-related operations.
+Interface for Supplier Service defining contract for supplier-related operations.
 """
 
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Any, Dict, List, Optional, Callable
-
-from di.core import inject
-from utils.circular_import_resolver import CircularImportResolver
+from typing import Any, Dict, List, Optional
 
 class SupplierStatus(Enum):
     """
     Enumeration of possible supplier statuses.
     """
-    ACTIVE = "Active"
-    INACTIVE = "Inactive"
-    SUSPENDED = "Suspended"
-    BLACKLISTED = "Blacklisted"
+    ACTIVE = 'active'
+    INACTIVE = 'inactive'
+    SUSPENDED = 'suspended'
+    BLACKLISTED = 'blacklisted'
 
 class ISupplierService(ABC):
     """
-    Abstract base class defining the interface for supplier-related operations.
+    Abstract base class defining the contract for Supplier Service operations.
     """
 
     @abstractmethod
-    @inject('IMaterialService')
-    def create_supplier(
-        self,
-        name: str,
-        contact_info: Dict[str, str],
-        status: SupplierStatus = SupplierStatus.ACTIVE,
-        description: Optional[str] = None,
-        material_service: Optional[Any] = None
-    ) -> Dict[str, Any]:
+    def get_all_suppliers(self, status: Optional[SupplierStatus] = None) -> List[Dict[str, Any]]:
+        """
+        Retrieve all suppliers, optionally filtered by status.
+
+        Args:
+            status (Optional[SupplierStatus]): Optional status to filter suppliers
+
+        Returns:
+            List of supplier dictionaries
+        """
+        pass
+
+    @abstractmethod
+    def get_supplier_by_id(self, supplier_id: int) -> Dict[str, Any]:
+        """
+        Retrieve a supplier by their unique identifier.
+
+        Args:
+            supplier_id (int): Unique identifier of the supplier
+
+        Returns:
+            Supplier details dictionary
+
+        Raises:
+            NotFoundError: If supplier is not found
+        """
+        pass
+
+    @abstractmethod
+    def create_supplier(self, supplier_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Create a new supplier.
 
         Args:
-            name (str): Name of the supplier
-            contact_info (Dict[str, str]): Contact information for the supplier
-            status (SupplierStatus, optional): Current status of the supplier
-            description (Optional[str], optional): Additional details about the supplier
-            material_service (Optional[Any], optional): Material service for additional operations
+            supplier_data (Dict[str, Any]): Supplier details dictionary
 
         Returns:
-            Dict[str, Any]: Details of the created supplier
+            Created supplier details
+
+        Raises:
+            ValidationError: If supplier data is invalid
         """
         pass
 
     @abstractmethod
-    def update_supplier(
-        self,
-        supplier_id: str,
-        updates: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def update_supplier(self, supplier_id: int, update_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Update an existing supplier.
 
         Args:
-            supplier_id (str): Unique identifier of the supplier
-            updates (Dict[str, Any]): Dictionary of fields to update
+            supplier_id (int): ID of the supplier to update
+            update_data (Dict[str, Any]): Updated supplier details
 
         Returns:
-            Dict[str, Any]: Updated supplier details
+            Updated supplier details
+
+        Raises:
+            NotFoundError: If supplier is not found
+            ValidationError: If update data is invalid
         """
         pass
 
     @abstractmethod
-    def get_supplier(
-        self,
-        supplier_id: str
-    ) -> Optional[Dict[str, Any]]:
-        """
-        Retrieve a specific supplier by its ID.
-
-        Args:
-            supplier_id (str): Unique identifier of the supplier
-
-        Returns:
-            Optional[Dict[str, Any]]: Supplier details, or None if not found
-        """
-        pass
-
-    @abstractmethod
-    def list_suppliers(
-        self,
-        status: Optional[SupplierStatus] = None,
-        rating_threshold: Optional[float] = None
-    ) -> List[Dict[str, Any]]:
-        """
-        List suppliers with optional filtering.
-
-        Args:
-            status (Optional[SupplierStatus], optional): Filter by supplier status
-            rating_threshold (Optional[float], optional): Minimum supplier rating
-
-        Returns:
-            List[Dict[str, Any]]: List of suppliers matching the criteria
-        """
-        pass
-
-    @abstractmethod
-    def delete_supplier(
-        self,
-        supplier_id: str
-    ) -> bool:
+    def delete_supplier(self, supplier_id: int) -> bool:
         """
         Delete a supplier.
 
         Args:
-            supplier_id (str): Unique identifier of the supplier to delete
+            supplier_id (int): ID of the supplier to delete
 
         Returns:
-            bool: True if deletion was successful, False otherwise
+            Boolean indicating successful deletion
+
+        Raises:
+            NotFoundError: If supplier is not found
         """
         pass
 
     @abstractmethod
-    @inject('IMaterialService')
-    def evaluate_supplier_performance(
-        self,
-        supplier_id: str,
-        material_service: Optional[Any] = None
-    ) -> Dict[str, Any]:
+    def search_suppliers(self, search_term: str) -> List[Dict[str, Any]]:
         """
-        Evaluate a supplier's performance based on various metrics.
+        Search for suppliers by various fields.
 
         Args:
-            supplier_id (str): Unique identifier of the supplier
-            material_service (Optional[Any], optional): Material service for performance evaluation
+            search_term (str): Term to search for
 
         Returns:
-            Dict[str, Any]: Performance evaluation details
+            List of matching suppliers
         """
         pass
 
     @abstractmethod
-    def search_suppliers(
-        self,
-        query: Optional[str] = None,
-        material_types: Optional[List[str]] = None
-    ) -> List[Dict[str, Any]]:
+    def get_suppliers_by_status(self, status: SupplierStatus) -> List[Dict[str, Any]]:
         """
-        Search for suppliers with optional filtering.
+        Get suppliers by their status.
 
         Args:
-            query (Optional[str], optional): Search term
-            material_types (Optional[List[str]], optional): List of material types
+            status (SupplierStatus): Status to filter suppliers
 
         Returns:
-            List[Dict[str, Any]]: List of suppliers matching the search criteria
+            List of suppliers with the given status
         """
         pass

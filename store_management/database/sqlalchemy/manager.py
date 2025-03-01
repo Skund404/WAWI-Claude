@@ -18,7 +18,8 @@ from typing import (
 )
 
 from sqlalchemy import create_engine, or_
-from sqlalchemy.orm import sessionmaker, Session, inspect
+from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy import inspect
 from sqlalchemy.exc import SQLAlchemyError
 
 from di.core import inject

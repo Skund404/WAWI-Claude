@@ -18,6 +18,7 @@ from gui.inventory.product_inventory import ProductInventoryView
 from gui.leatherworking.leather_inventory import LeatherInventoryView
 from gui.leatherworking.pattern_library import PatternLibrary
 from gui.order.order_view import OrderView
+from gui.order.shopping_list_view import ShoppingListView
 from gui.product.project_view import ProjectView
 from gui.storage.storage_view import StorageView
 from gui.leatherworking.project_dashboard import ProjectDashboard
@@ -31,6 +32,7 @@ from gui.order.supplier_view import SupplierView
 from services.interfaces.material_service import IMaterialService
 from services.interfaces.order_service import IOrderService
 from services.interfaces.project_service import IProjectService
+from services.interfaces.shopping_list_service import IShoppingListService
 from services.interfaces.storage_service import IStorageService
 from services.interfaces.pattern_service import IPatternService
 from services.interfaces.supplier_service import ISupplierService
@@ -136,6 +138,11 @@ class MainWindow:
                 "name": "Suppliers",
                 "view": SupplierView,
                 "service": ISupplierService
+            },
+            {
+                "name": "Shopping List",
+                "view": ShoppingListView,
+                "service": IShoppingListService
             }
         ]
 

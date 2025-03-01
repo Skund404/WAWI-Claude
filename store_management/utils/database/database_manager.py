@@ -9,16 +9,20 @@ with comprehensive error handling and logging.
 
 import logging
 import os
-from typing import Optional, Dict, Any, Union
+from contextlib import contextmanager
+from typing import Optional, Dict, Any, Union, Callable, Generator, TypeVar
 
 import sqlalchemy
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.exc import SQLAlchemyError, OperationalError
+from sqlalchemy.pool import NullPool
 
 from config.settings import get_database_path
 from database.models.base import Base
 from utils.logger import get_logger
 
+# Type variable for query function return type
+T = TypeVar('T')
 
 class DatabaseManager:
     """
@@ -56,11 +60,15 @@ class DatabaseManager:
             # Ensure database directory exists
             os.makedirs(os.path.dirname(self._db_path), exist_ok=True)
 
-            # Create SQLAlchemy engine
+            # Create SQLAlchemy engine with connection pooling
             self._engine = sqlalchemy.create_engine(
                 f'sqlite:///{self._db_path}',
                 echo=echo,
-                connect_args={'check_same_thread': False}
+                poolclass=NullPool,  # Disable connection pooling for SQLite
+                connect_args={
+                    'check_same_thread': False,  # Required for SQLite in multithreaded environments
+                    'timeout': 30  # Increase connection timeout
+                }
             )
 
             # Create session factory
@@ -77,6 +85,30 @@ class DatabaseManager:
             self._logger.error(f"Failed to initialize database: {e}")
             raise RuntimeError(f"Database initialization failed: {e}")
 
+    @contextmanager
+    def session_scope(self) -> Generator[Session, None, None]:
+        """
+        Provide a transactional scope around a series of operations.
+
+        Yields:
+            Session: A database session with commit/rollback handling
+
+        Raises:
+            Exception: If session management fails
+        """
+        session = None
+        try:
+            session = self._session_factory()
+            yield session
+            session.commit()
+        except Exception:
+            if session:
+                session.rollback()
+            raise
+        finally:
+            if session:
+                session.close()
+
     def create_tables(self):
         """
         Create all database tables defined in the models.
@@ -91,54 +123,46 @@ class DatabaseManager:
             self._logger.error(f"Failed to create database tables: {e}")
             raise
 
-    def get_session(self) -> Session:
+    def drop_tables(self):
         """
-        Provide a new database session.
+        Drop all database tables.
 
-        Returns:
-            Session: A new SQLAlchemy database session
+        Caution: This will delete ALL data in the database.
 
         Raises:
-            OperationalError: If session creation fails
+            SQLAlchemyError: If table deletion fails
         """
         try:
-            return self._session_factory()
-        except OperationalError as e:
-            self._logger.error(f"Failed to create database session: {e}")
+            Base.metadata.drop_all(self._engine)
+            self._logger.warning("All database tables dropped")
+        except SQLAlchemyError as e:
+            self._logger.error(f"Failed to drop database tables: {e}")
             raise
 
     def execute_query(self,
-                      query_func,
+                      query_func: Callable[[Session], T],
                       *args,
-                      **kwargs) -> Any:
+                      **kwargs) -> T:
         """
         Execute a database query within a session.
 
         Args:
-            query_func (Callable): Function to execute with a session
+            query_func (Callable[[Session], T]): Function to execute with a session
             *args: Positional arguments for the query function
             **kwargs: Keyword arguments for the query function
 
         Returns:
-            Any: Result of the query execution
+            T: Result of the query execution
 
         Raises:
             Exception: If query execution fails
         """
-        session = None
-        try:
-            session = self.get_session()
-            result = query_func(session, *args, **kwargs)
-            session.commit()
-            return result
-        except Exception as e:
-            if session:
-                session.rollback()
-            self._logger.error(f"Query execution failed: {e}")
-            raise
-        finally:
-            if session:
-                session.close()
+        with self.session_scope() as session:
+            try:
+                return query_func(session, *args, **kwargs)
+            except Exception as e:
+                self._logger.error(f"Query execution failed: {e}")
+                raise
 
     def backup_database(self,
                         backup_path: Optional[str] = None) -> str:
@@ -180,24 +204,36 @@ class DatabaseManager:
             self._logger.error(f"Database backup failed: {e}")
             raise IOError(f"Could not create database backup: {e}")
 
-    def get_database_stats(self) -> Dict[str, Any]:
+    def get_database_stats(self) -> Dict[str, int]:
         """
         Retrieve basic statistics about the database.
 
         Returns:
-            Dict[str, Any]: Database statistics
+            Dict[str, int]: Database table record counts
         """
         try:
-            with self.get_session() as session:
+            with self.session_scope() as session:
                 stats = {}
                 for table in Base.metadata.tables:
-                    count = session.query(Base.metadata.tables[table]).count()
-                    stats[table] = count
+                    try:
+                        count = session.query(Base.metadata.tables[table]).count()
+                        stats[table] = count
+                    except Exception as table_error:
+                        self._logger.warning(f"Could not count records for table {table}: {table_error}")
+                        stats[table] = -1
                 return stats
         except Exception as e:
             self._logger.error(f"Failed to retrieve database stats: {e}")
             return {}
 
+    def __repr__(self) -> str:
+        """
+        String representation of the DatabaseManager.
+
+        Returns:
+            str: Description of the database manager
+        """
+        return f"DatabaseManager(path={self._db_path})"
 
 # Create a singleton instance for dependency injection
 database_manager = DatabaseManager()
