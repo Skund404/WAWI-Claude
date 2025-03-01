@@ -1,4 +1,5 @@
 # gui/leatherworking/cost_estimator.py
+# deprecated, replace by cost
 import tkinter as tk
 from tkinter import messagebox, simpledialog, ttk
 import matplotlib.pyplot as plt

@@ -1,3 +1,11 @@
+# gui/leatherworking/material_tracker.py
+"""
+Material Usage Tracker for Leatherworking Management System
+
+This module provides a comprehensive UI for tracking and analyzing
+material usage across various leatherworking projects.
+"""
+
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog  # Fixed missing imports
 from di.core import inject
@@ -8,13 +16,31 @@ from services.interfaces.project_service import IProjectService
 from database.models.metrics import MaterialUsageLog  # Corrected import
 from database.models.enums import MaterialType  # Corrected import
 from gui.base_view import BaseView
-#from utils.error_handler import ErrorHandler  # Added missing import
-from utils.error_handler import ApplicationError
 import logging
 from datetime import datetime, timedelta
 from typing import Any, List, Dict, Optional
-logger = logging.getLogger(__name__)
 
+# Replace with appropriate error handling from project
+class SimpleErrorHandler:
+    """
+    Simple error handler for demonstrating logging and error management.
+    """
+    def __init__(self):
+        self.logger = logging.getLogger(__name__)
+
+    def handle_error(self, error: Exception, context: str = ''):
+        """
+        Log and potentially display error messages.
+
+        Args:
+            error: Exception to handle
+            context: Additional context about where error occurred
+        """
+        error_msg = f"{context}: {str(error)}"
+        self.logger.error(error_msg)
+        return error_msg
+
+logger = logging.getLogger(__name__)
 
 class MaterialUsageTracker(BaseView):
     """
@@ -35,7 +61,15 @@ class MaterialUsageTracker(BaseView):
         super().__init__(parent, app)
         self.material_service = self.get_service(IMaterialService)
         self.inventory_service = self.get_service(IInventoryService)
-        self.error_handler = ErrorHandler()
+
+        # Try to use the project's error handler, fall back to a simple one
+        try:
+            from utils.error_handler import ErrorHandler
+            self.error_handler = ErrorHandler()
+        except (ImportError, Exception):
+            logger.warning("Could not initialize ErrorHandler, using SimpleErrorHandler")
+            self.error_handler = SimpleErrorHandler()
+
         self.current_material_id: Optional[int] = None
         self.usage_data: List[MaterialUsageLog] = []
         self.time_range = 'month'
@@ -459,3 +493,4 @@ class MaterialUsageTracker(BaseView):
         except Exception as e:
             logger.error(f'Error exporting data: {str(e)}')
             tk.messagebox.showerror('Export Error', 'Failed to export data. Please check the logs for details.')
+

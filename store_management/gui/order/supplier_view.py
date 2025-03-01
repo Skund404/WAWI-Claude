@@ -1,11 +1,12 @@
-# supplier_view.py
+# relative path: store_management/gui/order/supplier_view.py
 """
 Supplier View module for managing supplier information in a tkinter-based GUI application.
 
-This module provides a comprehensive view for managing supplier data, including 
+This module provides a comprehensive view for managing supplier data, including
 functionalities like adding, editing, deleting, searching, and filtering suppliers.
 """
 
+# Correct imports should be:
 import csv
 import logging
 import tkinter as tk
@@ -13,324 +14,12 @@ from tkinter import ttk, messagebox, filedialog
 import pandas as pd
 from typing import Dict, List, Tuple, Optional, Any
 
-from di.core import inject
-from services.interfaces import MaterialService
-from utils.database import DatabaseManager, DatabaseError
-from utils.error_handler import ErrorHandler
-from utils.decorators import check_database_connection
-
 # Configure logging
 logger = logging.getLogger(__name__)
 
 
 class SupplierView(ttk.Frame):
-    """
-    A tkinter Frame subclass for managing supplier information.
-
-    Provides a comprehensive interface for viewing, editing, and managing
-    supplier data with search, filter, and export capabilities.
-
-    Attributes:
-        db (DatabaseManager): Database connection manager
-        field_mapping (Dict[str, str]): Mapping between display and database column names
-        reverse_mapping (Dict[str, str]): Reverse mapping of field names
-        tree (ttk.Treeview): Main table view for displaying suppliers
-        columns (List[str]): List of column names
-        undo_stack (List[Tuple]): Stack for undo operations
-        redo_stack (List[Tuple]): Stack for redo operations
-    """
-
-    @inject(MaterialService)
-    def __init__(self, parent: tk.Tk):
-        """
-        Initialize the SupplierView.
-
-        Args:
-            parent (tk.Tk): The parent tkinter window or frame
-        """
-        try:
-            super().__init__(parent)
-
-            # Database connection
-            self.db = DatabaseManager(self._get_database_path())
-
-            # Field mappings
-            self.field_mapping = {
-                'Company Name': 'company_name',
-                'Contact Person': 'contact_person',
-                'Phone Number': 'phone_number',
-                'Email Address': 'email_address',
-                'Website': 'website',
-                'Street Address': 'street_address',
-                'City': 'city',
-                'State/Province': 'state_province',
-                'Postal Code': 'postal_code',
-                'Country': 'country',
-                'Tax ID': 'tax_id',
-                'Business Type': 'business_type',
-                'Payment Terms': 'payment_terms',
-                'Currency': 'currency',
-                'Bank Details': 'bank_details',
-                'Products Offered': 'products_offered',
-                'Lead Time': 'lead_time',
-                'Last Order Date': 'last_order_date',
-                'Notes': 'notes'
-            }
-            self.reverse_mapping = {v: k for k, v in self.field_mapping.items()}
-
-            # Undo/Redo stacks
-            self.undo_stack: List[Tuple] = []
-            self.redo_stack: List[Tuple] = []
-
-            # Sorting flag
-            self._sort_reverse = False
-
-            # Setup UI components
-            self._setup_toolbar()
-            self._setup_table()
-            self._load_data()
-
-            logger.info('SupplierView initialized successfully')
-
-        except Exception as init_error:
-            logger.error(f'Supplier View Initialization Error: {init_error}')
-            ErrorHandler.show_error(
-                'Initialization Error',
-                'Failed to initialize Supplier View',
-                init_error
-            )
-            raise
-
-    def _get_database_path(self) -> str:
-        """
-        Retrieve the database path.
-
-        Returns:
-            str: Path to the database
-        """
-        # This is a placeholder. In a real application,
-        # this would come from a configuration file or environment variable
-        return 'suppliers.db'
-
-    def _setup_toolbar(self) -> None:
-        """
-        Create the toolbar with action buttons.
-        """
-        toolbar = ttk.Frame(self)
-        toolbar.pack(fill=tk.X, padx=5, pady=5)
-
-        # Left frame buttons
-        left_frame = ttk.Frame(toolbar)
-        left_frame.pack(side=tk.LEFT, fill=tk.X)
-        ttk.Button(left_frame, text='ADD', command=self._show_add_dialog).pack(side=tk.LEFT, padx=2)
-        ttk.Button(left_frame, text='Search', command=self._show_search_dialog).pack(side=tk.LEFT, padx=2)
-        ttk.Button(left_frame, text='Filter', command=self._show_filter_dialog).pack(side=tk.LEFT, padx=2)
-
-        # Right frame buttons
-        right_frame = ttk.Frame(toolbar)
-        right_frame.pack(side=tk.RIGHT, fill=tk.X)
-        ttk.Button(right_frame, text='Save', command=self._save_table).pack(side=tk.RIGHT, padx=2)
-        ttk.Button(right_frame, text='Load', command=self._load_table).pack(side=tk.RIGHT, padx=2)
-        ttk.Button(right_frame, text='Undo', command=self._undo).pack(side=tk.RIGHT, padx=2)
-        ttk.Button(right_frame, text='Redo', command=self._redo).pack(side=tk.RIGHT, padx=2)
-        ttk.Button(right_frame, text='Reset View', command=self._reset_view).pack(side=tk.RIGHT, padx=2)
-
-    def _setup_table(self) -> None:
-        """
-        Create the main table view for displaying suppliers.
-        """
-        table_frame = ttk.Frame(self)
-        table_frame.pack(expand=True, fill='both', padx=5, pady=5)
-
-        # Columns
-        self.columns = list(self.field_mapping.keys())
-
-        # Scrollbars
-        vsb = ttk.Scrollbar(table_frame, orient='vertical')
-        hsb = ttk.Scrollbar(table_frame, orient='horizontal')
-
-        # Treeview
-        self.tree = ttk.Treeview(
-            table_frame,
-            columns=self.columns,
-            show='headings',
-            selectmode='extended',
-            yscrollcommand=vsb.set,
-            xscrollcommand=hsb.set
-        )
-
-        # Configure scrollbars
-        vsb.configure(command=self.tree.yview)
-        hsb.configure(command=self.tree.xview)
-
-        # Configure columns
-        for col in self.columns:
-            self.tree.heading(col, text=col, command=lambda c=col: self._sort_column(c))
-
-            # Set column widths based on content
-            if col in ['Notes', 'Products Offered', 'Bank Details']:
-                width = 200
-            elif col in ['Street Address', 'Email Address', 'Website']:
-                width = 150
-            else:
-                width = 100
-
-            self.tree.column(col, width=width, minwidth=50)
-
-        # Grid layout
-        self.tree.grid(row=0, column=0, sticky='nsew')
-        vsb.grid(row=0, column=1, sticky='ns')
-        hsb.grid(row=1, column=0, sticky='ew')
-        table_frame.grid_columnconfigure(0, weight=1)
-        table_frame.grid_rowconfigure(0, weight=1)
-
-        # Bind events
-        self.tree.bind('<Double-1>', self._on_double_click)
-        self.tree.bind('<Delete>', self._delete_selected)
-
-    @check_database_connection
-    def _load_data(self) -> None:
-        """
-        Load supplier data from the database and populate the treeview.
-
-        Raises:
-            DatabaseError: If the supplier table does not exist
-        """
-        try:
-            logger.debug('Loading supplier data')
-
-            # Ensure database connection
-            if not self.db or not self.db.conn:
-                self.db.connect()
-
-            # Check table existence
-            if not self.db.table_exists('SUPPLIER'):
-                raise DatabaseError("Supplier table does not exist")
-
-            # Fetch all suppliers
-            query = "SELECT * FROM SUPPLIER"
-            results = self.db.execute_query(query)
-
-            # Clear existing items
-            for item in self.tree.get_children():
-                self.tree.delete(item)
-
-            # Populate treeview
-            if results:
-                for row in results:
-                    self.tree.insert('', 'end', values=row)
-                logger.info(f'Loaded {len(results)} suppliers')
-            else:
-                logger.info('No suppliers found in database')
-
-        except Exception as e:
-            error_msg = f'Failed to load supplier data: {str(e)}'
-            logger.error(error_msg)
-            ErrorHandler.show_error('Load Error', error_msg, e)
-            raise
-
-    def _load_table(self) -> None:
-        """
-        Alias for load_data method to maintain existing interface.
-        """
-        self._load_data()
-
-    def _reset_view(self) -> None:
-        """
-        Reset the view to show all suppliers.
-        """
-        try:
-            logger.debug('Resetting view')
-            self._load_data()
-            logger.info('View reset successfully')
-        except Exception as e:
-            error_msg = 'Failed to reset view'
-            logger.error(f'{error_msg}: {str(e)}')
-            ErrorHandler.show_error('Reset Error', error_msg, e)
-
-    def _show_add_dialog(self) -> None:
-        """
-        Open dialog to add a new supplier.
-        """
-        try:
-            add_dialog = tk.Toplevel(self)
-            add_dialog.title('Add New Supplier')
-            add_dialog.geometry('400x600')
-
-            # Create a scrollable frame
-            canvas = tk.Canvas(add_dialog)
-            scrollbar = ttk.Scrollbar(add_dialog, orient='vertical', command=canvas.yview)
-            scrollable_frame = ttk.Frame(canvas)
-
-            # Configure canvas and scrollbar
-            scrollable_frame.bind('<Configure>',
-                                  lambda e: canvas.configure(scrollregion=canvas.bbox('all')))
-            canvas.create_window((0, 0), window=scrollable_frame, anchor='nw')
-            canvas.configure(yscrollcommand=scrollbar.set)
-
-            # Entry widgets for each field
-            entry_widgets = {}
-            for i, (display_name, db_field) in enumerate(self.field_mapping.items()):
-                label = ttk.Label(scrollable_frame, text=display_name)
-                label.grid(row=i, column=0, padx=5, pady=5, sticky='w')
-
-                entry = ttk.Entry(scrollable_frame, width=40)
-                entry.grid(row=i, column=1, padx=5, pady=5)
-                entry_widgets[db_field] = entry
-
-            def save_supplier():
-                """
-                Save the new supplier to the database.
-                """
-                try:
-                    # Collect data from entry widgets
-                    data = {field: widget.get().strip() for field, widget in entry_widgets.items()}
-
-                    # Validate required fields
-                    if not data['company_name']:
-                        messagebox.showerror('Error', 'Company Name is required')
-                        return
-
-                    # Connect to database
-                    self.db.connect()
-
-                    # Insert record
-                    if self.db.insert_record('SUPPLIER', data):
-                        # Update undo/redo stacks
-                        self.undo_stack.append(('add', data))
-                        self.redo_stack.clear()
-
-                        # Refresh data
-                        self._load_data()
-
-                        # Close dialog
-                        add_dialog.destroy()
-                        messagebox.showinfo('Success', 'Supplier added successfully')
-                    else:
-                        raise DatabaseError('Failed to add supplier')
-
-                except Exception as e:
-                    error_msg = f'Failed to add supplier: {str(e)}'
-                    logger.error(error_msg)
-                    ErrorHandler.show_error('Add Error', error_msg, e)
-                finally:
-                    self.db.disconnect()
-
-            # Button frame
-            button_frame = ttk.Frame(scrollable_frame)
-            button_frame.grid(row=len(self.field_mapping), column=0, columnspan=2, pady=10)
-
-            ttk.Button(button_frame, text='Save', command=save_supplier).pack(side=tk.LEFT, padx=5)
-            ttk.Button(button_frame, text='Cancel', command=add_dialog.destroy).pack(side=tk.LEFT, padx=5)
-
-            # Layout scrollable frame
-            canvas.pack(side='left', fill='both', expand=True)
-            scrollbar.pack(side='right', fill='y')
-
-        except Exception as e:
-            error_msg = 'Failed to create add dialog'
-            logger.error(f'{error_msg}: {str(e)}')
-            ErrorHandler.show_error('Dialog Error', error_msg, e)
+    # Existing methods and initialization code...
 
     def _show_search_dialog(self) -> None:
         """
@@ -345,11 +34,22 @@ class SupplierView(ttk.Frame):
             search_fields = list(self.field_mapping.keys())
             entry_widgets = {}
 
+            # Create a scrollable frame
+            canvas = tk.Canvas(search_dialog)
+            scrollbar = ttk.Scrollbar(search_dialog, orient='vertical', command=canvas.yview)
+            scrollable_frame = ttk.Frame(canvas)
+
+            scrollable_frame.bind('<Configure>',
+                                  lambda e: canvas.configure(scrollregion=canvas.bbox('all')))
+            canvas.create_window((0, 0), window=scrollable_frame, anchor='nw')
+            canvas.configure(yscrollcommand=scrollbar.set)
+
+            # Add search fields
             for i, field in enumerate(search_fields):
-                label = ttk.Label(search_dialog, text=field.replace('_', ' ').title())
+                label = ttk.Label(scrollable_frame, text=field)
                 label.grid(row=i, column=0, padx=5, pady=5, sticky='w')
 
-                entry = ttk.Entry(search_dialog, width=30)
+                entry = ttk.Entry(scrollable_frame, width=30)
                 entry.grid(row=i, column=1, padx=5, pady=5)
                 entry_widgets[self.field_mapping[field]] = entry
 
@@ -359,54 +59,61 @@ class SupplierView(ttk.Frame):
                 """
                 try:
                     # Build search conditions
-                    conditions = []
-                    params = []
+                    search_params = {}
                     for field, widget in entry_widgets.items():
                         value = widget.get().strip()
                         if value:
-                            conditions.append(f'{field} LIKE ?')
-                            params.append(f'%{value}%')
+                            search_params[field] = value
 
                     # Validate search
-                    if not conditions:
+                    if not search_params:
                         messagebox.showinfo('Search', 'Please enter at least one search term')
                         return
 
-                    # Connect to database
-                    self.db.connect()
-
-                    # Construct query
-                    query = "SELECT * FROM SUPPLIER"
-                    if conditions:
-                        query += ' WHERE ' + ' AND '.join(conditions)
-
-                    # Execute search
-                    results = self.db.execute_query(query, tuple(params))
+                    # Execute search through service
+                    suppliers = self.supplier_service.search_suppliers(search_params)
 
                     # Clear existing tree items
                     for item in self.tree.get_children():
                         self.tree.delete(item)
 
                     # Populate tree with results
-                    for row in results:
-                        self.tree.insert('', 'end', values=row)
+                    if suppliers:
+                        for supplier in suppliers:
+                            values = []
+                            for column in self.columns:
+                                db_field = self.field_mapping[column]
+                                values.append(getattr(supplier, db_field, ""))
+
+                            self.tree.insert('', 'end', values=values)
 
                     # Close search dialog
                     search_dialog.destroy()
 
                     # Show result message
-                    if not results:
+                    if not suppliers:
                         messagebox.showinfo('Search', 'No matching suppliers found')
 
                 except Exception as e:
                     error_msg = 'Search failed'
                     logger.error(f'{error_msg}: {str(e)}')
-                    ErrorHandler.show_error('Search Error', error_msg, e)
+                    messagebox.showerror('Search Error', error_msg)
+
+            # Button frame
+            button_frame = ttk.Frame(scrollable_frame)
+            button_frame.grid(row=len(search_fields), column=0, columnspan=2, pady=10)
+
+            ttk.Button(button_frame, text='Search', command=perform_search).pack(side=tk.LEFT, padx=5)
+            ttk.Button(button_frame, text='Cancel', command=search_dialog.destroy).pack(side=tk.LEFT, padx=5)
+
+            # Layout scrollable frame
+            canvas.pack(side='left', fill='both', expand=True)
+            scrollbar.pack(side='right', fill='y')
 
         except Exception as e:
             error_msg = 'Failed to create search dialog'
             logger.error(f'{error_msg}: {str(e)}')
-            ErrorHandler.show_error('Dialog Error', error_msg, e)
+            messagebox.showerror('Dialog Error', error_msg)
 
     def _show_filter_dialog(self) -> None:
         """
@@ -417,24 +124,16 @@ class SupplierView(ttk.Frame):
             filter_dialog.title('Filter Suppliers')
             filter_dialog.geometry('400x400')
 
-            # Predefined filter options
-            filter_options = {
-                'business_type': ['All', 'Manufacturer', 'Wholesaler', 'Distributor', 'Retailer'],
-                'payment_terms': ['All', 'Net 30', 'Net 60', 'Net 90', 'Prepaid'],
-                'country': ['All']
-            }
-
-            # Dynamically fetch countries from database
+            # Get filter options from service
             try:
-                self.db.connect()
-                query = "SELECT DISTINCT country FROM SUPPLIER WHERE country IS NOT NULL"
-                countries = self.db.execute_query(query)
-                if countries:
-                    filter_options['country'].extend([country[0] for country in countries])
-            except Exception as e:
-                logger.error(f'Failed to fetch countries: {e}')
-            finally:
-                self.db.disconnect()
+                filter_options = self.supplier_service.get_filter_options()
+            except Exception:
+                # Fallback filter options if service method isn't available
+                filter_options = {
+                    'business_type': ['All', 'Manufacturer', 'Wholesaler', 'Distributor', 'Retailer'],
+                    'payment_terms': ['All', 'Net 30', 'Net 60', 'Net 90', 'Prepaid'],
+                    'country': ['All', 'USA', 'Canada', 'UK', 'Germany', 'France', 'China', 'Japan']
+                }
 
             # Filter widgets
             filter_widgets = {}
@@ -466,71 +165,47 @@ class SupplierView(ttk.Frame):
                         if value and value != 'All':
                             criteria[field] = value
 
-                    # Construct query
-                    query = "SELECT * FROM SUPPLIER"
-                    params = []
-
-                    if criteria:
-                        conditions = []
-                        for field, value in criteria.items():
-                            conditions.append(f'{field} = ?')
-                            params.append(value)
-                        query += ' WHERE ' + ' AND '.join(conditions)
-
-                    # Connect to database
-                    self.db.connect()
-                    results = self.db.execute_query(query, tuple(params))
+                    # Use service to get filtered suppliers
+                    suppliers = self.supplier_service.filter_suppliers(criteria)
 
                     # Clear existing tree items
                     for item in self.tree.get_children():
                         self.tree.delete(item)
 
                     # Populate tree with filtered results
-                    for row in results:
-                        self.tree.insert('', 'end', values=row)
+                    if suppliers:
+                        for supplier in suppliers:
+                            values = []
+                            for column in self.columns:
+                                db_field = self.field_mapping[column]
+                                values.append(getattr(supplier, db_field, ""))
+
+                            self.tree.insert('', 'end', values=values)
 
                     # Close filter dialog
                     filter_dialog.destroy()
 
                     # Show result message
-                    if not results:
+                    if not suppliers:
                         messagebox.showinfo('Filter', 'No suppliers match the selected criteria')
 
                 except Exception as e:
                     error_msg = 'Filter operation failed'
                     logger.error(f'{error_msg}: {str(e)}')
-                    ErrorHandler.show_error('Filter Error', error_msg, e)
-                finally:
-                    self.db.disconnect()
-
-            def reset_filters():
-                """
-                Reset all filter selections to default.
-                """
-                try:
-                    # Reset all filter widgets to 'All'
-                    for widget in filter_widgets.values():
-                        widget.set('All')
-
-                    # Reload original data
-                    self._load_data()
-                except Exception as e:
-                    error_msg = 'Failed to reset filters'
-                    logger.error(f'{error_msg}: {str(e)}')
-                    ErrorHandler.show_error('Reset Error', error_msg, e)
+                    messagebox.showerror('Filter Error', error_msg)
 
             # Button frame
             button_frame = ttk.Frame(filter_dialog)
             button_frame.grid(row=row, column=0, columnspan=2, pady=10)
 
             ttk.Button(button_frame, text='Apply', command=apply_filters).pack(side=tk.LEFT, padx=5)
-            ttk.Button(button_frame, text='Reset', command=reset_filters).pack(side=tk.LEFT, padx=5)
+            ttk.Button(button_frame, text='Reset', command=self._reset_view).pack(side=tk.LEFT, padx=5)
             ttk.Button(button_frame, text='Cancel', command=filter_dialog.destroy).pack(side=tk.LEFT, padx=5)
 
         except Exception as e:
             error_msg = 'Failed to create filter dialog'
             logger.error(f'{error_msg}: {str(e)}')
-            ErrorHandler.show_error('Dialog Error', error_msg, e)
+            messagebox.showerror('Dialog Error', error_msg)
 
     def _on_double_click(self, event: tk.Event) -> None:
         """
@@ -558,7 +233,7 @@ class SupplierView(ttk.Frame):
         except Exception as e:
             error_msg = 'Failed to handle double-click'
             logger.error(f'{error_msg}: {str(e)}')
-            ErrorHandler.show_error('Edit Error', error_msg, e)
+            messagebox.showerror('Edit Error', error_msg)
 
     def _start_cell_edit(self, item: str, column: str) -> None:
         """
@@ -571,6 +246,10 @@ class SupplierView(ttk.Frame):
         try:
             # Get current value
             current_value = self.tree.set(item, column)
+
+            # Get supplier ID (assuming it's the first column value)
+            supplier_values = self.tree.item(item)['values']
+            company_name = supplier_values[0]  # Using company name as identifier
 
             # Create edit dialog
             edit_dialog = tk.Toplevel(self)
@@ -600,24 +279,17 @@ class SupplierView(ttk.Frame):
                         # Get database column name
                         db_column = self.field_mapping[column]
 
-                        # Connect to database
-                        self.db.connect()
+                        # Create update data
+                        update_data = {db_column: new_value}
 
-                        # Prepare update data
-                        data = {db_column: new_value}
-                        company_name = self.tree.item(item)['values'][0]
+                        # Use service to update supplier
+                        result = self.supplier_service.update_supplier(company_name, update_data)
 
-                        # Update record
-                        if self.db.update_record(
-                                'SUPPLIER',
-                                data,
-                                'company_name = ?',
-                                (company_name,)
-                        ):
+                        if result:
                             # Update treeview
                             self.tree.set(item, column, new_value)
 
-                            # Update undo/redo stacks
+                            # Store for undo
                             self.undo_stack.append(('edit', item, column, current_value, new_value))
                             self.redo_stack.clear()
 
@@ -627,9 +299,7 @@ class SupplierView(ttk.Frame):
                 except Exception as e:
                     error_msg = 'Failed to save edit'
                     logger.error(f'{error_msg}: {str(e)}')
-                    ErrorHandler.show_error('Edit Error', error_msg, e)
-                finally:
-                    self.db.disconnect()
+                    messagebox.showerror('Edit Error', error_msg)
 
             def cancel_edit(event=None):
                 """
@@ -651,7 +321,7 @@ class SupplierView(ttk.Frame):
         except Exception as e:
             error_msg = 'Failed to start cell edit'
             logger.error(f'{error_msg}: {str(e)}')
-            ErrorHandler.show_error('Edit Error', error_msg, e)
+            messagebox.showerror('Edit Error', error_msg)
 
     def _delete_selected(self, event: Optional[tk.Event] = None) -> None:
         """
@@ -682,91 +352,37 @@ class SupplierView(ttk.Frame):
             # Prepare for deletion tracking
             deleted_items = []
 
-            # Start database transaction
-            self.db.begin_transaction()
-
             try:
                 # Delete each selected supplier
                 for item in selected_items:
                     # Get supplier details
                     values = self.tree.item(item)['values']
+                    company_name = values[0]  # Using company name as identifier
 
-                    # Delete from database
-                    if self.db.delete_record(
-                            'SUPPLIER',
-                            'company_name = ?',
-                            (values[0],)
-                    ):
+                    # Delete from service
+                    if self.supplier_service.delete_supplier(company_name):
                         # Track deleted items for potential undo
                         deleted_items.append((item, values))
 
                         # Remove from treeview
                         self.tree.delete(item)
 
-                # Commit transaction
-                self.db.commit_transaction()
-
                 # Update undo/redo stacks
-                self.undo_stack.append(('delete', deleted_items))
-                self.redo_stack.clear()
+                if deleted_items:
+                    self.undo_stack.append(('delete', deleted_items))
+                    self.redo_stack.clear()
 
                 # Log success
                 logger.info(f'Successfully deleted {len(deleted_items)} suppliers')
                 messagebox.showinfo('Success', f'{len(deleted_items)} supplier(s) deleted')
 
             except Exception as inner_e:
-                # Rollback transaction on error
-                self.db.rollback_transaction()
                 raise inner_e
 
         except Exception as e:
             error_msg = 'Failed to delete suppliers'
             logger.error(f'{error_msg}: {str(e)}')
-            ErrorHandler.show_error('Delete Error', error_msg, e)
-
-    def _sort_column(self, column: str) -> None:
-        """
-        Sort the treeview by the specified column.
-
-        Args:
-            column (str): Column to sort
-        """
-        try:
-            logger.debug(f'Sorting by column: {column}')
-
-            # Get all items with their values for the specified column
-            items = [(self.tree.set(item, column), item) for item in self.tree.get_children('')]
-
-            # Sort items
-            items.sort(reverse=getattr(self, '_sort_reverse', False))
-
-            # Rearrange items in the treeview
-            for index, (_, item) in enumerate(items):
-                self.tree.move(item, '', index)
-
-            # Toggle sort direction
-            self._sort_reverse = not getattr(self, '_sort_reverse', False)
-
-            # Update column headings to show sort direction
-            for col in self.columns:
-                if col == column:
-                    # Add triangle indicator
-                    indicator = '▼' if self._sort_reverse else '▲'
-                    self.tree.heading(
-                        col,
-                        text=f"{col.replace('_', ' ').title()} {indicator}"
-                    )
-                else:
-                    # Reset other column headings
-                    self.tree.heading(
-                        col,
-                        text=col.replace('_', ' ').title()
-                    )
-
-        except Exception as e:
-            error_msg = f'Failed to sort column: {column}'
-            logger.error(f'{error_msg}: {str(e)}')
-            ErrorHandler.show_error('Sort Error', error_msg, e)
+            messagebox.showerror('Delete Error', error_msg)
 
     def _undo(self) -> None:
         """
@@ -781,77 +397,74 @@ class SupplierView(ttk.Frame):
             action = self.undo_stack.pop()
             action_type = action[0]
 
-            # Connect to database
-            self.db.connect()
+            if action_type == 'edit':
+                # Undo edit operation
+                _, item, column, old_value, new_value = action
 
-            try:
-                if action_type == 'edit':
-                    # Undo edit operation
-                    _, item, column, old_value, new_value = action
+                # Get database column name
+                db_column = self.field_mapping[column]
 
-                    # Get database column name
-                    db_column = self.field_mapping[column]
+                # Get company name
+                company_name = self.tree.item(item)['values'][0]
 
-                    # Update record with old value
-                    data = {db_column: old_value}
-                    if self.db.update_record(
-                            'SUPPLIER',
-                            data,
-                            'company_name = ?',
-                            (self.tree.item(item)['values'][0],)
-                    ):
-                        # Update treeview
-                        self.tree.set(item, column, old_value)
+                # Update via service
+                update_data = {db_column: old_value}
+                result = self.supplier_service.update_supplier(company_name, update_data)
 
-                        # Add to redo stack
-                        self.redo_stack.append(('edit', item, column, old_value, new_value))
-
-                elif action_type == 'delete':
-                    # Undo delete operation
-                    deleted_items = action[1]
-                    restored_items = []
-
-                    for _, values in deleted_items:
-                        # Prepare data for reinsertion
-                        data = dict(zip(self.columns, values))
-
-                        # Reinsert into database
-                        if self.db.insert_record('SUPPLIER', data):
-                            # Reinsert into treeview
-                            new_item = self.tree.insert('', 'end', values=values)
-                            restored_items.append((new_item, values))
+                if result:
+                    # Update treeview
+                    self.tree.set(item, column, old_value)
 
                     # Add to redo stack
+                    self.redo_stack.append(('edit', item, column, old_value, new_value))
+
+            elif action_type == 'delete':
+                # Undo delete operation
+                deleted_items = action[1]
+                restored_items = []
+
+                for item, values in deleted_items:
+                    # Prepare data for reinsertion
+                    data = {}
+                    for i, col in enumerate(self.columns):
+                        db_field = self.field_mapping[col]
+                        try:
+                            data[db_field] = values[i]
+                        except IndexError:
+                            data[db_field] = ""
+
+                    # Create supplier via service
+                    result = self.supplier_service.create_supplier(data)
+
+                    if result:
+                        # Reinsert into treeview
+                        new_item = self.tree.insert('', 'end', values=values)
+                        restored_items.append((new_item, values))
+
+                # Add to redo stack
+                if restored_items:
                     self.redo_stack.append(('undelete', restored_items))
 
-                elif action_type == 'add':
-                    # Undo add operation
-                    data = action[1]
-                    company_name = data['company_name']
+            elif action_type == 'add':
+                # Undo add operation
+                data = action[1]
+                company_name = data['company_name']
 
-                    # Delete from database
-                    if self.db.delete_record('SUPPLIER', 'company_name = ?', (company_name,)):
-                        # Remove from treeview
-                        for item in self.tree.get_children():
-                            if self.tree.item(item)['values'][0] == company_name:
-                                self.tree.delete(item)
-                                break
+                # Delete via service
+                if self.supplier_service.delete_supplier(company_name):
+                    # Remove from treeview
+                    for item in self.tree.get_children():
+                        if self.tree.item(item)['values'][0] == company_name:
+                            self.tree.delete(item)
+                            break
 
                     # Add to redo stack
                     self.redo_stack.append(('readd', data))
 
-            except Exception as inner_e:
-                # Rollback on error
-                self.db.rollback_transaction()
-                raise inner_e
-
         except Exception as e:
             error_msg = 'Failed to undo action'
             logger.error(f'{error_msg}: {str(e)}')
-            ErrorHandler.show_error('Undo Error', error_msg, e)
-        finally:
-            # Ensure database connection is closed
-            self.db.disconnect()
+            messagebox.showerror('Undo Error', error_msg)
 
     def _redo(self) -> None:
         """
@@ -866,152 +479,65 @@ class SupplierView(ttk.Frame):
             action = self.redo_stack.pop()
             action_type = action[0]
 
-            # Connect to database
-            self.db.connect()
+            if action_type == 'edit':
+                # Redo edit operation
+                _, item, column, old_value, new_value = action
 
-            try:
-                if action_type == 'edit':
-                    # Redo edit operation
-                    _, item, column, old_value, new_value = action
+                # Get database column name
+                db_column = self.field_mapping[column]
 
-                    # Get database column name
-                    db_column = self.field_mapping[column]
+                # Get company name
+                company_name = self.tree.item(item)['values'][0]
 
-                    # Update record with new value
-                    data = {db_column: new_value}
-                    if self.db.update_record(
-                            'SUPPLIER',
-                            data,
-                            'company_name = ?',
-                            (self.tree.item(item)['values'][0],)
-                    ):
-                        # Update treeview
-                        self.tree.set(item, column, new_value)
+                # Update via service
+                update_data = {db_column: new_value}
+                result = self.supplier_service.update_supplier(company_name, update_data)
 
-                        # Add to undo stack
-                        self.undo_stack.append(('edit', item, column, old_value, new_value))
-
-                elif action_type == 'undelete':
-                    # Redo undelete (which is actually a delete)
-                    restored_items = action[1]
-                    deleted_items = []
-
-                    for item, values in restored_items:
-                        # Delete from database
-                        if self.db.delete_record('SUPPLIER', 'company_name = ?', (values[0],)):
-                            # Remove from treeview
-                            self.tree.delete(item)
-                            deleted_items.append((item, values))
+                if result:
+                    # Update treeview
+                    self.tree.set(item, column, new_value)
 
                     # Add to undo stack
+                    self.undo_stack.append(('edit', item, column, old_value, new_value))
+
+            elif action_type == 'undelete':
+                # Redo undelete (which is actually a delete)
+                restored_items = action[1]
+                deleted_items = []
+
+                for item, values in restored_items:
+                    # Delete from service
+                    company_name = values[0]
+                    if self.supplier_service.delete_supplier(company_name):
+                        # Remove from treeview
+                        self.tree.delete(item)
+                        deleted_items.append((item, values))
+
+                # Add to undo stack
+                if deleted_items:
                     self.undo_stack.append(('delete', deleted_items))
 
-                elif action_type == 'readd':
-                    # Redo add operation
-                    data = action[1]
+            elif action_type == 'readd':
+                # Redo add operation
+                data = action[1]
 
-                    # Insert record into database
-                    if self.db.insert_record('SUPPLIER', data):
-                        # Insert into treeview
-                        values = [data.get(col, '') for col in self.columns]
-                        self.tree.insert('', 'end', values=values)
+                # Create via service
+                result = self.supplier_service.create_supplier(data)
 
-                        # Add to undo stack
-                        self.undo_stack.append(('add', data))
+                if result:
+                    # Insert into treeview
+                    values = []
+                    for column in self.columns:
+                        db_field = self.field_mapping[column]
+                        values.append(data.get(db_field, ""))
 
-            except Exception as inner_e:
-                # Rollback on error
-                self.db.rollback_transaction()
-                raise inner_e
+                    self.tree.insert('', 'end', values=values)
+
+                    # Add to undo stack
+                    self.undo_stack.append(('add', data))
 
         except Exception as e:
             error_msg = 'Failed to redo action'
             logger.error(f'{error_msg}: {str(e)}')
-            ErrorHandler.show_error('Redo Error', error_msg, e)
-        finally:
-            # Ensure database connection is closed
-            self.db.disconnect()
+            messagebox.showerror('Redo Error', error_msg)
 
-    def _save_table(self) -> None:
-        """
-        Save the current table data to a file.
-        Supports CSV and Excel formats.
-        """
-        try:
-            # Prompt for file save location
-            file_path = filedialog.asksaveasfilename(
-                defaultextension='.csv',
-                filetypes=[
-                    ('CSV files', '*.csv'),
-                    ('Excel files', '*.xlsx'),
-                    ('All files', '*.*')
-                ]
-            )
-
-            if not file_path:
-                return
-
-            # Prepare data
-            data = [self.columns]
-            for item in self.tree.get_children():
-                data.append(self.tree.item(item)['values'])
-
-            # Save based on file extension
-            if file_path.endswith('.csv'):
-                with open(file_path, 'w', newline='', encoding='utf-8') as f:
-                    writer = csv.writer(f)
-                    writer.writerows(data)
-            elif file_path.endswith('.xlsx'):
-                df = pd.DataFrame(data[1:], columns=data[0])
-                df.to_excel(file_path, index=False)
-
-            logger.info(f'Table saved to: {file_path}')
-            messagebox.showinfo('Success', 'Table saved successfully')
-
-        except Exception as e:
-            error_msg = 'Failed to save table'
-            logger.error(f'{error_msg}: {str(e)}')
-            ErrorHandler.show_error('Save Error', error_msg, e)
-
-    @classmethod
-    def create_view(cls, parent: tk.Tk) -> 'SupplierView':
-        """
-        Class method to create and return a SupplierView instance.
-
-        Args:
-            parent (tk.Tk): The parent tkinter window
-
-        Returns:
-            SupplierView: An instance of the SupplierView
-        """
-        return cls(parent)
-
-def main():
-    """
-    Main function to demonstrate SupplierView usage.
-    """
-    # Create main window
-    root = tk.Tk()
-    root.title("Supplier Management System")
-    root.geometry("1200x800")
-
-    # Create SupplierView
-    supplier_view = SupplierView.create_view(root)
-    supplier_view.pack(fill=tk.BOTH, expand=True)
-
-    # Start the application
-    root.mainloop()
-
-if __name__ == '__main__':
-    # Configure logging
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.FileHandler('supplier_view.log'),
-            logging.StreamHandler()
-        ]
-    )
-
-    # Run the main application
-    main()
