@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from functools import lru_cache
 
 import tkinter as tk
-import tkinter.messagebox
+import tkinter.messagebox as messagebox
 from tkinter import ttk, simpledialog, filedialog
 
 import matplotlib.pyplot as plt
@@ -30,31 +30,32 @@ class LeatherInventoryView(BaseView):
     """Advanced view for managing leather inventory with comprehensive features."""
 
     def __init__(self, parent: tk.Widget, app: Any):
-        """Initialize the Advanced Leather Inventory View.
-
-        Args:
-            parent (tk.Widget): Parent widget
-            app (Any): Application context providing access to services
-        """
         super().__init__(parent, app)
-        self.logger = logging.getLogger(__name__)
-        self.notification_manager = StatusNotification(self)
 
-        # Caching and performance tracking
-        self.material_service = self.get_service(IMaterialService)
-        self.current_sort = {"column": None, "reverse": False}
-        self.filter_criteria = {
-            "type": "All",
-            "min_price": None,
-            "max_price": None,
-            "min_quantity": None,
-            "max_quantity": None,
-            "grade": "All"
-        }
+        # Store the container reference from the app
+        if hasattr(app, 'container'):
+            self.container = app.container
+        else:
+            # If app doesn't have container, assume it is the container
+            self.container = app
 
-        # Setup UI
+        # Try to get the material service with proper error handling
+        try:
+            from services.interfaces.material_service import IMaterialService
+            self.material_service = self.get_service(IMaterialService)
+        except ValueError as e:
+            logging.error(f"Failed to retrieve MaterialService: {e}")
+            # Fallback to creating the service directly
+            try:
+                from services.implementations.material_service import MaterialService
+                self.material_service = MaterialService()
+                logging.info("Created MaterialService directly as fallback")
+            except Exception as e:
+                logging.error(f"Failed to create MaterialService directly: {e}")
+                self.material_service = None
+
+        # Continue with the rest of your initialization
         self._setup_ui()
-        self._load_data()
 
     def _setup_ui(self):
         """Set up the advanced UI components."""
@@ -735,4 +736,203 @@ class LeatherInventoryView(BaseView):
             # Enable/disable entry when checkbox is checked
             def create_toggle_callback(entry_widget, var):
                 def callback():
-                    entry
+                    entry_widget.config(state='normal' if var.get() else 'disabled')
+
+                return callback
+
+                var.trace_add('write', create_toggle_callback(entry, var))
+
+                field_frames[field] = {
+                    'var': var,
+                    'entry': entry
+                }
+
+                # Batch update confirmation
+
+            def perform_batch_update():
+                try:
+                    # Collect update parameters
+                    update_params = {}
+                    for field, info in field_frames.items():
+                        if info['var'].get():
+                            # Validate and parse input
+                            value = info['entry'].get().strip()
+                            if not value:
+                                raise ValueError(f"{field.capitalize()} cannot be empty")
+
+                            # Convert to appropriate type
+                            if field == 'price':
+                                update_params[field] = float(value)
+                            elif field == 'quantity':
+                                update_params[field] = int(value)
+                            else:
+                                update_params[field] = value
+
+                    # Confirm batch update
+                    confirm = messagebox.askyesno(
+                        "Confirm Batch Update",
+                        f"Update {len(selected_items)} materials with:\n" +
+                        "\n".join(f"{k}: {v}" for k, v in update_params.items())
+                    )
+
+                    if not confirm:
+                        return
+
+                    # Perform batch update
+                    updated_count = 0
+                    failed_materials = []
+                    for item in selected_items:
+                        material_id = int(self.tree.item(item, "values")[0])
+                        try:
+                            self.material_service.update(material_id, update_params)
+                            updated_count += 1
+                        except Exception as e:
+                            self.logger.warning(f"Failed to update material {material_id}: {str(e)}")
+                            failed_materials.append(material_id)
+
+                    # Refresh view
+                    self._load_data()
+
+                    # Show results
+                    if failed_materials:
+                        self.notification_manager.show_warning(
+                            f"Successfully updated {updated_count} materials. "
+                            f"Failed to update {len(failed_materials)} materials (IDs: {failed_materials})"
+                        )
+                    else:
+                        self.notification_manager.show_success(
+                            f"Successfully updated {updated_count} materials"
+                        )
+
+                    self.logger.info(f"Batch updated {updated_count} materials")
+
+                    # Close dialog
+                    batch_dialog.destroy()
+
+                except ValueError as ve:
+                    self.show_error("Validation Error", str(ve))
+                except Exception as e:
+                    self.show_error("Batch Update Error", f"Failed to perform batch update: {str(e)}")
+
+                # Batch update and cancel buttons
+
+            button_frame = ttk.Frame(batch_dialog)
+            button_frame.pack(pady=20)
+
+            ttk.Button(button_frame, text="Update", command=perform_batch_update).pack(side=tk.LEFT, padx=5)
+            ttk.Button(button_frame, text="Cancel", command=batch_dialog.destroy).pack(side=tk.LEFT, padx=5)
+
+    def batch_delete_materials(self):
+        """Implement batch delete for selected materials."""
+        # Get selected materials
+        selected_items = self.tree.selection()
+
+        if not selected_items:
+            self.show_info("No Selection", "Please select materials to delete.")
+            return
+
+        # Confirm batch deletion
+        confirm = messagebox.askyesno(
+            "Confirm Batch Delete",
+            f"Are you sure you want to delete {len(selected_items)} materials?"
+        )
+
+        if not confirm:
+            return
+
+        try:
+            # Perform batch delete
+            deleted_count = 0
+            failed_materials = []
+
+            for item in selected_items:
+                material_id = int(self.tree.item(item, "values")[0])
+                material_name = self.tree.item(item, "values")[1]
+                try:
+                    success = self.material_service.delete(material_id)
+                    if success:
+                        deleted_count += 1
+                    else:
+                        failed_materials.append({
+                            'id': material_id,
+                            'name': material_name
+                        })
+                except Exception as e:
+                    self.logger.warning(f"Failed to delete material {material_id}: {str(e)}")
+                    failed_materials.append({
+                        'id': material_id,
+                        'name': material_name
+                    })
+
+            # Refresh view
+            self._load_data()
+
+            # Show results
+            if failed_materials:
+                failed_details = "\n".join([f"ID: {m['id']}, Name: {m['name']}" for m in failed_materials])
+                self.notification_manager.show_warning(
+                    f"Deleted {deleted_count} materials. "
+                    f"Failed to delete {len(failed_materials)} materials:\n{failed_details}"
+                )
+            else:
+                self.notification_manager.show_success(
+                    f"Successfully deleted {deleted_count} materials"
+                )
+
+            self.logger.info(f"Batch deleted {deleted_count} materials")
+
+        except Exception as e:
+            self.show_error("Batch Delete Error", f"Failed to perform batch delete: {str(e)}")
+
+    def cleanup(self):
+        """Cleanup method to clear caches and reset tracking."""
+        # Clear LRU cache
+        self.cached_get_materials.cache_clear()
+
+        # Reset performance tracker
+        PERFORMANCE_TRACKER.reset_metrics()
+
+        # Close any open matplotlib figures
+        plt.close('all')
+
+        self.logger.info("Leather Inventory View cleanup completed")
+
+# Optional: instantiation and running code for standalone testing
+def main():
+    """Standalone testing of the Leather Inventory View."""
+    root = tk.Tk()
+    root.title("Leather Inventory")
+    root.geometry("1200x800")
+
+    # Set up dependency injection container
+    try:
+        from di.container import DependencyContainer
+        from di.setup import setup_dependency_injection
+        container = setup_dependency_injection()
+    except ImportError:
+        # Create a simple mock container
+        class MockContainer:
+            def get(self, service_type):
+                if hasattr(service_type, '__name__') and service_type.__name__ == 'IMaterialService':
+                    from services.implementations.material_service import MaterialService
+                    return MaterialService()
+                return None
+
+        container = MockContainer()
+
+    inventory_view = LeatherInventoryView(root, container)
+    inventory_view.pack(fill=tk.BOTH, expand=True)
+
+    # Handle window close
+    def on_close():
+        try:
+            inventory_view.cleanup()
+        except:
+            pass
+        root.destroy()
+
+    root.protocol("WM_DELETE_WINDOW", on_close)
+    root.mainloop()
+
+if __name__ == "__main__":
+    main()

@@ -1,33 +1,29 @@
-# relative path: store_management/database/repositories/hardware_repository.py
+# database/repositories/hardware_repository.py
 """
-Repository for managing hardware with advanced querying capabilities.
-
-Provides comprehensive methods for hardware item management,
-including creation, retrieval, updating, and reporting.
+Repository for hardware data access.
+Provides database operations for hardware items.
 """
 
-from typing import List, Optional, Dict, Any
-from sqlalchemy import select, and_
-from sqlalchemy.exc import SQLAlchemyError
 import logging
+from typing import Any, Dict, List, Optional, Union, Tuple
+from sqlalchemy import and_, or_, func, select
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session, joinedload
 
-from di.core import inject
-from services.interfaces.material_service import IMaterialService
-from database.models.hardware import Hardware, HardwareType, HardwareMaterial, HardwareFinish
-from database.repositories.base_repository import BaseRepository
-from typing import Optional, Dict, Any, Callable
 from database.models.hardware import Hardware
-from database.models.material import Material
+from database.models.hardware_enums import HardwareType, HardwareMaterial, HardwareFinish
+from database.models.enums import InventoryStatus
+from database.repositories.base_repository import BaseRepository
+from services.interfaces.material_service import IMaterialService
+
 
 class HardwareRepository(BaseRepository[Hardware]):
     """
-    Repository for managing hardware items with advanced querying capabilities.
-
-    Provides methods to interact with hardware, including
-    CRUD operations, filtering, and performance reporting.
+    Repository for hardware data access operations.
+    Extends BaseRepository with hardware-specific functionality.
     """
 
-    def __init__(self, session, material_service: Optional[IMaterialService] = None):
+    def __init__(self, session: Session, material_service: Optional[IMaterialService] = None):
         """
         Initialize the HardwareRepository with a database session.
 
@@ -36,321 +32,414 @@ class HardwareRepository(BaseRepository[Hardware]):
             material_service (Optional[IMaterialService], optional): Material service for additional operations
         """
         super().__init__(session, Hardware)
-        self.logger = logging.getLogger(self.__class__.__module__)
-        self._material_service = material_service
+        self.logger = logging.getLogger(__name__)
+        self.material_service = material_service
 
-    def create(self, data: Dict[str, Any]) -> Hardware:
+    def get_all(self, include_inactive: bool = False, include_deleted: bool = False) -> List[Hardware]:
         """
-        Create a new hardware item with comprehensive validation.
+        Get all hardware items with filtering options.
 
         Args:
-            data (Dict[str, Any]): Hardware creation data
+            include_inactive (bool): Whether to include inactive hardware
+            include_deleted (bool): Whether to include soft-deleted hardware
 
         Returns:
-            Hardware: Created hardware instance
-
-        Raises:
-            ValueError: If hardware data validation fails
+            List[Hardware]: List of hardware items
         """
         try:
-            # Convert enum string values if provided
-            if isinstance(data.get('hardware_type'), str):
-                try:
-                    data['hardware_type'] = HardwareType[data['hardware_type']]
-                except KeyError:
-                    raise ValueError(f"Invalid hardware type: {data['hardware_type']}")
-
-            if isinstance(data.get('material'), str):
-                try:
-                    data['material'] = HardwareMaterial[data['material']]
-                except KeyError:
-                    raise ValueError(f"Invalid material: {data['material']}")
-
-            if 'finish' in data and isinstance(data.get('finish'), str):
-                try:
-                    data['finish'] = HardwareFinish[data['finish']]
-                except KeyError:
-                    raise ValueError(f"Invalid finish: {data['finish']}")
-
-            # Create hardware instance
-            hardware = Hardware(**data)
-
-            # Add to session and commit
-            self.session.add(hardware)
-            self.session.commit()
-
-            self.logger.info(f'Created hardware item: {hardware.name}')
-            return hardware
-        except (ValueError, KeyError) as e:
-            self.logger.error(f'Error creating hardware: Invalid enum value - {e}')
-            raise ValueError(f'Invalid enum value: {e}')
-        except SQLAlchemyError as e:
-            self.session.rollback()
-            self.logger.error(f'Database error creating hardware: {e}')
-            raise
-
-    def get_by_id(self, id_value: int) -> Optional[Hardware]:
-        """
-        Retrieve a hardware item by its ID.
-
-        Args:
-            id_value (int): Hardware identifier
-
-        Returns:
-            Optional[Hardware]: Retrieved hardware or None
-        """
-        try:
-            query = select(Hardware).where(Hardware.id == id_value)
-            result = self.session.execute(query).scalar_one_or_none()
-            return result
-        except SQLAlchemyError as e:
-            self.logger.error(f'Error retrieving hardware with ID {id_value}: {e}')
-            raise
-
-    def search(
-            self,
-            hardware_type: Optional[HardwareType] = None,
-            material: Optional[HardwareMaterial] = None,
-            finish: Optional[HardwareFinish] = None,
-            min_stock: Optional[int] = None,
-            max_stock: Optional[int] = None,
-            min_load_capacity: Optional[float] = None,
-            max_load_capacity: Optional[float] = None
-    ) -> List[Hardware]:
-        """
-        Advanced search for hardware with multiple filtering options.
-
-        Args:
-            hardware_type (Optional[HardwareType]): Filter by hardware type
-            material (Optional[HardwareMaterial]): Filter by material
-            finish (Optional[HardwareFinish]): Filter by finish
-            min_stock (Optional[int]): Minimum current stock
-            max_stock (Optional[int]): Maximum current stock
-            min_load_capacity (Optional[float]): Minimum load capacity
-            max_load_capacity (Optional[float]): Maximum load capacity
-
-        Returns:
-            List[Hardware]: Matching hardware items
-        """
-        try:
-            # Start with base query
             query = select(Hardware)
 
-            # Prepare filter conditions
-            filter_conditions = []
+            # Apply filters
+            filters = []
+            if not include_inactive:
+                filters.append(Hardware.is_active == True)
+            if not include_deleted:
+                filters.append(Hardware.is_deleted == False)
 
-            if hardware_type:
-                filter_conditions.append(Hardware.hardware_type == hardware_type)
-
-            if material:
-                filter_conditions.append(Hardware.material == material)
-
-            if finish:
-                filter_conditions.append(Hardware.finish == finish)
-
-            if min_stock is not None:
-                filter_conditions.append(Hardware.quantity >= min_stock)
-
-            if max_stock is not None:
-                filter_conditions.append(Hardware.quantity <= max_stock)
-
-            if min_load_capacity is not None and hasattr(Hardware, 'load_capacity'):
-                filter_conditions.append(Hardware.load_capacity >= min_load_capacity)
-
-            if max_load_capacity is not None and hasattr(Hardware, 'load_capacity'):
-                filter_conditions.append(Hardware.load_capacity <= max_load_capacity)
-
-            # Apply filters if any
-            if filter_conditions:
-                query = query.where(and_(*filter_conditions))
+            if filters:
+                query = query.where(and_(*filters))
 
             # Execute query
-            results = self.session.execute(query).scalars().all()
-            return list(results)
+            result = self.session.execute(query)
+            return list(result.scalars().all())
         except SQLAlchemyError as e:
-            self.logger.error(f'Error searching hardware: {e}')
+            self.logger.error(f"Error retrieving hardware items: {str(e)}")
             raise
 
-    def update(self, id_value: int, data: Dict[str, Any]) -> Optional[Hardware]:
+    def get_by_id(self, hardware_id: str, include_deleted: bool = False) -> Optional[Hardware]:
+        """
+        Get a hardware item by its ID.
+
+        Args:
+            hardware_id (str): ID of the hardware to retrieve
+            include_deleted (bool): Whether to include soft-deleted hardware
+
+        Returns:
+            Optional[Hardware]: Hardware item if found, None otherwise
+        """
+        try:
+            query = select(Hardware).where(Hardware.id == hardware_id)
+
+            if not include_deleted:
+                query = query.where(Hardware.is_deleted == False)
+
+            # Execute query
+            result = self.session.execute(query)
+            return result.scalars().first()
+        except SQLAlchemyError as e:
+            self.logger.error(f"Error retrieving hardware with ID {hardware_id}: {str(e)}")
+            raise
+
+    def create(self, hardware: Hardware) -> Hardware:
+        """
+        Create a new hardware item.
+
+        Args:
+            hardware (Hardware): Hardware item to create
+
+        Returns:
+            Hardware: Created hardware item
+        """
+        try:
+            self.session.add(hardware)
+            self.session.commit()
+            self.session.refresh(hardware)
+            return hardware
+        except SQLAlchemyError as e:
+            self.session.rollback()
+            self.logger.error(f"Error creating hardware: {str(e)}")
+            raise
+
+    def update(self, hardware_id: str, hardware_data: Dict[str, Any]) -> Hardware:
         """
         Update an existing hardware item.
 
         Args:
-            id_value (int): Hardware identifier
-            data (Dict[str, Any]): Data to update
+            hardware_id (str): ID of the hardware to update
+            hardware_data (Dict[str, Any]): Updated hardware data
 
         Returns:
-            Optional[Hardware]: Updated hardware or None
+            Hardware: Updated hardware item
+
+        Raises:
+            SQLAlchemyError: If update fails
         """
         try:
-            # Retrieve existing hardware
-            hardware = self.get_by_id(id_value)
-
+            # Get existing hardware
+            hardware = self.get_by_id(hardware_id)
             if not hardware:
-                self.logger.warning(f'Hardware with ID {id_value} not found')
-                return None
-
-            # Convert enum string values if provided
-            if 'hardware_type' in data and isinstance(data.get('hardware_type'), str):
-                try:
-                    data['hardware_type'] = HardwareType[data['hardware_type']]
-                except KeyError:
-                    raise ValueError(f"Invalid hardware type: {data['hardware_type']}")
-
-            if 'material' in data and isinstance(data.get('material'), str):
-                try:
-                    data['material'] = HardwareMaterial[data['material']]
-                except KeyError:
-                    raise ValueError(f"Invalid material: {data['material']}")
-
-            if 'finish' in data:
-                if isinstance(data.get('finish'), str):
-                    try:
-                        data['finish'] = HardwareFinish[data['finish']]
-                    except KeyError:
-                        raise ValueError(f"Invalid finish: {data['finish']}")
-                elif data['finish'] is None:
-                    # Allow setting finish to None
-                    pass
+                raise ValueError(f"Hardware with ID {hardware_id} not found")
 
             # Update hardware attributes
-            for key, value in data.items():
-                setattr(hardware, key, value)
+            for key, value in hardware_data.items():
+                if hasattr(hardware, key):
+                    setattr(hardware, key, value)
 
-            # Commit changes
+            # Save changes
             self.session.commit()
-
-            self.logger.info(f'Updated hardware item: {hardware.name}')
+            self.session.refresh(hardware)
             return hardware
-        except (ValueError, KeyError) as e:
-            self.logger.error(f'Error updating hardware: Invalid enum value - {e}')
-            raise ValueError(f'Invalid enum value: {e}')
         except SQLAlchemyError as e:
             self.session.rollback()
-            self.logger.error(f'Database error updating hardware: {e}')
+            self.logger.error(f"Error updating hardware with ID {hardware_id}: {str(e)}")
             raise
 
-    def delete(self, id_value: int) -> bool:
+    def delete(self, hardware_id: str) -> bool:
         """
-        Delete a hardware item.
+        Permanently delete a hardware item.
 
         Args:
-            id_value (int): Hardware identifier
+            hardware_id (str): ID of the hardware to delete
 
         Returns:
-            bool: Success of deletion
+            bool: True if successful, False otherwise
+
+        Raises:
+            SQLAlchemyError: If deletion fails
         """
         try:
-            # Retrieve hardware
-            hardware = self.get_by_id(id_value)
-
+            # Get existing hardware
+            hardware = self.get_by_id(hardware_id, include_deleted=True)
             if not hardware:
-                self.logger.warning(f'Hardware with ID {id_value} not found')
                 return False
 
             # Delete hardware
             self.session.delete(hardware)
             self.session.commit()
-
-            self.logger.info(f'Deleted hardware item with ID {id_value}')
             return True
         except SQLAlchemyError as e:
             self.session.rollback()
-            self.logger.error(f'Error deleting hardware: {e}')
+            self.logger.error(f"Error deleting hardware with ID {hardware_id}: {str(e)}")
             raise
 
-    def get_low_stock_hardware(self, threshold: int = 5) -> List[Hardware]:
+    def search(self, search_terms: Dict[str, Any]) -> List[Hardware]:
         """
-        Retrieve hardware items with low stock.
+        Search for hardware items based on multiple criteria.
 
         Args:
-            threshold (int): Threshold for low stock
+            search_terms (Dict[str, Any]): Search criteria
 
         Returns:
-            List[Hardware]: Hardware items below threshold
+            List[Hardware]: List of matching hardware items
         """
         try:
-            query = select(Hardware).where(Hardware.quantity <= threshold)
-            results = self.session.execute(query).scalars().all()
-            return list(results)
+            query = select(Hardware)
+            filters = []
+
+            # Process search terms
+            for key, value in search_terms.items():
+                if value is None:
+                    continue
+
+                # Handle different search fields
+                if key == 'name' and value:
+                    filters.append(Hardware.name.ilike(f"%{value}%"))
+                elif key == 'description' and value:
+                    filters.append(Hardware.description.ilike(f"%{value}%"))
+                elif key == 'hardware_type' and value:
+                    filters.append(Hardware.hardware_type == value)
+                elif key == 'material' and value:
+                    filters.append(Hardware.material == value)
+                elif key == 'finish' and value:
+                    filters.append(Hardware.finish == value)
+                elif key == 'supplier_id' and value:
+                    filters.append(Hardware.supplier_id == value)
+                elif key == 'min_price' and value is not None:
+                    filters.append(Hardware.price >= float(value))
+                elif key == 'max_price' and value is not None:
+                    filters.append(Hardware.price <= float(value))
+                elif key == 'min_quantity' and value is not None:
+                    filters.append(Hardware.quantity >= int(value))
+                elif key == 'max_quantity' and value is not None:
+                    filters.append(Hardware.quantity <= int(value))
+                elif key == 'is_active' and value is not None:
+                    filters.append(Hardware.is_active == bool(value))
+                elif key == 'status' and value:
+                    filters.append(Hardware.status == value)
+                elif key == 'include_deleted' and not value:
+                    filters.append(Hardware.is_deleted == False)
+
+            # Apply filters
+            if filters:
+                query = query.where(and_(*filters))
+
+            # Execute query
+            result = self.session.execute(query)
+            return list(result.scalars().all())
         except SQLAlchemyError as e:
-            self.logger.error(f'Error retrieving low stock hardware: {e}')
+            self.logger.error(f"Error searching hardware: {str(e)}")
             raise
 
-    def get_hardware_by_supplier(self, supplier_id: int) -> List[Hardware]:
+    def get_by_type(self, hardware_type: HardwareType) -> List[Hardware]:
         """
-        Retrieve hardware items from a specific supplier.
+        Get hardware items of a specific type.
 
         Args:
-            supplier_id (int): Supplier identifier
+            hardware_type (HardwareType): Type of hardware to retrieve
 
         Returns:
-            List[Hardware]: Hardware items from the specified supplier
+            List[Hardware]: List of hardware items
         """
         try:
-            query = select(Hardware).where(Hardware.supplier_id == supplier_id)
-            results = self.session.execute(query).scalars().all()
-            return list(results)
+            query = select(Hardware).where(
+                and_(
+                    Hardware.hardware_type == hardware_type,
+                    Hardware.is_deleted == False
+                )
+            )
+            result = self.session.execute(query)
+            return list(result.scalars().all())
         except SQLAlchemyError as e:
-            self.logger.error(f'Error retrieving hardware for supplier {supplier_id}: {e}')
+            self.logger.error(f"Error getting hardware by type {hardware_type.name}: {str(e)}")
             raise
 
-    def filter_by_finish(self, finish: HardwareFinish) -> List[Hardware]:
+    def get_by_material(self, material: HardwareMaterial) -> List[Hardware]:
         """
-        Filter hardware items by finish type.
+        Get hardware items made of a specific material.
 
         Args:
-            finish (HardwareFinish): The finish type to filter by
+            material (HardwareMaterial): Material to filter by
 
         Returns:
-            List[Hardware]: Hardware items with the specified finish
+            List[Hardware]: List of hardware items
         """
         try:
-            query = select(Hardware).where(Hardware.finish == finish)
-            results = self.session.execute(query).scalars().all()
-            return list(results)
+            query = select(Hardware).where(
+                and_(
+                    Hardware.material == material,
+                    Hardware.is_deleted == False
+                )
+            )
+            result = self.session.execute(query)
+            return list(result.scalars().all())
         except SQLAlchemyError as e:
-            self.logger.error(f'Error filtering hardware by finish: {e}')
+            self.logger.error(f"Error getting hardware by material {material.name}: {str(e)}")
             raise
 
-    def get_compatible_materials(
-            self,
-            hardware_id: int,
-            compatibility_strategy: Optional[Callable[[Dict[str, Any], Hardware], bool]] = None
-    ) -> List[Dict[str, Any]]:
+    def get_low_stock(self) -> List[Hardware]:
         """
-        Get materials compatible with the hardware item using a strategy pattern.
-
-        Args:
-            hardware_id: ID of the hardware item
-            compatibility_strategy: Optional function to determine material compatibility
+        Get hardware items with quantity below reorder threshold.
 
         Returns:
-            List[Dict[str, Any]]: List of compatible materials
+            List[Hardware]: List of low stock hardware items
         """
-        hardware = self.get_by_id(hardware_id)
-        if not hardware:
-            return []
-
-        # Default compatibility strategy if none provided
-        def default_compatibility(material: Dict[str, Any], hardware: Hardware) -> bool:
-            # Implement basic compatibility logic without service dependency
-            # For example, based on material type, load capacity, etc.
-            return True
-
-        compatibility_check = compatibility_strategy or default_compatibility
-
         try:
-            # Retrieve materials through direct database query
-            materials_query = select(Material)
-            materials = self.session.execute(materials_query).scalars().all()
+            query = select(Hardware).where(
+                and_(
+                    Hardware.quantity <= Hardware.reorder_threshold,
+                    Hardware.is_active == True,
+                    Hardware.is_deleted == False
+                )
+            )
+            result = self.session.execute(query)
+            return list(result.scalars().all())
+        except SQLAlchemyError as e:
+            self.logger.error(f"Error getting low stock hardware: {str(e)}")
+            raise
 
-            compatible_materials = [
-                material.to_dict() for material in materials
-                if compatibility_check(material.to_dict(), hardware)
-            ]
+    def get_by_supplier(self, supplier_id: str) -> List[Hardware]:
+        """
+        Get hardware items from a specific supplier.
 
-            return compatible_materials
-        except Exception as e:
-            self.logger.error(f"Error getting compatible materials: {str(e)}")
-            return []
+        Args:
+            supplier_id (str): ID of the supplier
+
+        Returns:
+            List[Hardware]: List of hardware items
+        """
+        try:
+            query = select(Hardware).where(
+                and_(
+                    Hardware.supplier_id == supplier_id,
+                    Hardware.is_deleted == False
+                )
+            )
+            result = self.session.execute(query)
+            return list(result.scalars().all())
+        except SQLAlchemyError as e:
+            self.logger.error(f"Error getting hardware by supplier ID {supplier_id}: {str(e)}")
+            raise
+
+    def get_by_status(self, status: InventoryStatus) -> List[Hardware]:
+        """
+        Get hardware items with a specific inventory status.
+
+        Args:
+            status (InventoryStatus): Inventory status to filter by
+
+        Returns:
+            List[Hardware]: List of hardware items
+        """
+        try:
+            query = select(Hardware).where(
+                and_(
+                    Hardware.status == status,
+                    Hardware.is_deleted == False
+                )
+            )
+            result = self.session.execute(query)
+            return list(result.scalars().all())
+        except SQLAlchemyError as e:
+            self.logger.error(f"Error getting hardware by status {status.name}: {str(e)}")
+            raise
+
+    def get_stats(self) -> Dict[str, Any]:
+        """
+        Get statistics about hardware inventory.
+
+        Returns:
+            Dict[str, Any]: Dictionary with hardware inventory statistics
+        """
+        try:
+            stats = {
+                'total_count': 0,
+                'active_count': 0,
+                'total_value': 0.0,
+                'low_stock_count': 0,
+                'out_of_stock_count': 0,
+                'by_type': {},
+                'by_material': {}
+            }
+
+            # Get total and active counts
+            query_count = select(
+                func.count(Hardware.id).label('total'),
+                func.count(Hardware.id).filter(Hardware.is_active == True).label('active')
+            ).where(Hardware.is_deleted == False)
+
+            result_count = self.session.execute(query_count).first()
+            if result_count:
+                stats['total_count'] = result_count.total
+                stats['active_count'] = result_count.active
+
+            # Get total value
+            query_value = select(
+                func.sum(Hardware.price * Hardware.quantity).label('total_value')
+            ).where(
+                and_(
+                    Hardware.is_deleted == False,
+                    Hardware.is_active == True
+                )
+            )
+
+            result_value = self.session.execute(query_value).first()
+            if result_value and result_value.total_value:
+                stats['total_value'] = float(result_value.total_value)
+
+            # Get low stock and out of stock counts
+            query_stock = select(
+                func.count(Hardware.id).filter(
+                    and_(
+                        Hardware.quantity <= Hardware.reorder_threshold,
+                        Hardware.quantity > 0
+                    )
+                ).label('low_stock'),
+                func.count(Hardware.id).filter(Hardware.quantity == 0).label('out_of_stock')
+            ).where(
+                and_(
+                    Hardware.is_deleted == False,
+                    Hardware.is_active == True
+                )
+            )
+
+            result_stock = self.session.execute(query_stock).first()
+            if result_stock:
+                stats['low_stock_count'] = result_stock.low_stock
+                stats['out_of_stock_count'] = result_stock.out_of_stock
+
+            # Get counts by type
+            query_by_type = select(
+                Hardware.hardware_type,
+                func.count(Hardware.id).label('count')
+            ).where(
+                and_(
+                    Hardware.is_deleted == False,
+                    Hardware.is_active == True
+                )
+            ).group_by(Hardware.hardware_type)
+
+            result_by_type = self.session.execute(query_by_type)
+            for row in result_by_type:
+                if row.hardware_type:
+                    stats['by_type'][row.hardware_type.name] = row.count
+
+            # Get counts by material
+            query_by_material = select(
+                Hardware.material,
+                func.count(Hardware.id).label('count')
+            ).where(
+                and_(
+                    Hardware.is_deleted == False,
+                    Hardware.is_active == True
+                )
+            ).group_by(Hardware.material)
+
+            result_by_material = self.session.execute(query_by_material)
+            for row in result_by_material:
+                if row.material:
+                    stats['by_material'][row.material.name] = row.count
+
+            return stats
+        except SQLAlchemyError as e:
+            self.logger.error(f"Error getting hardware stats: {str(e)}")
+            raise

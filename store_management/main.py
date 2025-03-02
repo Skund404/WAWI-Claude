@@ -30,7 +30,7 @@ from di.setup import setup_dependency_injection
 
 # GUI imports
 from gui.main_window import MainWindow
-from fallback_mainwindow import create_fallback_window
+
 
 
 def setup_application_context() -> tk.Tk:
@@ -86,9 +86,7 @@ def main():
         except Exception as main_window_error:
             logging.error(f"Failed to create main window: {main_window_error}")
 
-            # Fallback to minimal window
-            fallback_window = create_fallback_window(root, DependencyContainer())
-            fallback_window.mainloop()
+
 
     except Exception as startup_error:
         # Last resort error handling

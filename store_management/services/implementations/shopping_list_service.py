@@ -1,570 +1,375 @@
 # services/implementations/shopping_list_service.py
-"""Implementation of the Shopping List Service interface."""
+from database.models.shopping_list import ShoppingList, ShoppingListItem
+from database.models.enums import ShoppingListStatus, Priority
+from database.repositories.shopping_list_repository import ShoppingListRepository
+from database.sqlalchemy.session import get_db_session
+from services.base_service import BaseService, NotFoundError, ValidationError
+from services.interfaces.shopping_list_service import IShoppingListService
 
+from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError
+from typing import List, Dict, Any, Optional
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional
-
-from services.base_service import BaseService, NotFoundError, ValidationError
-from services.interfaces.shopping_list_service import IShoppingListService, ShoppingListStatus
 
 
 class ShoppingListService(BaseService, IShoppingListService):
-    """Concrete implementation of the Shopping List Service interface.
+    """
+    Service implementation for managing Shopping List entities.
 
-    Provides operations for managing shopping lists in the leatherworking application.
+    Responsibilities:
+    - Create, read, update, and delete shopping list records
+    - Validate shopping list data
+    - Handle database interactions
+    - Provide business logic for shopping list management
     """
 
-    def __init__(self):
-        """Initialize the Shopping List Service."""
-        super().__init__()
-        self.logger = logging.getLogger(__name__)
-        self._shopping_lists = {}
-        self._shopping_list_items = {}
-        self._next_list_id = 1
-        self._next_item_id = 1
-
-        self.logger.info("ShoppingListService initialized")
-
-    def get_all_shopping_lists(self) -> List[Dict[str, Any]]:
-        """Get all shopping lists.
-
-        Returns:
-            List[Dict[str, Any]]: List of all shopping list data dictionaries
+    def __init__(self,
+                 session: Optional[Session] = None,
+                 shopping_list_repository: Optional[ShoppingListRepository] = None):
         """
-        self.logger.info("Retrieving all shopping lists")
-        return list(self._shopping_lists.values())
-
-    def get_shopping_list_by_id(self, shopping_list_id: int) -> Dict[str, Any]:
-        """Get a shopping list by its ID.
+        Initialize the Shopping List Service.
 
         Args:
-            shopping_list_id (int): The shopping list ID to retrieve
-
-        Returns:
-            Dict[str, Any]: Shopping list data dictionary
-
-        Raises:
-            NotFoundError: If the shopping list doesn't exist
+            session (Optional[Session]): SQLAlchemy database session
+            shopping_list_repository (Optional[ShoppingListRepository]): Shopping list data access repository
         """
-        self.logger.info(f"Retrieving shopping list with ID {shopping_list_id}")
+        self.session = session or get_db_session()
+        self.repository = shopping_list_repository or ShoppingListRepository(self.session)
+        self.logger = logging.getLogger(self.__class__.__name__)
 
-        if shopping_list_id not in self._shopping_lists:
-            self.logger.warning(f"Shopping list with ID {shopping_list_id} not found")
-            raise NotFoundError(f"Shopping list with ID {shopping_list_id} not found")
-
-        return self._shopping_lists[shopping_list_id]
-
-    def create_shopping_list(self, shopping_list_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Create a new shopping list.
+    def list_shopping_lists(self,
+                            status: Optional[ShoppingListStatus] = None,
+                            priority: Optional[Priority] = None,
+                            is_completed: Optional[bool] = None) -> List[ShoppingList]:
+        """
+        List shopping lists with optional filtering.
 
         Args:
-            shopping_list_data (Dict[str, Any]): Shopping list data to create
+            status (Optional[ShoppingListStatus]): Filter by shopping list status
+            priority (Optional[Priority]): Filter by priority
+            is_completed (Optional[bool]): Filter by completion status
 
         Returns:
-            Dict[str, Any]: Created shopping list data
-
-        Raises:
-            ValidationError: If the shopping list data is invalid
-        """
-        self.logger.info("Creating new shopping list")
-
-        # Validate required fields
-        if 'name' not in shopping_list_data:
-            self.logger.warning("Missing required field: name")
-            raise ValidationError("Shopping list name is required")
-
-        # Set default values
-        shopping_list_id = self._next_list_id
-        self._next_list_id += 1
-
-        # Create shopping list
-        shopping_list = {
-            'id': shopping_list_id,
-            'created_at': datetime.now(),
-            'updated_at': datetime.now(),
-            'status': ShoppingListStatus.DRAFT.name,
-            'items': [],
-            **shopping_list_data
-        }
-
-        self._shopping_lists[shopping_list_id] = shopping_list
-        self.logger.info(f"Created shopping list with ID {shopping_list_id}")
-
-        return shopping_list
-
-    def update_shopping_list(self, shopping_list_id: int, shopping_list_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Update an existing shopping list.
-
-        Args:
-            shopping_list_id (int): ID of the shopping list to update
-            shopping_list_data (Dict[str, Any]): New shopping list data
-
-        Returns:
-            Dict[str, Any]: Updated shopping list data
-
-        Raises:
-            NotFoundError: If the shopping list doesn't exist
-            ValidationError: If the shopping list data is invalid
-        """
-        self.logger.info(f"Updating shopping list with ID {shopping_list_id}")
-
-        # Check if shopping list exists
-        if shopping_list_id not in self._shopping_lists:
-            self.logger.warning(f"Shopping list with ID {shopping_list_id} not found")
-            raise NotFoundError(f"Shopping list with ID {shopping_list_id} not found")
-
-        # Get current shopping list
-        shopping_list = self._shopping_lists[shopping_list_id]
-
-        # Update fields
-        for key, value in shopping_list_data.items():
-            if key not in ['id', 'created_at', 'items']:
-                shopping_list[key] = value
-
-        # Update timestamp
-        shopping_list['updated_at'] = datetime.now()
-
-        self.logger.info(f"Updated shopping list with ID {shopping_list_id}")
-        return shopping_list
-
-    def delete_shopping_list(self, shopping_list_id: int) -> bool:
-        """Delete a shopping list.
-
-        Args:
-            shopping_list_id (int): ID of the shopping list to delete
-
-        Returns:
-            bool: True if deletion was successful
-
-        Raises:
-            NotFoundError: If the shopping list doesn't exist
-        """
-        self.logger.info(f"Deleting shopping list with ID {shopping_list_id}")
-
-        # Check if shopping list exists
-        if shopping_list_id not in self._shopping_lists:
-            self.logger.warning(f"Shopping list with ID {shopping_list_id} not found")
-            raise NotFoundError(f"Shopping list with ID {shopping_list_id} not found")
-
-        # Get shopping list
-        shopping_list = self._shopping_lists[shopping_list_id]
-
-        # Delete items
-        for item_id in shopping_list.get('items', []):
-            self._shopping_list_items.pop(item_id, None)
-
-        # Delete shopping list
-        del self._shopping_lists[shopping_list_id]
-
-        self.logger.info(f"Deleted shopping list with ID {shopping_list_id}")
-        return True
-
-    def get_shopping_lists_by_status(self, status: ShoppingListStatus) -> List[Dict[str, Any]]:
-        """Get shopping lists by their status.
-
-        Args:
-            status (ShoppingListStatus): The status to filter by
-
-        Returns:
-            List[Dict[str, Any]]: List of shopping list data dictionaries with the specified status
-        """
-        self.logger.info(f"Retrieving shopping lists with status {status}")
-
-        # Convert enum to string for comparison if needed
-        status_str = status.name if hasattr(status, 'name') else str(status)
-
-        return [
-            shopping_list for shopping_list in self._shopping_lists.values()
-            if shopping_list.get('status') == status_str
-        ]
-
-    def change_shopping_list_status(self, shopping_list_id: int, new_status: ShoppingListStatus) -> Dict[str, Any]:
-        """Change a shopping list's status.
-
-        Args:
-            shopping_list_id (int): ID of the shopping list to update
-            new_status (ShoppingListStatus): New status for the shopping list
-
-        Returns:
-            Dict[str, Any]: Updated shopping list data
-
-        Raises:
-            NotFoundError: If the shopping list doesn't exist
-        """
-        self.logger.info(f"Changing shopping list {shopping_list_id} status to {new_status}")
-
-        # Check if shopping list exists
-        if shopping_list_id not in self._shopping_lists:
-            self.logger.warning(f"Shopping list with ID {shopping_list_id} not found")
-            raise NotFoundError(f"Shopping list with ID {shopping_list_id} not found")
-
-        # Get current shopping list
-        shopping_list = self._shopping_lists[shopping_list_id]
-
-        # Update status
-        shopping_list['status'] = new_status.name if hasattr(new_status, 'name') else str(new_status)
-        shopping_list['updated_at'] = datetime.now()
-
-        self.logger.info(f"Changed shopping list {shopping_list_id} status to {new_status}")
-        return shopping_list
-
-    def add_item_to_shopping_list(self, shopping_list_id: int, item_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Add an item to a shopping list.
-
-        Args:
-            shopping_list_id (int): ID of the shopping list to add the item to
-            item_data (Dict[str, Any]): Item data to add
-
-        Returns:
-            Dict[str, Any]: Added shopping list item data
-
-        Raises:
-            NotFoundError: If the shopping list doesn't exist
-            ValidationError: If the item data is invalid
-        """
-        self.logger.info(f"Adding item to shopping list {shopping_list_id}")
-
-        # Check if shopping list exists
-        if shopping_list_id not in self._shopping_lists:
-            self.logger.warning(f"Shopping list with ID {shopping_list_id} not found")
-            raise NotFoundError(f"Shopping list with ID {shopping_list_id} not found")
-
-        # Validate item data
-        if 'name' not in item_data:
-            self.logger.warning("Missing required field: name")
-            raise ValidationError("Item name is required")
-
-        if 'quantity' not in item_data:
-            self.logger.warning("Missing required field: quantity")
-            raise ValidationError("Item quantity is required")
-
-        # Create item
-        item_id = self._next_item_id
-        self._next_item_id += 1
-
-        item = {
-            'id': item_id,
-            'shopping_list_id': shopping_list_id,
-            'created_at': datetime.now(),
-            'updated_at': datetime.now(),
-            'purchased': False,
-            **item_data
-        }
-
-        self._shopping_list_items[item_id] = item
-
-        # Add item to shopping list
-        shopping_list = self._shopping_lists[shopping_list_id]
-        shopping_list['items'].append(item_id)
-        shopping_list['updated_at'] = datetime.now()
-
-        self.logger.info(f"Added item {item_id} to shopping list {shopping_list_id}")
-        return item
-
-    def remove_item_from_shopping_list(self, shopping_list_id: int, item_id: int) -> bool:
-        """Remove an item from a shopping list.
-
-        Args:
-            shopping_list_id (int): ID of the shopping list to remove the item from
-            item_id (int): ID of the item to remove
-
-        Returns:
-            bool: True if removal was successful
-
-        Raises:
-            NotFoundError: If the shopping list or item doesn't exist
-        """
-        self.logger.info(f"Removing item {item_id} from shopping list {shopping_list_id}")
-
-        # Check if shopping list exists
-        if shopping_list_id not in self._shopping_lists:
-            self.logger.warning(f"Shopping list with ID {shopping_list_id} not found")
-            raise NotFoundError(f"Shopping list with ID {shopping_list_id} not found")
-
-        # Check if item exists and belongs to the shopping list
-        if item_id not in self._shopping_list_items:
-            self.logger.warning(f"Item with ID {item_id} not found")
-            raise NotFoundError(f"Item with ID {item_id} not found")
-
-        item = self._shopping_list_items[item_id]
-        if item.get('shopping_list_id') != shopping_list_id:
-            self.logger.warning(f"Item with ID {item_id} does not belong to shopping list {shopping_list_id}")
-            raise NotFoundError(f"Item with ID {item_id} not found in shopping list {shopping_list_id}")
-
-        # Remove item from shopping list
-        shopping_list = self._shopping_lists[shopping_list_id]
-        if 'items' in shopping_list and item_id in shopping_list['items']:
-            shopping_list['items'].remove(item_id)
-            shopping_list['updated_at'] = datetime.now()
-
-        # Delete item
-        del self._shopping_list_items[item_id]
-
-        self.logger.info(f"Removed item {item_id} from shopping list {shopping_list_id}")
-        return True
-
-    def get_shopping_list_items(self, shopping_list_id: int) -> List[Dict[str, Any]]:
-        """Get all items in a shopping list.
-
-        Args:
-            shopping_list_id (int): ID of the shopping list to get items for
-
-        Returns:
-            List[Dict[str, Any]]: List of shopping list item data dictionaries
-
-        Raises:
-            NotFoundError: If the shopping list doesn't exist
-        """
-        self.logger.info(f"Retrieving items for shopping list {shopping_list_id}")
-
-        # Check if shopping list exists
-        if shopping_list_id not in self._shopping_lists:
-            self.logger.warning(f"Shopping list with ID {shopping_list_id} not found")
-            raise NotFoundError(f"Shopping list with ID {shopping_list_id} not found")
-
-        # Get shopping list
-        shopping_list = self._shopping_lists[shopping_list_id]
-
-        # Get items
-        items = []
-        for item_id in shopping_list.get('items', []):
-            if item_id in self._shopping_list_items:
-                items.append(self._shopping_list_items[item_id])
-
-        return items
-
-    # IBaseService implementation methods
-
-    def create(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Create a new shopping list.
-
-        Args:
-            data (Dict[str, Any]): Data for creating the shopping list
-
-        Returns:
-            Dict[str, Any]: Created shopping list
-
-        Raises:
-            ValidationError: If data is invalid
-        """
-        return self.create_shopping_list(data)
-
-    def get_by_id(self, entity_id: Any) -> Optional[Dict[str, Any]]:
-        """Retrieve a shopping list by its identifier.
-
-        Args:
-            entity_id (Any): Unique identifier for the shopping list
-
-        Returns:
-            Optional[Dict[str, Any]]: Retrieved shopping list or None if not found
+            List[ShoppingList]: List of shopping lists matching the criteria
         """
         try:
-            return self.get_shopping_list_by_id(int(entity_id))
-        except NotFoundError:
-            return None
+            # Construct query
+            query = self.session.query(ShoppingList)
 
-    def update(self, entity_id: Any, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Update an existing shopping list.
+            # Apply filters
+            if status:
+                query = query.filter(ShoppingList.status == status)
+
+            if priority:
+                query = query.filter(ShoppingList.priority == priority)
+
+            if is_completed is not None:
+                query = query.filter(ShoppingList.is_completed == is_completed)
+
+            # Execute query
+            shopping_lists = query.all()
+
+            self.logger.info("Shopping lists retrieved", extra={
+                "total_lists": len(shopping_lists),
+                "status": status,
+                "priority": priority,
+                "is_completed": is_completed
+            })
+
+            return shopping_lists
+
+        except SQLAlchemyError as e:
+            self.logger.error(f"Error listing shopping lists: {str(e)}", extra={
+                "error": str(e),
+                "status": status,
+                "priority": priority,
+                "is_completed": is_completed
+            })
+            raise ValidationError(f"Error retrieving shopping lists: {str(e)}")
+
+    def add_item_to_shopping_list(self,
+                                  shopping_list_id: int,
+                                  item_data: Dict[str, Any]) -> ShoppingListItem:
+        """
+        Add an item to an existing shopping list.
 
         Args:
-            entity_id (Any): Unique identifier for the shopping list
-            data (Dict[str, Any]): Updated data for the shopping list
+            shopping_list_id (int): ID of the shopping list
+            item_data (Dict[str, Any]): Data for the new shopping list item
 
         Returns:
-            Dict[str, Any]: Updated shopping list
+            ShoppingListItem: The newly created item
 
         Raises:
             NotFoundError: If shopping list doesn't exist
+            ValidationError: If item data is invalid
+        """
+        try:
+            # Retrieve existing shopping list
+            shopping_list = self.get_shopping_list_by_id(shopping_list_id)
+
+            # Add item to shopping list (method includes validation)
+            item = shopping_list.add_item(item_data)
+
+            # Commit changes
+            self.session.commit()
+
+            self.logger.info(f"Item added to shopping list", extra={
+                "shopping_list_id": shopping_list_id,
+                "item_id": item.id,
+                "item_name": item.name
+            })
+
+            return item
+
+        except (ValueError, TypeError) as e:
+            self.session.rollback()
+            self.logger.error(f"Adding item to shopping list failed: {str(e)}", extra={
+                "shopping_list_id": shopping_list_id,
+                "item_data": item_data,
+                "error": str(e)
+            })
+            raise ValidationError(f"Invalid item data: {str(e)}")
+
+        except SQLAlchemyError as e:
+            self.session.rollback()
+            self.logger.error(f"Database error adding item to shopping list: {str(e)}", extra={
+                "shopping_list_id": shopping_list_id,
+                "item_data": item_data,
+                "error": str(e)
+            })
+            raise ValidationError(f"Database error: {str(e)}")
+
+    def update_shopping_list_item(self,
+                                  item_id: int,
+                                  update_data: Dict[str, Any]) -> ShoppingListItem:
+        """
+        Update an existing shopping list item.
+
+        Args:
+            item_id (int): ID of the shopping list item to update
+            update_data (Dict[str, Any]): Data to update
+
+        Returns:
+            ShoppingListItem: Updated shopping list item
+
+        Raises:
+            NotFoundError: If shopping list item doesn't exist
             ValidationError: If update data is invalid
         """
-        return self.update_shopping_list(int(entity_id), data)
+        try:
+            # Retrieve existing item
+            item = self.session.query(ShoppingListItem).get(item_id)
 
-    def delete(self, entity_id: Any) -> bool:
-        """Delete a shopping list by its identifier.
+            if not item:
+                raise NotFoundError(f"Shopping list item with ID {item_id} not found")
+
+            # Update item (method includes validation)
+            item.update(**update_data)
+
+            # Commit changes
+            self.session.commit()
+
+            self.logger.info(f"Shopping list item updated successfully", extra={
+                "item_id": item.id,
+                "shopping_list_id": item.shopping_list_id,
+                "updates": list(update_data.keys())
+            })
+
+            return item
+
+        except (ValueError, TypeError) as e:
+            self.session.rollback()
+            self.logger.error(f"Shopping list item update failed: {str(e)}", extra={
+                "item_id": item_id,
+                "update_data": update_data,
+                "error": str(e)
+            })
+            raise ValidationError(f"Invalid update data: {str(e)}")
+
+        except SQLAlchemyError as e:
+            self.session.rollback()
+            self.logger.error(f"Database error during shopping list item update: {str(e)}", extra={
+                "item_id": item_id,
+                "update_data": update_data,
+                "error": str(e)
+            })
+            raise ValidationError(f"Database error: {str(e)}")
+
+    def remove_item_from_shopping_list(self, item_id: int) -> None:
+        """
+        Remove an item from a shopping list.
 
         Args:
-            entity_id (Any): Unique identifier for the shopping list
+            item_id (int): ID of the shopping list item to remove
+
+        Raises:
+            NotFoundError: If shopping list item doesn't exist
+        """
+        try:
+            # Retrieve existing item
+            item = self.session.query(ShoppingListItem).get(item_id)
+
+            if not item:
+                raise NotFoundError(f"Shopping list item with ID {item_id} not found")
+
+            # Get the associated shopping list
+            shopping_list = item.shopping_list
+
+            # Remove item from shopping list
+            shopping_list.remove_item(item_id)
+
+            # Commit changes
+            self.session.commit()
+
+            self.logger.info(f"Item removed from shopping list", extra={
+                "item_id": item_id,
+                "shopping_list_id": shopping_list.id
+            })
+
+        except SQLAlchemyError as e:
+            self.session.rollback()
+            self.logger.error(f"Error removing item from shopping list: {str(e)}", extra={
+                "item_id": item_id,
+                "error": str(e)
+            })
+            raise NotFoundError(f"Error removing item from shopping list: {str(e)}")
+
+    def mark_shopping_list_completed(self, shopping_list_id: int) -> ShoppingList:
+        """
+        Mark a shopping list as completed.
+
+        Args:
+            shopping_list_id (int): ID of the shopping list to mark as completed
 
         Returns:
-            bool: True if deletion was successful, False otherwise
+            ShoppingList: Updated shopping list instance
 
         Raises:
             NotFoundError: If shopping list doesn't exist
         """
-        return self.delete_shopping_list(int(entity_id))
+        try:
+            # Retrieve existing shopping list
+            shopping_list = self.get_shopping_list_by_id(shopping_list_id)
 
-    def update_shopping_list_item(self, item_id: int, item_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Update a shopping list item.
+            # Mark as completed
+            shopping_list.mark_completed()
+
+            # Commit changes
+            self.session.commit()
+
+            self.logger.info(f"Shopping list marked as completed", extra={
+                "shopping_list_id": shopping_list_id
+            })
+
+            return shopping_list
+
+        except SQLAlchemyError as e:
+            self.session.rollback()
+            self.logger.error(f"Error marking shopping list as completed: {str(e)}", extra={
+                "shopping_list_id": shopping_list_id,
+                "error": str(e)
+            })
+            raise NotFoundError(f"Error marking shopping list as completed: {str(e)}")
+
+    def reset_shopping_list(self, shopping_list_id: int) -> ShoppingList:
+        """
+        Reset a shopping list to draft status and unmark all items.
 
         Args:
-            item_id (int): ID of the item to update
-            item_data (Dict[str, Any]): Updated item data
+            shopping_list_id (int): ID of the shopping list to reset
 
         Returns:
-            Dict[str, Any]: Updated shopping list item data
+            ShoppingList: Reset shopping list instance
 
         Raises:
-            NotFoundError: If the item doesn't exist
+            NotFoundError: If shopping list doesn't exist
         """
-        self.logger.info(f"Updating shopping list item {item_id}")
+        try:
+            # Retrieve existing shopping list
+            shopping_list = self.get_shopping_list_by_id(shopping_list_id)
 
-        # Check if item exists
-        if item_id not in self._shopping_list_items:
-            self.logger.warning(f"Item with ID {item_id} not found")
-            raise NotFoundError(f"Item with ID {item_id} not found")
+            # Reset shopping list
+            shopping_list.reset()
 
-        # Get item
-        item = self._shopping_list_items[item_id]
+            # Reset all items
+            for item in shopping_list.items:
+                item.reset_purchase_status()
 
-        # Update fields
-        for key, value in item_data.items():
-            if key not in ['id', 'shopping_list_id', 'created_at']:
-                item[key] = value
+            # Commit changes
+            self.session.commit()
 
-        # Update timestamp
-        item['updated_at'] = datetime.now()
+            self.logger.info(f"Shopping list reset to draft", extra={
+                "shopping_list_id": shopping_list_id
+            })
 
-        # Update shopping list timestamp
-        shopping_list_id = item.get('shopping_list_id')
-        if shopping_list_id in self._shopping_lists:
-            self._shopping_lists[shopping_list_id]['updated_at'] = datetime.now()
+            return shopping_list
 
-        self.logger.info(f"Updated shopping list item {item_id}")
-        return item
+        except SQLAlchemyError as e:
+            self.session.rollback()
+            self.logger.error(f"Error resetting shopping list: {str(e)}", extra={
+                "shopping_list_id": shopping_list_id,
+                "error": str(e)
+            })
+            raise NotFoundError(f"Error resetting shopping list: {str(e)}")
 
-    def mark_item_as_purchased(self, item_id: int, purchased: bool = True) -> Dict[str, Any]:
-        """Mark a shopping list item as purchased or not purchased.
+    def calculate_shopping_list_total(self, shopping_list_id: int) -> Dict[str, Any]:
+        """
+        Calculate the total estimated cost of a shopping list.
 
         Args:
-            item_id (int): ID of the item to mark
-            purchased (bool): Whether the item has been purchased
+            shopping_list_id (int): ID of the shopping list
 
         Returns:
-            Dict[str, Any]: Updated shopping list item data
+            Dict[str, Any]: Dictionary containing total cost and item details
 
         Raises:
-            NotFoundError: If the item doesn't exist
+            NotFoundError: If shopping list doesn't exist
         """
-        self.logger.info(f"Marking shopping list item {item_id} as {'purchased' if purchased else 'not purchased'}")
+        try:
+            # Retrieve existing shopping list
+            shopping_list = self.get_shopping_list_by_id(shopping_list_id)
 
-        # Check if item exists
-        if item_id not in self._shopping_list_items:
-            self.logger.warning(f"Item with ID {item_id} not found")
-            raise NotFoundError(f"Item with ID {item_id} not found")
+            # Calculate total
+            total_estimated_cost = 0
+            item_details = []
 
-        # Get item
-        item = self._shopping_list_items[item_id]
+            for item in shopping_list.items:
+                # Calculate item total
+                item_total = (item.quantity or 0) * (item.estimated_price or 0)
+                total_estimated_cost += item_total
 
-        # Update purchased status
-        item['purchased'] = purchased
-        item['updated_at'] = datetime.now()
+                # Collect item details
+                item_details.append({
+                    'id': item.id,
+                    'name': item.name,
+                    'quantity': item.quantity,
+                    'estimated_price': item.estimated_price,
+                    'item_total': item_total,
+                    'is_purchased': item.is_purchased
+                })
 
-        # Update purchase date if marked as purchased
-        if purchased:
-            item['purchased_at'] = datetime.now()
-        else:
-            item.pop('purchased_at', None)
+            # Prepare results
+            result = {
+                'shopping_list_id': shopping_list.id,
+                'shopping_list_name': shopping_list.name,
+                'total_estimated_cost': total_estimated_cost,
+                'item_count': len(shopping_list.items),
+                'purchased_items_count': sum(1 for item in shopping_list.items if item.is_purchased),
+                'items': item_details
+            }
 
-        # Update shopping list timestamp
-        shopping_list_id = item.get('shopping_list_id')
-        if shopping_list_id in self._shopping_lists:
-            self._shopping_lists[shopping_list_id]['updated_at'] = datetime.now()
+            self.logger.info(f"Shopping list total calculated", extra={
+                "shopping_list_id": shopping_list_id,
+                "total_estimated_cost": total_estimated_cost
+            })
 
-        self.logger.info(f"Marked shopping list item {item_id} as {'purchased' if purchased else 'not purchased'}")
-        return item
+            return result
 
-    def list_shopping_lists(self) -> List[Dict[str, Any]]:
-        """List all shopping lists.
-
-        Returns:
-            List[Dict[str, Any]]: List of all shopping lists
-        """
-        return self.get_all_shopping_lists()
-
-    def get_shopping_list(self, shopping_list_id: int) -> Dict[str, Any]:
-        """Get a shopping list by its ID.
-
-        Args:
-            shopping_list_id (int): The ID of the shopping list to retrieve
-
-        Returns:
-            Dict[str, Any]: The shopping list data
-
-        Raises:
-            NotFoundError: If the shopping list doesn't exist
-        """
-        return self.get_shopping_list_by_id(shopping_list_id)
-
-    def search_shopping_lists(self, search_term: str) -> List[Dict[str, Any]]:
-        """Search for shopping lists by name or content.
-
-        Args:
-            search_term (str): The search term to filter by
-
-        Returns:
-            List[Dict[str, Any]]: List of matching shopping lists
-        """
-        self.logger.info(f"Searching shopping lists with term '{search_term}'")
-
-        search_term = search_term.lower()
-        results = []
-
-        for shopping_list in self._shopping_lists.values():
-            # Search in name
-            if search_term in shopping_list.get('name', '').lower():
-                results.append(shopping_list)
-                continue
-
-            # Search in items
-            for item_id in shopping_list.get('items', []):
-                if item_id in self._shopping_list_items:
-                    item = self._shopping_list_items[item_id]
-                    if search_term in item.get('name', '').lower() or search_term in item.get('notes', '').lower():
-                        results.append(shopping_list)
-                        break
-
-        return results
-
-    def generate_purchase_order(self, shopping_list_id: int) -> Dict[str, Any]:
-        """Generate a purchase order from a shopping list.
-
-        Args:
-            shopping_list_id (int): The ID of the shopping list
-
-        Returns:
-            Dict[str, Any]: Generated purchase order data
-
-        Raises:
-            NotFoundError: If the shopping list doesn't exist
-        """
-        self.logger.info(f"Generating purchase order from shopping list {shopping_list_id}")
-
-        # Check if shopping list exists
-        if shopping_list_id not in self._shopping_lists:
-            self.logger.warning(f"Shopping list with ID {shopping_list_id} not found")
-            raise NotFoundError(f"Shopping list with ID {shopping_list_id} not found")
-
-        # Get shopping list
-        shopping_list = self._shopping_lists[shopping_list_id]
-
-        # Get items
-        items = []
-        for item_id in shopping_list.get('items', []):
-            if item_id in self._shopping_list_items:
-                item = self._shopping_list_items[item_id]
-                if not item.get('purchased', False):
-                    items.append(item)
-
-        # Create purchase order
-        purchase_order = {
-            'id': f"PO-{shopping_list_id}-{datetime.now().strftime('%Y%m%d')}",
-            'shopping_list_id': shopping_list_id,
-            'shopping_list_name': shopping_list.get('name', ''),
-            'created_at': datetime.now(),
-            'items': items,
-            'total_items': len(items)
-        }
-
-        self.logger.info(f"Generated purchase order with {len(items)} items")
-        return purchase_order
+        except SQLAlchemyError as e:
+            self.logger.error(f"Error calculating shopping list total: {str(e)}", extra={
+                "shopping_list_id": shopping_list_id,
+                "error": str(e)
+            })
+            raise NotFoundError(f"Error calculating shopping list total: {str(e)}")

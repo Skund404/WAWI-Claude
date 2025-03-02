@@ -1,218 +1,136 @@
 # utils/exporters.py
+"""
+Utility classes for exporting data to various formats.
+"""
 import csv
 import json
-import pandas as pd
-import xlsxwriter
-from pathlib import Path
 from datetime import datetime
-from typing import Dict, Any, Optional
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+import pandas as pd
+
+try:
+    import xlsxwriter
+
+    XLSX_AVAILABLE = True
+except ImportError:
+    XLSX_AVAILABLE = False
 
 
 class OrderExporter:
     """
-    Handler for exporting order data in various formats.
-
-    This class provides static methods to export order data to different
-    file formats like CSV, Excel, and JSON.
+    Utility class for exporting order and inventory data.
     """
 
-    @staticmethod
-    def export_to_csv(data: Dict[str, Any], filepath: Path) -> bool:
+    @classmethod
+    def export_to_csv(cls, data: List[Dict[str, Any]], filepath: Optional[str] = None) -> str:
         """
-        Export order data to CSV format.
+        Export data to a CSV file.
 
         Args:
-            data: Dictionary containing order and details data
-            filepath: Base path for export files
+            data (List[Dict[str, Any]]): Data to export
+            filepath (Optional[str]): Path to save the CSV file.
+                                      If None, generates a timestamped filename.
 
         Returns:
-            Boolean indicating success or failure
+            str: Path to the exported file
         """
+        # Generate filename if not provided
+        if not filepath:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filepath = f"export_{timestamp}.csv"
+
+        # Ensure directory exists
+        Path(filepath).parent.mkdir(parents=True, exist_ok=True)
+
         try:
-            # Export order header
-            order_header = filepath.with_suffix('.order.csv')
-            with open(order_header, 'w', newline='', encoding='utf-8') as f:
-                writer = csv.DictWriter(f, fieldnames=data['order'].keys())
+            # Write to CSV
+            with open(filepath, 'w', newline='', encoding='utf-8') as csvfile:
+                if not data:
+                    return filepath
+
+                # Get fieldnames from first dictionary
+                fieldnames = list(data[0].keys())
+
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                 writer.writeheader()
-                writer.writerow(data['order'])
+                writer.writerows(data)
 
-            # Export order details if present
-            details_file = filepath.with_suffix('.details.csv')
-            if data['details']:
-                with open(details_file, 'w', newline='', encoding='utf-8') as f:
-                    writer = csv.DictWriter(f, fieldnames=data['details'][0].keys())
-                    writer.writeheader()
-                    writer.writerows(data['details'])
-
-            return True
+            return filepath
 
         except Exception as e:
-            print(f'CSV export error: {str(e)}')
-            return False
+            print(f"Error exporting to CSV: {e}")
+            raise
 
-    @staticmethod
-    def export_to_excel(data: Dict[str, Any], filepath: Path) -> bool:
+    @classmethod
+    def export_to_excel(cls, data: List[Dict[str, Any]], filepath: Optional[str] = None) -> str:
         """
-        Export order data to Excel format.
+        Export data to an Excel file.
 
         Args:
-            data: Dictionary containing order and details data
-            filepath: Path for the Excel file
+            data (List[Dict[str, Any]]): Data to export
+            filepath (Optional[str]): Path to save the Excel file.
+                                      If None, generates a timestamped filename.
 
         Returns:
-            Boolean indicating success or failure
+            str: Path to the exported file
         """
+        # Check if xlsxwriter is available
+        if not XLSX_AVAILABLE:
+            print("xlsxwriter not installed. Falling back to CSV export.")
+            return cls.export_to_csv(data, filepath)
+
+        # Generate filename if not provided
+        if not filepath:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filepath = f"export_{timestamp}.xlsx"
+
+        # Ensure directory exists
+        Path(filepath).parent.mkdir(parents=True, exist_ok=True)
+
         try:
-            filepath = filepath.with_suffix('.xlsx')
-            workbook = xlsxwriter.Workbook(str(filepath))
+            # Convert to DataFrame for easy Excel export
+            df = pd.DataFrame(data)
 
-            # Define formats
-            header_format = workbook.add_format({'bold': True, 'bg_color': '#D3D3D3', 'border': 1})
-            date_format = workbook.add_format({'num_format': 'yyyy-mm-dd'})
-            number_format = workbook.add_format({'num_format': '#,##0.00'})
+            # Write to Excel
+            df.to_excel(filepath, index=False, engine='xlsxwriter')
 
-            # Create order sheet
-            order_sheet = workbook.add_worksheet('Order')
-            for col, field in enumerate(data['order'].keys()):
-                order_sheet.write(0, col, field.replace('_', ' ').title(), header_format)
-                value = data['order'][field]
-
-                if field == 'date_of_order':
-                    order_sheet.write(1, col, datetime.strptime(value, '%Y-%m-%d'), date_format)
-                else:
-                    order_sheet.write(1, col, value)
-
-            # Create details sheet if details exist
-            if data['details']:
-                details_sheet = workbook.add_worksheet('Details')
-
-                # Write headers
-                for col, field in enumerate(data['details'][0].keys()):
-                    details_sheet.write(0, col, field.replace('_', ' ').title(), header_format)
-
-                # Write data rows
-                for row, detail in enumerate(data['details'], 1):
-                    for col, (field, value) in enumerate(detail.items()):
-                        if field in ['price', 'total']:
-                            details_sheet.write(row, col, float(value), number_format)
-                        else:
-                            details_sheet.write(row, col, value)
-
-            workbook.close()
-            return True
+            return filepath
 
         except Exception as e:
-            print(f'Excel export error: {str(e)}')
-            return False
+            print(f"Error exporting to Excel: {e}")
+            # Fallback to CSV if Excel export fails
+            return cls.export_to_csv(data, filepath)
 
-    @staticmethod
-    def export_to_json(data: Dict[str, Any], filepath: Path) -> bool:
+    @classmethod
+    def export_to_json(cls, data: List[Dict[str, Any]], filepath: Optional[str] = None) -> str:
         """
-        Export order data to JSON format (backup).
+        Export data to a JSON file.
 
         Args:
-            data: Dictionary containing order and details data
-            filepath: Path for the JSON file
+            data (List[Dict[str, Any]]): Data to export
+            filepath (Optional[str]): Path to save the JSON file.
+                                      If None, generates a timestamped filename.
 
         Returns:
-            Boolean indicating success or failure
+            str: Path to the exported file
         """
+        # Generate filename if not provided
+        if not filepath:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filepath = f"export_{timestamp}.json"
+
+        # Ensure directory exists
+        Path(filepath).parent.mkdir(parents=True, exist_ok=True)
+
         try:
-            filepath = filepath.with_suffix('.json')
-            with open(filepath, 'w', encoding='utf-8') as f:
-                json.dump(data, f, indent=2, default=str)
-            return True
+            # Write to JSON
+            with open(filepath, 'w', encoding='utf-8') as jsonfile:
+                json.dump(data, jsonfile, indent=4, ensure_ascii=False)
+
+            return filepath
 
         except Exception as e:
-            print(f'JSON export error: {str(e)}')
-            return False
-
-
-class OrderImporter:
-    """
-    Handler for importing order data from various formats.
-
-    This class provides static methods to import order data from different
-    file formats like CSV, Excel, and JSON.
-    """
-
-    @staticmethod
-    def import_from_csv(order_file: Path, details_file: Optional[Path] = None) -> Dict[str, Any]:
-        """
-        Import order data from CSV files.
-
-        Args:
-            order_file: Path to the order CSV file
-            details_file: Optional path to the details CSV file
-
-        Returns:
-            Dictionary containing imported order and details data
-        """
-        try:
-            # Import order data
-            with open(order_file, 'r', encoding='utf-8') as f:
-                reader = csv.DictReader(f)
-                order_data = next(reader)
-
-            # Import details data if available
-            details_data = []
-            if details_file and details_file.exists():
-                with open(details_file, 'r', encoding='utf-8') as f:
-                    reader = csv.DictReader(f)
-                    details_data = list(reader)
-
-            return {'order': order_data, 'details': details_data}
-
-        except Exception as e:
-            print(f'CSV import error: {str(e)}')
-            return {}
-
-    @staticmethod
-    def import_from_excel(filepath: Path) -> Dict[str, Any]:
-        """
-        Import order data from Excel file.
-
-        Args:
-            filepath: Path to the Excel file
-
-        Returns:
-            Dictionary containing imported order and details data
-        """
-        try:
-            xl = pd.ExcelFile(filepath)
-
-            # Import order data
-            order_df = pd.read_excel(xl, 'Order')
-            order_data = order_df.iloc[0].to_dict()
-
-            # Import details data if available
-            details_data = []
-            if 'Details' in xl.sheet_names:
-                details_df = pd.read_excel(xl, 'Details')
-                details_data = details_df.to_dict('records')
-
-            return {'order': order_data, 'details': details_data}
-
-        except Exception as e:
-            print(f'Excel import error: {str(e)}')
-            return {}
-
-    @staticmethod
-    def import_from_json(filepath: Path) -> Dict[str, Any]:
-        """
-        Import order data from JSON backup.
-
-        Args:
-            filepath: Path to the JSON file
-
-        Returns:
-            Dictionary containing imported order and details data
-        """
-        try:
-            with open(filepath, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-            return data
-
-        except Exception as e:
-            print(f'JSON import error: {str(e)}')
-            return {}
+            print(f"Error exporting to JSON: {e}")
+            raise

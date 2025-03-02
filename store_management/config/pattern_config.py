@@ -1,11 +1,9 @@
-from di.core import inject
-from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+# config/pattern_config.py
 """
-Configuration module for pattern-related settings in the Leatherworking Store Management System.
-
-Provides centralized configuration management for pattern calculations,
-complexity factors, and performance optimization parameters.
+Configuration settings for pattern management in the leatherworking application.
 """
+from dataclasses import dataclass, field
+from typing import Any, Dict, Optional
 
 
 @dataclass
@@ -15,103 +13,68 @@ class PatternConfiguration:
 
     Manages waste factors, complexity calculations, caching, and performance parameters.
     """
-    base_waste_factor: float = 0.05
-    complexity_waste_multiplier: float = 0.1
-    material_type_waste_factors: Dict[str, float] = field(default_factory=lambda: {
-        'full_grain': 0.08,
-        'top_grain': 0.06,
-        'genuine_leather': 0.04,
-        'suede': 0.1
-    })
-    complexity_components_weight: float = 0.4
-    complexity_skill_level_weight: float = 0.3
-    complexity_material_diversity_weight: float = 0.3
-    cache_enabled: bool = True
-    cache_max_size: int = 100
-    cache_ttl_seconds: int = 3600
-    query_prefetch_limit: int = 50
-    query_batch_size: int = 25
+    # Inventory-related configurations
+    inventory_page_size: int = 50
+    max_material_cache_size: int = 100
 
-    @inject(MaterialService)
+    # Pattern complexity calculation parameters
+    waste_factor: float = 0.1
+    complexity_threshold: float = 0.75
+
+    # Performance and caching settings
+    enable_material_caching: bool = True
+    material_cache_expiry_minutes: int = 60
+
+    # Additional configuration options
+    default_skill_level: str = "Intermediate"
+
+    # Flexible configuration for additional settings
+    extra_config: Dict[str, Any] = field(default_factory=dict)
+
     def __post_init__(self):
         """
-        Post-initialization setup and validation.
+        Post-initialization validation and setup.
         """
-        self._validate_configuration()
+        # Validate waste factor
+        if not 0 <= self.waste_factor <= 1:
+            raise ValueError("Waste factor must be between 0 and 1")
 
-    @inject(MaterialService)
-    def _validate_configuration(self):
-        """
-        Validate configuration parameters to ensure consistency.
+        # Validate complexity threshold
+        if not 0 <= self.complexity_threshold <= 1:
+            raise ValueError("Complexity threshold must be between 0 and 1")
 
-        Raises:
-            ValueError: If any configuration parameter is invalid
-        """
-        if not 0 <= self.base_waste_factor <= 0.2:
-            raise ValueError('Base waste factor must be between 0 and 0.2')
-        if not 0 <= self.complexity_waste_multiplier <= 0.5:
-            raise ValueError(
-                'Complexity waste multiplier must be between 0 and 0.5')
-        total_weights = (self.complexity_components_weight + self.
-                         complexity_skill_level_weight + self.
-                         complexity_material_diversity_weight)
-        if not 0.99 <= total_weights <= 1.01:
-            raise ValueError('Complexity calculation weights must sum to 1')
+        # Ensure page size is positive
+        if self.inventory_page_size <= 0:
+            raise ValueError("Inventory page size must be a positive integer")
 
-    @inject(MaterialService)
-    def get_waste_factor(self, material_type: Optional[str] = None) -> float:
+    def update_config(self, **kwargs):
         """
-        Calculate waste factor with optional material-specific override.
+        Update configuration dynamically.
 
         Args:
-            material_type (Optional[str]): Type of material
+            **kwargs: Configuration key-value pairs to update
+        """
+        for key, value in kwargs.items():
+            if hasattr(self, key):
+                setattr(self, key, value)
+            else:
+                self.extra_config[key] = value
+
+    def get_config(self, key: str, default: Optional[Any] = None) -> Any:
+        """
+        Retrieve a configuration value.
+
+        Args:
+            key (str): Configuration key to retrieve
+            default (Optional[Any]): Default value if key is not found
 
         Returns:
-            float: Calculated waste factor
+            Configuration value or default
         """
-        if material_type and material_type in self.material_type_waste_factors:
-            return self.material_type_waste_factors[material_type]
-        return self.base_waste_factor
-
-    @classmethod
-    def load_from_file(cls, config_path: Optional[str] = None
-                       ) -> 'PatternConfiguration':
-        """
-        Load configuration from a JSON file.
-
-        Args:
-            config_path (Optional[str]): Path to configuration file
-
-        Returns:
-            PatternConfiguration: Configured instance
-        """
-        if not config_path:
-            config_path = os.path.join(os.path.dirname(__file__),
-                                       'pattern_config.json')
-        try:
-            with open(config_path, 'r') as config_file:
-                config_data = json.load(config_file)
-            return cls(**config_data)
-        except (FileNotFoundError, json.JSONDecodeError) as e:
-            print(f'Could not load configuration: {e}. Using default settings.'
-                  )
-            return cls()
-
-    @inject(MaterialService)
-    def save_to_file(self, config_path: Optional[str] = None):
-        """
-        Save current configuration to a JSON file.
-
-        Args:
-            config_path (Optional[str]): Path to save configuration file
-        """
-        if not config_path:
-            config_path = os.path.join(os.path.dirname(__file__),
-                                       'pattern_config.json')
-        config_dict = {k: v for k, v in self.__dict__.items() if not k.
-                       startswith('_')}
-        with open(config_path, 'w') as config_file:
-            json.dump(config_dict, config_file, indent=4)
+        if hasattr(self, key):
+            return getattr(self, key)
+        return self.extra_config.get(key, default)
 
 
-PATTERN_CONFIG = PatternConfiguration.load_from_file()
+# Create a singleton instance of the configuration
+PATTERN_CONFIG = PatternConfiguration()

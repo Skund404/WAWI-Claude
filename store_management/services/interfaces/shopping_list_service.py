@@ -1,193 +1,197 @@
-# store_management/services/interfaces/shopping_list_service.py
-"""
-Interface for Shopping List Service in Leatherworking Store Management.
-
-Defines the contract for shopping list-related operations.
-"""
-
+# services/interfaces/shopping_list_service.py
 from abc import ABC, abstractmethod
-from enum import Enum
-from typing import Any, Dict, List, Optional, Callable
+from database.models.shopping_list import ShoppingList, ShoppingListItem
+from database.models.enums import ShoppingListStatus, Priority
+from typing import List, Dict, Any, Optional
+from datetime import datetime
 
-from di.core import inject
-from utils.circular_import_resolver import CircularImportResolver
-
-class ShoppingListStatus(Enum):
-    """
-    Enumeration of possible shopping list statuses.
-    """
-    DRAFT = "Draft"
-    ACTIVE = "Active"
-    COMPLETED = "Completed"
-    ARCHIVED = "Archived"
 
 class IShoppingListService(ABC):
     """
-    Abstract base class defining the interface for shopping list-related operations.
+    Abstract base class defining the interface for Shopping List services.
+
+    Defines the contract for creating, retrieving, updating,
+    and deleting Shopping List entities.
     """
 
     @abstractmethod
-    @inject('IMaterialService')
-    def create_shopping_list(
-        self,
-        name: str,
-        description: Optional[str] = None,
-        status: ShoppingListStatus = ShoppingListStatus.DRAFT,
-        material_service: Optional[Any] = None
-    ) -> Dict[str, Any]:
+    def create_shopping_list(self, shopping_list_data: Dict[str, Any]) -> ShoppingList:
         """
         Create a new shopping list.
 
         Args:
-            name (str): Name of the shopping list
-            description (Optional[str], optional): Description of the shopping list
-            status (ShoppingListStatus, optional): Initial status of the shopping list
-            material_service (Optional[Any], optional): Material service for additional operations
+            shopping_list_data (Dict[str, Any]): Shopping list creation data
 
         Returns:
-            Dict[str, Any]: Details of the created shopping list
+            ShoppingList: Newly created shopping list instance
+
+        Raises:
+            ValidationError: If shopping list data is invalid
         """
         pass
 
     @abstractmethod
-    def add_item_to_shopping_list(
-        self,
-        shopping_list_id: str,
-        material_id: str,
-        quantity: float,
-        notes: Optional[str] = None
-    ) -> Dict[str, Any]:
+    def get_shopping_list_by_id(self, shopping_list_id: int) -> ShoppingList:
         """
-        Add an item to an existing shopping list.
+        Retrieve a shopping list by its ID.
 
         Args:
-            shopping_list_id (str): Unique identifier of the shopping list
-            material_id (str): Unique identifier of the material to add
-            quantity (float): Quantity of the material
-            notes (Optional[str], optional): Additional notes about the item
+            shopping_list_id (int): Unique identifier of the shopping list
 
         Returns:
-            Dict[str, Any]: Details of the added shopping list item
+            ShoppingList: Retrieved shopping list instance
+
+        Raises:
+            NotFoundError: If no shopping list is found with the given ID
         """
         pass
 
     @abstractmethod
-    def remove_item_from_shopping_list(
-        self,
-        shopping_list_id: str,
-        item_id: str
-    ) -> bool:
-        """
-        Remove an item from a shopping list.
-
-        Args:
-            shopping_list_id (str): Unique identifier of the shopping list
-            item_id (str): Unique identifier of the item to remove
-
-        Returns:
-            bool: True if removal was successful, False otherwise
-        """
-        pass
-
-    @abstractmethod
-    def update_shopping_list(
-        self,
-        shopping_list_id: str,
-        updates: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def update_shopping_list(self, shopping_list_id: int, update_data: Dict[str, Any]) -> ShoppingList:
         """
         Update an existing shopping list.
 
         Args:
-            shopping_list_id (str): Unique identifier of the shopping list
-            updates (Dict[str, Any]): Dictionary of fields to update
+            shopping_list_id (int): ID of the shopping list to update
+            update_data (Dict[str, Any]): Data to update
 
         Returns:
-            Dict[str, Any]: Updated shopping list details
+            ShoppingList: Updated shopping list instance
+
+        Raises:
+            NotFoundError: If shopping list doesn't exist
+            ValidationError: If update data is invalid
         """
         pass
 
     @abstractmethod
-    def get_shopping_list(
-        self,
-        shopping_list_id: str
-    ) -> Optional[Dict[str, Any]]:
-        """
-        Retrieve a specific shopping list by its ID.
-
-        Args:
-            shopping_list_id (str): Unique identifier of the shopping list
-
-        Returns:
-            Optional[Dict[str, Any]]: Shopping list details, or None if not found
-        """
-        pass
-
-    @abstractmethod
-    def list_shopping_lists(
-        self,
-        status: Optional[ShoppingListStatus] = None
-    ) -> List[Dict[str, Any]]:
-        """
-        List shopping lists with optional filtering.
-
-        Args:
-            status (Optional[ShoppingListStatus], optional): Filter by shopping list status
-
-        Returns:
-            List[Dict[str, Any]]: List of shopping lists matching the criteria
-        """
-        pass
-
-    @abstractmethod
-    def delete_shopping_list(
-        self,
-        shopping_list_id: str
-    ) -> bool:
+    def delete_shopping_list(self, shopping_list_id: int) -> None:
         """
         Delete a shopping list.
 
         Args:
-            shopping_list_id (str): Unique identifier of the shopping list to delete
+            shopping_list_id (int): ID of the shopping list to delete
 
-        Returns:
-            bool: True if deletion was successful, False otherwise
+        Raises:
+            NotFoundError: If shopping list doesn't exist
         """
         pass
 
     @abstractmethod
-    @inject('IMaterialService')
-    def generate_purchase_order(
-        self,
-        shopping_list_id: str,
-        material_service: Optional[Any] = None
-    ) -> Dict[str, Any]:
+    def list_shopping_lists(self,
+                            status: Optional[ShoppingListStatus] = None,
+                            priority: Optional[Priority] = None,
+                            is_completed: Optional[bool] = None) -> List[ShoppingList]:
         """
-        Generate a purchase order from a shopping list.
+        List shopping lists with optional filtering.
 
         Args:
-            shopping_list_id (str): Unique identifier of the shopping list
-            material_service (Optional[Any], optional): Material service for order generation
+            status (Optional[ShoppingListStatus]): Filter by shopping list status
+            priority (Optional[Priority]): Filter by priority
+            is_completed (Optional[bool]): Filter by completion status
 
         Returns:
-            Dict[str, Any]: Details of the generated purchase order
+            List[ShoppingList]: List of shopping lists matching the criteria
         """
         pass
 
     @abstractmethod
-    def search_shopping_lists(
-        self,
-        query: Optional[str] = None,
-        material_types: Optional[List[str]] = None
-    ) -> List[Dict[str, Any]]:
+    def add_item_to_shopping_list(self,
+                                  shopping_list_id: int,
+                                  item_data: Dict[str, Any]) -> ShoppingListItem:
         """
-        Search for shopping lists with optional filtering.
+        Add an item to an existing shopping list.
 
         Args:
-            query (Optional[str], optional): Search term
-            material_types (Optional[List[str]], optional): List of material types
+            shopping_list_id (int): ID of the shopping list
+            item_data (Dict[str, Any]): Data for the new shopping list item
 
         Returns:
-            List[Dict[str, Any]]: List of shopping lists matching the search criteria
+            ShoppingListItem: The newly created item
+
+        Raises:
+            NotFoundError: If shopping list doesn't exist
+            ValidationError: If item data is invalid
+        """
+        pass
+
+    @abstractmethod
+    def update_shopping_list_item(self,
+                                  item_id: int,
+                                  update_data: Dict[str, Any]) -> ShoppingListItem:
+        """
+        Update an existing shopping list item.
+
+        Args:
+            item_id (int): ID of the shopping list item to update
+            update_data (Dict[str, Any]): Data to update
+
+        Returns:
+            ShoppingListItem: Updated shopping list item
+
+        Raises:
+            NotFoundError: If shopping list item doesn't exist
+            ValidationError: If update data is invalid
+        """
+        pass
+
+    @abstractmethod
+    def remove_item_from_shopping_list(self, item_id: int) -> None:
+        """
+        Remove an item from a shopping list.
+
+        Args:
+            item_id (int): ID of the shopping list item to remove
+
+        Raises:
+            NotFoundError: If shopping list item doesn't exist
+        """
+        pass
+
+    @abstractmethod
+    def mark_shopping_list_completed(self, shopping_list_id: int) -> ShoppingList:
+        """
+        Mark a shopping list as completed.
+
+        Args:
+            shopping_list_id (int): ID of the shopping list to mark as completed
+
+        Returns:
+            ShoppingList: Updated shopping list instance
+
+        Raises:
+            NotFoundError: If shopping list doesn't exist
+        """
+        pass
+
+    @abstractmethod
+    def reset_shopping_list(self, shopping_list_id: int) -> ShoppingList:
+        """
+        Reset a shopping list to draft status and unmark all items.
+
+        Args:
+            shopping_list_id (int): ID of the shopping list to reset
+
+        Returns:
+            ShoppingList: Reset shopping list instance
+
+        Raises:
+            NotFoundError: If shopping list doesn't exist
+        """
+        pass
+
+    @abstractmethod
+    def calculate_shopping_list_total(self, shopping_list_id: int) -> Dict[str, Any]:
+        """
+        Calculate the total estimated cost of a shopping list.
+
+        Args:
+            shopping_list_id (int): ID of the shopping list
+
+        Returns:
+            Dict[str, Any]: Dictionary containing total cost and item details
+
+        Raises:
+            NotFoundError: If shopping list doesn't exist
         """
         pass

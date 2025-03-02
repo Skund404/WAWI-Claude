@@ -1,164 +1,172 @@
 # database/models/project.py
-"""
-Project model module for the leatherworking store management system.
-
-Defines classes for Project and ProjectComponent models.
-"""
-
-import enum
-# database/models/project.py
-"""
-Project model module for the leatherworking store management system.
-
-Defines classes for Project and ProjectComponent models.
-"""
-
-import enum
-import datetime
-from typing import Dict, Any, List, Optional
-
-from sqlalchemy import (
-    Column, String, Integer, Float, ForeignKey, Enum, Boolean,
-    DateTime, Text, Table
-)
+from sqlalchemy import Column, String, Float, DateTime, Boolean, Enum, ForeignKey, Text, JSON
 from sqlalchemy.orm import relationship
-
 from database.models.base import Base, BaseModel
-from database.models.enums import ProjectType, SkillLevel, ProjectStatus
+from database.models.base import ModelValidationError
+from database.models.enums import ProjectType, ProjectStatus, SkillLevel
+from database.models.mixins import TimestampMixin, ValidationMixin, CostingMixin, TrackingMixin
+from datetime import datetime
+import uuid
+import logging
+
+logger = logging.getLogger(__name__)
 
 
-
-# Association table for many-to-many relationships if needed
-project_components = Table(
-    'project_components',
-    Base.metadata,
-    Column('project_id', Integer, ForeignKey('project.id'), primary_key=True),
-    Column('component_id', Integer, ForeignKey('project_component.id'), primary_key=True)
-)
-
-
-class Project(Base, BaseModel):
+class Project(Base, BaseModel, TimestampMixin, ValidationMixin, CostingMixin, TrackingMixin):
     """
-    Model for leatherworking projects.
+    Represents a leatherworking project with comprehensive tracking and validation.
 
-    A project represents a specific leatherwork item being created,
-    based on a pattern and using specific materials.
+    Attributes:
+        id (str): Unique identifier for the project
+        name (str): Project name
+        description (str): Detailed project description
+        project_type (ProjectType): Type of project (e.g., BAG, WALLET)
+        skill_level (SkillLevel): Skill level required for the project
+        status (ProjectStatus): Current status of the project
+        start_date (datetime): Project start date
+        end_date (datetime): Project completion date
+        estimated_hours (float): Estimated project duration
+        actual_hours (float): Actual project duration
+        is_completed (bool): Whether the project is completed
+        metadata (dict): Additional project metadata
     """
-    __tablename__ = 'project'
+    __tablename__ = 'projects'
 
-    id = Column(Integer, primary_key=True)
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     project_type = Column(Enum(ProjectType), nullable=False)
     skill_level = Column(Enum(SkillLevel), nullable=False)
-    start_date = Column(DateTime, default=datetime.datetime.utcnow)
-    due_date = Column(DateTime, nullable=True)
-    completion_date = Column(DateTime, nullable=True)
-    status = Column(Enum(ProjectStatus), default=ProjectStatus.NEW)
+    status = Column(Enum(ProjectStatus), nullable=False, default=ProjectStatus.PLANNING)
+
+    start_date = Column(DateTime, default=datetime.utcnow)
+    end_date = Column(DateTime, nullable=True)
+
+    estimated_hours = Column(Float, nullable=True)
+    actual_hours = Column(Float, nullable=True)
+    is_completed = Column(Boolean, default=False)
+
+    metadata = Column(JSON, nullable=True)
 
     # Relationships
-    components = relationship("ProjectComponent",
-                              secondary=project_components,
-                              back_populates="projects")
-    pattern_id = Column(Integer, ForeignKey('pattern.id'), nullable=True)
-    pattern = relationship("Pattern", back_populates="projects")
+    components = relationship('ProjectComponent', back_populates='project', cascade='all, delete-orphan')
+    materials = relationship('Material', secondary='project_materials', back_populates='projects')
 
-    # Optional fields for quality metrics
-    quality_rating = Column(Float, nullable=True)
-    customer_satisfaction = Column(Float, nullable=True)
-
-    # Fields for project complexity and tracking
-    complexity_score = Column(Float, default=0.0)
-    time_spent = Column(Float, default=0.0)  # In hours
-
-    def __repr__(self):
-        """Return a string representation of the project."""
-        return f"<Project id={self.id}, name='{self.name}', status={self.status}>"
-
-    def calculate_complexity(self) -> float:
+    def __init__(self, **kwargs):
         """
-        Calculate the complexity score of the project.
-
-        Returns:
-            float: Complexity score based on various factors
-        """
-        # Simple implementation - in a real app this would be more sophisticated
-        base_score = 1.0
-
-        # Adjust based on skill level
-        skill_multipliers = {
-            SkillLevel.BEGINNER: 1.0,
-            SkillLevel.INTERMEDIATE: 1.5,
-            SkillLevel.ADVANCED: 2.0,
-            SkillLevel.EXPERT: 3.0
-        }
-        skill_factor = skill_multipliers.get(self.skill_level, 1.0)
-
-        # Adjust based on component count
-        component_factor = 0.1 * len(self.components) if self.components else 0
-
-        self.complexity_score = base_score * skill_factor + component_factor
-        return self.complexity_score
-
-    def update_quality_metrics(self, quality_rating: float, customer_satisfaction: float) -> None:
-        """
-        Update the quality metrics for the project.
+        Initialize a Project instance with validation.
 
         Args:
-            quality_rating: Quality rating from 1 to 5
-            customer_satisfaction: Customer satisfaction rating from 1 to 5
+            **kwargs: Keyword arguments for project attributes
+
+        Raises:
+            ModelValidationError: If validation fails
         """
-        if 1 <= quality_rating <= 5 and 1 <= customer_satisfaction <= 5:
-            self.quality_rating = quality_rating
-            self.customer_satisfaction = customer_satisfaction
-        else:
-            raise ValueError("Quality ratings must be between 1 and 5")
+        try:
+            super().__init__(**kwargs)
+            self.validate()
+        except Exception as e:
+            logger.error(f"Project initialization error: {str(e)}")
+            raise ModelValidationError(f"Invalid project data: {str(e)}")
+
+    def validate(self):
+        """
+        Validate project attributes.
+
+        Raises:
+            ModelValidationError: If any validation fails
+        """
+        if not self.name or len(self.name) < 2:
+            raise ModelValidationError("Project name must be at least 2 characters long")
+
+        if self.start_date and self.end_date and self.start_date > self.end_date:
+            raise ModelValidationError("Start date cannot be after end date")
+
+        if self.estimated_hours is not None and self.estimated_hours < 0:
+            raise ModelValidationError("Estimated hours cannot be negative")
+
+        if self.actual_hours is not None and self.actual_hours < 0:
+            raise ModelValidationError("Actual hours cannot be negative")
+
+    def update_status(self, new_status: ProjectStatus):
+        """
+        Update project status with logging.
+
+        Args:
+            new_status (ProjectStatus): New status to set
+        """
+        old_status = self.status
+        self.status = new_status
+        logger.info(f"Project {self.id} status changed from {old_status} to {new_status}")
+
+    def complete(self):
+        """
+        Mark the project as completed.
+        """
+        if not self.is_completed:
+            self.is_completed = True
+            self.end_date = datetime.utcnow()
+            self.update_status(ProjectStatus.COMPLETED)
+            logger.info(f"Project {self.id} marked as completed")
+
+    def __repr__(self):
+        """
+        String representation of the Project.
+
+        Returns:
+            str: Project details
+        """
+        return (f"<Project(id={self.id}, name='{self.name}', "
+                f"type={self.project_type}, status={self.status})>")
 
 
-class ProjectComponent(Base, BaseModel):
+class ProjectComponent(Base, BaseModel, TimestampMixin):
     """
-    Component used in a specific project.
+    Represents a component within a project.
 
-    ProjectComponents represent actual materials used in a concrete project,
-    with actual quantities and costs.
+    Attributes:
+        project_id (str): ID of the parent project
+        name (str): Component name
+        description (str): Component description
+        quantity (float): Quantity of the component
+        material_id (str): ID of the associated material
     """
-    __tablename__ = 'project_component'
+    __tablename__ = 'project_components'
 
-    id = Column(Integer, primary_key=True)
+    project_id = Column(String, ForeignKey('projects.id'), nullable=False)
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     quantity = Column(Float, nullable=False, default=1.0)
-    unit_cost = Column(Float, nullable=False, default=0.0)
+    material_id = Column(String, ForeignKey('materials.id'), nullable=True)
 
-    # Foreign keys
-    material_id = Column(Integer, ForeignKey('material.id'), nullable=True)
-    part_id = Column(Integer, ForeignKey('part.id'), nullable=True)
-    leather_id = Column(Integer, ForeignKey('leather.id'), nullable=True)
+    project = relationship('Project', back_populates='components')
+    material = relationship('Material')
 
-    # Relationships
-    material = relationship("Material", back_populates="components")
-    part = relationship("Part", back_populates="components")
-    leather = relationship("Leather", back_populates="components")
-    projects = relationship("Project",
-                            secondary=project_components,
-                            back_populates="components")
-
-    # Efficiency tracking
-    expected_quantity = Column(Float, nullable=True)
-    actual_quantity = Column(Float, nullable=True)
-    wastage = Column(Float, nullable=True, default=0.0)
-
-    def __repr__(self):
-        """Return a string representation of the project component."""
-        return f"<ProjectComponent id={self.id}, name='{self.name}', quantity={self.quantity}>"
-
-    def calculate_efficiency(self) -> Optional[float]:
+    def __init__(self, **kwargs):
         """
-        Calculate the material efficiency for this component.
+        Initialize a ProjectComponent with validation.
 
-        Returns:
-            float: Efficiency percentage or None if data is incomplete
+        Args:
+            **kwargs: Keyword arguments for component attributes
+
+        Raises:
+            ModelValidationError: If validation fails
         """
-        if self.expected_quantity and self.actual_quantity and self.expected_quantity > 0:
-            return (self.expected_quantity / self.actual_quantity) * 100
-        return None
+        try:
+            super().__init__(**kwargs)
+            self.validate()
+        except Exception as e:
+            logger.error(f"Project component initialization error: {str(e)}")
+            raise ModelValidationError(f"Invalid project component data: {str(e)}")
+
+    def validate(self):
+        """
+        Validate project component attributes.
+
+        Raises:
+            ModelValidationError: If any validation fails
+        """
+        if not self.name or len(self.name) < 2:
+            raise ModelValidationError("Component name must be at least 2 characters long")
+
+        if self.quantity <= 0:
+            raise ModelValidationError("Component quantity must be positive")

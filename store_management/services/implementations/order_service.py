@@ -1,603 +1,881 @@
-"""
-Order Service Implementation.
-
-This module provides a concrete implementation of the Order Service interface
-for managing orders in the leatherworking store management application.
-"""
+# services/implementations/order_service.py
 
 import logging
-from typing import Any, Dict, List, Optional, Union
 from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional, Tuple, Union
 
-# Try to import the interface
-try:
-    from services.interfaces.order_service import IOrderService, OrderStatus, PaymentStatus
-except ImportError:
-    # Create placeholder classes if imports fail
-    import enum
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import and_, or_, func, select
 
-    class OrderStatus(enum.Enum):
-        """Possible statuses for an order."""
-        PENDING = "pending"
-        PROCESSING = "processing"
-        SHIPPED = "shipped"
-        DELIVERED = "delivered"
-        CANCELLED = "cancelled"
+from database.models.enums import OrderStatus, PaymentStatus
+from database.models.order import Order, OrderItem
+from database.models.product import Product
+from database.repositories.order_repository import OrderRepository
+from database.sqlalchemy.session import get_db_session
 
-    class PaymentStatus(enum.Enum):
-        """Possible payment statuses for an order."""
-        UNPAID = "unpaid"
-        PARTIALLY_PAID = "partially_paid"
-        PAID = "paid"
-        REFUNDED = "refunded"
+from services.base_service import BaseService, NotFoundError, ValidationError
+from services.interfaces.order_service import IOrderService
+from utils.logger import get_logger
 
-    class IOrderService:
-        """Placeholder for IOrderService interface."""
-        pass
+logger = get_logger(__name__)
 
-class OrderService(IOrderService):
+class OrderService(BaseService, IOrderService):
     """
-    Implementation of the Order Service interface.
-
-    This service manages customer orders, including creation, updates,
-    and tracking of order status and payment information.
+    Enhanced Order Service implementation with comprehensive validation,
+    error handling, and logging.
     """
-
-    def __init__(self):
-        """Initialize the Order Service."""
-        self.logger = logging.getLogger(__name__)
-        self.logger.info("OrderService initialized")
-
-        # For demonstration purposes, we'll use in-memory dictionaries
-        self._orders = {}
-        self._order_items = {}
-        self._next_order_id = 1
-        self._next_item_id = 1
-
-    def _create_sample_orders(self):
-        """Create sample orders for testing."""
-        # Sample order 1
-        order1 = self.create_order({
-            "customer_name": "John Doe",
-            "customer_email": "john.doe@example.com",
-            "order_date": (datetime.now() - timedelta(days=5)).strftime("%Y-%m-%d"),
-            "status": OrderStatus.DELIVERED.name,
-            "payment_status": PaymentStatus.PAID.name,
-            "shipping_address": "123 Main St, Anytown, CA 12345"
-        })
-
-        # Add items to order 1
-        self.add_order_item(order1["id"], {
-            "product_id": 1,
-            "product_name": "Leather Wallet",
-            "quantity": 1,
-            "unit_price": 49.99
-        })
-
-        self.add_order_item(order1["id"], {
-            "product_id": 5,
-            "product_name": "Leather Care Kit",
-            "quantity": 1,
-            "unit_price": 24.99
-        })
-
-        # Sample order 2
-        order2 = self.create_order({
-            "customer_name": "Jane Smith",
-            "customer_email": "jane.smith@example.com",
-            "order_date": datetime.now().strftime("%Y-%m-%d"),
-            "status": OrderStatus.PROCESSING.name,
-            "payment_status": PaymentStatus.PAID.name,
-            "shipping_address": "456 Oak Ave, Othertown, NY 67890"
-        })
-
-        # Add items to order 2
-        self.add_order_item(order2["id"], {
-            "product_id": 2,
-            "product_name": "Leather Belt",
-            "quantity": 1,
-            "unit_price": 39.99
-        })
-
-        # Sample order 3
-        order3 = self.create_order({
-            "customer_name": "Robert Johnson",
-            "customer_email": "robert.johnson@example.com",
-            "order_date": (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d"),
-            "status": OrderStatus.PENDING.name,
-            "payment_status": PaymentStatus.UNPAID.name,
-            "shipping_address": "789 Pine Rd, Somewhere, TX 54321"
-        })
-
-        # Add items to order 3
-        self.add_order_item(order3["id"], {
-            "product_id": 3,
-            "product_name": "Leather Bag",
-            "quantity": 1,
-            "unit_price": 129.99
-        })
-
-        self.add_order_item(order3["id"], {
-            "product_id": 4,
-            "product_name": "Leather Keychain",
-            "quantity": 2,
-            "unit_price": 9.99
-        })
-
-    def create_order(self, order_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Create a new order.
-
-        Args:
-            order_data: Dictionary with order information
-
-        Returns:
-            Dict[str, Any]: Created order
+    
+    def __init__(self, order_repository: Optional[OrderRepository] = None):
         """
-        self.logger.info("Creating new order")
-
-        # Set default values if not provided
-        order = {
-            "id": self._next_order_id,
-            "reference_number": order_data.get("reference_number", f"ORD-{self._next_order_id:04d}"),
-            "customer_name": order_data.get("customer_name", ""),
-            "customer_email": order_data.get("customer_email", ""),
-            "customer_phone": order_data.get("customer_phone", ""),
-            "order_date": order_data.get("order_date", datetime.now().strftime("%Y-%m-%d")),
-            "status": order_data.get("status", OrderStatus.PENDING.name),
-            "payment_status": order_data.get("payment_status", PaymentStatus.UNPAID.name),
-            "total_amount": order_data.get("total_amount", 0.0),
-            "shipping_address": order_data.get("shipping_address", ""),
-            "notes": order_data.get("notes", ""),
-            "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        }
-
-        # Add order to storage
-        self._orders.append(order)
-        self._order_items[self._next_order_id] = []
-        self._next_order_id += 1
-
-        return order
-
-    def get_order_items(self, order_id: int) -> List[Dict[str, Any]]:
-        """Get items for an order.
-
+        Initialize the Order Service with a repository.
+        
         Args:
-            order_id: ID of the order to get items for
-
-        Returns:
-            List[Dict[str, Any]]: List of order items
+            order_repository: Repository for order data access.
+                If not provided, a new one will be created.
         """
-        self.logger.info(f"Getting items for order {order_id}")
+        super().__init__()
+        self.logger = get_logger(__name__)
+        self.logger.info("Initializing OrderService")
+        
+        # Create repository if not provided
+        if order_repository is None:
+            session = get_db_session()
+            self.order_repository = OrderRepository(session)
+        else:
+            self.order_repository = order_repository
+    
+    def get_all_orders(
+        self, 
+        status: Optional[OrderStatus] = None,
+        payment_status: Optional[PaymentStatus] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        include_deleted: bool = False,
+        page: int = 1,
+        page_size: int = 50,
+        sort_by: str = "order_date",
+        sort_desc: bool = True
+    ) -> Tuple[List[Dict[str, Any]], int]:
+        """
+        Get all orders with optional filtering, pagination, and sorting.
+        
+        Args:
+            status: Filter by order status
+            payment_status: Filter by payment status
+            start_date: Filter by orders on or after this date
+            end_date: Filter by orders on or before this date
+            include_deleted: Whether to include soft-deleted orders
+            page: Page number for pagination
+            page_size: Number of items per page
+            sort_by: Field to sort by
+            sort_desc: Whether to sort in descending order
+            
+        Returns:
+            Tuple containing:
+                - List of orders as dictionaries
+                - Total count of orders matching the filters
+        """
+        try:
+            self.logger.debug(f"Getting all orders with filters: status={status}, payment_status={payment_status}, "
+                             f"start_date={start_date}, end_date={end_date}, include_deleted={include_deleted}")
+            
+            # Set up filter conditions
+            filters = []
+            
+            if not include_deleted:
+                filters.append(Order.deleted == False)
+                
+            if status is not None:
+                filters.append(Order.status == status)
+                
+            if payment_status is not None:
+                filters.append(Order.payment_status == payment_status)
+                
+            if start_date is not None:
+                filters.append(Order.order_date >= start_date)
+                
+            if end_date is not None:
+                filters.append(Order.order_date <= end_date)
+            
+            # Get orders and total count
+            orders, total_count = self.order_repository.get_all_with_pagination(
+                filters=filters,
+                page=page,
+                page_size=page_size,
+                sort_by=sort_by,
+                sort_desc=sort_desc
+            )
+            
+            # Convert to dictionaries
+            result = []
+            for order in orders:
+                # Add item count
+                order_dict = order.to_dict()
+                order_dict['item_count'] = len(order.items)
+                result.append(order_dict)
+                
+            self.logger.info(f"Retrieved {len(result)} orders (total: {total_count})")
+            return result, total_count
+            
+        except SQLAlchemyError as e:
+            self.logger.error(f"Database error getting orders: {str(e)}")
+            raise ValidationError(f"Error retrieving orders: {str(e)}")
+        except Exception as e:
+            self.logger.error(f"Unexpected error getting orders: {str(e)}")
+            raise ValidationError(f"Unexpected error retrieving orders: {str(e)}")
 
-        return self._order_items.get(order_id, [])
-
-    def get_order_by_id(self, order_id: int) -> Optional[Dict[str, Any]]:
-        """Get an order by ID.
-
+    def get_order_by_id(self, order_id: int, include_items: bool = True) -> Dict[str, Any]:
+        """
+        Get order by ID.
+        
         Args:
             order_id: ID of the order to retrieve
-
+            include_items: Whether to include order items
+            
         Returns:
-            Optional[Dict[str, Any]]: Order data or None if not found
-        """
-        self.logger.info(f"Getting order with ID {order_id}")
-
-        for order in self._orders:
-            if order["id"] == order_id:
-                return order
-
-        return None
-
-    def get_orders_by_status(self, status: Union[OrderStatus, str]) -> List[Dict[str, Any]]:
-        """Get orders by status.
-
-        Args:
-            status: Order status to filter by (enum or string)
-
-        Returns:
-            List[Dict[str, Any]]: List of orders with the specified status
-        """
-        self.logger.info(f"Getting orders with status {status}")
-
-        # Convert string status to enum name if needed
-        if isinstance(status, OrderStatus):
-            status_name = status.name
-        else:
-            status_name = status
-
-        return [order for order in self._orders if order["status"] == status_name]
-
-    def get_all_orders(self) -> List[Dict[str, Any]]:
-        """Get all orders.
-
-        Returns:
-            List[Dict[str, Any]]: List of all orders
-        """
-        self.logger.info("Getting all orders")
-        return self._orders
-
-    def get_order(self, order_id: int) -> Dict[str, Any]:
-        """
-        Retrieve an order by its ID.
-
-        Args:
-            order_id: Unique identifier of the order
-
-        Returns:
-            Dictionary containing order details
-
+            Order data as a dictionary
+            
         Raises:
-            ValueError: If order with given ID doesn't exist
+            NotFoundError: If order doesn't exist
         """
-        self.logger.debug(f"Getting order with ID: {order_id}")
+        try:
+            self.logger.debug(f"Getting order by ID: {order_id}, include_items={include_items}")
+            
+            # Get order with or without items
+            order = self.order_repository.get_by_id(
+                order_id, 
+                include_related=['items', 'supplier'] if include_items else ['supplier']
+            )
+            
+            if order is None:
+                self.logger.warning(f"Order with ID {order_id} not found")
+                raise NotFoundError(f"Order with ID {order_id} not found")
+                
+            if order.deleted:
+                self.logger.warning(f"Order with ID {order_id} has been deleted")
+                raise NotFoundError(f"Order with ID {order_id} has been deleted")
+            
+            # Convert to dictionary
+            result = order.to_dict()
+            
+            # Add items if requested
+            if include_items:
+                result['items'] = [item.to_dict() for item in order.items]
+            
+            self.logger.info(f"Retrieved order with ID {order_id}")
+            return result
+            
+        except NotFoundError:
+            raise
+        except SQLAlchemyError as e:
+            self.logger.error(f"Database error getting order {order_id}: {str(e)}")
+            raise ValidationError(f"Error retrieving order: {str(e)}")
+        except Exception as e:
+            self.logger.error(f"Unexpected error getting order {order_id}: {str(e)}")
+            raise ValidationError(f"Unexpected error retrieving order: {str(e)}")
 
-        if order_id not in self._orders:
-            raise ValueError(f"Order with ID {order_id} not found")
-
-        return self._orders[order_id]
-
-    def get_orders(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
+    def get_order_by_number(self, order_number: str) -> Dict[str, Any]:
         """
-        Get a list of orders with pagination.
-
+        Get order by order number.
+        
         Args:
-            limit: Maximum number of records to return
-            offset: Number of records to skip for pagination
-
+            order_number: Order number to retrieve
+            
         Returns:
-            List of dictionaries containing order details
+            Order data as a dictionary
+            
+        Raises:
+            NotFoundError: If order doesn't exist
         """
-        self.logger.debug(f"Getting orders with limit: {limit}, offset: {offset}")
+        try:
+            self.logger.debug(f"Getting order by number: {order_number}")
+            
+            # Find the order
+            order = self.order_repository.find_one_by(
+                filters=[Order.order_number == order_number, Order.deleted == False],
+                include_related=['items', 'supplier']
+            )
+            
+            if order is None:
+                self.logger.warning(f"Order with number '{order_number}' not found")
+                raise NotFoundError(f"Order with number '{order_number}' not found")
+            
+            # Convert to dictionary
+            result = order.to_dict()
+            result['items'] = [item.to_dict() for item in order.items]
+            
+            self.logger.info(f"Retrieved order with number '{order_number}'")
+            return result
+            
+        except NotFoundError:
+            raise
+        except SQLAlchemyError as e:
+            self.logger.error(f"Database error getting order '{order_number}': {str(e)}")
+            raise ValidationError(f"Error retrieving order: {str(e)}")
+        except Exception as e:
+            self.logger.error(f"Unexpected error getting order '{order_number}': {str(e)}")
+            raise ValidationError(f"Unexpected error retrieving order: {str(e)}")
 
-        orders = list(self._orders.values())
-        return orders[offset:offset + limit]
-
-    def update_payment_status(self, order_id: int, status: Union[PaymentStatus, str]) -> Optional[Dict[str, Any]]:
-        """Update an order's payment status.
-
+    def create_order(self, order_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Create a new order.
+        
         Args:
-            order_id: ID of the order to update
-            status: New payment status (enum or string)
-
+            order_data: Order data
+            
         Returns:
-            Optional[Dict[str, Any]]: Updated order data or None if not found
+            Created order data
+            
+        Raises:
+            ValidationError: If validation fails
         """
-        self.logger.info(f"Updating payment status of order {order_id} to {status}")
+        try:
+            self.logger.debug(f"Creating new order with data: {order_data}")
+            
+            # Ensure order number is unique
+            if 'order_number' in order_data:
+                existing = self.order_repository.find_one_by(
+                    filters=[Order.order_number == order_data['order_number'], Order.deleted == False]
+                )
+                if existing:
+                    self.logger.warning(f"Order with number '{order_data['order_number']}' already exists")
+                    raise ValidationError(f"Order with number '{order_data['order_number']}' already exists")
+            
+            # Extract items if present
+            items_data = order_data.pop('items', [])
+            
+            # Create order
+            order = Order(**order_data)
+            self.order_repository.add(order)
+            self.order_repository.commit()
+            
+            # Add items if provided
+            for item_data in items_data:
+                if 'product_id' in item_data and 'quantity' in item_data and 'unit_price' in item_data:
+                    order.add_item(
+                        product_id=item_data['product_id'],
+                        quantity=item_data['quantity'],
+                        unit_price=item_data['unit_price']
+                    )
+            
+            # Update order total and save
+            if items_data:
+                order.calculate_total()
+                self.order_repository.commit()
+            
+            # Return the created order
+            self.logger.info(f"Created new order with ID {order.id}")
+            result = order.to_dict()
+            result['items'] = [item.to_dict() for item in order.items]
+            return result
+            
+        except ValidationError:
+            raise
+        except SQLAlchemyError as e:
+            self.logger.error(f"Database error creating order: {str(e)}")
+            self.order_repository.rollback()
+            raise ValidationError(f"Error creating order: {str(e)}")
+        except Exception as e:
+            self.logger.error(f"Unexpected error creating order: {str(e)}")
+            self.order_repository.rollback()
+            raise ValidationError(f"Unexpected error creating order: {str(e)}")
 
-        # Convert enum to string if needed
-        if isinstance(status, PaymentStatus):
-            status_name = status.name
-        else:
-            status_name = status
-
-        return self.update_order(order_id, {"payment_status": status_name})
-
-    def update_order(self, order_id: int, order_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Update an existing order.
-
+    def update_order(self, order_id: int, order_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Update an existing order.
+        
         Args:
             order_id: ID of the order to update
             order_data: Updated order data
-
+            
         Returns:
-            Optional[Dict[str, Any]]: Updated order data or None if not found
-        """
-        self.logger.info(f"Updating order with ID {order_id}")
-
-        for i, order in enumerate(self._orders):
-            if order["id"] == order_id:
-                # Update order fields
-                for key, value in order_data.items():
-                    if key != "id":  # Don't update the ID
-                        order[key] = value
-
-                # Update the updated_at timestamp
-                order["updated_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-                # Recalculate total amount if there are items
-                if order_id in self._order_items:
-                    total = sum(item["total_price"] for item in self._order_items[order_id])
-                    order["total_amount"] = total
-
-                return order
-
-        return None
-
-    def update_order_item(self, order_id: int, item_id: int, item_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Update an order item.
-
-        Args:
-            order_id: ID of the order containing the item
-            item_id: ID of the item to update
-            item_data: Updated item data
-
-        Returns:
-            Optional[Dict[str, Any]]: Updated item data or None if not found
-        """
-        self.logger.info(f"Updating item {item_id} in order {order_id}")
-
-        # Check if order exists and has items
-        if order_id not in self._order_items:
-            return None
-
-        # Find and update the item
-        for i, item in enumerate(self._order_items[order_id]):
-            if item["id"] == item_id:
-                # Update item fields
-                for key, value in item_data.items():
-                    if key != "id" and key != "order_id":  # Don't update ID or order_id
-                        item[key] = value
-
-                # Recalculate total price
-                if "quantity" in item_data or "unit_price" in item_data:
-                    item["total_price"] = item["unit_price"] * item["quantity"]
-
-                # Update order total
-                total = sum(item["total_price"] for item in self._order_items[order_id])
-                self.update_order(order_id, {"total_amount": total})
-
-                return item
-
-        return None
-
-    def update_order_status(self, order_id: int, status: Union[OrderStatus, str]) -> Optional[Dict[str, Any]]:
-        """Update an order's status.
-
-        Args:
-            order_id: ID of the order to update
-            status: New order status (enum or string)
-
-        Returns:
-            Optional[Dict[str, Any]]: Updated order data or None if not found
-        """
-        self.logger.info(f"Updating status of order {order_id} to {status}")
-
-        # Convert enum to string if needed
-        if isinstance(status, OrderStatus):
-            status_name = status.name
-        else:
-            status_name = status
-
-        return self.update_order(order_id, {"status": status_name})
-
-    def process_payment(self, order_id: int, amount: float, payment_method: str) -> Dict[str, Any]:
-        """
-        Process a payment for an order.
-
-        Args:
-            order_id: Unique identifier of the order
-            amount: Payment amount
-            payment_method: Method of payment (e.g., credit card, cash)
-
-        Returns:
-            Dictionary containing payment details
-
+            Updated order data
+            
         Raises:
-            ValueError: If order with given ID doesn't exist
+            NotFoundError: If order doesn't exist
+            ValidationError: If validation fails
         """
-        self.logger.debug(f"Processing payment of {amount} for order {order_id}")
+        try:
+            self.logger.debug(f"Updating order {order_id} with data: {order_data}")
+            
+            # Get the order
+            order = self.order_repository.get_by_id(order_id, include_related=['items'])
+            
+            if order is None:
+                self.logger.warning(f"Order with ID {order_id} not found")
+                raise NotFoundError(f"Order with ID {order_id} not found")
+                
+            if order.deleted:
+                self.logger.warning(f"Order with ID {order_id} has been deleted")
+                raise NotFoundError(f"Order with ID {order_id} has been deleted")
+            
+            # Ensure order number is unique if changed
+            if 'order_number' in order_data and order_data['order_number'] != order.order_number:
+                existing = self.order_repository.find_one_by(
+                    filters=[
+                        Order.order_number == order_data['order_number'],
+                        Order.id != order_id,
+                        Order.deleted == False
+                    ]
+                )
+                if existing:
+                    self.logger.warning(f"Order with number '{order_data['order_number']}' already exists")
+                    raise ValidationError(f"Order with number '{order_data['order_number']}' already exists")
+            
+            # Extract items if present
+            items_data = order_data.pop('items', None)
+            
+            # Update order
+            order.update(**order_data)
+            
+            # Update items if provided
+            if items_data is not None:
+                # Remove existing items
+                for item in list(order.items):
+                    order.remove_item(item.id)
+                
+                # Add new items
+                for item_data in items_data:
+                    if 'product_id' in item_data and 'quantity' in item_data and 'unit_price' in item_data:
+                        order.add_item(
+                            product_id=item_data['product_id'],
+                            quantity=item_data['quantity'],
+                            unit_price=item_data['unit_price']
+                        )
+            
+            # Commit changes
+            self.order_repository.commit()
+            
+            # Return the updated order
+            self.logger.info(f"Updated order with ID {order_id}")
+            result = order.to_dict()
+            result['items'] = [item.to_dict() for item in order.items]
+            return result
+            
+        except NotFoundError:
+            raise
+        except ValidationError:
+            raise
+        except SQLAlchemyError as e:
+            self.logger.error(f"Database error updating order {order_id}: {str(e)}")
+            self.order_repository.rollback()
+            raise ValidationError(f"Error updating order: {str(e)}")
+        except Exception as e:
+            self.logger.error(f"Unexpected error updating order {order_id}: {str(e)}")
+            self.order_repository.rollback()
+            raise ValidationError(f"Unexpected error updating order: {str(e)}")
 
-        if order_id not in self._orders:
-            raise ValueError(f"Order with ID {order_id} not found")
-
-        order = self._orders[order_id]
-
-        # Calculate total order value
-        total = self.calculate_order_total(order_id)
-
-        # Determine new payment status based on amount
-        if amount >= total:
-            payment_status = PaymentStatus.PAID
-        elif amount > 0:
-            payment_status = PaymentStatus.PARTIALLY_PAID
-        else:
-            payment_status = PaymentStatus.UNPAID
-
-        # Update payment status
-        order['payment_status'] = payment_status.value
-
-        # Create payment record
-        payment = {
-            'order_id': order_id,
-            'amount': amount,
-            'payment_method': payment_method,
-            'payment_status': payment_status.value
-        }
-
-        self.logger.info(f"Processed payment of {amount} for order {order_id}")
-        return payment
-
-    def delete_order(self, order_id: int) -> bool:
-        """Delete an order.
-
+    def delete_order(self, order_id: int, permanent: bool = False) -> bool:
+        """
+        Delete an order.
+        
         Args:
             order_id: ID of the order to delete
-
+            permanent: Whether to permanently delete the order
+            
         Returns:
-            bool: True if deleted, False if not found
-        """
-        self.logger.info(f"Deleting order with ID {order_id}")
-
-        for i, order in enumerate(self._orders):
-            if order["id"] == order_id:
-                self._orders.pop(i)
-                if order_id in self._order_items:
-                    del self._order_items[order_id]
-                return True
-
-        return False
-
-    def add_order_item(self, order_id: int, item_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Add an item to an order.
-
-        Args:
-            order_id: ID of the order to add the item to
-            item_data: Item data including product_id, quantity, etc.
-
-        Returns:
-            Optional[Dict[str, Any]]: Added item data or None if order not found
-        """
-        self.logger.info(f"Adding item to order {order_id}")
-
-        # Check if order exists
-        order = self.get_order_by_id(order_id)
-        if not order:
-            return None
-
-        # Prepare item data
-        item = {
-            "id": self._next_item_id,
-            "order_id": order_id,
-            "product_id": item_data.get("product_id"),
-            "product_name": item_data.get("product_name", "Unknown Product"),
-            "quantity": item_data.get("quantity", 1),
-            "unit_price": item_data.get("unit_price", 0.0),
-            "total_price": item_data.get("unit_price", 0.0) * item_data.get("quantity", 1),
-            "notes": item_data.get("notes", "")
-        }
-
-        # Add item to order
-        if order_id not in self._order_items:
-            self._order_items[order_id] = []
-
-        self._order_items[order_id].append(item)
-        self._next_item_id += 1
-
-        # Update order total
-        total = sum(item["total_price"] for item in self._order_items[order_id])
-        self.update_order(order_id, {"total_amount": total})
-
-        return item
-
-    def remove_order_item(self, order_id: int, item_id: int) -> bool:
-        """Remove an item from an order.
-
-        Args:
-            order_id: ID of the order containing the item
-            item_id: ID of the item to remove
-
-        Returns:
-            bool: True if removed, False if not found
-        """
-        self.logger.info(f"Removing item {item_id} from order {order_id}")
-
-        # Check if order exists and has items
-        if order_id not in self._order_items:
-            return False
-
-        # Find and remove the item
-        for i, item in enumerate(self._order_items[order_id]):
-            if item["id"] == item_id:
-                self._order_items[order_id].pop(i)
-
-                # Update order total
-                total = sum(item["total_price"] for item in self._order_items[order_id])
-                self.update_order(order_id, {"total_amount": total})
-
-                return True
-
-        return False
-
-    def list_orders(self, status: Optional[OrderStatus] = None) -> List[Dict[str, Any]]:
-        """
-        List orders optionally filtered by status.
-
-        Args:
-            status: Optional filter by order status
-
-        Returns:
-            List of dictionaries containing matching order details
-        """
-        self.logger.debug(f"Listing orders with status: {status}")
-
-        # Filter by status if specified
-        if status:
-            status_value = status.value
-            return [order for order in self._orders.values() if order.get('status') == status_value]
-
-        return list(self._orders.values())
-
-    def search_orders(self, field: str, search_text: str, exact_match: bool = False) -> List[Dict[str, Any]]:
-        """Search orders based on criteria.
-
-        Args:
-            field: Field to search in
-            search_text: Text to search for
-            exact_match: Whether to use exact matching
-
-        Returns:
-            List[Dict[str, Any]]: List of matching orders
-        """
-        self.logger.info(f"Searching orders for '{search_text}' in field '{field}'")
-
-        results = []
-
-        for order in self._orders:
-            if field in order:
-                field_value = str(order[field])
-
-                if exact_match:
-                    if field_value == search_text:
-                        results.append(order)
-                else:
-                    if search_text.lower() in field_value.lower():
-                        results.append(order)
-
-        return results
-
-    def calculate_order_total(self, order_id: int) -> float:
-        """
-        Calculate the total amount for an order.
-
-        Args:
-            order_id: Unique identifier of the order
-
-        Returns:
-            Calculated order total
-
+            True if successful
+            
         Raises:
-            ValueError: If order with given ID doesn't exist
+            NotFoundError: If order doesn't exist
         """
-        self.logger.debug(f"Calculating total for order ID {order_id}")
+        try:
+            self.logger.debug(f"Deleting order {order_id} (permanent={permanent})")
+            
+            # Get the order
+            order = self.order_repository.get_by_id(order_id)
+            
+            if order is None:
+                self.logger.warning(f"Order with ID {order_id} not found")
+                raise NotFoundError(f"Order with ID {order_id} not found")
+                
+            if order.deleted and not permanent:
+                self.logger.warning(f"Order with ID {order_id} already deleted")
+                return True
+            
+            # Delete the order
+            if permanent:
+                self.order_repository.delete(order)
+                self.logger.info(f"Permanently deleted order with ID {order_id}")
+            else:
+                order.soft_delete()
+                self.logger.info(f"Soft deleted order with ID {order_id}")
+            
+            # Commit changes
+            self.order_repository.commit()
+            return True
+            
+        except NotFoundError:
+            raise
+        except SQLAlchemyError as e:
+            self.logger.error(f"Database error deleting order {order_id}: {str(e)}")
+            self.order_repository.rollback()
+            raise ValidationError(f"Error deleting order: {str(e)}")
+        except Exception as e:
+            self.logger.error(f"Unexpected error deleting order {order_id}: {str(e)}")
+            self.order_repository.rollback()
+            raise ValidationError(f"Unexpected error deleting order: {str(e)}")
 
-        if order_id not in self._orders:
-            raise ValueError(f"Order with ID {order_id} not found")
-
-        order = self._orders[order_id]
-        total = 0.0
-
-        # Sum up item costs
-        for item_id in order.get('items', []):
-            if item_id in self._order_items:
-                item = self._order_items[item_id]
-                quantity = item.get('quantity', 0)
-                unit_price = item.get('unit_price', 0)
-                total += quantity * unit_price
-
-        return total
-
-    def generate_order_report(self, start_date: Optional[str] = None, end_date: Optional[str] = None) -> Dict[str, Any]:
+    def restore_order(self, order_id: int) -> Dict[str, Any]:
         """
-        Generate a report of orders within a date range.
-
+        Restore a soft-deleted order.
+        
         Args:
-            start_date: Optional start date for filtering orders
-            end_date: Optional end date for filtering orders
-
+            order_id: ID of the order to restore
+            
         Returns:
-            Dictionary containing the order report
+            Restored order data
+            
+        Raises:
+            NotFoundError: If order doesn't exist
         """
-        self.logger.debug(f"Generating order report from {start_date} to {end_date}")
-
-        # In this simple implementation, we just return basic statistics
-        total_orders = len(self._orders)
-        total_revenue = sum(self.calculate_order_total(order_id) for order_id in self._orders)
-
-        report = {
-            'total_orders': total_orders,
-            'total_revenue': total_revenue,
-            'average_order_value': total_revenue / total_orders if total_orders > 0 else 0
-        }
-
-        return report
+        try:
+            self.logger.debug(f"Restoring order {order_id}")
+            
+            # Get the order
+            order = self.order_repository.get_by_id(order_id, include_deleted=True)
+            
+            if order is None:
+                self.logger.warning(f"Order with ID {order_id} not found")
+                raise NotFoundError(f"Order with ID {order_id} not found")
+                
+            if not order.deleted:
+                self.logger.warning(f"Order with ID {order_id} is not deleted")
+                result = order.to_dict()
+                result['items'] = [item.to_dict() for item in order.items]
+                return result
+            
+            # Restore the order
+            order.restore()
+            
+            # Commit changes
+            self.order_repository.commit()
+            
+            # Return the restored order
+            self.logger.info(f"Restored order with ID {order_id}")
+            result = order.to_dict()
+            result['items'] = [item.to_dict() for item in order.items]
+            return result
+            
+        except NotFoundError:
+            raise
+        except SQLAlchemyError as e:
+            self.logger.error(f"Database error restoring order {order_id}: {str(e)}")
+            self.order_repository.rollback()
+            raise ValidationError(f"Error restoring order: {str(e)}")
+        except Exception as e:
+            self.logger.error(f"Unexpected error restoring order {order_id}: {str(e)}")
+            self.order_repository.rollback()
+            raise ValidationError(f"Unexpected error restoring order: {str(e)}")
+            
+    def update_order_status(self, order_id: int, status: OrderStatus) -> Dict[str, Any]:
+        """
+        Update the status of an order.
+        
+        Args:
+            order_id: ID of the order to update
+            status: New status
+            
+        Returns:
+            Updated order data
+            
+        Raises:
+            NotFoundError: If order doesn't exist
+        """
+        try:
+            self.logger.debug(f"Updating status of order {order_id} to {status}")
+            
+            # Get the order
+            order = self.order_repository.get_by_id(order_id)
+            
+            if order is None:
+                self.logger.warning(f"Order with ID {order_id} not found")
+                raise NotFoundError(f"Order with ID {order_id} not found")
+                
+            if order.deleted:
+                self.logger.warning(f"Order with ID {order_id} has been deleted")
+                raise NotFoundError(f"Order with ID {order_id} has been deleted")
+            
+            # Update status
+            old_status = order.status
+            order.update(status=status)
+            
+            # Commit changes
+            self.order_repository.commit()
+            
+            # Return the updated order
+            self.logger.info(f"Updated status of order {order_id} from {old_status} to {status}")
+            result = order.to_dict()
+            result['items'] = [item.to_dict() for item in order.items]
+            return result
+            
+        except NotFoundError:
+            raise
+        except SQLAlchemyError as e:
+            self.logger.error(f"Database error updating order status {order_id}: {str(e)}")
+            self.order_repository.rollback()
+            raise ValidationError(f"Error updating order status: {str(e)}")
+        except Exception as e:
+            self.logger.error(f"Unexpected error updating order status {order_id}: {str(e)}")
+            self.order_repository.rollback()
+            raise ValidationError(f"Unexpected error updating order status: {str(e)}")
+            
+    def update_payment_status(self, order_id: int, payment_status: PaymentStatus) -> Dict[str, Any]:
+        """
+        Update the payment status of an order.
+        
+        Args:
+            order_id: ID of the order to update
+            payment_status: New payment status
+            
+        Returns:
+            Updated order data
+            
+        Raises:
+            NotFoundError: If order doesn't exist
+        """
+        try:
+            self.logger.debug(f"Updating payment status of order {order_id} to {payment_status}")
+            
+            # Get the order
+            order = self.order_repository.get_by_id(order_id)
+            
+            if order is None:
+                self.logger.warning(f"Order with ID {order_id} not found")
+                raise NotFoundError(f"Order with ID {order_id} not found")
+                
+            if order.deleted:
+                self.logger.warning(f"Order with ID {order_id} has been deleted")
+                raise NotFoundError(f"Order with ID {order_id} has been deleted")
+            
+            # Update payment status
+            old_payment_status = order.payment_status
+            order.update(payment_status=payment_status)
+            
+            # Commit changes
+            self.order_repository.commit()
+            
+            # Return the updated order
+            self.logger.info(f"Updated payment status of order {order_id} from {old_payment_status} to {payment_status}")
+            result = order.to_dict()
+            result['items'] = [item.to_dict() for item in order.items]
+            return result
+            
+        except NotFoundError:
+            raise
+        except SQLAlchemyError as e:
+            self.logger.error(f"Database error updating order payment status {order_id}: {str(e)}")
+            self.order_repository.rollback()
+            raise ValidationError(f"Error updating order payment status: {str(e)}")
+        except Exception as e:
+            self.logger.error(f"Unexpected error updating order payment status {order_id}: {str(e)}")
+            self.order_repository.rollback()
+            raise ValidationError(f"Unexpected error updating order payment status: {str(e)}")
+    
+    def add_order_item(self, order_id: int, item_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Add an item to an order.
+        
+        Args:
+            order_id: ID of the order
+            item_data: Item data including product_id, quantity, and unit_price
+            
+        Returns:
+            Added order item data
+            
+        Raises:
+            NotFoundError: If order doesn't exist
+            ValidationError: If validation fails
+        """
+        try:
+            self.logger.debug(f"Adding item to order {order_id}: {item_data}")
+            
+            # Validate required fields
+            required_fields = ['product_id', 'quantity', 'unit_price']
+            for field in required_fields:
+                if field not in item_data:
+                    self.logger.warning(f"Missing required field '{field}' for order item")
+                    raise ValidationError(f"Missing required field '{field}' for order item")
+            
+            # Get the order
+            order = self.order_repository.get_by_id(order_id)
+            
+            if order is None:
+                self.logger.warning(f"Order with ID {order_id} not found")
+                raise NotFoundError(f"Order with ID {order_id} not found")
+                
+            if order.deleted:
+                self.logger.warning(f"Order with ID {order_id} has been deleted")
+                raise NotFoundError(f"Order with ID {order_id} has been deleted")
+            
+            # Add the item
+            item = order.add_item(
+                product_id=item_data['product_id'],
+                quantity=item_data['quantity'],
+                unit_price=item_data['unit_price']
+            )
+            
+            # Add notes if provided
+            if 'notes' in item_data:
+                item.update(notes=item_data['notes'])
+            
+            # Commit changes
+            self.order_repository.commit()
+            
+            # Return the added item
+            self.logger.info(f"Added item to order {order_id}: {item}")
+            return item.to_dict()
+            
+        except NotFoundError:
+            raise
+        except ValidationError:
+            raise
+        except SQLAlchemyError as e:
+            self.logger.error(f"Database error adding order item to {order_id}: {str(e)}")
+            self.order_repository.rollback()
+            raise ValidationError(f"Error adding order item: {str(e)}")
+        except Exception as e:
+            self.logger.error(f"Unexpected error adding order item to {order_id}: {str(e)}")
+            self.order_repository.rollback()
+            raise ValidationError(f"Unexpected error adding order item: {str(e)}")
+    
+    def update_order_item(self, order_id: int, item_id: int, item_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Update an order item.
+        
+        Args:
+            order_id: ID of the order
+            item_id: ID of the item to update
+            item_data: Updated item data
+            
+        Returns:
+            Updated order item data
+            
+        Raises:
+            NotFoundError: If order or item doesn't exist
+            ValidationError: If validation fails
+        """
+        try:
+            self.logger.debug(f"Updating item {item_id} in order {order_id}: {item_data}")
+            
+            # Get the order
+            order = self.order_repository.get_by_id(order_id, include_related=['items'])
+            
+            if order is None:
+                self.logger.warning(f"Order with ID {order_id} not found")
+                raise NotFoundError(f"Order with ID {order_id} not found")
+                
+            if order.deleted:
+                self.logger.warning(f"Order with ID {order_id} has been deleted")
+                raise NotFoundError(f"Order with ID {order_id} has been deleted")
+            
+            # Find the item
+            item = None
+            for i in order.items:
+                if i.id == item_id:
+                    item = i
+                    break
+            
+            if item is None:
+                self.logger.warning(f"Item with ID {item_id} not found in order {order_id}")
+                raise NotFoundError(f"Item with ID {item_id} not found in order {order_id}")
+            
+            # Update the item
+            item.update(**item_data)
+            
+            # Commit changes
+            self.order_repository.commit()
+            
+            # Return the updated item
+            self.logger.info(f"Updated item {item_id} in order {order_id}")
+            return item.to_dict()
+            
+        except NotFoundError:
+            raise
+        except ValidationError:
+            raise
+        except SQLAlchemyError as e:
+            self.logger.error(f"Database error updating order item {item_id} in {order_id}: {str(e)}")
+            self.order_repository.rollback()
+            raise ValidationError(f"Error updating order item: {str(e)}")
+        except Exception as e:
+            self.logger.error(f"Unexpected error updating order item {item_id} in {order_id}: {str(e)}")
+            self.order_repository.rollback()
+            raise ValidationError(f"Unexpected error updating order item: {str(e)}")
+    
+    def remove_order_item(self, order_id: int, item_id: int) -> bool:
+        """
+        Remove an item from an order.
+        
+        Args:
+            order_id: ID of the order
+            item_id: ID of the item to remove
+            
+        Returns:
+            True if successful
+            
+        Raises:
+            NotFoundError: If order or item doesn't exist
+        """
+        try:
+            self.logger.debug(f"Removing item {item_id} from order {order_id}")
+            
+            # Get the order
+            order = self.order_repository.get_by_id(order_id, include_related=['items'])
+            
+            if order is None:
+                self.logger.warning(f"Order with ID {order_id} not found")
+                raise NotFoundError(f"Order with ID {order_id} not found")
+                
+            if order.deleted:
+                self.logger.warning(f"Order with ID {order_id} has been deleted")
+                raise NotFoundError(f"Order with ID {order_id} has been deleted")
+            
+            # Find the item
+            item_found = False
+            for item in order.items:
+                if item.id == item_id:
+                    item_found = True
+                    break
+            
+            if not item_found:
+                self.logger.warning(f"Item with ID {item_id} not found in order {order_id}")
+                raise NotFoundError(f"Item with ID {item_id} not found in order {order_id}")
+            
+            # Remove the item
+            order.remove_item(item_id)
+            
+            # Commit changes
+            self.order_repository.commit()
+            
+            # Return success
+            self.logger.info(f"Removed item {item_id} from order {order_id}")
+            return True
+            
+        except NotFoundError:
+            raise
+        except SQLAlchemyError as e:
+            self.logger.error(f"Database error removing order item {item_id} from {order_id}: {str(e)}")
+            self.order_repository.rollback()
+            raise ValidationError(f"Error removing order item: {str(e)}")
+        except Exception as e:
+            self.logger.error(f"Unexpected error removing order item {item_id} from {order_id}: {str(e)}")
+            self.order_repository.rollback()
+            raise ValidationError(f"Unexpected error removing order item: {str(e)}")
+    
+    def get_order_statistics(self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> Dict[str, Any]:
+        """
+        Get order statistics for a given period.
+        
+        Args:
+            start_date: Start date for the period
+            end_date: End date for the period
+            
+        Returns:
+            Dictionary with order statistics
+        """
+        try:
+            self.logger.debug(f"Getting order statistics for period: {start_date} to {end_date}")
+            
+            # Set default dates if not provided
+            if end_date is None:
+                end_date = datetime.now()
+            if start_date is None:
+                start_date = end_date - timedelta(days=30)
+            
+            # Build filters
+            filters = [
+                Order.deleted == False,
+                Order.order_date >= start_date,
+                Order.order_date <= end_date
+            ]
+            
+            # Get all orders for the period
+            orders = self.order_repository.find_by(filters)
+            
+            # Calculate statistics
+            total_orders = len(orders)
+            total_revenue = sum(order.total_amount for order in orders)
+            
+            # Count by status
+            status_counts = {}
+            for status in OrderStatus:
+                status_counts[status.name] = len([o for o in orders if o.status == status])
+            
+            # Count by payment status
+            payment_status_counts = {}
+            for status in PaymentStatus:
+                payment_status_counts[status.name] = len([o for o in orders if o.payment_status == status])
+            
+            # Get top products (requires joining with OrderItem and Product)
+            top_products = self.order_repository.get_top_products(start_date, end_date, limit=5)
+            
+            # Compile results
+            result = {
+                'period': {
+                    'start_date': start_date.isoformat(),
+                    'end_date': end_date.isoformat()
+                },
+                'total_orders': total_orders,
+                'total_revenue': total_revenue,
+                'average_order_value': total_revenue / total_orders if total_orders > 0 else 0,
+                'status_counts': status_counts,
+                'payment_status_counts': payment_status_counts,
+                'top_products': top_products
+            }
+            
+            self.logger.info(f"Retrieved order statistics for period: {start_date} to {end_date}")
+            return result
+            
+        except SQLAlchemyError as e:
+            self.logger.error(f"Database error getting order statistics: {str(e)}")
+            raise ValidationError(f"Error retrieving order statistics: {str(e)}")
+        except Exception as e:
+            self.logger.error(f"Unexpected error getting order statistics: {str(e)}")
+            raise ValidationError(f"Unexpected error retrieving order statistics: {str(e)}")
+    
+    def search_orders(self, query: str) -> List[Dict[str, Any]]:
+        """
+        Search for orders by various criteria.
+        
+        Args:
+            query: Search query string
+            
+        Returns:
+            List of matching orders
+        """
+        try:
+            self.logger.debug(f"Searching orders with query: {query}")
+            
+            # Build search filters
+            filters = [
+                Order.deleted == False,
+                or_(
+                    Order.order_number.ilike(f"%{query}%"),
+                    Order.customer_name.ilike(f"%{query}%"),
+                    Order.customer_email.ilike(f"%{query}%"),
+                    Order.shipping_address.ilike(f"%{query}%"),
+                    Order.notes.ilike(f"%{query}%")
+                )
+            ]
+            
+            # Search orders
+            orders = self.order_repository.find_by(filters, include_related=['items'])
+            
+            # Convert to dictionaries
+            result = []
+            for order in orders:
+                order_dict = order.to_dict()
+                order_dict['item_count'] = len(order.items)
+                result.append(order_dict)
+            
+            self.logger.info(f"Found {len(result)} orders matching query: {query}")
+            return result
+            
+        except SQLAlchemyError as e:
+            self.logger.error(f"Database error searching orders: {str(e)}")
+            raise ValidationError(f"Error searching orders: {str(e)}")
+        except Exception as e:
+            self.logger.error(f"Unexpected error searching orders: {str(e)}")
+            raise ValidationError(f"Unexpected error searching orders: {str(e)}")

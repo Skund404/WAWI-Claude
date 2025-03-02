@@ -1,652 +1,630 @@
 # services/implementations/project_service.py
-import logging
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import List, Optional, Dict, Any
+import logging
+import uuid
 
-from utils.circular_import_resolver import CircularImportResolver
-from services.interfaces.project_service import IProjectService, ProjectType, SkillLevel
+from services.interfaces.project_service import IProjectService, ProjectType, SkillLevel, ProjectStatus
+from database.models.project import Project, ProjectComponent
+from database.repositories.project_repository import ProjectRepository
+from services.base_service import BaseService, NotFoundError, ValidationError
+from utils.logging import log_debug, log_error, log_info
 
 
-class ProjectService(IProjectService):
-    """Implementation of the Project Service for managing leatherworking projects."""
+class ProjectService(BaseService, IProjectService):
+    """
+    Comprehensive implementation of Project Service for managing leatherworking projects.
 
-    def __init__(self):
-        """Initialize the project service."""
+    Supports advanced project management features including:
+    - Project creation and management
+    - Component tracking
+    - Material requirement analysis
+    - Project complexity reporting
+    - Advanced querying and filtering
+    """
+
+    def __init__(self, project_repository: Optional[ProjectRepository] = None):
+        """
+        Initialize the project service.
+
+        Args:
+            project_repository: Optional repository for project data access
+        """
+        super().__init__()
+        self._repository = project_repository or ProjectRepository()
         self.logger = logging.getLogger(__name__)
-        self.logger.info("ProjectService initialized")
 
-        # In-memory storage for demonstration purposes
-        self._projects = {}
-        self._project_components = {}
-
-    def create_project(self, name: str, project_type: ProjectType,
-                       description: Optional[str] = None,
-                       skill_level: SkillLevel = SkillLevel.BEGINNER,
-                       deadline: Optional[datetime] = None,
-                       metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """Create a new project.
+    def create_project(self, project_data: Dict[str, Any]) -> Project:
+        """
+        Create a new project with comprehensive validation.
 
         Args:
-            name: Project name
-            project_type: Type of project
-            description: Optional project description
-            skill_level: Skill level required
-            deadline: Optional project deadline
-            metadata: Additional project metadata
+            project_data (Dict[str, Any]): Project creation data
 
         Returns:
-            Dict[str, Any]: Created project data
+            Project: Created project instance
+
+        Raises:
+            ValidationError: If project data is invalid
         """
-        project_id = f"PRJ{len(self._projects) + 1:04d}"
-        now = datetime.now()
+        try:
+            # Validate required fields
+            required_fields = ['name', 'project_type', 'skill_level']
+            for field in required_fields:
+                if field not in project_data:
+                    raise ValidationError(f"Missing required field: {field}")
 
-        project = {
-            "id": project_id,
-            "name": name,
-            "project_type": project_type,
-            "description": description,
-            "skill_level": skill_level,
-            "deadline": deadline,
-            "created_at": now,
-            "updated_at": now,
-            "status": "PLANNING",
-            "progress": 0,
-            "metadata": metadata or {},
-        }
+            # Validate project type and skill level
+            if not isinstance(project_data['project_type'], ProjectType):
+                raise ValidationError(f"Invalid project type: {project_data['project_type']}")
 
-        self._projects[project_id] = project
-        self._project_components[project_id] = []
+            if not isinstance(project_data['skill_level'], SkillLevel):
+                raise ValidationError(f"Invalid skill level: {project_data['skill_level']}")
 
-        self.logger.info(f"Created project: {name} (ID: {project_id})")
-        return project
+            # Set default values
+            project_data.setdefault('status', ProjectStatus.PLANNING)
+            project_data.setdefault('progress', 0)
+            project_data.setdefault('created_at', datetime.utcnow())
+            project_data.setdefault('updated_at', datetime.utcnow())
 
-    def get_project(self, project_id: str) -> Optional[Dict[str, Any]]:
-        """Get a project by ID.
+            # Create project
+            project = self._repository.create_project_with_components(
+                project_data,
+                project_data.get('components', [])
+            )
+
+            log_info(f"Created project: {project.name}")
+            return project
+
+        except Exception as e:
+            log_error(f"Project creation failed: {str(e)}")
+            raise ValidationError(f"Failed to create project: {str(e)}")
+
+    def get_project(self, project_id: str) -> Project:
+        """
+        Retrieve a project by its ID.
 
         Args:
-            project_id: ID of the project to retrieve
+            project_id (str): Unique project identifier
 
         Returns:
-            Optional[Dict[str, Any]]: Project data or None if not found
+            Project: Retrieved project instance
+
+        Raises:
+            NotFoundError: If project is not found
         """
-        project = self._projects.get(project_id)
-        if not project:
-            self.logger.warning(f"Project not found: {project_id}")
-            return None
+        try:
+            project = self._repository.get_by_id(project_id)
+            if not project:
+                raise NotFoundError(f"Project with ID {project_id} not found")
+            return project
+        except Exception as e:
+            log_error(f"Failed to retrieve project {project_id}: {str(e)}")
+            raise
 
-        # Add components
-        project_copy = project.copy()
-        project_copy["components"] = self._project_components.get(project_id, [])
-
-        return project_copy
-
-    def update_project(self, project_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Update a project.
+    def update_project(self, project_id: str, updates: Dict[str, Any]) -> Project:
+        """
+        Update a project with comprehensive validation.
 
         Args:
-            project_id: ID of the project to update
-            updates: Dictionary of fields to update
+            project_id (str): Unique project identifier
+            updates (Dict[str, Any]): Project update data
 
         Returns:
-            Optional[Dict[str, Any]]: Updated project data or None if not found
+            Project: Updated project instance
+
+        Raises:
+            NotFoundError: If project is not found
+            ValidationError: If update data is invalid
         """
-        if project_id not in self._projects:
-            self.logger.warning(f"Cannot update non-existent project: {project_id}")
-            return None
+        try:
+            # Validate project type and skill level if present
+            if 'project_type' in updates and not isinstance(updates['project_type'], ProjectType):
+                raise ValidationError(f"Invalid project type: {updates['project_type']}")
 
-        project = self._projects[project_id]
+            if 'skill_level' in updates and not isinstance(updates['skill_level'], SkillLevel):
+                raise ValidationError(f"Invalid skill level: {updates['skill_level']}")
 
-        # Update only valid fields
-        valid_fields = [
-            "name", "description", "skill_level", "project_type",
-            "deadline", "status", "progress", "metadata"
-        ]
+            # Update with timestamp
+            updates['updated_at'] = datetime.utcnow()
 
-        for field, value in updates.items():
-            if field in valid_fields:
-                project[field] = value
+            project = self._repository.update_project(project_id, updates)
+            log_info(f"Updated project: {project_id}")
+            return project
 
-        # Always update the 'updated_at' timestamp
-        project["updated_at"] = datetime.now()
-
-        self.logger.info(f"Updated project: {project_id}")
-
-        # Add components to the returned project
-        project_copy = project.copy()
-        project_copy["components"] = self._project_components.get(project_id, [])
-
-        return project_copy
-
-    def update_project_status(self, project_id: str, new_status: str) -> Optional[Dict[str, Any]]:
-        """Update the status of a project.
-
-        Args:
-            project_id: ID of the project
-            new_status: New status to set
-
-        Returns:
-            Optional[Dict[str, Any]]: Updated project data or None if not found
-        """
-        if project_id not in self._projects:
-            self.logger.warning(f"Cannot update status of non-existent project: {project_id}")
-            return None
-
-        project = self._projects[project_id]
-        old_status = project["status"]
-        project["status"] = new_status
-        project["updated_at"] = datetime.now()
-
-        self.logger.info(f"Updated project {project_id} status from {old_status} to {new_status}")
-
-        # Add components to the returned project
-        project_copy = project.copy()
-        project_copy["components"] = self._project_components.get(project_id, [])
-
-        return project_copy
+        except Exception as e:
+            log_error(f"Failed to update project {project_id}: {str(e)}")
+            raise
 
     def delete_project(self, project_id: str) -> bool:
-        """Delete a project.
+        """
+        Delete a project.
 
         Args:
-            project_id: ID of the project to delete
+            project_id (str): Unique project identifier
 
         Returns:
-            bool: True if successful, False otherwise
+            bool: True if deletion was successful
+
+        Raises:
+            NotFoundError: If project is not found
         """
-        if project_id not in self._projects:
-            self.logger.warning(f"Cannot delete non-existent project: {project_id}")
-            return False
+        try:
+            success = self._repository.delete_project(project_id)
+            if success:
+                log_info(f"Deleted project: {project_id}")
+            return success
+        except Exception as e:
+            log_error(f"Failed to delete project {project_id}: {str(e)}")
+            raise
 
-        del self._projects[project_id]
-        if project_id in self._project_components:
-            del self._project_components[project_id]
+    def add_component_to_project(self, project_id: str, component_data: Dict[str, Any]) -> Project:
+        """
+        Add a component to a project.
 
-        self.logger.info(f"Deleted project: {project_id}")
-        return True
+        Args:
+            project_id (str): Project identifier
+            component_data (Dict[str, Any]): Component details
 
-    def list_projects(self, project_type: Optional[ProjectType] = None,
-                      skill_level: Optional[SkillLevel] = None) -> List[Dict[str, Any]]:
-        """List all projects, optionally filtered by type or skill level.
+        Returns:
+            Project: Updated project with new component
+
+        Raises:
+            NotFoundError: If project is not found
+            ValidationError: If component data is invalid
+        """
+        try:
+            # Validate component data
+            if not component_data.get('name'):
+                raise ValidationError("Component name is required")
+
+            component_data['created_at'] = datetime.utcnow()
+
+            project = self._repository.add_component_to_project(project_id, component_data)
+            log_info(f"Added component to project {project_id}")
+            return project
+
+        except Exception as e:
+            log_error(f"Failed to add component to project {project_id}: {str(e)}")
+            raise
+
+    def remove_component_from_project(self, project_id: str, component_id: str) -> Project:
+        """
+        Remove a component from a project.
+
+        Args:
+            project_id (str): Project identifier
+            component_id (str): Component identifier
+
+        Returns:
+            Project: Updated project after component removal
+
+        Raises:
+            NotFoundError: If project or component is not found
+        """
+        try:
+            project = self._repository.remove_component_from_project(project_id, component_id)
+            log_info(f"Removed component {component_id} from project {project_id}")
+            return project
+
+        except Exception as e:
+            log_error(f"Failed to remove component from project {project_id}: {str(e)}")
+            raise
+
+    def update_project_progress(self, project_id: str, progress: int) -> Project:
+        """
+        Update project progress and adjust status accordingly.
+
+        Args:
+            project_id (str): Project identifier
+            progress (int): Progress percentage (0-100)
+
+        Returns:
+            Project: Updated project
+
+        Raises:
+            ValidationError: If progress is invalid
+        """
+        try:
+            # Validate progress
+            if progress < 0 or progress > 100:
+                raise ValidationError("Progress must be between 0 and 100")
+
+            # Determine status based on progress
+            status = ProjectStatus.PLANNING if progress == 0 else (
+                ProjectStatus.IN_PROGRESS if progress < 50 else (
+                    ProjectStatus.REFINEMENT if progress < 100 else ProjectStatus.COMPLETED
+                )
+            )
+
+            updates = {
+                'progress': progress,
+                'status': status,
+                'updated_at': datetime.utcnow()
+            }
+
+            project = self._repository.update_project(project_id, updates)
+            log_info(f"Updated project {project_id} progress to {progress}%")
+            return project
+
+        except Exception as e:
+            log_error(f"Failed to update project progress {project_id}: {str(e)}")
+            raise
+
+    def list_projects(
+            self,
+            project_type: Optional[ProjectType] = None,
+            skill_level: Optional[SkillLevel] = None,
+            status: Optional[ProjectStatus] = None
+    ) -> List[Project]:
+        """
+        List projects with optional filtering.
 
         Args:
             project_type: Optional filter by project type
             skill_level: Optional filter by skill level
+            status: Optional filter by project status
 
         Returns:
-            List[Dict[str, Any]]: List of projects
+            List[Project]: Filtered list of projects
         """
-        result = []
+        try:
+            filters = {}
+            if project_type:
+                filters['project_type'] = project_type
+            if skill_level:
+                filters['skill_level'] = skill_level
+            if status:
+                filters['status'] = status
 
-        for project_id, project in self._projects.items():
-            if project_type and project["project_type"] != project_type:
-                continue
+            projects = self._repository.find_projects_by_complex_criteria(filters)
+            log_debug(f"Listed {len(projects)} projects with filters: {filters}")
+            return projects
 
-            if skill_level and project["skill_level"] != skill_level:
-                continue
+        except Exception as e:
+            log_error(f"Failed to list projects: {str(e)}")
+            raise
 
-            project_copy = project.copy()
-            project_copy["components"] = self._project_components.get(project_id, [])
-            result.append(project_copy)
-
-        return result
-
-    def search_projects(self, query: str) -> List[Dict[str, Any]]:
-        """Search for projects by name or description.
+    def generate_project_complexity_report(self, project_id: str) -> Dict[str, Any]:
+        """
+        Generate a comprehensive project complexity report.
 
         Args:
-            query: Search query string
+            project_id (str): Project identifier
 
         Returns:
-            List[Dict[str, Any]]: List of matching projects
+            Dict[str, Any]: Project complexity report
+
+        Raises:
+            NotFoundError: If project is not found
         """
-        query = query.lower()
-        results = []
-
-        for project_id, project in self._projects.items():
-            if (query in project["name"].lower() or
-                    (project["description"] and query in project["description"].lower())):
-                project_copy = project.copy()
-                project_copy["components"] = self._project_components.get(project_id, [])
-                results.append(project_copy)
-
-        return results
-
-    def add_component_to_project(self, project_id: str,
-                                 component_name: str,
-                                 material_id: Optional[str] = None,
-                                 material_type: Optional[str] = None,
-                                 quantity: float = 1.0,
-                                 dimensions: Optional[Dict[str, float]] = None,
-                                 notes: Optional[str] = None) -> Optional[Dict[str, Any]]:
-        """Add a component to a project.
-
-        Args:
-            project_id: ID of the project
-            component_name: Name of the component
-            material_id: Optional ID of the material
-            material_type: Optional type of material
-            quantity: Quantity needed
-            dimensions: Optional component dimensions
-            notes: Optional notes about the component
-
-        Returns:
-            Optional[Dict[str, Any]]: Updated project or None if project not found
-        """
-        if project_id not in self._projects:
-            self.logger.warning(f"Cannot add component to non-existent project: {project_id}")
-            return None
-
-        # Generate a component ID
-        components = self._project_components.get(project_id, [])
-        component_id = f"PC{len(components) + 1:03d}"
-
-        # Create the component
-        component = {
-            "id": component_id,
-            "name": component_name,
-            "material_id": material_id,
-            "material_type": material_type,
-            "quantity": quantity,
-            "dimensions": dimensions or {},
-            "notes": notes,
-            "created_at": datetime.now()
-        }
-
-        # Add to components list
-        components.append(component)
-        self._project_components[project_id] = components
-
-        # Update project timestamp
-        self._projects[project_id]["updated_at"] = datetime.now()
-
-        self.logger.info(f"Added component {component_name} to project {project_id}")
-
-        # Return the updated project
-        updated_project = self._projects[project_id].copy()
-        updated_project["components"] = components
-
-        return updated_project
-
-    def remove_component_from_project(self, project_id: str, component_id: str) -> Optional[Dict[str, Any]]:
-        """Remove a component from a project.
-
-        Args:
-            project_id: ID of the project
-            component_id: ID of the component to remove
-
-        Returns:
-            Optional[Dict[str, Any]]: Updated project or None if project not found
-        """
-        if project_id not in self._projects:
-            self.logger.warning(f"Cannot remove component from non-existent project: {project_id}")
-            return None
-
-        components = self._project_components.get(project_id, [])
-
-        # Find and remove the component
-        for i, component in enumerate(components):
-            if component["id"] == component_id:
-                components.pop(i)
-                self._project_components[project_id] = components
-                self._projects[project_id]["updated_at"] = datetime.now()
-
-                self.logger.info(f"Removed component {component_id} from project {project_id}")
-
-                # Return the updated project
-                updated_project = self._projects[project_id].copy()
-                updated_project["components"] = components
-                return updated_project
-
-        self.logger.warning(f"Component {component_id} not found in project {project_id}")
-
-        # Return the project without changes
-        project = self._projects[project_id].copy()
-        project["components"] = components
-        return project
-
-    def update_project_progress(self, project_id: str, progress: int) -> Optional[Dict[str, Any]]:
-        """Update the progress of a project.
-
-        Args:
-            project_id: ID of the project
-            progress: Progress percentage (0-100)
-
-        Returns:
-            Optional[Dict[str, Any]]: Updated project or None if project not found
-        """
-        if project_id not in self._projects:
-            self.logger.warning(f"Cannot update progress of non-existent project: {project_id}")
-            return None
-
-        # Ensure progress is between 0 and 100
-        validated_progress = max(0, min(100, progress))
-
-        project = self._projects[project_id]
-        project["progress"] = validated_progress
-        project["updated_at"] = datetime.now()
-
-        # Update status based on progress if needed
-        if validated_progress == 0:
-            project["status"] = "PLANNING"
-        elif validated_progress < 50:
-            project["status"] = "IN_PROGRESS"
-        elif validated_progress < 100:
-            project["status"] = "FINISHING"
-        else:
-            project["status"] = "COMPLETED"
-
-        self.logger.info(f"Updated project {project_id} progress to {validated_progress}%")
-
-        # Return the updated project with components
-        updated_project = project.copy()
-        updated_project["components"] = self._project_components.get(project_id, [])
-
-        return updated_project
-
-    def get_projects_by_status(self, status: str) -> List[Dict[str, Any]]:
-        """Get projects by status.
-
-        Args:
-            status: Project status to filter by
-
-        Returns:
-            List[Dict[str, Any]]: List of projects with the specified status
-        """
-        results = []
-
-        for project_id, project in self._projects.items():
-            if project["status"] == status:
-                project_copy = project.copy()
-                project_copy["components"] = self._project_components.get(project_id, [])
-                results.append(project_copy)
-
-        return results
-
-    def get_complex_projects(self, min_components: int = 5) -> List[Dict[str, Any]]:
-        """Get complex projects based on number of components.
-
-        Args:
-            min_components: Minimum number of components for a project to be considered complex
-
-        Returns:
-            List[Dict[str, Any]]: List of complex projects
-        """
-        results = []
-
-        for project_id, project in self._projects.items():
-            components = self._project_components.get(project_id, [])
-            if len(components) >= min_components:
-                project_copy = project.copy()
-                project_copy["components"] = components
-                results.append(project_copy)
-
-        return results
-
-    def get_projects_by_deadline(self, before_date: Optional[datetime] = None,
-                                 after_date: Optional[datetime] = None) -> List[Dict[str, Any]]:
-        """Get projects by deadline.
-
-        Args:
-            before_date: Return projects with deadline before this date
-            after_date: Return projects with deadline after this date
-
-        Returns:
-            List[Dict[str, Any]]: List of projects matching the deadline criteria
-        """
-        results = []
-
-        for project_id, project in self._projects.items():
-            deadline = project.get("deadline")
-            if not deadline:
-                continue
-
-            matches = True
-
-            if before_date and deadline > before_date:
-                matches = False
-
-            if after_date and deadline < after_date:
-                matches = False
-
-            if matches:
-                project_copy = project.copy()
-                project_copy["components"] = self._project_components.get(project_id, [])
-                results.append(project_copy)
-
-        return results
-
-    def calculate_project_material_requirements(self, project_id: str) -> Optional[Dict[str, Any]]:
-        """Calculate material requirements for a project.
-
-        Args:
-            project_id: ID of the project
-
-        Returns:
-            Optional[Dict[str, Any]]: Material requirements or None if project not found
-        """
-        if project_id not in self._projects:
-            self.logger.warning(f"Cannot calculate materials for non-existent project: {project_id}")
-            return None
-
-        components = self._project_components.get(project_id, [])
-
-        # Group materials by type and ID
-        material_requirements = {}
-
-        for component in components:
-            material_type = component.get("material_type")
-            material_id = component.get("material_id")
-
-            if not material_type:
-                continue
-
-            key = f"{material_type}:{material_id}" if material_id else material_type
-
-            if key not in material_requirements:
-                material_requirements[key] = {
-                    "material_type": material_type,
-                    "material_id": material_id,
-                    "quantity": 0
-                }
-
-            material_requirements[key]["quantity"] += component["quantity"]
-
-        return {
-            "project_id": project_id,
-            "project_name": self._projects[project_id]["name"],
-            "materials": list(material_requirements.values())
-        }
-
-    def analyze_project_material_usage(self, project_id: str) -> Optional[Dict[str, Any]]:
-        """Analyze material usage and efficiency for a project.
-
-        Args:
-            project_id: ID of the project
-
-        Returns:
-            Optional[Dict[str, Any]]: Material usage analysis or None if project not found
-        """
-        if project_id not in self._projects:
-            self.logger.warning(f"Cannot analyze materials for non-existent project: {project_id}")
-            return None
-
-        # Get basic requirements
-        requirements = self.calculate_project_material_requirements(project_id)
-        if not requirements:
-            return None
-
-        # Calculate additional metrics
-        materials = requirements["materials"]
-        total_quantity = sum(material["quantity"] for material in materials)
-
-        # Calculate material diversity
-        material_diversity = len(materials)
-
-        # Generate analysis
-        analysis = {
-            "project_id": project_id,
-            "project_name": self._projects[project_id]["name"],
-            "total_material_quantity": total_quantity,
-            "material_diversity": material_diversity,
-            "material_breakdown": materials,
-            "material_types": len(set(material["material_type"] for material in materials)),
-            "estimated_waste_factor": 0.15,  # Assumed waste factor
-            "estimated_total_with_waste": total_quantity * 1.15
-        }
-
-        self.logger.info(f"Analyzed material usage for project {project_id}")
-        return analysis
-
-    def generate_project_complexity_report(self, project_id: str) -> Optional[Dict[str, Any]]:
-        """Generate a complexity report for a project.
-
-        Args:
-            project_id: ID of the project
-
-        Returns:
-            Optional[Dict[str, Any]]: Project complexity report or None if project not found
-        """
-        if project_id not in self._projects:
-            self.logger.warning(f"Cannot generate complexity report for non-existent project: {project_id}")
-            return None
-
-        project = self._projects[project_id]
-        components = self._project_components.get(project_id, [])
-
-        # Basic complexity factors
-        num_components = len(components)
-        skill_level = project.get("skill_level")
-        skill_level_value = 1  # Default value
-
-        # Convert SkillLevel enum to numeric value
-        if hasattr(skill_level, "value"):
-            skill_level_value = skill_level.value
-        elif isinstance(skill_level, int):
-            skill_level_value = skill_level
-        elif skill_level in [SkillLevel.BEGINNER, "BEGINNER"]:
-            skill_level_value = 1
-        elif skill_level in [SkillLevel.INTERMEDIATE, "INTERMEDIATE"]:
-            skill_level_value = 2
-        elif skill_level in [SkillLevel.ADVANCED, "ADVANCED"]:
-            skill_level_value = 3
-        elif skill_level in [SkillLevel.EXPERT, "EXPERT"]:
-            skill_level_value = 4
-
-        # Material diversity complexity
-        material_types = set()
-        for component in components:
-            if component.get("material_type"):
-                material_types.add(component.get("material_type"))
-
-        material_diversity = len(material_types)
-
-        # Calculate complexity score
-        complexity_score = (
-                (num_components * 0.5) +
-                (skill_level_value * 2) +
-                (material_diversity * 1.5)
-        )
-
-        # Complexity rating
-        if complexity_score < 5:
-            complexity_rating = "Simple"
-        elif complexity_score < 10:
-            complexity_rating = "Moderate"
-        elif complexity_score < 15:
-            complexity_rating = "Complex"
-        else:
-            complexity_rating = "Very Complex"
-
-        # Estimated time calculation based on complexity
-        base_hours = num_components * 0.5
-        skill_factor = 1.0
-        if skill_level_value == 1:
-            skill_factor = 1.5  # Beginners take longer
-        elif skill_level_value == 2:
-            skill_factor = 1.2
-        elif skill_level_value == 3:
-            skill_factor = 1.0
-        elif skill_level_value == 4:
-            skill_factor = 0.8  # Experts work faster
-
-        estimated_hours = base_hours * skill_factor
-
-        # Generate report
-        report = {
-            "project_id": project_id,
-            "project_name": project["name"],
-            "complexity_score": complexity_score,
-            "complexity_rating": complexity_rating,
-            "number_of_components": num_components,
-            "skill_level": skill_level_value if isinstance(skill_level_value, int) else str(skill_level),
-            "material_diversity": material_diversity,
-            "estimated_time": estimated_hours,
-            "factors": {
-                "component_count": num_components * 0.5,
-                "skill_level": skill_level_value * 2,
-                "material_diversity": material_diversity * 1.5
+        try:
+            project = self.get_project(project_id)
+
+            # Analyze project components and calculate complexity
+            components = project.components
+            num_components = len(components)
+
+            # Calculate complexity score
+            skill_level_value = project.skill_level.value
+            material_types = set(
+                component.material_type
+                for component in components
+                if component.material_type
+            )
+            material_diversity = len(material_types)
+
+            # Complexity calculation
+            complexity_score = (
+                    (num_components * 0.5) +
+                    (skill_level_value * 2) +
+                    (material_diversity * 1.5)
+            )
+
+            # Complexity rating
+            complexity_rating = (
+                "Simple" if complexity_score < 5 else
+                "Moderate" if complexity_score < 10 else
+                "Complex" if complexity_score < 15 else
+                "Very Complex"
+            )
+
+            # Estimated time calculation
+            base_hours = num_components * 0.5
+            skill_factors = {
+                SkillLevel.BEGINNER: 1.5,
+                SkillLevel.INTERMEDIATE: 1.2,
+                SkillLevel.ADVANCED: 1.0,
+                SkillLevel.EXPERT: 0.8
             }
-        }
+            skill_factor = skill_factors.get(project.skill_level, 1.0)
+            estimated_hours = base_hours * skill_factor
 
-        self.logger.info(f"Generated complexity report for project {project_id}")
-        return report
+            report = {
+                "project_id": project_id,
+                "project_name": project.name,
+                "complexity_score": complexity_score,
+                "complexity_rating": complexity_rating,
+                "number_of_components": num_components,
+                "skill_level": project.skill_level.name,
+                "material_diversity": material_diversity,
+                "estimated_time": estimated_hours,
+                "factors": {
+                    "component_count": num_components * 0.5,
+                    "skill_level": skill_level_value * 2,
+                    "material_diversity": material_diversity * 1.5
+                }
+            }
 
-    def duplicate_project(self, project_id: str, new_name: Optional[str] = None) -> Optional[Dict[str, Any]]:
-        """Duplicate a project.
+            log_info(f"Generated complexity report for project {project_id}")
+            return report
+
+        except Exception as e:
+            log_error(f"Failed to generate complexity report for project {project_id}: {str(e)}")
+            raise
+
+    def duplicate_project(self, project_id: str, new_name: Optional[str] = None) -> Project:
+        """
+        Duplicate an existing project.
 
         Args:
-            project_id: ID of the project to duplicate
-            new_name: Optional name for the duplicate
+            project_id (str): Project identifier to duplicate
+            new_name (Optional[str]): Name for the duplicated project
 
         Returns:
-            Optional[Dict[str, Any]]: Duplicate project or None if original not found
+            Project: Newly created duplicated project
+
+        Raises:
+            NotFoundError: If original project is not found
         """
-        if project_id not in self._projects:
-            self.logger.warning(f"Cannot duplicate non-existent project: {project_id}")
-            return None
+        try:
+            # Retrieve original project
+            original_project = self.get_project(project_id)
 
-        original = self._projects[project_id]
-        components = self._project_components.get(project_id, [])
+            # Prepare duplicate project data
+            duplicate_data = {
+                'name': new_name or f"Copy of {original_project.name}",
+                'project_type': original_project.project_type,
+                'description': original_project.description,
+                'skill_level': original_project.skill_level,
+                'status': ProjectStatus.PLANNING,
+                'progress': 0,
+                # Copy metadata if exists
+                'metadata': original_project.metadata.copy() if original_project.metadata else {}
+            }
 
-        # Create new project with same details but new ID and name
-        duplicate_id = f"PRJ{len(self._projects) + 1:04d}"
-        now = datetime.now()
+            # Create new project
+            duplicated_project = self.create_project(duplicate_data)
 
-        duplicate = {
-            "id": duplicate_id,
-            "name": new_name or f"Copy of {original['name']}",
-            "project_type": original["project_type"],
-            "description": original["description"],
-            "skill_level": original["skill_level"],
-            "deadline": None,  # Reset deadline
-            "created_at": now,
-            "updated_at": now,
-            "status": "PLANNING",  # Reset status
-            "progress": 0,  # Reset progress
-            "metadata": original.get("metadata", {}).copy()
-        }
+            # Copy components
+            for component in original_project.components:
+                component_data = {
+                    'name': component.name,
+                    'material_id': component.material_id,
+                    'material_type': component.material_type,
+                    'quantity': component.quantity,
+                    'dimensions': component.dimensions,
+                    'notes': component.notes
+                }
+                self.add_component_to_project(duplicated_project.id, component_data)
 
-        # Copy components
-        duplicate_components = []
-        for comp in components:
-            duplicate_components.append({
-                "id": f"PC{len(duplicate_components) + 1:03d}",
-                "name": comp["name"],
-                "material_id": comp.get("material_id"),
-                "material_type": comp.get("material_type"),
-                "quantity": comp["quantity"],
-                "dimensions": comp.get("dimensions", {}).copy(),
-                "notes": comp.get("notes"),
-                "created_at": now
-            })
+            log_info(f"Duplicated project {project_id} to new project {duplicated_project.id}")
+            return duplicated_project
 
-        # Save the duplicate
-        self._projects[duplicate_id] = duplicate
-        self._project_components[duplicate_id] = duplicate_components
+        except Exception as e:
+            log_error(f"Failed to duplicate project {project_id}: {str(e)}")
+            raise
 
-        self.logger.info(f"Duplicated project {project_id} to {duplicate_id}")
+    def calculate_project_material_requirements(self, project_id: str) -> Dict[str, Any]:
+        """
+        Calculate material requirements for a project.
 
-        # Return the full project with components
-        result = duplicate.copy()
-        result["components"] = duplicate_components
-        return result
+        Args:
+            project_id (str): Project identifier
+
+        Returns:
+            Dict[str, Any]: Material requirements analysis
+
+        Raises:
+            NotFoundError: If project is not found
+        """
+        try:
+            project = self.get_project(project_id)
+
+            # Group materials by type and ID
+            material_requirements = {}
+
+            for component in project.components:
+                if not component.material_type:
+                    continue
+
+                key = (
+                    f"{component.material_type}:{component.material_id}"
+                    if component.material_id
+                    else str(component.material_type)
+                )
+
+                if key not in material_requirements:
+                    material_requirements[key] = {
+                        "material_type": component.material_type,
+                        "material_id": component.material_id,
+                        "quantity": 0
+                    }
+
+                material_requirements[key]["quantity"] += component.quantity
+
+            analysis = {
+                "project_id": project_id,
+                "project_name": project.name,
+                "materials": list(material_requirements.values())
+            }
+
+            log_info(f"Calculated material requirements for project {project_id}")
+            return analysis
+
+        except Exception as e:
+            log_info(f"Calculated material requirements for project {project_id}")
+            return analysis
+
+        except Exception as e:
+            log_error(f"Failed to calculate material requirements for project {project_id}: {str(e)}")
+            raise
+
+    def analyze_project_material_usage(self, project_id: str) -> Dict[str, Any]:
+        """
+        Analyze material usage and efficiency for a project.
+
+        Args:
+            project_id (str): Project identifier
+
+        Returns:
+            Dict[str, Any]: Material usage analysis
+
+        Raises:
+            NotFoundError: If project is not found
+        """
+        try:
+            # Get material requirements
+            requirements = self.calculate_project_material_requirements(project_id)
+            project = self.get_project(project_id)
+
+            # Calculate aggregate metrics
+            materials = requirements["materials"]
+            total_quantity = sum(material["quantity"] for material in materials)
+
+            # Calculate material diversity
+            material_diversity = len(materials)
+            material_types = len(set(material["material_type"] for material in materials))
+
+            # Estimated waste factor (adjustable based on project complexity)
+            waste_factor = 0.15  # Default 15% waste
+            complexity_report = self.generate_project_complexity_report(project_id)
+
+            # Adjust waste factor based on project complexity
+            if complexity_report["complexity_rating"] == "Very Complex":
+                waste_factor = 0.25
+            elif complexity_report["complexity_rating"] == "Complex":
+                waste_factor = 0.20
+
+            # Generate comprehensive analysis
+            analysis = {
+                "project_id": project_id,
+                "project_name": project.name,
+                "total_material_quantity": total_quantity,
+                "material_diversity": material_diversity,
+                "material_breakdown": materials,
+                "material_types": material_types,
+                "estimated_waste_factor": waste_factor,
+                "estimated_total_with_waste": total_quantity * (1 + waste_factor),
+                "complexity": {
+                    "rating": complexity_report["complexity_rating"],
+                    "score": complexity_report["complexity_score"]
+                }
+            }
+
+            log_info(f"Analyzed material usage for project {project_id}")
+            return analysis
+
+        except Exception as e:
+            log_error(f"Failed to analyze material usage for project {project_id}: {str(e)}")
+            raise
+
+    def get_projects_by_deadline(
+            self,
+            before_date: Optional[datetime] = None,
+            after_date: Optional[datetime] = None
+    ) -> List[Project]:
+        """
+        Retrieve projects within a specific deadline range.
+
+        Args:
+            before_date (Optional[datetime]): Maximum deadline date
+            after_date (Optional[datetime]): Minimum deadline date
+
+        Returns:
+            List[Project]: Projects matching the deadline criteria
+        """
+        try:
+            # Prepare filtering conditions
+            filters = {}
+
+            if before_date:
+                filters['deadline__lte'] = before_date
+
+            if after_date:
+                filters['deadline__gte'] = after_date
+
+            # Use repository method to find projects
+            projects = self._repository.find_projects_by_complex_criteria(filters)
+
+            log_debug(f"Retrieved {len(projects)} projects by deadline")
+            return projects
+
+        except Exception as e:
+            log_error(f"Failed to retrieve projects by deadline: {str(e)}")
+            raise
+
+    def get_complex_projects(self, min_components: int = 5) -> List[Project]:
+        """
+        Retrieve projects with a high number of components.
+
+        Args:
+            min_components (int): Minimum number of components to consider a project complex
+
+        Returns:
+            List[Project]: Complex projects
+        """
+        try:
+            # Find projects with at least min_components
+            complex_projects = [
+                project for project in self._repository.find_projects_by_complex_criteria({})
+                if len(project.components) >= min_components
+            ]
+
+            log_debug(f"Retrieved {len(complex_projects)} complex projects")
+            return complex_projects
+
+        except Exception as e:
+            log_error(f"Failed to retrieve complex projects: {str(e)}")
+            raise
+
+    def get_projects_by_status(self, status: ProjectStatus) -> List[Project]:
+        """
+        Retrieve projects with a specific status.
+
+        Args:
+            status (ProjectStatus): Project status to filter by
+
+        Returns:
+            List[Project]: Projects with the specified status
+        """
+        try:
+            projects = self._repository.find_projects_by_complex_criteria({'status': status})
+
+            log_debug(f"Retrieved {len(projects)} projects with status {status}")
+            return projects
+
+        except Exception as e:
+            log_error(f"Failed to retrieve projects by status {status}: {str(e)}")
+            raise
+
+    def search_projects(self, query: str) -> List[Project]:
+        """
+        Search for projects by name or description.
+
+        Args:
+            query (str): Search term
+
+        Returns:
+            List[Project]: Projects matching the search query
+        """
+        try:
+            # Use repository to perform search
+            projects = self._repository.search_projects(query)
+
+            log_debug(f"Found {len(projects)} projects matching query '{query}'")
+            return projects
+
+        except Exception as e:
+            log_error(f"Failed to search projects with query '{query}': {str(e)}")
+            raise

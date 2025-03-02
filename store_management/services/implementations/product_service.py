@@ -1,329 +1,261 @@
-#!/usr/bin/env python3
-# Path: product_service.py
-"""
-Product Service Implementation
+# services/implementations/product_service.py
+from database.models.product import Product
+from database.models.enums import MaterialType
+from database.repositories.product_repository import ProductRepository
+from database.sqlalchemy.session import get_db_session
+from services.base_service import BaseService, NotFoundError, ValidationError
+from services.interfaces.product_service import IProductService
 
-Provides functionality for managing products, including CRUD operations,
-stock updates, and advanced search capabilities.
-"""
-
-import logging
-from typing import Dict, List, Optional, Any
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import DatabaseError
-
-from di.core import inject
-from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
-from services.base_service import Service
-from models.product import Product
-from repositories.product_repository import ProductRepository
-from database.session import get_db
-from exceptions import ValidationError, ResourceNotFoundError
+from sqlalchemy.exc import SQLAlchemyError
+from typing import List, Dict, Any, Optional
+import logging
+import uuid
 
 
-class ProductService(Service, IProductService):
+class ProductService(BaseService, IProductService):
     """
-    Implementation of the Product Service.
+    Service implementation for managing Product entities.
 
-    Provides comprehensive methods for managing product-related operations.
+    Responsibilities:
+    - Create, read, update, and delete product records
+    - Validate product data
+    - Handle database interactions
+    - Provide business logic for product management
     """
 
-    def __init__(self, session: Optional[Session] = None):
+    def __init__(self,
+                 session: Optional[Session] = None,
+                 product_repository: Optional[ProductRepository] = None):
         """
         Initialize the Product Service.
 
         Args:
             session (Optional[Session]): SQLAlchemy database session
+            product_repository (Optional[ProductRepository]): Product data access repository
         """
-        super().__init__(None)
-        self._session = session or get_db()
-        self._logger = logging.getLogger(__name__)
-        self._repository = ProductRepository(self._session)
+        self.session = session or get_db_session()
+        self.repository = product_repository or ProductRepository(self.session)
+        self.logger = logging.getLogger(self.__class__.__name__)
 
-    def create_product(self, product_data: Dict[str, Any]) -> Dict[str, Any]:
+    def create_product(self, product_data: Dict[str, Any]) -> Product:
         """
         Create a new product with comprehensive validation.
 
         Args:
-            product_data (Dict[str, Any]): Data for creating a new product
+            product_data (Dict[str, Any]): Product creation data
 
         Returns:
-            Dict[str, Any]: Created product details
+            Product: Newly created product instance
 
         Raises:
             ValidationError: If product data is invalid
-            DatabaseError: If database operation fails
         """
         try:
-            # Validate required fields
-            required_fields = ['name', 'price']
-            for field in required_fields:
-                if field not in product_data:
-                    raise ValidationError(f'Missing required field: {field}')
+            # Generate a unique SKU if not provided
+            if not product_data.get('sku'):
+                product_data['sku'] = self._generate_unique_sku()
 
-            # Extract product data
-            name = product_data['name']
-            price = product_data['price']
-            description = product_data.get('description', '')
-            sku = product_data.get('sku')
-            category = product_data.get('category')
-            cost_price = product_data.get('cost_price')
-            minimum_stock_level = product_data.get('minimum_stock_level', 0.0)
+            # Validate material type
+            if 'material_type' in product_data:
+                product_data['material_type'] = MaterialType(product_data['material_type'])
 
-            # Create product
-            product = Product.create_product(
-                name=name,
-                price=price,
-                description=description,
-                sku=sku,
-                category=category,
-                cost_price=cost_price,
-                minimum_stock_level=minimum_stock_level
-            )
+            # Create product instance (will trigger internal validation)
+            product = Product(**product_data)
 
-            created_product = self._repository.add(product)
-            return created_product.to_dict(include_details=True)
+            # Save to database
+            self.session.add(product)
+            self.session.commit()
 
-        except (DatabaseError, ValidationError) as e:
-            self._logger.error(f'Error creating product: {e}')
-            raise
+            self.logger.info(f"Product created successfully", extra={
+                "product_id": product.id,
+                "product_name": product.name,
+                "sku": product.sku
+            })
 
-    def get_product(self, product_id: int) -> Optional[Dict[str, Any]]:
+            return product
+
+        except (ValueError, TypeError) as e:
+            self.logger.error(f"Product creation failed: {str(e)}", extra={
+                "error": str(e),
+                "product_data": product_data
+            })
+            raise ValidationError(f"Invalid product data: {str(e)}")
+
+        except SQLAlchemyError as e:
+            self.session.rollback()
+            self.logger.error(f"Database error during product creation: {str(e)}", extra={
+                "error": str(e),
+                "product_data": product_data
+            })
+            raise ValidationError(f"Database error: {str(e)}")
+
+    def get_product_by_id(self, product_id: int) -> Product:
         """
-        Retrieve a specific product by ID with detailed information.
+        Retrieve a product by its ID.
 
         Args:
-            product_id (int): Unique identifier for the product
+            product_id (int): Unique identifier of the product
 
         Returns:
-            Optional[Dict[str, Any]]: Product details
+            Product: Retrieved product instance
 
         Raises:
-            ResourceNotFoundError: If product is not found
-            DatabaseError: If database operation fails
+            NotFoundError: If no product is found with the given ID
         """
         try:
-            product = self._repository.get_by_id(product_id)
+            product = self.repository.get_by_id(product_id)
+
             if not product:
-                raise ResourceNotFoundError('Product', str(product_id))
+                raise NotFoundError(f"Product with ID {product_id} not found")
 
-            return product.to_dict(include_details=True)
+            return product
 
-        except DatabaseError as e:
-            self._logger.error(f'Error retrieving product {product_id}: {e}')
-            raise
+        except SQLAlchemyError as e:
+            self.logger.error(f"Error retrieving product: {str(e)}", extra={
+                "product_id": product_id,
+                "error": str(e)
+            })
+            raise NotFoundError(f"Error retrieving product: {str(e)}")
 
-    def update_product(self, product_id: int, product_data: Dict[str, Any]) -> Dict[str, Any]:
+    def update_product(self, product_id: int, update_data: Dict[str, Any]) -> Product:
         """
-        Update an existing product with comprehensive validation.
+        Update an existing product.
 
         Args:
-            product_id (int): Unique identifier for the product
-            product_data (Dict[str, Any]): Updated product information
+            product_id (int): ID of the product to update
+            update_data (Dict[str, Any]): Data to update
 
         Returns:
-            Dict[str, Any]: Updated product details
+            Product: Updated product instance
 
         Raises:
-            ResourceNotFoundError: If product is not found
-            ValidationError: If product data is invalid
-            DatabaseError: If database operation fails
+            NotFoundError: If product doesn't exist
+            ValidationError: If update data is invalid
         """
         try:
-            product = self._repository.get_by_id(product_id)
-            if not product:
-                raise ResourceNotFoundError('Product', str(product_id))
+            # Retrieve existing product
+            product = self.get_product_by_id(product_id)
 
-            # Validate and update product attributes
-            if 'name' in product_data:
-                if not product_data['name']:
-                    raise ValidationError('Product name cannot be empty')
-                product.name = product_data['name']
+            # Update material type if provided
+            if 'material_type' in update_data:
+                update_data['material_type'] = MaterialType(update_data['material_type'])
 
-            if 'description' in product_data:
-                product.description = product_data['description']
+            # Update product (method includes validation)
+            product.update(**update_data)
 
-            if 'price' in product_data:
-                if product_data['price'] < 0:
-                    raise ValidationError('Price cannot be negative')
-                product.price = product_data['price']
+            # Commit changes
+            self.session.commit()
 
-            if 'sku' in product_data:
-                product.sku = product_data['sku']
+            self.logger.info(f"Product updated successfully", extra={
+                "product_id": product.id,
+                "updates": list(update_data.keys())
+            })
 
-            if 'category' in product_data:
-                product.category = product_data['category']
+            return product
 
-            if 'cost_price' in product_data:
-                if product_data['cost_price'] < 0:
-                    raise ValidationError('Cost price cannot be negative')
-                product.cost_price = product_data['cost_price']
+        except (ValueError, TypeError) as e:
+            self.logger.error(f"Product update failed: {str(e)}", extra={
+                "product_id": product_id,
+                "update_data": update_data,
+                "error": str(e)
+            })
+            raise ValidationError(f"Invalid update data: {str(e)}")
 
-            if 'minimum_stock_level' in product_data:
-                if product_data['minimum_stock_level'] < 0:
-                    raise ValidationError('Minimum stock level cannot be negative')
-                product.minimum_stock_level = product_data['minimum_stock_level']
+        except SQLAlchemyError as e:
+            self.session.rollback()
+            self.logger.error(f"Database error during product update: {str(e)}", extra={
+                "product_id": product_id,
+                "update_data": update_data,
+                "error": str(e)
+            })
+            raise ValidationError(f"Database error: {str(e)}")
 
-            if 'is_active' in product_data:
-                product.is_active = product_data['is_active']
-
-            updated_product = self._repository.update(product)
-            return updated_product.to_dict(include_details=True)
-
-        except (DatabaseError, ValidationError) as e:
-            self._logger.error(f'Error updating product {product_id}: {e}')
-            raise
-
-    def delete_product(self, product_id: int) -> bool:
+    def delete_product(self, product_id: int) -> None:
         """
-        Delete a product with additional checks.
+        Soft delete a product.
 
         Args:
-            product_id (int): Unique identifier for the product
-
-        Returns:
-            bool: True if deletion was successful
+            product_id (int): ID of the product to delete
 
         Raises:
-            ResourceNotFoundError: If product is not found
-            ValidationError: If product cannot be deleted
-            DatabaseError: If database operation fails
+            NotFoundError: If product doesn't exist
         """
         try:
-            product = self._repository.get_by_id(product_id)
-            if not product:
-                raise ResourceNotFoundError('Product', str(product_id))
+            # Retrieve existing product
+            product = self.get_product_by_id(product_id)
 
-            # Check if product has order history
-            if product.order_items:
-                raise ValidationError('Cannot delete product with existing order history')
+            # Soft delete
+            product.soft_delete()
 
-            return self._repository.delete(product_id)
+            # Commit changes
+            self.session.commit()
 
-        except (DatabaseError, ValidationError) as e:
-            self._logger.error(f'Error deleting product {product_id}: {e}')
-            raise
+            self.logger.info(f"Product soft deleted", extra={
+                "product_id": product_id
+            })
 
-    def search_products(self, search_params: Dict[str, Any]) -> List[Dict[str, Any]]:
+        except SQLAlchemyError as e:
+            self.session.rollback()
+            self.logger.error(f"Error soft deleting product: {str(e)}", extra={
+                "product_id": product_id,
+                "error": str(e)
+            })
+            raise NotFoundError(f"Error deleting product: {str(e)}")
+
+    def list_products(self,
+                      active_only: bool = True,
+                      material_type: Optional[MaterialType] = None) -> List[Product]:
         """
-        Advanced search for products with multiple search criteria.
+        List products with optional filtering.
 
         Args:
-            search_params (Dict[str, Any]): Search criteria
+            active_only (bool): Filter for only active products
+            material_type (Optional[MaterialType]): Filter by material type
 
         Returns:
-            List[Dict[str, Any]]: List of matching products
-
-        Raises:
-            DatabaseError: If database operation fails
+            List[Product]: List of products matching the criteria
         """
         try:
-            # Search by name
-            if 'name' in search_params:
-                return [
-                    product.to_dict(include_details=True)
-                    for product in self._repository.search_by_name(search_params['name'])
-                ]
+            # Construct query
+            query = self.session.query(Product)
 
-            # Search by category
-            if 'category' in search_params:
-                return [
-                    product.to_dict(include_details=True)
-                    for product in self._repository.get_products_by_category(search_params['category'])
-                ]
+            if active_only:
+                query = query.filter(Product.is_active == True)
 
-            # Filter active products
-            if 'is_active' in search_params:
-                return [
-                    product.to_dict(include_details=True)
-                    for product in self._repository.get_active_products()
-                ]
+            if material_type:
+                query = query.filter(Product.material_type == material_type)
 
-            # Filter low stock products
-            if 'low_stock' in search_params:
-                include_zero = search_params.get('include_zero_stock', False)
-                return [
-                    product.to_dict(include_details=True)
-                    for product in self._repository.get_low_stock_products(include_zero)
-                ]
+            products = query.all()
 
-            # Filter by price range
-            if 'min_price' in search_params or 'max_price' in search_params:
-                min_price = search_params.get('min_price', 0)
-                max_price = search_params.get('max_price', float('inf'))
-                return [
-                    product.to_dict(include_details=True)
-                    for product in self._repository.get_all()
-                    if min_price <= product.price <= max_price
-                ]
+            self.logger.info(f"Product list retrieved", extra={
+                "total_products": len(products),
+                "active_only": active_only,
+                "material_type": material_type
+            })
 
-            # Return all products if no specific criteria
-            return [
-                product.to_dict(include_details=True)
-                for product in self._repository.get_all()
-            ]
+            return products
 
-        except DatabaseError as e:
-            self._logger.error(f'Error searching products: {e}')
-            raise
+        except SQLAlchemyError as e:
+            self.logger.error(f"Error listing products: {str(e)}", extra={
+                "error": str(e)
+            })
+            raise ValidationError(f"Error retrieving products: {str(e)}")
 
-    def update_product_stock(self, product_id: int, quantity_change: float,
-                             transaction_type: str = 'ADJUSTMENT',
-                             notes: Optional[str] = None) -> Dict[str, Any]:
+    def _generate_unique_sku(self) -> str:
         """
-        Update the stock of a product.
-
-        Args:
-            product_id (int): Unique identifier for the product
-            quantity_change (float): Amount to change stock by
-            transaction_type (str): Type of stock transaction
-            notes (Optional[str]): Additional notes for the transaction
+        Generate a unique SKU for a new product.
 
         Returns:
-            Dict[str, Any]: Updated product details
-
-        Raises:
-            ResourceNotFoundError: If product is not found
-            ValidationError: If stock update is invalid
-            DatabaseError: If database operation fails
+            str: Unique SKU in format LTH-PRD-XXXX
         """
-        try:
-            product = self._repository.get_by_id(product_id)
-            if not product:
-                raise ResourceNotFoundError('Product', str(product_id))
+        while True:
+            # Generate a random 4-digit number
+            unique_suffix = str(uuid.uuid4().int)[-4:]
+            sku = f"LTH-PRD-{unique_suffix}"
 
-            product.update_stock(quantity_change, transaction_type)
-            updated_product = self._repository.update(product)
-            return updated_product.to_dict(include_details=True)
+            # Check if SKU already exists
+            existing = self.session.query(Product).filter_by(sku=sku).first()
 
-        except (DatabaseError, ValidationError) as e:
-            self._logger.error(f'Error updating stock for product {product_id}: {e}')
-            raise
-
-    def generate_product_report(self) -> Dict[str, Any]:
-        """
-        Generate a comprehensive product report.
-
-        Returns:
-            Dict[str, Any]: Detailed product report
-
-        Raises:
-            DatabaseError: If database operation fails
-        """
-        try:
-            summary = self._repository.get_product_sales_summary()
-            low_stock_products = self._repository.get_low_stock_products()
-
-            report = {
-                'summary': summary,
-                'low_stock_products': [
-                    product.to_dict(include_details=True)
-                    for product in low_stock_products
-                ]
-            }
-
-            return report
-
-        except DatabaseError as e:
-            self._logger.error(f'Error generating product report: {e}')
-            raise
+            if not existing:
+                return sku

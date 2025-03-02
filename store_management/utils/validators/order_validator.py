@@ -1,132 +1,116 @@
-# Relative path: store_management/utils/order_exporter.py
-
+# utils/validators/order_validator.py
 """
-Order Exporter Module
-
-Provides functionality for exporting order data to various file formats
-including Excel, CSV, and JSON.
+Validators for order-related data.
 """
-
 import json
 import logging
-from pathlib import Path
-from typing import Dict, Any
+from typing import Any, Dict, List
 
 import pandas as pd
+from pathlib import Path
 
-from di.core import inject
-from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
-
-# Configure logger
-logger = logging.getLogger(__name__)
+from .data_sanitizer import DataSanitizer
 
 
-class OrderExporter:
+class OrderValidator:
     """
-    Utility class for exporting order data to various file formats.
-
-    This class provides static methods to export order data to Excel, CSV, and JSON formats.
-    All methods return a boolean indicating success or failure of the export operation.
+    Utility class for validating and processing order-related data.
     """
 
-    @staticmethod
-    def export_to_excel(data: Dict[str, Any], filepath: Path) -> bool:
+    @classmethod
+    def validate_order_data(cls, order_data: Dict[str, Any]) -> bool:
         """
-        Export order data to Excel format with multiple sheets.
+        Validate order data against a set of predefined rules.
 
         Args:
-            data (Dict[str, Any]): Dictionary containing order data with 'order' and 'details' keys
-            filepath (Path): Path where the Excel file should be saved
+            order_data (Dict[str, Any]): Order data to validate
 
         Returns:
-            bool: True if export was successful, False otherwise
-
-        Raises:
-            ValueError: If data dictionary doesn't contain required keys
+            bool: True if order data is valid, False otherwise
         """
-        if 'order' not in data or 'details' not in data:
-            logger.error("Export failed: Data missing required 'order' or 'details' keys")
-            raise ValueError("Data must contain 'order' and 'details' keys")
+        # Sanitize input data first
+        sanitized_data = DataSanitizer.sanitize_dict(order_data)
 
+        # Validate required fields
+        required_fields = ['customer_name', 'total_amount', 'order_date']
+        for field in required_fields:
+            if not sanitized_data.get(field):
+                logging.warning(f"Missing required field: {field}")
+                return False
+
+        # Additional specific validations
         try:
-            with pd.ExcelWriter(filepath) as writer:
-                # Create and write order data sheet
-                order_df = pd.DataFrame([data['order']])
-                order_df.to_excel(writer, sheet_name='Order', index=False)
+            # Validate total amount is positive
+            if sanitized_data.get('total_amount', 0) <= 0:
+                logging.warning("Total amount must be positive")
+                return False
 
-                # Create and write order details sheet
-                details_df = pd.DataFrame(data['details'])
-                details_df.to_excel(writer, sheet_name='Details', index=False)
+            # Validate customer name length
+            if len(sanitized_data.get('customer_name', '')) < 2:
+                logging.warning("Customer name too short")
+                return False
 
-                # Format the Excel file for better readability
-                workbook = writer.book
-                for sheet in writer.sheets.values():
-                    for col in range(len(sheet.dimensions)):
-                        sheet.column_dimensions[chr(65 + col)].auto_size = True
-
-            logger.info(f"Successfully exported order data to Excel: {filepath}")
             return True
-
         except Exception as e:
-            logger.error(f"Failed to export order data to Excel: {e}")
+            logging.error(f"Order validation error: {str(e)}")
             return False
 
-    @staticmethod
-    def export_to_csv(data: Dict[str, Any], filepath: Path) -> bool:
+    @classmethod
+    def import_orders_from_csv(cls, filepath: str) -> List[Dict[str, Any]]:
         """
-        Export order data to CSV format (creates two files: one for order and one for details).
+        Import and validate orders from a CSV file.
 
         Args:
-            data (Dict[str, Any]): Dictionary containing order data with 'order' and 'details' keys
-            filepath (Path): Base path for the CSV files
+            filepath (str): Path to the CSV file
 
         Returns:
-            bool: True if export was successful, False otherwise
-
-        Raises:
-            ValueError: If data dictionary doesn't contain required keys
+            List[Dict[str, Any]]: List of validated orders
         """
-        if 'order' not in data or 'details' not in data:
-            logger.error("Export failed: Data missing required 'order' or 'details' keys")
-            raise ValueError("Data must contain 'order' and 'details' keys")
-
         try:
-            # Export main order data
-            order_df = pd.DataFrame([data['order']])
-            order_filepath = filepath.with_suffix('.order.csv')
-            order_df.to_csv(order_filepath, index=False)
+            # Read CSV file
+            df = pd.read_csv(filepath)
 
-            # Export order details data
-            details_df = pd.DataFrame(data['details'])
-            details_filepath = filepath.with_suffix('.details.csv')
-            details_df.to_csv(details_filepath, index=False)
+            # Validate and convert to list of dictionaries
+            valid_orders = []
+            for _, row in df.iterrows():
+                order_data = row.to_dict()
 
-            logger.info(f"Successfully exported order data to CSV files: {order_filepath} and {details_filepath}")
-            return True
+                # Sanitize and validate each order
+                if cls.validate_order_data(order_data):
+                    valid_orders.append(order_data)
+                else:
+                    logging.warning(f"Skipping invalid order: {order_data}")
+
+            return valid_orders
 
         except Exception as e:
-            logger.error(f"Failed to export order data to CSV: {e}")
-            return False
+            logging.error(f"Error importing orders: {str(e)}")
+            return []
 
-    @staticmethod
-    def export_to_json(data: Dict[str, Any], filepath: Path) -> bool:
+    @classmethod
+    def export_orders_to_json(cls, orders: List[Dict[str, Any]], filepath: str) -> bool:
         """
-        Export order data to JSON format.
+        Export validated orders to a JSON file.
 
         Args:
-            data (Dict[str, Any]): Dictionary containing order data
-            filepath (Path): Path where the JSON file should be saved
+            orders (List[Dict[str, Any]]): List of orders to export
+            filepath (str): Path to save the JSON file
 
         Returns:
             bool: True if export was successful, False otherwise
         """
         try:
+            # Validate each order before export
+            valid_orders = [
+                order for order in orders
+                if cls.validate_order_data(order)
+            ]
+
+            # Write to JSON file
             with open(filepath, 'w') as f:
-                json.dump(data, f, indent=2, default=str)
+                json.dump(valid_orders, f, indent=4)
 
-            logger.info(f"Successfully exported order data to JSON: {filepath}")
             return True
-
         except Exception as e:
-            logger.error(f"Failed to export order data to JSON: {e}")
+            logging.error(f"Error exporting orders: {str(e)}")
             return False

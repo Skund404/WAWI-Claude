@@ -1,4 +1,4 @@
-# di/setup.py (updated)
+# di/setup.py
 """Setup dependency injection container with service registrations."""
 
 import logging
@@ -34,7 +34,9 @@ SERVICE_MAPPINGS = [
     ('services.interfaces.storage_service.IStorageService', 'services.implementations.storage_service.StorageService'),
     ('services.interfaces.supplier_service.ISupplierService',
      'services.implementations.supplier_service.SupplierService'),
-]
+
+    ('services.interfaces.picking_list_service.IPickingListService',
+     'services.implementations.picking_list_service.PickingListService'),]
 
 
 def safe_import(path):

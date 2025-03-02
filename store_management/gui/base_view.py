@@ -21,6 +21,11 @@ from services.interfaces.project_service import IProjectService
 from services.interfaces.storage_service import IStorageService
 from services.interfaces.pattern_service import IPatternService
 
+from typing import Any, Type, Optional, Callable, List, Dict, Union, TypeVar
+
+# Define a generic TypeVar for service retrieval
+T = TypeVar('T')
+
 
 class BaseView(ttk.Frame, abc.ABC):
     """
@@ -64,64 +69,99 @@ class BaseView(ttk.Frame, abc.ABC):
         self._undo_stack: List[Callable] = []
         self._redo_stack: List[Callable] = []
 
-    def get_service(self, service_type: Type[Any]) -> Any:
+    def get_service(self, service_type: Type[T]) -> T:
         """
-        Retrieve a service from the application's dependency container with advanced caching.
+        Retrieve a service from the dependency injection container.
 
         Args:
-            service_type (Type): The type/interface of the service to retrieve
+            service_type (Type[T]): Type of service to retrieve
 
         Returns:
-            The requested service instance
+            T: Instance of the requested service
 
         Raises:
-            ValueError: If the service cannot be retrieved
+            ValueError: If no implementation is found for the service
         """
         try:
             # Check cached services first
             if service_type in self._services:
+                self._logger.debug(f"Using cached service: {service_type.__name__}")
                 return self._services[service_type]
 
-            # Multiple retrieval methods
-            service = None
-            retrieval_methods = [
-                lambda: getattr(self.app, 'get_service', None)(service_type) if hasattr(self.app,
-                                                                                        'get_service') else None,
-                lambda: getattr(self.app, 'container', None).get(service_type) if hasattr(self.app,
-                                                                                          'container') else None,
-                lambda: getattr(self, '_get_service_fallback', None)(service_type) if hasattr(self,
-                                                                                              '_get_service_fallback') else None
-            ]
-
-            for method in retrieval_methods:
+            # Try getting service from app's container
+            if hasattr(self.app, 'container') and self.app.container is not None:
                 try:
-                    service = method()
-                    if service is not None:
-                        break
-                except Exception:
-                    continue
+                    service = self.app.container.get(service_type)
+                    self._logger.info(f"Successfully retrieved service: {service_type.__name__}")
+                    self._services[service_type] = service
+                    return service
+                except Exception as container_error:
+                    self._logger.debug(f"Container.get failed with {service_type.__name__}: {container_error}")
 
-            if service is None:
-                raise ValueError(f"No implementation found for {service_type.__name__}")
+                    # Try with the service name
+                    try:
+                        service_name = service_type.__name__
+                        service = self.app.container.get(service_name)
+                        self._logger.info(f"Retrieved service by name: {service_name}")
+                        self._services[service_type] = service
+                        return service
+                    except Exception as name_error:
+                        self._logger.debug(f"Container.get failed with name {service_type.__name__}: {name_error}")
 
-            # Cache the service
-            self._services[service_type] = service
-            return service
+            # Try using app as container
+            if hasattr(self.app, 'get') and callable(self.app.get):
+                try:
+                    service = self.app.get(service_type)
+                    self._logger.info(f"Retrieved service from app.get: {service_type.__name__}")
+                    self._services[service_type] = service
+                    return service
+                except Exception as app_get_error:
+                    self._logger.debug(f"app.get failed: {app_get_error}")
+
+            # Try app's get_service method
+            if hasattr(self.app, 'get_service') and callable(self.app.get_service):
+                try:
+                    service = self.app.get_service(service_type)
+                    self._logger.info(f"Retrieved service from app.get_service: {service_type.__name__}")
+                    self._services[service_type] = service
+                    return service
+                except Exception as app_service_error:
+                    self._logger.debug(f"app.get_service failed: {app_service_error}")
+
+            # Last resort: Try to import and create the service directly
+            try:
+                # Derive module and class names
+                interface_name = service_type.__name__
+                if interface_name.startswith('I'):
+                    implementation_name = interface_name[1:]
+                else:
+                    implementation_name = interface_name
+
+                # Try to import implementation dynamically
+                module_name = f"services.implementations.{implementation_name.lower()}"
+                class_name = implementation_name
+
+                self._logger.debug(f"Attempting direct import of {module_name}.{class_name}")
+                import importlib
+                module = importlib.import_module(module_name)
+                implementation_class = getattr(module, class_name)
+
+                # Instantiate the service
+                service_instance = implementation_class()
+                self._logger.info(f"Dynamically created service: {service_type.__name__}")
+
+                # Cache the service
+                self._services[service_type] = service_instance
+                return service_instance
+
+            except Exception as import_error:
+                self._logger.error(f"Failed to retrieve service {service_type.__name__}")
+                self._logger.error(f"Import error: {import_error}")
+                raise ValueError(f"No implementation found for {service_type.__name__}") from import_error
 
         except Exception as e:
             self._logger.error(f"Error retrieving service {service_type.__name__}: {e}")
             raise ValueError(f"Service {service_type.__name__} not available") from e
-
-    def _get_service(self, service_type: Type) -> Any:
-        """Internal method to get a service - maintains backward compatibility.
-
-        Args:
-            service_type (Type): The type of service to retrieve
-
-        Returns:
-            Any: The requested service instance
-        """
-        return self.get_service(service_type)
 
     def show_message(self,
                      message: str,

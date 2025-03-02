@@ -16,6 +16,9 @@ from sqlalchemy.orm import relationship
 # Import base classes without causing circular dependencies
 from database.models.base import Base, BaseModel
 from database.models.enums import TransactionType
+from utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class BaseTransaction(Base, BaseModel):
@@ -50,6 +53,7 @@ class BaseTransaction(Base, BaseModel):
         """
         self.transaction_type = transaction_type
         self.notes = notes
+        logger.debug(f"Created {transaction_type.name} transaction")
 
     def __repr__(self) -> str:
         """
@@ -67,12 +71,14 @@ class BaseTransaction(Base, BaseModel):
         Returns:
             Dict[str, Any]: Dictionary representation of the transaction
         """
-        result = super().to_dict()
-
-        # Convert enum values to strings
-        if isinstance(self.transaction_type, TransactionType):
-            result['transaction_type'] = self.transaction_type.value
-
+        result = {
+            'id': self.id,
+            'transaction_type': self.transaction_type.value if hasattr(self.transaction_type, 'value') else str(
+                self.transaction_type),
+            'notes': self.notes,
+            'timestamp': self.timestamp.isoformat() if self.timestamp else None,
+            'type': self.type
+        }
         return result
 
 
@@ -110,6 +116,7 @@ class InventoryTransaction(BaseTransaction):
         super().__init__(transaction_type, notes)
         self.part_id = part_id
         self.quantity_change = quantity_change
+        logger.debug(f"Created inventory transaction for part ID {part_id}, change: {quantity_change}")
 
     def to_dict(self) -> Dict[str, Any]:
         """
@@ -165,6 +172,9 @@ class LeatherTransaction(BaseTransaction):
         self.leather_id = leather_id
         self.area_change = area_change
         self.wastage = wastage
+
+        logger.debug(
+            f"Created leather transaction for leather ID {leather_id}, area change: {area_change}, wastage: {wastage}")
 
     def to_dict(self) -> Dict[str, Any]:
         """

@@ -24,6 +24,7 @@ from gui.storage.storage_view import StorageView
 from gui.leatherworking.project_dashboard import ProjectDashboard
 from gui.leatherworking.timeline_viewer import TimelineViewer
 from gui.order.supplier_view import SupplierView
+from gui.order.picking_list_view import PickingListView
 
 
 
@@ -36,6 +37,7 @@ from services.interfaces.shopping_list_service import IShoppingListService
 from services.interfaces.storage_service import IStorageService
 from services.interfaces.pattern_service import IPatternService
 from services.interfaces.supplier_service import ISupplierService
+from services.interfaces.picking_list_service import IPickingListService
 
 logger = logging.getLogger(__name__)
 
@@ -143,6 +145,11 @@ class MainWindow:
                 "name": "Shopping List",
                 "view": ShoppingListView,
                 "service": IShoppingListService
+            },
+            {
+                "name": "Picking Lists",  # Add this view
+                "view": PickingListView,
+                "service": IPickingListService
             }
         ]
 
@@ -169,7 +176,7 @@ class MainWindow:
         """
         Create a status bar at the bottom of the window.
         """
-        self.status_var = tk.StringVar()
+        # Use the existing self.status_var that was initialized in __init__
         self.status_bar = ttk.Label(
             self.root,
             textvariable=self.status_var,

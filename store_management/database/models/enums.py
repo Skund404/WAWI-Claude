@@ -20,6 +20,12 @@ class OrderStatus(enum.Enum):
     CANCELLED = "cancelled"
     RETURNED = "returned"
 
+class PickingListStatus(enum.Enum):
+    """Enumeration of picking list status values."""
+    DRAFT = "draft"              # Initial state when created
+    IN_PROGRESS = "in_progress"  # Picking has started
+    COMPLETED = "completed"      # All items have been picked
+    CANCELLED = "cancelled"      # Picking list cancelled
 
 class MaterialType(enum.Enum):
     """Enumeration of material types."""

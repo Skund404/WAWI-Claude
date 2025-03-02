@@ -5,29 +5,58 @@ Supplier model module for the leatherworking store management system.
 Defines the Supplier class for tracking suppliers of materials.
 """
 
-import enum
-import datetime
+import re
 from typing import Dict, Any, List, Optional
+from datetime import datetime
 
 from sqlalchemy import (
-    Column, String, Integer, Float, ForeignKey, Enum, Boolean,
-    DateTime, Text
+    Column, String, Float, Enum, Text, DateTime
 )
 from sqlalchemy.orm import relationship
 
-from database.models.base import Base, BaseModel
+from database.models.base import Base
 from database.models.enums import SupplierStatus
 
 
-class Supplier(Base, BaseModel):
+def is_valid_email(email: str) -> bool:
+    """
+    Validate email format.
+
+    Args:
+        email (str): Email address to validate
+
+    Returns:
+        bool: True if email is valid, False otherwise
+    """
+    email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return re.match(email_regex, email) is not None
+
+
+def is_valid_phone(phone: str) -> bool:
+    """
+    Validate phone number format.
+
+    Args:
+        phone (str): Phone number to validate
+
+    Returns:
+        bool: True if phone number is valid, False otherwise
+    """
+    # Remove any non-digit characters
+    cleaned_phone = re.sub(r'\D', '', phone)
+    return len(cleaned_phone) >= 10 and len(cleaned_phone) <= 15
+
+
+class Supplier(Base):
     """
     Model for suppliers of leatherworking materials and tools.
 
     This model represents businesses that supply the leatherworking
     operation with leather, hardware, tools, and other materials.
     """
-    __tablename__ = 'supplier'
+    __tablename__ = 'suppliers'
 
+    # Basic information
     name = Column(String(255), nullable=False)
     contact_name = Column(String(100), nullable=True)
     email = Column(String(100), nullable=True)
@@ -49,39 +78,93 @@ class Supplier(Base, BaseModel):
     materials = relationship("Material", back_populates="supplier")
     parts = relationship("Part", back_populates="supplier")
     leathers = relationship("Leather", back_populates="supplier")
+    hardware_items = relationship("Hardware", back_populates="supplier")
     orders = relationship("Order", back_populates="supplier")
 
-    def __init__(self, name: str, notes: Optional[str] = None, rating: float = 0.0, **kwargs):
+    @classmethod
+    def _validate_creation(cls, data: Dict[str, Any]) -> None:
         """
-        Initialize a new supplier.
+        Validate data before creating a supplier.
 
         Args:
-            name: Name of the supplier
-            notes: Additional notes about the supplier
-            rating: Supplier rating (0-5 scale)
-        """
-        super().__init__(**kwargs)  # Initialize the BaseModel
-        self.name = name
-        self.notes = notes
-        self.rating = rating
+            data (Dict[str, Any]): Data to validate
 
-    def __repr__(self) -> str:
+        Raises:
+            ModelValidationError: If validation fails
         """
-        Return a string representation of the supplier.
+        # Validate name
+        if not data.get('name'):
+            raise ValueError("Supplier name is required")
 
-        Returns:
-            str: String representation with id and name
-        """
-        return f"<Supplier id={self.id}, name='{self.name}'>"
+        # Validate email if provided
+        if data.get('email'):
+            if not is_valid_email(data['email']):
+                raise ValueError(f"Invalid email format: {data['email']}")
 
-    def to_dict(self) -> Dict[str, Any]:
+        # Validate phone if provided
+        if data.get('phone'):
+            if not is_valid_phone(data['phone']):
+                raise ValueError(f"Invalid phone number format: {data['phone']}")
+
+        # Validate rating if provided
+        if 'rating' in data:
+            if not (0 <= data['rating'] <= 5):
+                raise ValueError("Rating must be between 0 and 5")
+
+    def _validate_update(self, update_data: Dict[str, Any]) -> None:
         """
-        Convert the supplier to a dictionary.
+        Validate data before updating a supplier.
+
+        Args:
+            update_data (Dict[str, Any]): Data to validate
+
+        Raises:
+            ModelValidationError: If validation fails
+        """
+        # Validate email if provided
+        if 'email' in update_data:
+            if not is_valid_email(update_data['email']):
+                raise ValueError(f"Invalid email format: {update_data['email']}")
+
+        # Validate phone if provided
+        if 'phone' in update_data:
+            if not is_valid_phone(update_data['phone']):
+                raise ValueError(f"Invalid phone number format: {update_data['phone']}")
+
+        # Validate rating if provided
+        if 'rating' in update_data:
+            if not (0 <= update_data['rating'] <= 5):
+                raise ValueError("Rating must be between 0 and 5")
+
+    def to_dict(self, include_relationships: bool = False) -> Dict[str, Any]:
+        """
+        Convert supplier to dictionary with enhanced details.
+
+        Args:
+            include_relationships (bool): Whether to include relationship data
 
         Returns:
             Dict[str, Any]: Dictionary representation of the supplier
         """
-        result = super().to_dict()
+        result = super().to_dict(include_relationships)
+
+        # Round rating to 2 decimal places
+        if 'rating' in result:
+            result['rating'] = round(result['rating'], 2)
+
+        # Format last order date if exists
+        if result.get('last_order_date'):
+            result['last_order_date'] = (
+                datetime.fromisoformat(result['last_order_date']).strftime('%Y-%m-%d')
+                if result['last_order_date'] else None
+            )
+
+        # Add additional derived information
+        if include_relationships:
+            result['total_materials'] = len(self.materials)
+            result['total_leathers'] = len(self.leathers)
+            result['total_hardware_items'] = len(self.hardware_items)
+
         return result
 
     def update_rating(self, new_rating: float) -> None:
@@ -89,7 +172,7 @@ class Supplier(Base, BaseModel):
         Update the supplier's rating.
 
         Args:
-            new_rating: New rating value (0-5)
+            new_rating (float): New rating value (0-5)
         """
         if 0 <= new_rating <= 5:
             self.rating = new_rating

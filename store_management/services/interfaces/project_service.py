@@ -1,162 +1,265 @@
-# path: services/interfaces/project_service.py
-"""
-Project service interface definitions.
-
-This module defines the interface for project-related services,
-which provide functionality related to managing projects in the system.
-"""
-
-import enum
+# services/interfaces/project_service.py
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional, Union, Callable
+from enum import Enum, auto
+from typing import List, Optional, Dict, Any
+from datetime import datetime
 
 
-class ProjectType(enum.Enum):
-    """Enumeration of project types."""
-    BAG = "bag"
-    WALLET = "wallet"
-    BELT = "belt"
-    CASE = "case"
-    HOLSTER = "holster"
-    ACCESSORY = "accessory"
-    GARMENT = "garment"
-    CUSTOM = "custom"
-    OTHER = "other"
+class ProjectType(Enum):
+    """Defines the types of leatherworking projects."""
+    BAG = auto()
+    WALLET = auto()
+    BELT = auto()
+    CASE = auto()
+    HOLSTER = auto()
+    ACCESSORY = auto()
+    GARMENT = auto()
+    CUSTOM = auto()
+    OTHER = auto()
 
 
-class SkillLevel(enum.Enum):
-    """Enumeration of skill levels required for projects."""
-    BEGINNER = "beginner"
-    INTERMEDIATE = "intermediate"
-    ADVANCED = "advanced"
-    EXPERT = "expert"
+class SkillLevel(Enum):
+    """Defines the skill levels required for projects."""
+    BEGINNER = auto()
+    INTERMEDIATE = auto()
+    ADVANCED = auto()
+    EXPERT = auto()
+
+
+class ProjectStatus(Enum):
+    """Defines the possible status of a project."""
+    PLANNING = auto()
+    IN_PROGRESS = auto()
+    REFINEMENT = auto()
+    COMPLETED = auto()
+    ON_HOLD = auto()
+    CANCELLED = auto()
 
 
 class IProjectService(ABC):
-    """
-    Interface for project service.
-
-    This interface defines the contract for services that manage projects
-    in the leatherworking store management system.
-    """
+    """Abstract base class defining the interface for project-related operations."""
 
     @abstractmethod
-    def create_project(self, project_data: Dict[str, Any]) -> Dict[str, Any]:
+    def create_project(self, project_data: Dict[str, Any]) -> 'Project':
         """
         Create a new project.
 
         Args:
-            project_data: Dictionary containing project attributes
+            project_data (Dict[str, Any]): Project creation data
 
         Returns:
-            Dictionary representing the created project
+            Project: Created project instance
         """
         pass
 
     @abstractmethod
-    def get_project(self, project_id: int, include_components: bool = False) -> Optional[Dict[str, Any]]:
+    def get_project(self, project_id: str) -> 'Project':
         """
-        Get a project by ID.
+        Retrieve a project by its ID.
 
         Args:
-            project_id: ID of the project to retrieve
-            include_components: Whether to include project components in the result
+            project_id (str): Unique project identifier
 
         Returns:
-            Dictionary representing the project or None if not found
+            Project: Retrieved project instance
         """
         pass
 
     @abstractmethod
-    def update_project(self, project_id: int, project_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def update_project(self, project_id: str, updates: Dict[str, Any]) -> 'Project':
         """
-        Update a project.
+        Update an existing project.
 
         Args:
-            project_id: ID of the project to update
-            project_data: Dictionary containing updated attributes
+            project_id (str): Unique project identifier
+            updates (Dict[str, Any]): Project update data
 
         Returns:
-            Dictionary representing the updated project or None if not found
+            Project: Updated project instance
         """
         pass
 
     @abstractmethod
-    def delete_project(self, project_id: int) -> bool:
+    def delete_project(self, project_id: str) -> bool:
         """
         Delete a project.
 
         Args:
-            project_id: ID of the project to delete
+            project_id (str): Unique project identifier
 
         Returns:
-            True if the project was deleted, False otherwise
+            bool: True if deletion was successful
         """
         pass
 
     @abstractmethod
-    def search_projects(self, search_params: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def add_component_to_project(self, project_id: str, component_data: Dict[str, Any]) -> 'Project':
         """
-        Search for projects based on parameters.
+        Add a component to a project.
 
         Args:
-            search_params: Dictionary of search parameters
+            project_id (str): Project identifier
+            component_data (Dict[str, Any]): Component details
 
         Returns:
-            List of dictionaries representing matching projects
+            Project: Updated project with new component
         """
         pass
 
     @abstractmethod
-    def get_complex_projects(self, complexity_threshold: float = 7.0) -> List[Dict[str, Any]]:
+    def remove_component_from_project(self, project_id: str, component_id: str) -> 'Project':
         """
-        Get projects above a certain complexity threshold.
+        Remove a component from a project.
 
         Args:
-            complexity_threshold: The minimum complexity score
+            project_id (str): Project identifier
+            component_id (str): Component identifier
 
         Returns:
-            List of dictionaries representing complex projects
+            Project: Updated project after component removal
         """
         pass
 
     @abstractmethod
-    def analyze_project_material_usage(self, project_id: int) -> Dict[str, Any]:
+    def update_project_progress(self, project_id: str, progress: int) -> 'Project':
         """
-        Analyze material usage for a project.
+        Update project progress and adjust status accordingly.
 
         Args:
-            project_id: ID of the project
+            project_id (str): Project identifier
+            progress (int): Progress percentage (0-100)
 
         Returns:
-            Dictionary containing material usage analysis
+            Project: Updated project
         """
         pass
 
     @abstractmethod
-    def generate_project_complexity_report(self) -> Dict[str, Any]:
+    def list_projects(
+            self,
+            project_type: Optional[ProjectType] = None,
+            skill_level: Optional[SkillLevel] = None,
+            status: Optional[ProjectStatus] = None
+    ) -> List['Project']:
         """
-        Generate a report on project complexity across the system.
-
-        Returns:
-            Dictionary containing project complexity metrics
-        """
-        pass
-
-    @abstractmethod
-    def update_project_status(self, project_id: int, new_status: str) -> bool:
-        """
-        Update the status of a project.
+        List projects with optional filtering.
 
         Args:
-            project_id: ID of the project
-            new_status: New status for the project
+            project_type: Optional filter by project type
+            skill_level: Optional filter by skill level
+            status: Optional filter by project status
 
         Returns:
-            True if the status was updated, False otherwise
+            List[Project]: Filtered list of projects
         """
         pass
 
+    @abstractmethod
+    def generate_project_complexity_report(self, project_id: str) -> Dict[str, Any]:
+        """
+        Generate a comprehensive project complexity report.
 
-# Class type alias for backward compatibility
-ProjectService = IProjectService
+        Args:
+            project_id (str): Project identifier
+
+        Returns:
+            Dict[str, Any]: Project complexity report
+        """
+        pass
+
+    @abstractmethod
+    def duplicate_project(self, project_id: str, new_name: Optional[str] = None) -> 'Project':
+        """
+        Duplicate an existing project.
+
+        Args:
+            project_id (str): Project identifier to duplicate
+            new_name (Optional[str]): Name for the duplicated project
+
+        Returns:
+            Project: Newly created duplicated project
+        """
+        pass
+
+    @abstractmethod
+    def calculate_project_material_requirements(self, project_id: str) -> Dict[str, Any]:
+        """
+        Calculate material requirements for a project.
+
+        Args:
+            project_id (str): Project identifier
+
+        Returns:
+            Dict[str, Any]: Material requirements analysis
+        """
+        pass
+
+    @abstractmethod
+    def analyze_project_material_usage(self, project_id: str) -> Dict[str, Any]:
+        """
+        Analyze material usage and efficiency for a project.
+
+        Args:
+            project_id (str): Project identifier
+
+        Returns:
+            Dict[str, Any]: Material usage analysis
+        """
+        pass
+
+    @abstractmethod
+    def get_projects_by_deadline(
+            self,
+            before_date: Optional[datetime] = None,
+            after_date: Optional[datetime] = None
+    ) -> List['Project']:
+        """
+        Retrieve projects within a specific deadline range.
+
+        Args:
+            before_date (Optional[datetime]): Maximum deadline date
+        after_date (Optional[datetime]): Minimum deadline date
+
+        Returns:
+            List[Project]: Projects matching the deadline criteria
+        """
+        pass
+
+    @abstractmethod
+    def get_complex_projects(self, min_components: int = 5) -> List['Project']:
+        """
+        Retrieve projects with a high number of components.
+
+        Args:
+            min_components (int): Minimum number of components to consider a project complex
+
+        Returns:
+            List[Project]: Complex projects
+        """
+        pass
+
+    @abstractmethod
+    def get_projects_by_status(self, status: ProjectStatus) -> List['Project']:
+        """
+        Retrieve projects with a specific status.
+
+        Args:
+            status (ProjectStatus): Project status to filter by
+
+        Returns:
+            List[Project]: Projects with the specified status
+        """
+        pass
+
+    @abstractmethod
+    def search_projects(self, query: str) -> List['Project']:
+        """
+        Search for projects by name or description.
+
+        Args:
+            query (str): Search term
+
+        Returns:
+            List[Project]: Projects matching the search query
+        """
+        pass

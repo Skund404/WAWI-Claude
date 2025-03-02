@@ -359,95 +359,6 @@ class ProjectView(ttk.Frame):
             self.logger.error(f"Error deleting project: {str(e)}", exc_info=True)
             messagebox.showerror("Error", f"Failed to delete project: {str(e)}")
 
-    def _on_save(self):
-        """Handle saving a project."""
-        if not self.project_service:
-            return
-
-        # Validate form
-        name = self.name_var.get().strip()
-        if not name:
-            messagebox.showwarning("Validation Error", "Project name is required.")
-            return
-
-        # Get project type
-        project_type_str = self.project_type_var.get()
-        try:
-            project_type = ProjectType[project_type_str]
-        except (KeyError, ValueError):
-            messagebox.showwarning("Validation Error", "Invalid project type.")
-            return
-
-        # Get skill level
-        skill_level_str = self.skill_level_var.get()
-        try:
-            skill_level = SkillLevel[skill_level_str]
-        except (KeyError, ValueError):
-            messagebox.showwarning("Validation Error", "Invalid skill level.")
-            return
-
-        # Get description
-        description = self.description_text.get("1.0", tk.END).strip()
-
-        # Get progress
-        progress = self.progress_var.get()
-
-        # Get status
-        status = self.status_var.get().strip()
-
-        # Check if this is a new project or an update
-        selected_id = self._get_selected_project_id()
-
-        try:
-            if selected_id:
-                # Update existing project
-                updates = {
-                    "name": name,
-                    "project_type": project_type,
-                    "description": description,
-                    "skill_level": skill_level,
-                    "status": status,
-                    "progress": progress
-                }
-                project = self.project_service.update_project(selected_id, updates)
-                if project:
-                    self._refresh_projects()
-                    self._populate_form(project)
-                    messagebox.showinfo("Success", "Project updated successfully.")
-                else:
-                    messagebox.showerror("Error", "Failed to update project.")
-            else:
-                # Create new project
-                project = self.project_service.create_project(
-                    name=name,
-                    project_type=project_type,
-                    description=description,
-                    skill_level=skill_level
-                )
-
-                if project:
-                    # Update the progress and status
-                    updates = {
-                        "status": status,
-                        "progress": progress
-                    }
-                    project = self.project_service.update_project(project["id"], updates)
-
-                    self._refresh_projects()
-
-                    # Select the new project
-                    self.project_tree.selection_set(project["id"])
-                    self.project_tree.see(project["id"])
-                    self._on_project_select()
-
-                    messagebox.showinfo("Success", "Project created successfully.")
-                else:
-                    messagebox.showerror("Error", "Failed to create project.")
-
-        except Exception as e:
-            self.logger.error(f"Error saving project: {str(e)}", exc_info=True)
-            messagebox.showerror("Error", f"Failed to save project: {str(e)}")
-
     def _on_cancel(self):
         """Handle canceling edits."""
         selected_id = self._get_selected_project_id()
@@ -458,98 +369,6 @@ class ProjectView(ttk.Frame):
             # Clear the form
             self._clear_form()
             self._disable_form()
-
-    def _on_add_component(self):
-        """Handle adding a component to the project."""
-        selected_id = self._get_selected_project_id()
-        if not selected_id:
-            messagebox.showinfo("Information", "Please save the project before adding components.")
-            return
-
-        if not self.project_service:
-            return
-
-        # Create a simple dialog for adding a component
-        dialog = tk.Toplevel(self)
-        dialog.title("Add Component")
-        dialog.geometry("400x300")
-        dialog.transient(self)
-        dialog.grab_set()
-
-        # Form frame
-        form_frame = ttk.Frame(dialog, padding=10)
-        form_frame.pack(fill=tk.BOTH, expand=True)
-
-        # Component name
-        ttk.Label(form_frame, text="Component Name:").grid(row=0, column=0, sticky=tk.W, pady=5)
-        comp_name_var = tk.StringVar()
-        comp_name_entry = ttk.Entry(form_frame, textvariable=comp_name_var, width=30)
-        comp_name_entry.grid(row=0, column=1, sticky=tk.W + tk.E, pady=5)
-
-        # Material type
-        ttk.Label(form_frame, text="Material Type:").grid(row=1, column=0, sticky=tk.W, pady=5)
-        material_type_var = tk.StringVar()
-        material_type_entry = ttk.Entry(form_frame, textvariable=material_type_var, width=20)
-        material_type_entry.grid(row=1, column=1, sticky=tk.W, pady=5)
-
-        # Quantity
-        ttk.Label(form_frame, text="Quantity:").grid(row=2, column=0, sticky=tk.W, pady=5)
-        quantity_var = tk.DoubleVar(value=1.0)
-        quantity_entry = ttk.Spinbox(form_frame, from_=0.1, to=1000.0, increment=0.1, textvariable=quantity_var)
-        quantity_entry.grid(row=2, column=1, sticky=tk.W, pady=5)
-
-        # Notes
-        ttk.Label(form_frame, text="Notes:").grid(row=3, column=0, sticky=tk.W, pady=5)
-        notes_text = tk.Text(form_frame, height=3, width=30)
-        notes_text.grid(row=3, column=1, sticky=tk.W + tk.E, pady=5)
-
-        # Buttons
-        buttons_frame = ttk.Frame(form_frame)
-        buttons_frame.grid(row=4, column=0, columnspan=2, sticky=tk.E, pady=10)
-
-        cancel_btn = ttk.Button(buttons_frame, text="Cancel", command=dialog.destroy)
-        cancel_btn.pack(side=tk.RIGHT, padx=5)
-
-        def add_component():
-            name = comp_name_var.get().strip()
-            if not name:
-                messagebox.showwarning("Validation Error", "Component name is required.", parent=dialog)
-                return
-
-            material_type = material_type_var.get().strip()
-            quantity = quantity_var.get()
-            notes = notes_text.get("1.0", tk.END).strip()
-
-            try:
-                result = self.project_service.add_component_to_project(
-                    project_id=selected_id,
-                    component_name=name,
-                    material_type=material_type,
-                    quantity=quantity,
-                    notes=notes
-                )
-
-                if result:
-                    dialog.destroy()
-                    self._on_project_select()  # Refresh form
-                    messagebox.showinfo("Success", "Component added successfully.")
-                else:
-                    messagebox.showerror("Error", "Failed to add component.")
-            except Exception as e:
-                self.logger.error(f"Error adding component: {str(e)}", exc_info=True)
-                messagebox.showerror("Error", f"Failed to add component: {str(e)}")
-
-        add_btn = ttk.Button(buttons_frame, text="Add", command=add_component)
-        add_btn.pack(side=tk.RIGHT, padx=5)
-
-        # Make the form resizable
-        form_frame.columnconfigure(1, weight=1)
-
-        # Focus on the name field
-        comp_name_entry.focus_set()
-
-        # Make the dialog modal
-        dialog.wait_window()
 
     def _on_remove_component(self):
         """Handle removing a component from the project."""
@@ -694,3 +513,181 @@ class ProjectView(ttk.Frame):
             self.remove_comp_btn
         ]:
             widget.configure(state="disabled")
+
+    def _on_save(self):
+        """Handle saving a project."""
+        if not self.project_service:
+            return
+
+        # Validate form
+        name = self.name_var.get().strip()
+        if not name:
+            messagebox.showwarning("Validation Error", "Project name is required.")
+            return
+
+        # Get project type
+        project_type_str = self.project_type_var.get()
+        try:
+            project_type = ProjectType[project_type_str]
+        except (KeyError, ValueError):
+            messagebox.showwarning("Validation Error", "Invalid project type.")
+            return
+
+        # Get skill level
+        skill_level_str = self.skill_level_var.get()
+        try:
+            skill_level = SkillLevel[skill_level_str]
+        except (KeyError, ValueError):
+            messagebox.showwarning("Validation Error", "Invalid skill level.")
+            return
+
+        # Get description
+        description = self.description_text.get("1.0", tk.END).strip()
+
+        # Get progress
+        progress = self.progress_var.get()
+
+        # Get status
+        status = self.status_var.get().strip()
+
+        # Check if this is a new project or an update
+        selected_id = self._get_selected_project_id()
+
+        try:
+            if selected_id:
+                # Update existing project
+                updates = {
+                    "name": name,
+                    "project_type": project_type,
+                    "description": description,
+                    "skill_level": skill_level,
+                    "status": status,
+                    "progress": progress
+                }
+                project = self.project_service.update_project(selected_id, updates)
+                if project:
+                    self._refresh_projects()
+                    self._populate_form(project)
+                    messagebox.showinfo("Success", "Project updated successfully.")
+                else:
+                    messagebox.showerror("Error", "Failed to update project.")
+            else:
+                # Create new project
+                project_data = {
+                    "name": name,
+                    "project_type": project_type,
+                    "description": description,
+                    "skill_level": skill_level,
+                    "status": status,
+                    "progress": progress
+                }
+                project = self.project_service.create_project(project_data)
+
+                if project:
+                    self._refresh_projects()
+
+                    # Select the new project
+                    self.project_tree.selection_set(project["id"])
+                    self.project_tree.see(project["id"])
+                    self._on_project_select()
+
+                    messagebox.showinfo("Success", "Project created successfully.")
+                else:
+                    messagebox.showerror("Error", "Failed to create project.")
+
+        except Exception as e:
+            self.logger.error(f"Error saving project: {str(e)}", exc_info=True)
+            messagebox.showerror("Error", f"Failed to save project: {str(e)}")
+
+    def _on_add_component(self):
+        """Handle adding a component to the project."""
+        selected_id = self._get_selected_project_id()
+        if not selected_id:
+            messagebox.showinfo("Information", "Please save the project before adding components.")
+            return
+
+        if not self.project_service:
+            return
+
+        # Create a simple dialog for adding a component
+        dialog = tk.Toplevel(self)
+        dialog.title("Add Component")
+        dialog.geometry("400x300")
+        dialog.transient(self)
+        dialog.grab_set()
+
+        # Form frame
+        form_frame = ttk.Frame(dialog, padding=10)
+        form_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Component name
+        ttk.Label(form_frame, text="Component Name:").grid(row=0, column=0, sticky=tk.W, pady=5)
+        comp_name_var = tk.StringVar()
+        comp_name_entry = ttk.Entry(form_frame, textvariable=comp_name_var, width=30)
+        comp_name_entry.grid(row=0, column=1, sticky=tk.W + tk.E, pady=5)
+
+        # Material type
+        ttk.Label(form_frame, text="Material Type:").grid(row=1, column=0, sticky=tk.W, pady=5)
+        material_type_var = tk.StringVar()
+        material_type_entry = ttk.Entry(form_frame, textvariable=material_type_var, width=20)
+        material_type_entry.grid(row=1, column=1, sticky=tk.W, pady=5)
+
+        # Quantity
+        ttk.Label(form_frame, text="Quantity:").grid(row=2, column=0, sticky=tk.W, pady=5)
+        quantity_var = tk.DoubleVar(value=1.0)
+        quantity_entry = ttk.Spinbox(form_frame, from_=0.1, to=1000.0, increment=0.1, textvariable=quantity_var)
+        quantity_entry.grid(row=2, column=1, sticky=tk.W, pady=5)
+
+        # Notes
+        ttk.Label(form_frame, text="Notes:").grid(row=3, column=0, sticky=tk.W, pady=5)
+        notes_text = tk.Text(form_frame, height=3, width=30)
+        notes_text.grid(row=3, column=1, sticky=tk.W + tk.E, pady=5)
+
+        # Buttons
+        buttons_frame = ttk.Frame(form_frame)
+        buttons_frame.grid(row=4, column=0, columnspan=2, sticky=tk.E, pady=10)
+
+        cancel_btn = ttk.Button(buttons_frame, text="Cancel", command=dialog.destroy)
+        cancel_btn.pack(side=tk.RIGHT, padx=5)
+
+        def add_component():
+            name = comp_name_var.get().strip()
+            if not name:
+                messagebox.showwarning("Validation Error", "Component name is required.", parent=dialog)
+                return
+
+            # Prepare component data dictionary
+            component_data = {
+                'name': name,
+                'material_type': material_type_var.get().strip(),
+                'quantity': quantity_var.get(),
+                'notes': notes_text.get("1.0", tk.END).strip()
+            }
+
+            try:
+                result = self.project_service.add_component_to_project(
+                    project_id=selected_id,
+                    component_data=component_data
+                )
+
+                if result:
+                    dialog.destroy()
+                    self._on_project_select()  # Refresh form
+                    messagebox.showinfo("Success", "Component added successfully.")
+                else:
+                    messagebox.showerror("Error", "Failed to add component.")
+            except Exception as e:
+                self.logger.error(f"Error adding component: {str(e)}", exc_info=True)
+                messagebox.showerror("Error", f"Failed to add component: {str(e)}")
+
+        add_btn = ttk.Button(buttons_frame, text="Add", command=add_component)
+        add_btn.pack(side=tk.RIGHT, padx=5)
+
+        # Make the form resizable
+        form_frame.columnconfigure(1, weight=1)
+
+        # Focus on the name field
+        comp_name_entry.focus_set()
+
+        # Make the dialog modal
+        dialog.wait_window()

@@ -1,37 +1,28 @@
-# Relative path: store_management/services/interfaces/product_service.py
-
-"""
-Product Service Interface Module
-
-Defines the abstract base interface for product-related operations.
-"""
-
+# services/interfaces/product_service.py
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional, List, Callable
-
-from di.core import inject
-from services.interfaces import MaterialService
+from database.models.product import Product
+from database.models.enums import MaterialType
+from typing import List, Dict, Any, Optional
 
 
 class IProductService(ABC):
     """
-    Abstract base class defining the interface for Product Service operations.
+    Abstract base class defining the interface for Product services.
 
-    Provides a comprehensive contract for product management,
-    including creation, retrieval, updating, and deletion of products.
+    Defines the contract for creating, retrieving, updating,
+    and deleting Product entities.
     """
 
     @abstractmethod
-    @inject(MaterialService)
-    def create_product(self, product_data: Dict[str, Any]) -> Dict[str, Any]:
+    def create_product(self, product_data: Dict[str, Any]) -> Product:
         """
         Create a new product.
 
         Args:
-            product_data (Dict[str, Any]): Data for creating a new product
+            product_data (Dict[str, Any]): Product creation data
 
         Returns:
-            Dict[str, Any]: Created product details
+            Product: Newly created product instance
 
         Raises:
             ValidationError: If product data is invalid
@@ -39,106 +30,64 @@ class IProductService(ABC):
         pass
 
     @abstractmethod
-    @inject(MaterialService)
-    def get_product(self, product_id: int) -> Optional[Dict[str, Any]]:
+    def get_product_by_id(self, product_id: int) -> Product:
         """
-        Retrieve a specific product by ID.
+        Retrieve a product by its ID.
 
         Args:
-            product_id (int): Unique identifier for the product
+            product_id (int): Unique identifier of the product
 
         Returns:
-            Optional[Dict[str, Any]]: Product details
+            Product: Retrieved product instance
 
         Raises:
-            ResourceNotFoundError: If product is not found
+            NotFoundError: If no product is found with the given ID
         """
         pass
 
     @abstractmethod
-    @inject(MaterialService)
-    def update_product(self, product_id: int, product_data: Dict[str, Any]) -> Dict[str, Any]:
+    def update_product(self, product_id: int, update_data: Dict[str, Any]) -> Product:
         """
         Update an existing product.
 
         Args:
-            product_id (int): Unique identifier for the product
-            product_data (Dict[str, Any]): Updated product information
+            product_id (int): ID of the product to update
+            update_data (Dict[str, Any]): Data to update
 
         Returns:
-            Dict[str, Any]: Updated product details
+            Product: Updated product instance
 
         Raises:
-            ResourceNotFoundError: If product is not found
-            ValidationError: If product data is invalid
+            NotFoundError: If product doesn't exist
+            ValidationError: If update data is invalid
         """
         pass
 
     @abstractmethod
-    @inject(MaterialService)
-    def delete_product(self, product_id: int) -> bool:
+    def delete_product(self, product_id: int) -> None:
         """
-        Delete a product.
+        Soft delete a product.
 
         Args:
-            product_id (int): Unique identifier for the product
-
-        Returns:
-            bool: True if deletion was successful
+            product_id (int): ID of the product to delete
 
         Raises:
-            ResourceNotFoundError: If product is not found
-            ValidationError: If product cannot be deleted
+            NotFoundError: If product doesn't exist
         """
         pass
 
     @abstractmethod
-    @inject(MaterialService)
-    def search_products(self, search_params: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def list_products(self,
+                      active_only: bool = True,
+                      material_type: Optional[MaterialType] = None) -> List[Product]:
         """
-        Search for products based on various criteria.
+        List products with optional filtering.
 
         Args:
-            search_params (Dict[str, Any]): Search criteria
+            active_only (bool): Filter for only active products
+            material_type (Optional[MaterialType]): Filter by material type
 
         Returns:
-            List[Dict[str, Any]]: List of matching products
-        """
-        pass
-
-    @abstractmethod
-    @inject(MaterialService)
-    def update_product_stock(self, product_id: int, quantity_change: float,
-                             transaction_type: str = 'ADJUSTMENT', 
-                             notes: Optional[str] = None) -> Dict[str, Any]:
-        """
-        Update the stock of a product.
-
-        Args:
-            product_id (int): Unique identifier for the product
-            quantity_change (float): Amount to change stock by
-            transaction_type (str): Type of stock transaction
-            notes (Optional[str]): Additional notes for the transaction
-
-        Returns:
-            Dict[str, Any]: Updated product details
-
-        Raises:
-            ResourceNotFoundError: If product is not found
-            ValidationError: If stock update is invalid
-        """
-        pass
-
-    @abstractmethod
-    @inject(MaterialService)
-    def generate_product_report(self) -> Dict[str, Any]:
-        """
-        Generate a comprehensive product report.
-
-        Returns:
-            Dict[str, Any]: Detailed product report containing:
-            - Summary statistics
-            - Low stock products
-            - Other relevant product insights
+            List[Product]: List of products matching the criteria
         """
         pass

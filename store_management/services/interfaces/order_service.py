@@ -1,248 +1,286 @@
 # services/interfaces/order_service.py
-"""
-Interface definition for Order Service in the leatherworking store management application.
-
-Defines the contract for order-related operations and provides
-default implementations where possible.
-"""
 
 from abc import ABC, abstractmethod
 from datetime import datetime
 from enum import Enum, auto
-from typing import Any, Dict, List, Optional, Tuple, Callable
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 
 class OrderStatus(Enum):
-    """Enumeration of possible order statuses."""
-    PENDING = auto()
-    PROCESSING = auto()
-    SHIPPED = auto()
-    DELIVERED = auto()
-    CANCELLED = auto()
+    """
+    Enum for order processing status.
+    """
+    PENDING = auto()  # Order received but not yet processed
+    PROCESSING = auto()  # Order is being processed
+    SHIPPED = auto()  # Order has been shipped
+    DELIVERED = auto()  # Order has been delivered
+    CANCELLED = auto()  # Order has been cancelled
 
 
 class PaymentStatus(Enum):
-    """Enumeration of possible payment statuses."""
-    UNPAID = auto()
-    PAID = auto()
-    PARTIALLY_PAID = auto()
-    REFUNDED = auto()
+    """
+    Enum for order payment status.
+    """
+    UNPAID = auto()  # Payment not yet received
+    PAID = auto()  # Payment received in full
+    PARTIALLY_PAID = auto()  # Partial payment received
+    REFUNDED = auto()  # Payment refunded
 
 
 class IOrderService(ABC):
     """
-    Abstract base class defining the contract for order-related services.
+    Interface for the Order Service.
 
-    Provides methods for managing orders with default implementations
-    where possible.
+    Defines methods for order management, including CRUD operations
+    and order status management.
     """
 
     @abstractmethod
-    def create_order(self, order_data: Dict[str, Any]) -> Optional[Any]:
+    def get_all_orders(
+            self,
+            status: Optional[OrderStatus] = None,
+            payment_status: Optional[PaymentStatus] = None,
+            start_date: Optional[datetime] = None,
+            end_date: Optional[datetime] = None,
+            include_deleted: bool = False,
+            page: int = 1,
+            page_size: int = 50,
+            sort_by: str = "order_date",
+            sort_desc: bool = True
+    ) -> Tuple[List[Dict[str, Any]], int]:
+        """
+        Get all orders with optional filtering, pagination, and sorting.
+
+        Args:
+            status: Filter by order status
+            payment_status: Filter by payment status
+            start_date: Filter by orders on or after this date
+            end_date: Filter by orders on or before this date
+            include_deleted: Whether to include soft-deleted orders
+            page: Page number for pagination
+            page_size: Number of items per page
+            sort_by: Field to sort by
+            sort_desc: Whether to sort in descending order
+
+        Returns:
+            Tuple containing:
+                - List of orders as dictionaries
+                - Total count of orders matching the filters
+        """
+        pass
+
+    @abstractmethod
+    def get_order_by_id(self, order_id: int, include_items: bool = True) -> Dict[str, Any]:
+        """
+        Get order by ID.
+
+        Args:
+            order_id: ID of the order to retrieve
+            include_items: Whether to include order items
+
+        Returns:
+            Order data as a dictionary
+
+        Raises:
+            NotFoundError: If order doesn't exist
+        """
+        pass
+
+    @abstractmethod
+    def get_order_by_number(self, order_number: str) -> Dict[str, Any]:
+        """
+        Get order by order number.
+
+        Args:
+            order_number: Order number to retrieve
+
+        Returns:
+            Order data as a dictionary
+
+        Raises:
+            NotFoundError: If order doesn't exist
+        """
+        pass
+
+    @abstractmethod
+    def create_order(self, order_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Create a new order.
 
         Args:
-            order_data (Dict[str, Any]): Data for creating the order
+            order_data: Order data
 
         Returns:
-            Optional[Any]: Created order or None if creation fails
+            Created order data
+
+        Raises:
+            ValidationError: If validation fails
         """
-        raise NotImplementedError("Subclass must implement create_order method")
+        pass
 
     @abstractmethod
-    def get_order(self, order_id: int) -> Optional[Any]:
-        """
-        Retrieve an order by its ID.
-
-        Args:
-            order_id (int): Unique identifier for the order
-
-        Returns:
-            Optional[Any]: Retrieved order or None
-        """
-        raise NotImplementedError("Subclass must implement get_order method")
-
-    @abstractmethod
-    def get_orders(
-            self,
-            status: Optional[OrderStatus] = None,
-            date_range: Optional[Tuple[datetime, datetime]] = None,
-            payment_status: Optional[PaymentStatus] = None
-    ) -> List[Any]:
-        """
-        Retrieve orders with optional filtering.
-
-        Args:
-            status (Optional[OrderStatus]): Filter by order status
-            date_range (Optional[Tuple[datetime, datetime]]): Filter by date range
-            payment_status (Optional[PaymentStatus]): Filter by payment status
-
-        Returns:
-            List[Any]: List of matching orders
-        """
-        raise NotImplementedError("Subclass must implement get_orders method")
-
-    @abstractmethod
-    def update_order(
-            self,
-            order_id: int,
-            update_data: Dict[str, Any]
-    ) -> Optional[Any]:
+    def update_order(self, order_id: int, order_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Update an existing order.
 
         Args:
-            order_id (int): ID of the order to update
-            update_data (Dict[str, Any]): Data to update
+            order_id: ID of the order to update
+            order_data: Updated order data
 
         Returns:
-            Optional[Any]: Updated order or None if update fails
+            Updated order data
+
+        Raises:
+            NotFoundError: If order doesn't exist
+            ValidationError: If validation fails
         """
-        raise NotImplementedError("Subclass must implement update_order method")
+        pass
 
     @abstractmethod
-    def delete_order(self, order_id: int) -> bool:
+    def delete_order(self, order_id: int, permanent: bool = False) -> bool:
         """
         Delete an order.
 
         Args:
-            order_id (int): ID of the order to delete
+            order_id: ID of the order to delete
+            permanent: Whether to permanently delete the order
 
         Returns:
-            bool: True if deletion was successful, False otherwise
+            True if successful
+
+        Raises:
+            NotFoundError: If order doesn't exist
         """
-        raise NotImplementedError("Subclass must implement delete_order method")
+        pass
 
     @abstractmethod
-    def add_order_item(self, order_id: int, item_data: Dict[str, Any]) -> Optional[Any]:
+    def restore_order(self, order_id: int) -> Dict[str, Any]:
         """
-        Add an item to an existing order.
+        Restore a soft-deleted order.
 
         Args:
-            order_id (int): ID of the order to modify
-            item_data (Dict[str, Any]): Data for the new order item
+            order_id: ID of the order to restore
 
         Returns:
-            Optional[Any]: Added order item or None if addition fails
+            Restored order data
+
+        Raises:
+            NotFoundError: If order doesn't exist
         """
-        raise NotImplementedError("Subclass must implement add_order_item method")
+        pass
+
+    @abstractmethod
+    def update_order_status(self, order_id: int, status: OrderStatus) -> Dict[str, Any]:
+        """
+        Update the status of an order.
+
+        Args:
+            order_id: ID of the order to update
+            status: New status
+
+        Returns:
+            Updated order data
+
+        Raises:
+            NotFoundError: If order doesn't exist
+        """
+        pass
+
+    @abstractmethod
+    def update_payment_status(self, order_id: int, payment_status: PaymentStatus) -> Dict[str, Any]:
+        """
+        Update the payment status of an order.
+
+        Args:
+            order_id: ID of the order to update
+            payment_status: New payment status
+
+        Returns:
+            Updated order data
+
+        Raises:
+            NotFoundError: If order doesn't exist
+        """
+        pass
+
+    @abstractmethod
+    def add_order_item(self, order_id: int, item_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Add an item to an order.
+
+        Args:
+            order_id: ID of the order
+            item_data: Item data including product_id, quantity, and unit_price
+
+        Returns:
+            Added order item data
+
+        Raises:
+            NotFoundError: If order doesn't exist
+            ValidationError: If validation fails
+        """
+        pass
+
+    @abstractmethod
+    def update_order_item(self, order_id: int, item_id: int, item_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Update an order item.
+
+        Args:
+            order_id: ID of the order
+            item_id: ID of the item to update
+            item_data: Updated item data
+
+        Returns:
+            Updated order item data
+
+        Raises:
+            NotFoundError: If order or item doesn't exist
+            ValidationError: If validation fails
+        """
+        pass
 
     @abstractmethod
     def remove_order_item(self, order_id: int, item_id: int) -> bool:
         """
-        Remove an item from an existing order.
+        Remove an item from an order.
 
         Args:
-            order_id (int): ID of the order to modify
-            item_id (int): ID of the item to remove
+            order_id: ID of the order
+            item_id: ID of the item to remove
 
         Returns:
-            bool: True if item removal was successful, False otherwise
+            True if successful
+
+        Raises:
+            NotFoundError: If order or item doesn't exist
         """
-        raise NotImplementedError("Subclass must implement remove_order_item method")
+        pass
 
     @abstractmethod
-    def update_order_status(
-            self,
-            order_id: int,
-            new_status: OrderStatus
-    ) -> Optional[Any]:
+    def get_order_statistics(self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> Dict[
+        str, Any]:
         """
-        Update the status of an existing order.
+        Get order statistics for a given period.
 
         Args:
-            order_id (int): ID of the order to update
-            new_status (OrderStatus): New status for the order
+            start_date: Start date for the period
+            end_date: End date for the period
 
         Returns:
-            Optional[Any]: Updated order or None if update fails
+            Dictionary with order statistics
         """
-        raise NotImplementedError("Subclass must implement update_order_status method")
+        pass
 
     @abstractmethod
-    def process_payment(
-            self,
-            order_id: int,
-            payment_amount: float
-    ) -> Optional[Any]:
+    def search_orders(self, query: str) -> List[Dict[str, Any]]:
         """
-        Process payment for an order.
+        Search for orders by various criteria.
 
         Args:
-            order_id (int): ID of the order to process payment for
-            payment_amount (float): Amount of payment
+            query: Search query string
 
         Returns:
-            Optional[Any]: Updated order or None if payment processing fails
+            List of matching orders
         """
-        raise NotImplementedError("Subclass must implement process_payment method")
-
-    @abstractmethod
-    def calculate_order_total(self, order_id: int) -> Optional[float]:
-        """
-        Calculate the total cost of an order.
-
-        Args:
-            order_id (int): ID of the order to calculate total for
-
-        Returns:
-            Optional[float]: Total cost of the order or None if calculation fails
-        """
-        raise NotImplementedError("Subclass must implement calculate_order_total method")
-
-    @abstractmethod
-    def generate_order_report(
-            self,
-            start_date: Optional[datetime] = None,
-            end_date: Optional[datetime] = None
-    ) -> List[Dict[str, Any]]:
-        """
-        Generate a report of orders within a specified date range.
-
-        Args:
-            start_date (Optional[datetime]): Start of date range
-            end_date (Optional[datetime]): End of date range
-
-        Returns:
-            List[Dict[str, Any]]: List of order reports
-        """
-        raise NotImplementedError("Subclass must implement generate_order_report method")
-
-    @abstractmethod
-    def search_orders(
-            self,
-            search_term: str,
-            search_fields: Optional[List[str]] = None
-    ) -> List[Any]:
-        """
-        Search for orders based on a search term.
-
-        Args:
-            search_term (str): Term to search for
-            search_fields (Optional[List[str]]): Fields to search in
-
-        Returns:
-            List[Any]: List of matching orders
-        """
-        raise NotImplementedError("Subclass must implement search_orders method")
-
-    @abstractmethod
-    def list_orders(
-            self,
-            page: int = 1,
-            per_page: int = 10,
-            sort_by: Optional[str] = None
-    ) -> List[Any]:
-        """
-        List orders with pagination and optional sorting.
-
-        Args:
-            page (int): Page number
-            per_page (int): Number of orders per page
-            sort_by (Optional[str]): Field to sort by
-
-        Returns:
-            List[Any]: List of orders for the specified page
-        """
-        raise NotImplementedError("Subclass must implement list_orders method")
+        pass
