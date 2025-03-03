@@ -1,107 +1,131 @@
 # database/models/material.py
-from database.models.base import Base
-from database.models.enums import InventoryStatus, MaterialType, MeasurementUnit
-from sqlalchemy import Column, Enum, Float, String, Text, Boolean
-from sqlalchemy.orm import relationship
+"""
+Material and MaterialTransaction models for tracking materials in the inventory system.
+"""
+
+from datetime import datetime
 from typing import Optional
-from utils.validators import validate_not_empty, validate_positive_number
+
+from sqlalchemy import ForeignKey, String, Float, DateTime
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from .base import Base
+from .enums import MaterialType, TransactionType, InventoryStatus
 
 
 class Material(Base):
     """
-    Model representing general materials used in leatherworking projects.
+    Represents a material in the inventory system.
     """
-    # Material specific fields
-    name = Column(String(255), nullable=False, index=True)
-    description = Column(Text, nullable=True)
-    sku = Column(String(50), nullable=True, unique=True)
+    __tablename__ = 'materials'
 
-    material_type = Column(Enum(MaterialType), nullable=False)
-    brand = Column(String(100), nullable=True)
-    color = Column(String(50), nullable=True)
+    # Specific material attributes
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    material_type: Mapped[MaterialType] = mapped_column(nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
 
-    quantity = Column(Float, default=0.0, nullable=False)
-    min_quantity = Column(Float, default=0.0, nullable=False)
-    unit = Column(Enum(MeasurementUnit), nullable=False, default=MeasurementUnit.PIECE)
+    # Inventory tracking
+    quantity: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    status: Mapped[InventoryStatus] = mapped_column(nullable=False, default=InventoryStatus.IN_STOCK)
 
-    cost_per_unit = Column(Float, default=0.0, nullable=False)
-    price_per_unit = Column(Float, default=0.0, nullable=False)
-
-    status = Column(Enum(InventoryStatus), default=InventoryStatus.IN_STOCK, nullable=False)
-    is_active = Column(Boolean, default=True, nullable=False)
+    # Optional material-specific attributes
+    color: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    thickness: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    price: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    area: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
 
     # Relationships
-    transactions = relationship("MaterialTransaction", back_populates="material", cascade="all, delete-orphan")
-    project_components = relationship("ProjectComponent", back_populates="material")
-
-    def __init__(self, **kwargs):
-        """Initialize a Material instance with validation.
-
-        Args:
-            **kwargs: Keyword arguments with material attributes
-
-        Raises:
-            ValueError: If validation fails for any field
-        """
-        self._validate_creation(kwargs)
-        super().__init__(**kwargs)
+    transactions: Mapped[list['MaterialTransaction']] = relationship(
+        'MaterialTransaction',
+        back_populates='material',
+        cascade='all, delete-orphan'
+    )
 
     @classmethod
     def _validate_creation(cls, data):
-        """Validate material data before creation.
+        """
+        Validate material creation data.
 
         Args:
-            data (dict): The data to validate
+            data (dict): Material creation data
 
         Raises:
             ValueError: If validation fails
         """
-        validate_not_empty(data, 'name', 'Material name is required')
-        validate_not_empty(data, 'material_type', 'Material type is required')
+        # Validate required fields
+        if not data.get('name'):
+            raise ValueError("Material name is required")
 
-        if 'quantity' in data:
-            validate_positive_number(data, 'quantity')
-        if 'min_quantity' in data:
-            validate_positive_number(data, 'min_quantity')
-        if 'cost_per_unit' in data:
-            validate_positive_number(data, 'cost_per_unit')
-        if 'price_per_unit' in data:
-            validate_positive_number(data, 'price_per_unit')
+        if 'material_type' not in data:
+            raise ValueError("Material type is required")
 
-    def adjust_quantity(self, quantity_change: float, transaction_type, notes: Optional[str] = None):
-        """Adjust material quantity and record the transaction.
+        # Validate quantity
+        quantity = data.get('quantity', 0.0)
+        if quantity < 0:
+            raise ValueError("Quantity cannot be negative")
+
+        # Validate price if provided
+        price = data.get('price')
+        if price is not None and price < 0:
+            raise ValueError("Price cannot be negative")
+
+    def _validate_instance(self):
+        """
+        Additional instance-level validation.
+        """
+        if self.quantity < 0:
+            raise ValueError("Quantity cannot become negative")
+
+
+class MaterialTransaction(Base):
+    """
+    Represents a transaction (purchase, usage, adjustment) for a material.
+    """
+    __tablename__ = 'material_transactions'
+
+    # Primary key
+    id: Mapped[int] = mapped_column(primary_key=True)
+
+    # Foreign key to material
+    material_id: Mapped[int] = mapped_column(ForeignKey('materials.id'), nullable=False)
+
+    # Transaction details
+    transaction_type: Mapped[TransactionType] = mapped_column(nullable=False)
+    quantity: Mapped[float] = mapped_column(Float, nullable=False)
+    notes: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+
+    # Timestamps
+    transaction_date: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+
+    # Relationship
+    material: Mapped[Material] = relationship('Material', back_populates='transactions')
+
+    @classmethod
+    def _validate_creation(cls, data):
+        """
+        Validate material transaction creation data.
 
         Args:
-            quantity_change: Amount to adjust (positive for addition, negative for reduction)
-            transaction_type: Type of transaction
-            notes: Optional notes about the transaction
+            data (dict): Transaction creation data
 
         Raises:
-            ValueError: If resulting quantity would be negative
+            ValueError: If validation fails
         """
-        # Validate the adjustment
-        if self.quantity + quantity_change < 0:
-            raise ValueError(f"Cannot reduce quantity below zero. Current: {self.quantity}, Change: {quantity_change}")
+        # Validate required fields
+        if 'material_id' not in data:
+            raise ValueError("Material ID is required")
 
-        # Update the quantity
-        old_quantity = self.quantity
-        self.quantity += quantity_change
+        if 'transaction_type' not in data:
+            raise ValueError("Transaction type is required")
 
-        # Update status if needed
+        # Validate quantity
+        quantity = data.get('quantity', 0)
+        if quantity <= 0:
+            raise ValueError("Transaction quantity must be positive")
+
+    def _validate_instance(self):
+        """
+        Additional instance-level validation.
+        """
         if self.quantity <= 0:
-            self.status = InventoryStatus.OUT_OF_STOCK
-        elif self.quantity <= self.min_quantity:
-            self.status = InventoryStatus.LOW_STOCK
-        else:
-            self.status = InventoryStatus.IN_STOCK
-
-        # Create transaction record
-        # Implementation would depend on your transaction model
-
-    def __repr__(self):
-        """String representation of the material.
-
-        Returns:
-            str: String representation
-        """
-        return f"<Material(id={self.id}, name='{self.name}', type={self.material_type}, status={self.status})>"
+            raise ValueError("Transaction quantity must be positive")

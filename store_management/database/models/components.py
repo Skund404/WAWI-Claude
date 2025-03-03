@@ -10,49 +10,12 @@ import enum
 from typing import List, Optional, Union, Dict, Any
 from datetime import datetime
 
-from sqlalchemy import Column, String, Integer, Float, ForeignKey, Enum, Boolean, DateTime, Text
-from sqlalchemy.orm import relationship, backref
+from sqlalchemy import Column, String, Float, ForeignKey, Enum, Boolean, Text
+from sqlalchemy.orm import Mapped, mapped_column, relationship, backref
 
-# Import the SQLAlchemy declarative base and mixins carefully
-from database.models.base import BaseModel
-from sqlalchemy.ext.declarative import declarative_base
-
-# Create a local Base to avoid conflicts
-Base = declarative_base()
-
-
-# Import mixins if needed but avoid circular dependencies
-class TimestampMixin:
-    """Mixin to add created_at and updated_at timestamps to models."""
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-
-class ValidationMixin:
-    """Mixin to add validation functionality to models."""
-
-    def validate(self) -> bool:
-        """Validate the model data."""
-        return True
-
-
-class CostingMixin:
-    """Mixin to add costing functionality to models."""
-    cost = Column(Float, nullable=True)
-
-    def calculate_cost(self) -> float:
-        """Calculate the cost of the component."""
-        return self.cost or 0.0
-
-
-class ComponentType(enum.Enum):
-    """Enumeration of component types."""
-    LEATHER = "leather"
-    HARDWARE = "hardware"
-    THREAD = "thread"
-    LINING = "lining"
-    ADHESIVE = "adhesive"
-    OTHER = "other"
+# Import the Base from the updated base module
+from database.models.base import Base
+from database.models.enums import ComponentType
 
 
 class Component(Base):
@@ -64,26 +27,25 @@ class Component(Base):
     """
     __tablename__ = 'components'
 
-    id = Column(Integer, primary_key=True)
-    name = Column(String(100), nullable=False)
-    description = Column(Text, nullable=True)
-    component_type = Column(Enum(ComponentType), nullable=False)
-    quantity = Column(Float, default=1.0)
-    unit = Column(String(20), nullable=True)
-    cost = Column(Float, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    # Add this line to handle the "Table already defined" error
+    __table_args__ = {'extend_existing': True}
 
-    # Discriminator column for polymorphic identity
-    type = Column(String(50))
+    # Polymorphic base configuration
+    type: Mapped[str] = mapped_column(String(50), nullable=False)
 
+    # Component attributes
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    component_type: Mapped[ComponentType] = mapped_column(nullable=False)
+    quantity: Mapped[float] = mapped_column(Float, default=1.0)
+    unit: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    cost: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+
+    # Polymorphic configuration for single-table inheritance
     __mapper_args__ = {
         'polymorphic_identity': 'component',
         'polymorphic_on': type
     }
-
-    def __repr__(self) -> str:
-        return f"<Component(id={self.id}, name='{self.name}', type={self.component_type})>"
 
     def calculate_cost(self) -> float:
         """Calculate the cost of the component."""
@@ -91,9 +53,16 @@ class Component(Base):
 
     def validate(self) -> bool:
         """Validate the component data."""
+        # Basic validation
+        if not self.name:
+            return False
+        if self.quantity <= 0:
+            return False
         return True
 
 
+# For Pattern and Project components, use single-table inheritance
+# This avoids the column conflict issue entirely by using one table
 class PatternComponent(Component):
     """
     Component used in a pattern template.
@@ -101,20 +70,21 @@ class PatternComponent(Component):
     PatternComponents define the theoretical components needed for a pattern,
     without being tied to a specific project instance.
     """
-    __tablename__ = 'pattern_components'
+    # Add this line to extend the parent table
+    __table_args__ = {'extend_existing': True}
 
-    id = Column(Integer, ForeignKey('components.id'), primary_key=True)
-    pattern_id = Column(Integer, ForeignKey('patterns.id'), nullable=True)
-
-    # Optional sizing information
-    min_quantity = Column(Float, nullable=True)
-    max_quantity = Column(Float, nullable=True)
-    is_optional = Column(Boolean, default=False)
-    notes = Column(Text, nullable=True)
+    # Pattern relationship attributes
+    # Pattern relationships stored in same table
+    pattern_id: Mapped[Optional[int]] = mapped_column(ForeignKey('patterns.id'), nullable=True)
+    min_quantity: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    max_quantity: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    is_optional: Mapped[bool] = mapped_column(Boolean, default=False, nullable=True)
+    pattern_notes: Mapped[Optional[str]] = mapped_column('notes', Text, nullable=True)
 
     # Many-to-one: PatternComponent => Pattern
-    pattern = relationship("Pattern", backref=backref("components", cascade="all, delete-orphan"))
+    pattern = relationship("Pattern", back_populates="components")
 
+    # Polymorphic configuration for single-table inheritance
     __mapper_args__ = {
         'polymorphic_identity': 'pattern_component',
     }
@@ -130,24 +100,23 @@ class ProjectComponent(Component):
     ProjectComponents represent actual materials used in a concrete project,
     with actual quantities and costs.
     """
-    __tablename__ = 'project_components'
+    # Add this line to extend the parent table
+    __table_args__ = {'extend_existing': True}
 
-    id = Column(Integer, ForeignKey('components.id'), primary_key=True)
-    project_id = Column(Integer, ForeignKey('projects.id'), nullable=True)
-
-    # Usage tracking
-    planned_quantity = Column(Float, nullable=True)
-    actual_quantity = Column(Float, nullable=True)
-    wastage = Column(Float, default=0.0)
-    efficiency = Column(Float, nullable=True)
-
-    # Status and notes
-    is_completed = Column(Boolean, default=False)
-    notes = Column(Text, nullable=True)
+    # Project relationship attributes
+    # Project relationships stored in same table
+    project_id: Mapped[Optional[int]] = mapped_column(ForeignKey('projects.id'), nullable=True)
+    planned_quantity: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    actual_quantity: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    wastage: Mapped[float] = mapped_column(Float, default=0.0, nullable=True)
+    efficiency: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    is_completed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=True)
+    project_notes: Mapped[Optional[str]] = mapped_column('project_notes', Text, nullable=True)
 
     # Many-to-one: ProjectComponent => Project
-    project = relationship("Project", backref=backref("components", cascade="all, delete-orphan"))
+    project = relationship("Project", back_populates="components")
 
+    # Polymorphic configuration for single-table inheritance
     __mapper_args__ = {
         'polymorphic_identity': 'project_component',
     }

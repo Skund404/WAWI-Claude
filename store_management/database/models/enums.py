@@ -89,6 +89,12 @@ class SkillLevel(enum.Enum):
     ADVANCED = "advanced"
     EXPERT = "expert"
 
+class ShoppingListStatus(enum.Enum):
+    """Status values for shopping lists."""
+    DRAFT = 'draft'
+    ACTIVE = 'active'
+    COMPLETED = 'completed'
+    CANCELLED = 'cancelled'
 
 class ProjectStatus(enum.Enum):
     """Enumeration of project status values."""
@@ -174,3 +180,17 @@ class PaymentStatus(enum.Enum):
     PARTIALLY_PAID = "partially_paid"
     REFUNDED = "refunded"
     CANCELLED = "cancelled"
+
+
+class ComponentType(enum.Enum):
+    """Enumeration of component types used in patterns and projects."""
+    LEATHER = "leather"
+    HARDWARE = "hardware"
+    LINING = "lining"
+    THREAD = "thread"
+    ADHESIVE = "adhesive"
+    REINFORCEMENT = "reinforcement"
+    EDGE_FINISH = "edge_finish"
+    TEMPLATE = "template"
+    TOOL = "tool"
+    OTHER = "other"

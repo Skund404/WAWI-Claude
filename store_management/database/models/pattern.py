@@ -31,7 +31,7 @@ class Pattern(Base):
     publication_date = Column(DateTime, nullable=True)
 
     file_path = Column(String(255), nullable=True)
-    metadata = Column(JSON, nullable=True)
+    pattern_metadata  = Column(JSON, nullable=True)
 
     # Relationships
     components = relationship("PatternComponent", back_populates="pattern", cascade="all, delete-orphan")

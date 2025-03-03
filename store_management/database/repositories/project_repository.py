@@ -10,8 +10,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from database.repositories.base_repository import BaseRepository
 from database.models.project import Project, ProjectComponent
 from database.models.enums import ProjectType, ProjectStatus, SkillLevel
+from database.exceptions import DatabaseError
 from utils.error_handler import (
-    DatabaseError,
     NotFoundError,
     ValidationError
 )

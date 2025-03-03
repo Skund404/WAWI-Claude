@@ -1,99 +1,44 @@
 # database/models/model_metaclass.py
 """
-Metaclass and base model configuration for SQLAlchemy ORM models.
-
-This module provides a custom metaclass and base model class that supports
-both SQLAlchemy ORM functionality and abstract base class behaviors.
+Optional metaclass and base model configuration for additional model behaviors.
 """
 
 from abc import ABCMeta
-from typing import Any, Dict, Type
+from typing import Any, Dict, Type, Optional
 
-from sqlalchemy.orm import DeclarativeMeta, registry, declared_attr
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import DeclarativeBase
 
 
-class ModelMetaclass(DeclarativeMeta, ABCMeta):
+class BaseModelInterface(ABCMeta):
     """
-    A custom metaclass that combines DeclarativeMeta and ABCMeta.
-
-    This allows for both SQLAlchemy ORM model creation and abstract base class
-    functionality, enabling interface-like behavior for model classes.
+    An optional interface-like metaclass for models that provides
+    additional type checking and behavior capabilities.
     """
 
-    def __subclasshook__(cls, C: Type) -> bool:
+    def __subclasshook__(cls, C: Type) -> Optional[bool]:
         """
-        Custom subclass hook to determine if a class meets the requirements of an interface.
+        Custom subclass hook to determine if a class meets interface requirements.
 
         Args:
             C (Type): The class to check for interface compliance.
 
         Returns:
-            bool: True if the class implements all required methods,
-                  False or NotImplemented otherwise.
+            Optional[bool]: Indication of interface compliance
         """
-        if cls is BaseModel:
-            # Add any specific method checks here if needed
-            return NotImplemented
+        # Add any specific method checks here if needed
         return NotImplemented
 
-
-# Create a registry for declarative base
-_mapper_registry = registry()
-
-class BaseModel:
-    """
-    Base model class using the ModelMetaclass.
-
-    This class allows for both SQLAlchemy ORM functionality and
-    abstract base class behaviors. It should be used as a base
-    class for models that need to implement specific interfaces.
-
-    Attributes:
-        __tablename__ (str): Automatically generated table name from the class name.
-    """
-
-    # Use the registry for declarative base
-    registry = _mapper_registry
-    metadata = registry.metadata
-
-    @declared_attr
-    def __tablename__(cls) -> str:
+    def __init__(cls, name: str, bases: tuple, attrs: Dict[str, Any]):
         """
-        Generate table name automatically from the class name.
-
-        Returns:
-            str: Lowercase class name as the table name.
-        """
-        return cls.__name__.lower()
-
-    def __init__(self, *args: Any, **kwargs: Dict[str, Any]) -> None:
-        """
-        Initialize the model instance.
+        Custom initialization to add additional validation or behavior.
 
         Args:
-            *args: Positional arguments to pass to parent classes.
-            **kwargs: Keyword arguments for model attributes.
+            name (str): Name of the class being created
+            bases (tuple): Base classes
+            attrs (Dict[str, Any]): Class attributes
         """
-        # Initialize with any provided keyword arguments
-        for key, value in kwargs.items():
-            setattr(self, key, value)
+        # Optional: Add any global model initialization logic
+        super().__init__(name, bases, attrs)
 
-    def __repr__(self) -> str:
-        """
-        Provide a string representation of the model instance.
 
-        Returns:
-            str: A string representation including class name and primary key.
-        """
-        # Attempt to get primary key for more informative representation
-        pk_attrs = [
-            f"{col}={getattr(self, col)}"
-            for col in self.__table__.primary_key.columns.keys()
-            if hasattr(self, col)
-        ]
-        pk_str = ', '.join(pk_attrs) if pk_attrs else 'no primary key'
-        return f"{self.__class__.__name__}({pk_str})"
 
-# Create the declarative base with our custom base and metaclass
-Base = declarative_base(cls=BaseModel, metaclass=ModelMetaclass)

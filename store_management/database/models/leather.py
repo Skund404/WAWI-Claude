@@ -1,7 +1,7 @@
 # database/models/leather.py
 from database.models.base import Base
 from database.models.enums import LeatherType, MaterialQualityGrade, InventoryStatus, TransactionType
-from sqlalchemy import Column, Enum, Float, String, Text, Boolean
+from sqlalchemy import Column, Enum, Float, String, Text, Boolean, Integer, ForeignKey  # Add Integer and ForeignKey
 from sqlalchemy.orm import relationship
 from typing import Optional
 from utils.validators import validate_not_empty, validate_positive_number

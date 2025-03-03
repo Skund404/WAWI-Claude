@@ -31,7 +31,7 @@ class Project(Base):
     total_cost = Column(Float, default=0.0)
 
     notes = Column(Text, nullable=True)
-    metadata = Column(JSON, nullable=True)
+    project_metadata  = Column(JSON, nullable=True)
 
     # Relationships
     components = relationship("ProjectComponent", back_populates="project", cascade="all, delete-orphan")

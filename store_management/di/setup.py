@@ -126,18 +126,37 @@ def create_lazy_registration(interface, implementation):
         try:
             logger.debug(f"Lazy loading {interface}")
 
-            # For non-DB services, try direct import
-            if interface in NON_DB_SERVICES:
-                implementation_class = safe_import(implementation)
-                if implementation_class is not None:
-                    logger.info(f"Successfully loaded non-DB service {interface}")
-                    service_instance = implementation_class()
-                    logger.info(f"Successfully instantiated {interface}")
-                    return service_instance
+            # For DB-dependent services that need a session
+            if 'material_service' in implementation.lower():
+                try:
+                    from database.sqlalchemy.session import get_db_session
+                    implementation_class = safe_import(implementation)
 
-            # For DB-dependent services, check if DB is initialized
+                    if implementation_class is None:
+                        logger.error(f"Failed to import {implementation}")
+                        return create_mock_service(interface)()
+
+                    # Get a session and initialize with it
+                    session = get_db_session()
+                    service_instance = implementation_class(session)
+
+                    logger.info(f"Successfully instantiated {interface} with session")
+                    return service_instance
+                except ImportError as e:
+                    logger.warning(f"Database models not initialized yet for {interface}: {e}")
+                    # Return a mock service if the database isn't ready
+                    mock_service = create_mock_service(interface)()
+                    return mock_service
+                except Exception as e:
+                    logger.error(f"Error creating service with session: {e}")
+                    logger.error(traceback.format_exc())
+                    # Return a mock service on any database error
+                    mock_service = create_mock_service(interface)()
+                    return mock_service
+
+            # Continue with normal import logic for other services
+            # Try to import Base to check if database models are ready
             try:
-                # Try to import Base to check if database models are ready
                 from database.models.base import Base
                 logger.debug(f"Base class is available, attempting to load {implementation}")
 
@@ -161,20 +180,21 @@ def create_lazy_registration(interface, implementation):
                 # Return a mock service if the database isn't ready
                 mock_service = create_mock_service(interface)()
                 return mock_service
-            except Exception as db_e:
-                logger.error(f"Database error for {interface}: {db_e}")
+            except Exception as e:
+                logger.error(f"Database error for {interface}: {e}")
                 logger.error(traceback.format_exc())
                 # Return a mock service on any database error
                 mock_service = create_mock_service(interface)()
                 return mock_service
 
-        except Exception as inner_e:
-            logger.error(f"Error in lazy loader for {interface}: {inner_e}")
+        except Exception as e:
+            logger.error(f"Error in lazy loader for {interface}: {e}")
             logger.error(traceback.format_exc())
             # Return a mock service on any error
             mock_service = create_mock_service(interface)()
             return mock_service
 
+    # This function returns the lazy_loader function itself
     return lazy_loader
 
 

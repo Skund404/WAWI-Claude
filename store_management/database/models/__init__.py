@@ -1,6 +1,6 @@
 # database/models/__init__.py
 
-from .base import Base, BaseModel
+from .base import Base, ModelValidationError
 from .components import Component, PatternComponent, ProjectComponent
 from .enums import LeatherType, MaterialType, OrderStatus, ProjectStatus
 from .hardware import Hardware

@@ -30,7 +30,7 @@ class Product(Base):
     is_active = Column(Boolean, default=True, nullable=False)
     is_featured = Column(Boolean, default=False, nullable=False)
 
-    metadata = Column(JSON, nullable=True)
+    product_metadata = Column(JSON, nullable=True)
 
     # Foreign keys
     pattern_id = Column(Integer, ForeignKey("patterns.id"), nullable=True)
