@@ -1,271 +1,219 @@
 # services/implementations/material_service.py
-"""
-Material service implementation for managing material-related operations.
-"""
-
-import logging
-from typing import List, Optional, Dict, Any
-
-from sqlalchemy.orm import Session
-from sqlalchemy.exc import SQLAlchemyError
-
+from database.models.enums import InventoryStatus, MaterialType
 from database.models.material import Material
-from database.models.enums import MaterialType, InventoryStatus
+from database.models.base import ModelValidationError
+from database.repositories.material_repository import MaterialRepository
+from database.sqlalchemy.session import get_db_session
+
+from services.base_service import BaseService, NotFoundError, ValidationError, ServiceError
 from services.interfaces.material_service import IMaterialService
-from services.base_service import BaseService, NotFoundError, ValidationError
-from utils.logger import log_error, log_info, log_debug
+
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
+
+from typing import Any, Dict, List, Optional
+from utils.logger import log_debug, log_error, log_info
 
 
 class MaterialService(BaseService[Material], IMaterialService):
-    """
-    Service implementation for managing materials.
-    """
+    """Service for material-related operations."""
 
     def __init__(self, session: Session):
-        """
-        Initialize the Material Service.
+        """Initialize the Material Service.
 
         Args:
             session (Session): SQLAlchemy database session
         """
-        super().__init__(session)
-        self.logger = logging.getLogger(__name__)
+        super().__init__()
+        self.session = session
+        self.repository = MaterialRepository(session)
 
-    def create_material(self, material_data: Dict[str, Any]) -> Material:
-        """
-        Create a new material.
-
-        Args:
-            material_data (Dict[str, Any]): Material creation data
+    def get_all_materials(self) -> List[Dict[str, Any]]:
+        """Get all active materials.
 
         Returns:
-            Material: Newly created material instance
+            List of material dictionaries
 
         Raises:
-            ValidationError: If material data is invalid
+            ServiceError: If a service error occurs
         """
         try:
-            # Log the attempt to create a material with sanitized data
-            log_info(f"Attempting to create material with name: {material_data.get('name', 'N/A')}")
-            log_debug(f"Material creation data: {material_data}")
-
-            # Validate input data
-            material = Material.create(**material_data)
-
-            # Add to session and commit
-            self.session.add(material)
-            self.session.commit()
-
-            log_info(f"Material created successfully: {material.name} (ID: {material.id})")
-            return material
-
-        except ValueError as ve:
-            self.session.rollback()
-            log_error(ve, {
-                'context': 'Material Creation',
-                'input_data': material_data
-            })
-            raise ValidationError(str(ve))
-
-        except SQLAlchemyError as se:
-            self.session.rollback()
-            log_error(se, {
-                'context': 'Material Database Operation',
-                'input_data': material_data
-            })
-            raise ValidationError(f"Could not create material: {se}")
-
-    def update_material(self, material_id: int, update_data: Dict[str, Any]) -> Material:
-        """
-        Update an existing material.
-
-        Args:
-            material_id (int): ID of the material to update
-            update_data (Dict[str, Any]): Data to update
-
-        Returns:
-            Material: Updated material instance
-
-        Raises:
-            NotFoundError: If material is not found
-            ValidationError: If update data is invalid
-        """
-        try:
-            # Log the update attempt
-            log_info(f"Attempting to update material with ID: {material_id}")
-            log_debug(f"Update data: {update_data}")
-
-            # Retrieve existing material
-            material = self.session.query(Material).get(material_id)
-            if not material:
-                log_error(NotFoundError(f"Material with ID {material_id} not found"))
-                raise NotFoundError(f"Material with ID {material_id} not found")
-
-            # Update material
-            material.update(**update_data)
-
-            # Commit changes
-            self.session.commit()
-
-            log_info(f"Material updated successfully: {material.name} (ID: {material.id})")
-            return material
-
-        except ValueError as ve:
-            self.session.rollback()
-            log_error(ve, {
-                'context': 'Material Update',
-                'material_id': material_id,
-                'update_data': update_data
-            })
-            raise ValidationError(str(ve))
-
-        except SQLAlchemyError as se:
-            self.session.rollback()
-            log_error(se, {
-                'context': 'Material Database Update',
-                'material_id': material_id,
-                'update_data': update_data
-            })
-            raise ValidationError(f"Could not update material: {se}")
-
-    def get_material_by_id(self, material_id: int, include_relationships: bool = False) -> Material:
-        """
-        Retrieve a material by its ID.
-
-        Args:
-            material_id (int): ID of the material to retrieve
-            include_relationships (bool, optional): Whether to include related data. Defaults to False.
-
-        Returns:
-            Material: Retrieved material instance
-
-        Raises:
-            NotFoundError: If material is not found
-        """
-        try:
-            log_debug(f"Retrieving material with ID: {material_id}")
-
-            material = self.session.query(Material).get(material_id)
-            if not material:
-                log_error(NotFoundError(f"Material with ID {material_id} not found"))
-                raise NotFoundError(f"Material with ID {material_id} not found")
-
-            log_info(f"Retrieved material: {material.name} (ID: {material.id})")
-            return material
-
+            materials = self.repository.get_all()
+            return [self.to_dict(material) for material in materials]
         except Exception as e:
-            log_error(e, {'context': 'Material Retrieval', 'material_id': material_id})
-            raise
+            log_error(f"Error retrieving all materials: {str(e)}")
+            raise ServiceError(f"Failed to retrieve materials: {str(e)}")
 
-    def list_materials(
-            self,
-            material_type: Optional[MaterialType] = None,
-            status: Optional[InventoryStatus] = None,
-            limit: int = 100,
-            offset: int = 0
-    ) -> List[Material]:
-        """
-        List materials with optional filtering.
+    def get_material_by_id(self, material_id: int) -> Dict[str, Any]:
+        """Get material by ID.
 
         Args:
-            material_type (Optional[MaterialType]): Filter by material type
-            status (Optional[InventoryStatus]): Filter by inventory status
-            limit (int, optional): Maximum number of results. Defaults to 100.
-            offset (int, optional): Offset for pagination. Defaults to 0.
+            material_id: ID of the material
 
         Returns:
-            List[Material]: List of materials matching the filter criteria
+            Material dictionary
+
+        Raises:
+            NotFoundError: If material is not found
+            ServiceError: If a service error occurs
         """
         try:
-            log_debug(f"Listing materials with filters: type={material_type}, status={status}")
-
-            query = self.session.query(Material)
-
-            if material_type:
-                query = query.filter(Material.material_type == material_type)
-
-            if status:
-                query = query.filter(Material.status == status)
-
-            materials = query.limit(limit).offset(offset).all()
-
-            log_info(f"Retrieved {len(materials)} materials")
-            return materials
-
+            material = self.repository.get_by_id(material_id)
+            if not material:
+                raise NotFoundError(f"Material with ID {material_id} not found")
+            return self.to_dict(material)
+        except NotFoundError:
+            # Re-raise not found error
+            raise
         except Exception as e:
-            log_error(e, {
-                'context': 'Material Listing',
-                'material_type': material_type,
-                'status': status,
-                'limit': limit,
-                'offset': offset
-            })
-            raise
+            log_error(f"Error retrieving material {material_id}: {str(e)}")
+            raise ServiceError(f"Failed to retrieve material: {str(e)}")
 
-    def delete_material(self, material_id: int) -> None:
-        """
-        Soft delete a material.
+    def create_material(self, material_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a new material.
 
         Args:
-            material_id (int): ID of the material to delete
-
-        Raises:
-            NotFoundError: If material is not found
-        """
-        try:
-            log_info(f"Attempting to soft delete material with ID: {material_id}")
-
-            material = self.session.query(Material).get(material_id)
-            if not material:
-                log_error(NotFoundError(f"Material with ID {material_id} not found"))
-                raise NotFoundError(f"Material with ID {material_id} not found")
-
-            # Perform soft delete
-            material.soft_delete()
-
-            self.session.commit()
-            log_info(f"Soft deleted material: {material.name} (ID: {material.id})")
-
-        except SQLAlchemyError as se:
-            self.session.rollback()
-            log_error(se, {
-                'context': 'Material Soft Delete',
-                'material_id': material_id
-            })
-            raise ValidationError(f"Could not delete material: {se}")
-
-    def restore_material(self, material_id: int) -> Material:
-        """
-        Restore a soft-deleted material.
-
-        Args:
-            material_id (int): ID of the material to restore
+            material_data: Material creation data
 
         Returns:
-            Material: Restored material instance
+            Created material dictionary
+
+        Raises:
+            ValidationError: If validation fails
+            ServiceError: If a service error occurs
+        """
+        try:
+            # Validate required fields
+            self.validate_input(material_data, ['name', 'material_type'])
+
+            # Create material using repository (model validation happens in the model)
+            material = self.repository.create(material_data)
+
+            log_info(f"Created material: {material.name}")
+            return self.to_dict(material)
+        except ModelValidationError as e:
+            # Convert model validation error to service validation error
+            raise ValidationError(str(e))
+        except ValidationError:
+            # Re-raise validation error
+            raise
+        except Exception as e:
+            log_error(f"Error creating material: {str(e)}")
+            raise ServiceError(f"Failed to create material: {str(e)}")
+
+    def update_material(self, material_id: int, update_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update an existing material.
+
+        Args:
+            material_id: ID of the material to update
+            update_data: Material update data
+
+        Returns:
+            Updated material dictionary
 
         Raises:
             NotFoundError: If material is not found
+            ValidationError: If validation fails
+            ServiceError: If a service error occurs
         """
         try:
-            log_info(f"Attempting to restore material with ID: {material_id}")
+            # Update using repository (model validation happens in the model)
+            material = self.repository.update(material_id, update_data)
 
-            material = self.session.query(Material).get(material_id)
-            if not material:
-                log_error(NotFoundError(f"Material with ID {material_id} not found"))
+            log_info(f"Updated material {material_id}")
+            return self.to_dict(material)
+        except ModelValidationError as e:
+            # Convert model validation error to service validation error
+            raise ValidationError(str(e))
+        except NotFoundError:
+            # Re-raise not found error
+            raise
+        except Exception as e:
+            log_error(f"Error updating material {material_id}: {str(e)}")
+            raise ServiceError(f"Failed to update material: {str(e)}")
+
+    def delete_material(self, material_id: int) -> bool:
+        """Soft delete a material.
+
+        Args:
+            material_id: ID of the material to delete
+
+        Returns:
+            True if successful
+
+        Raises:
+            NotFoundError: If material is not found
+            ServiceError: If a service error occurs
+        """
+        try:
+            success = self.repository.delete(material_id)
+            if not success:
                 raise NotFoundError(f"Material with ID {material_id} not found")
 
-            # Restore the material
-            material.restore()
+            log_info(f"Deleted material {material_id}")
+            return True
+        except NotFoundError:
+            # Re-raise not found error
+            raise
+        except Exception as e:
+            log_error(f"Error deleting material {material_id}: {str(e)}")
+            raise ServiceError(f"Failed to delete material: {str(e)}")
+
+    def find_materials_by_type(self, material_type: MaterialType) -> List[Dict[str, Any]]:
+        """Find materials by type.
+
+        Args:
+            material_type: Material type enum value
+
+        Returns:
+            List of matching material dictionaries
+
+        Raises:
+            ServiceError: If a service error occurs
+        """
+        try:
+            materials = self.repository.find_by_type(material_type)
+            return [self.to_dict(material) for material in materials]
+        except Exception as e:
+            log_error(f"Error finding materials by type {material_type}: {str(e)}")
+            raise ServiceError(f"Failed to find materials by type: {str(e)}")
+
+    def adjust_material_quantity(self, material_id: int, quantity_change: float,
+                                 notes: Optional[str] = None) -> Dict[str, Any]:
+        """Adjust material quantity.
+
+        Args:
+            material_id: ID of the material
+            quantity_change: Quantity to add (positive) or remove (negative)
+            notes: Optional notes about the adjustment
+
+        Returns:
+            Updated material dictionary
+
+        Raises:
+            NotFoundError: If material is not found
+            ValidationError: If validation fails
+            ServiceError: If a service error occurs
+        """
+        try:
+            material = self.repository.get_by_id(material_id)
+            if not material:
+                raise NotFoundError(f"Material with ID {material_id} not found")
+
+            # Use the model's adjust_quantity method
+            material.adjust_quantity(quantity_change, notes=notes)
 
             self.session.commit()
-            log_info(f"Restored material: {material.name} (ID: {material.id})")
-            return material
+            log_info(f"Adjusted material {material_id} quantity by {quantity_change}")
 
-        except SQLAlchemyError as se:
+            return self.to_dict(material)
+        except NotFoundError:
+            # Re-raise not found error
+            raise
+        except ValueError as e:
+            # Convert ValueError to ValidationError
+            raise ValidationError(str(e))
+        except Exception as e:
             self.session.rollback()
-            log_error(se, {
-                'context': 'Material Restoration',
-                'material_id': material_id
-            })
-            raise ValidationError(f"Could not restore material: {se}")
+            log_error(f"Error adjusting material quantity: {str(e)}")
+            raise ServiceError(f"Failed to adjust material quantity: {str(e)}")

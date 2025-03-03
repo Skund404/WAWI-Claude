@@ -14,9 +14,11 @@ from sqlalchemy.orm import Session
 
 from database.models.enums import InventoryStatus, LeatherType, MaterialQualityGrade, MaterialType, TransactionType
 from database.models.leather import Leather
+from database.models.base import ModelValidationError
+from database.exceptions import ModelNotFoundError, RepositoryError
 from database.repositories.leather_repository import LeatherRepository
 from database.sqlalchemy.session import get_db_session
-from services.base_service import BaseService, NotFoundError, ValidationError
+from services.base_service import BaseService, NotFoundError, ValidationError, ServiceError
 from services.interfaces.leather_service import ILeatherService
 from utils.logger import get_logger
 
@@ -93,14 +95,18 @@ class LeatherService(BaseService, ILeatherService):
         if 'max_quantity' in kwargs and kwargs['max_quantity'] is not None:
             filters['max_quantity'] = int(kwargs['max_quantity'])
 
-        # Get leathers from repository
-        leathers = self._repository.get_all_leathers(include_deleted=False, **filters)
+        try:
+            # Get leathers from repository
+            leathers = self._repository.get_all_leathers(include_deleted=False, **filters)
 
-        # Convert to dictionaries
-        result = [leather.to_dict() for leather in leathers]
+            # Convert to dictionaries using the model's to_dict method
+            result = [leather.to_dict() for leather in leathers]
 
-        logger.info(f"Retrieved {len(result)} leathers with filters: {filters}")
-        return result
+            logger.info(f"Retrieved {len(result)} leathers with filters: {filters}")
+            return result
+        except RepositoryError as e:
+            logger.error(f"Error retrieving leathers: {str(e)}")
+            raise ServiceError(str(e))
 
     def search_materials(self, search_term: str, material_type: MaterialType = None, **kwargs) -> List[Dict[str, Any]]:
         """
@@ -123,14 +129,17 @@ class LeatherService(BaseService, ILeatherService):
             # Search for leathers matching the term
             leathers = self._repository.search_leathers(search_term)
 
-            # Convert to dictionaries
+            # Convert to dictionaries using the model's to_dict method
             result = [leather.to_dict() for leather in leathers]
 
             logger.info(f"Search for '{search_term}' returned {len(result)} leathers")
             return result
 
-        except Exception as e:
+        except RepositoryError as e:
             logger.error(f"Error searching leathers: {str(e)}")
+            raise ServiceError(str(e))
+        except Exception as e:
+            logger.error(f"Unexpected error searching leathers: {str(e)}")
             return []
 
     def get_all_leathers(self,
@@ -165,6 +174,9 @@ class LeatherService(BaseService, ILeatherService):
 
         Returns:
             List[Dict[str, Any]]: List of leather dictionaries
+
+        Raises:
+            ServiceError: If a service error occurs
         """
         try:
             # Prepare repository parameters
@@ -187,27 +199,30 @@ class LeatherService(BaseService, ILeatherService):
 
             if min_unit_price is not None:
                 filtered_leathers = [l for l in filtered_leathers if
-                                     l.unit_price is not None and l.unit_price >= min_unit_price]
+                                     l.cost_per_sqft is not None and l.cost_per_sqft >= min_unit_price]
 
             if max_unit_price is not None:
                 filtered_leathers = [l for l in filtered_leathers if
-                                     l.unit_price is not None and l.unit_price <= max_unit_price]
+                                     l.cost_per_sqft is not None and l.cost_per_sqft <= max_unit_price]
 
             if min_quantity is not None:
-                filtered_leathers = [l for l in filtered_leathers if l.quantity >= min_quantity]
+                filtered_leathers = [l for l in filtered_leathers if l.area_available_sqft >= min_quantity]
 
             if max_quantity is not None:
-                filtered_leathers = [l for l in filtered_leathers if l.quantity <= max_quantity]
+                filtered_leathers = [l for l in filtered_leathers if l.area_available_sqft <= max_quantity]
 
-            # Convert to dictionaries
+            # Convert to dictionaries using the model's to_dict method
             result = [leather.to_dict() for leather in filtered_leathers]
 
             logger.info(f"Retrieved {len(result)} leathers with filtering")
             return result
 
-        except Exception as e:
+        except RepositoryError as e:
             logger.error(f"Error retrieving leathers: {str(e)}")
-            raise
+            raise ServiceError(str(e))
+        except Exception as e:
+            logger.error(f"Unexpected error retrieving leathers: {str(e)}")
+            raise ServiceError(f"Unexpected error: {str(e)}")
 
     def get_by_id(self, leather_id: int) -> Dict[str, Any]:
         """
@@ -222,11 +237,12 @@ class LeatherService(BaseService, ILeatherService):
 
         Raises:
             NotFoundError: If the leather is not found
+            ServiceError: If a service error occurs
         """
         try:
             leather = self._repository.get_by_id(leather_id)
 
-            if not leather or leather.deleted:
+            if not leather or leather.is_deleted:
                 logger.warning(f"Leather with ID {leather_id} not found")
                 raise NotFoundError(f"Leather with ID {leather_id} not found")
 
@@ -235,7 +251,10 @@ class LeatherService(BaseService, ILeatherService):
 
         except SQLAlchemyError as e:
             logger.error(f"Database error retrieving leather: {str(e)}")
-            raise ValidationError(f"Database error: {str(e)}")
+            raise ServiceError(f"Database error: {str(e)}")
+        except NotFoundError:
+            # Re-raise not found error
+            raise
 
     def create(self, leather_data: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -250,32 +269,38 @@ class LeatherService(BaseService, ILeatherService):
 
         Raises:
             ValidationError: If validation fails
+            ServiceError: If a service error occurs
         """
         try:
             # Convert string enum values if needed
             leather_data = self._prepare_leather_data(leather_data)
 
-            # Create new leather
+            # Create new leather using the model's constructor which handles validation
             leather = Leather(**leather_data)
 
             # Add to repository
-            created_leather = self._repository.create(leather)
-
-            # Commit changes
+            self._session.add(leather)
             self._session.commit()
 
-            logger.info(f"Created new leather: {created_leather.name} (ID: {created_leather.id})")
-            return created_leather.to_dict()
+            logger.info(f"Created new leather: {leather.name} (ID: {leather.id})")
+            return leather.to_dict()
 
+        except ModelValidationError as e:
+            logger.error(f"Validation error creating leather: {str(e)}")
+            self._session.rollback()
+            raise ValidationError(str(e))
         except ValueError as e:
             logger.error(f"Validation error creating leather: {str(e)}")
             self._session.rollback()
             raise ValidationError(str(e))
-
+        except SQLAlchemyError as e:
+            logger.error(f"Database error creating leather: {str(e)}")
+            self._session.rollback()
+            raise ServiceError(str(e))
         except Exception as e:
             logger.error(f"Error creating leather: {str(e)}")
             self._session.rollback()
-            raise ValidationError(str(e))
+            raise ServiceError(str(e))
 
     def update(self, leather_id: int, update_data: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -292,19 +317,20 @@ class LeatherService(BaseService, ILeatherService):
         Raises:
             NotFoundError: If the leather is not found
             ValidationError: If validation fails
+            ServiceError: If a service error occurs
         """
         try:
             # Get existing leather
             leather = self._repository.get_by_id(leather_id)
 
-            if not leather or leather.deleted:
+            if not leather or leather.is_deleted:
                 logger.warning(f"Leather with ID {leather_id} not found for update")
                 raise NotFoundError(f"Leather with ID {leather_id} not found")
 
             # Convert string enum values if needed
             update_data = self._prepare_leather_data(update_data)
 
-            # Update leather
+            # Update leather using the model's update method which handles validation
             leather.update(**update_data)
 
             # Commit changes
@@ -313,19 +339,25 @@ class LeatherService(BaseService, ILeatherService):
             logger.info(f"Updated leather ID {leather_id}: {leather.name}")
             return leather.to_dict()
 
+        except ModelValidationError as e:
+            logger.error(f"Validation error updating leather: {str(e)}")
+            self._session.rollback()
+            raise ValidationError(str(e))
         except ValueError as e:
             logger.error(f"Validation error updating leather: {str(e)}")
             self._session.rollback()
             raise ValidationError(str(e))
-
         except NotFoundError:
             self._session.rollback()
             raise
-
+        except SQLAlchemyError as e:
+            logger.error(f"Database error updating leather: {str(e)}")
+            self._session.rollback()
+            raise ServiceError(str(e))
         except Exception as e:
             logger.error(f"Error updating leather: {str(e)}")
             self._session.rollback()
-            raise ValidationError(str(e))
+            raise ServiceError(str(e))
 
     def delete(self, leather_id: int, permanent: bool = False) -> bool:
         """
@@ -341,6 +373,7 @@ class LeatherService(BaseService, ILeatherService):
 
         Raises:
             NotFoundError: If the leather is not found
+            ServiceError: If a service error occurs
         """
         try:
             # Get existing leather
@@ -352,26 +385,31 @@ class LeatherService(BaseService, ILeatherService):
 
             if permanent:
                 # Permanent delete
-                self._repository.delete(leather_id)
+                self._repository.hard_delete(leather_id)
                 logger.info(f"Permanently deleted leather ID {leather_id}")
             else:
-                # Soft delete
+                # Soft delete using model's soft_delete method
                 leather.soft_delete()
+                self._session.commit()
                 logger.info(f"Soft deleted leather ID {leather_id}: {leather.name}")
-
-            # Commit changes
-            self._session.commit()
 
             return True
 
         except NotFoundError:
             self._session.rollback()
             raise
-
+        except RepositoryError as e:
+            logger.error(f"Repository error deleting leather: {str(e)}")
+            self._session.rollback()
+            raise ServiceError(str(e))
+        except SQLAlchemyError as e:
+            logger.error(f"Database error deleting leather: {str(e)}")
+            self._session.rollback()
+            raise ServiceError(str(e))
         except Exception as e:
             logger.error(f"Error deleting leather: {str(e)}")
             self._session.rollback()
-            return False
+            raise ServiceError(str(e))
 
     def get_leather_by_id(self, leather_id: int) -> Dict[str, Any]:
         """
@@ -385,6 +423,7 @@ class LeatherService(BaseService, ILeatherService):
 
         Raises:
             NotFoundError: If the leather is not found
+            ServiceError: If a service error occurs
         """
         return self.get_by_id(leather_id)
 
@@ -400,6 +439,7 @@ class LeatherService(BaseService, ILeatherService):
 
         Raises:
             ValidationError: If validation fails
+            ServiceError: If a service error occurs
         """
         return self.create(leather_data)
 
@@ -417,6 +457,7 @@ class LeatherService(BaseService, ILeatherService):
         Raises:
             NotFoundError: If the leather is not found
             ValidationError: If validation fails
+            ServiceError: If a service error occurs
         """
         return self.update(leather_id, update_data)
 
@@ -433,6 +474,7 @@ class LeatherService(BaseService, ILeatherService):
 
         Raises:
             NotFoundError: If the leather is not found
+            ServiceError: If a service error occurs
         """
         return self.delete(leather_id, permanent)
 
@@ -449,6 +491,7 @@ class LeatherService(BaseService, ILeatherService):
         Raises:
             NotFoundError: If the leather is not found
             ValidationError: If the leather is not deleted
+            ServiceError: If a service error occurs
         """
         try:
             # Get existing leather
@@ -458,11 +501,11 @@ class LeatherService(BaseService, ILeatherService):
                 logger.warning(f"Leather with ID {leather_id} not found for restoration")
                 raise NotFoundError(f"Leather with ID {leather_id} not found")
 
-            if not leather.deleted:
+            if not leather.is_deleted:
                 logger.warning(f"Leather ID {leather_id} is not deleted, cannot restore")
                 raise ValidationError(f"Leather with ID {leather_id} is not deleted")
 
-            # Restore leather
+            # Restore leather using model's restore method
             leather.restore()
 
             # Commit changes
@@ -474,11 +517,14 @@ class LeatherService(BaseService, ILeatherService):
         except (NotFoundError, ValidationError):
             self._session.rollback()
             raise
-
+        except SQLAlchemyError as e:
+            logger.error(f"Database error restoring leather: {str(e)}")
+            self._session.rollback()
+            raise ServiceError(str(e))
         except Exception as e:
             logger.error(f"Error restoring leather: {str(e)}")
             self._session.rollback()
-            raise ValidationError(str(e))
+            raise ServiceError(str(e))
 
     def search_leathers(self, search_term: str, include_deleted: bool = False) -> List[Dict[str, Any]]:
         """
@@ -490,6 +536,9 @@ class LeatherService(BaseService, ILeatherService):
 
         Returns:
             List[Dict[str, Any]]: List of matching leather dictionaries
+
+        Raises:
+            ServiceError: If a service error occurs
         """
         return self.search_materials(search_term, MaterialType.LEATHER)
 
@@ -511,12 +560,13 @@ class LeatherService(BaseService, ILeatherService):
         Raises:
             NotFoundError: If the leather is not found
             ValidationError: If validation fails
+            ServiceError: If a service error occurs
         """
         try:
             # Get existing leather
             leather = self._repository.get_by_id(leather_id)
 
-            if not leather or leather.deleted:
+            if not leather or leather.is_deleted:
                 logger.warning(f"Leather with ID {leather_id} not found for quantity adjustment")
                 raise NotFoundError(f"Leather with ID {leather_id} not found")
 
@@ -531,41 +581,51 @@ class LeatherService(BaseService, ILeatherService):
             # This is a simplification to maintain compatibility with the GUI
             area_change = float(quantity_change)
 
-            # Create transaction and update leather
+            # Create transaction and update leather using model's adjust_area method
             is_addition = quantity_change > 0
+            try:
+                self._repository.create_transaction(
+                    leather_id=leather_id,
+                    transaction_type=transaction_type,
+                    quantity=abs(area_change),
+                    is_addition=is_addition,
+                    notes=notes
+                )
 
-            # Create transaction on the leather
-            leather.adjust_quantity(area_change, transaction_type, notes)
+                # Commit changes
+                self._session.commit()
 
-            # Also update the quantity field for GUI compatibility
-            new_quantity = leather.quantity + quantity_change
-            if new_quantity < 0:
-                raise ValidationError(f"Cannot reduce quantity below zero. Current quantity: {leather.quantity}")
+                # Refresh the leather from the database
+                self._session.refresh(leather)
 
-            leather.quantity = new_quantity
+                logger.info(f"Adjusted leather ID {leather_id} quantity by {quantity_change}")
+                return leather.to_dict()
+            except ModelValidationError as e:
+                raise ValidationError(str(e))
 
-            # Commit changes
-            self._session.commit()
-
-            # Refresh the leather from the database
-            self._session.refresh(leather)
-
-            logger.info(f"Adjusted leather ID {leather_id} quantity by {quantity_change}")
-            return leather.to_dict()
-
+        except ModelValidationError as e:
+            logger.error(f"Validation error adjusting leather quantity: {str(e)}")
+            self._session.rollback()
+            raise ValidationError(str(e))
         except ValueError as e:
             logger.error(f"Validation error adjusting leather quantity: {str(e)}")
             self._session.rollback()
             raise ValidationError(str(e))
-
         except (NotFoundError, ValidationError):
             self._session.rollback()
             raise
-
+        except RepositoryError as e:
+            logger.error(f"Repository error adjusting leather quantity: {str(e)}")
+            self._session.rollback()
+            raise ServiceError(str(e))
+        except SQLAlchemyError as e:
+            logger.error(f"Database error adjusting leather quantity: {str(e)}")
+            self._session.rollback()
+            raise ServiceError(str(e))
         except Exception as e:
             logger.error(f"Error adjusting leather quantity: {str(e)}")
             self._session.rollback()
-            raise ValidationError(str(e))
+            raise ServiceError(str(e))
 
     def get_transaction_history(self, leather_id: int,
                                 limit: Optional[int] = None) -> List[Dict[str, Any]]:
@@ -581,6 +641,7 @@ class LeatherService(BaseService, ILeatherService):
 
         Raises:
             NotFoundError: If the leather is not found
+            ServiceError: If a service error occurs
         """
         try:
             # Check if leather exists
@@ -593,28 +654,34 @@ class LeatherService(BaseService, ILeatherService):
             # Get transactions
             transactions = self._repository.get_transaction_history(leather_id, limit)
 
-            # Convert to dictionaries
+            # Convert to dictionaries using to_dict if available, otherwise manual conversion
             result = []
             for transaction in transactions:
-                result.append({
-                    'id': transaction.id,
-                    'leather_id': transaction.leather_id,
-                    'transaction_type': transaction.transaction_type.value,
-                    'area_change': transaction.area_change,
-                    'wastage': transaction.wastage,
-                    'timestamp': transaction.timestamp.isoformat() if transaction.timestamp else None,
-                    'notes': transaction.notes
-                })
+                if hasattr(transaction, 'to_dict') and callable(getattr(transaction, 'to_dict')):
+                    result.append(transaction.to_dict())
+                else:
+                    # Fallback to manual conversion
+                    result.append({
+                        'id': transaction.id,
+                        'leather_id': transaction.leather_id,
+                        'transaction_type': transaction.transaction_type.name,
+                        'quantity': transaction.quantity,
+                        'is_addition': transaction.is_addition,
+                        'created_at': transaction.created_at.isoformat() if transaction.created_at else None,
+                        'notes': transaction.notes
+                    })
 
             logger.info(f"Retrieved {len(result)} transactions for leather ID {leather_id}")
             return result
 
         except NotFoundError:
             raise
-
+        except RepositoryError as e:
+            logger.error(f"Repository error retrieving leather transaction history: {str(e)}")
+            raise ServiceError(str(e))
         except Exception as e:
             logger.error(f"Error retrieving leather transaction history: {str(e)}")
-            raise ValidationError(str(e))
+            raise ServiceError(str(e))
 
     def get_low_stock_leathers(self, threshold: int = 5) -> List[Dict[str, Any]]:
         """
@@ -625,6 +692,9 @@ class LeatherService(BaseService, ILeatherService):
 
         Returns:
             List[Dict[str, Any]]: List of low stock leathers as dictionaries
+
+        Raises:
+            ServiceError: If a service error occurs
         """
         try:
             leathers = self._repository.get_low_stock_leathers(threshold)
@@ -634,9 +704,12 @@ class LeatherService(BaseService, ILeatherService):
             logger.info(f"Retrieved {len(result)} leathers with low stock (threshold: {threshold})")
             return result
 
+        except RepositoryError as e:
+            logger.error(f"Repository error retrieving low stock leathers: {str(e)}")
+            raise ServiceError(str(e))
         except Exception as e:
             logger.error(f"Error retrieving low stock leathers: {str(e)}")
-            raise ValidationError(str(e))
+            raise ServiceError(str(e))
 
     def get_out_of_stock_leathers(self) -> List[Dict[str, Any]]:
         """
@@ -644,6 +717,9 @@ class LeatherService(BaseService, ILeatherService):
 
         Returns:
             List[Dict[str, Any]]: List of out of stock leathers as dictionaries
+
+        Raises:
+            ServiceError: If a service error occurs
         """
         try:
             leathers = self._repository.get_out_of_stock_leathers()
@@ -653,9 +729,12 @@ class LeatherService(BaseService, ILeatherService):
             logger.info(f"Retrieved {len(result)} out of stock leathers")
             return result
 
+        except RepositoryError as e:
+            logger.error(f"Repository error retrieving out of stock leathers: {str(e)}")
+            raise ServiceError(str(e))
         except Exception as e:
             logger.error(f"Error retrieving out of stock leathers: {str(e)}")
-            raise ValidationError(str(e))
+            raise ServiceError(str(e))
 
     def get_leather_inventory_value(self) -> Dict[str, Any]:
         """
@@ -663,15 +742,21 @@ class LeatherService(BaseService, ILeatherService):
 
         Returns:
             Dict[str, Any]: Dictionary with total value and breakdowns
+
+        Raises:
+            ServiceError: If a service error occurs
         """
         try:
             result = self._repository.get_leather_inventory_value()
             logger.info(f"Calculated leather inventory value: ${result['total_value']:.2f}")
             return result
 
+        except RepositoryError as e:
+            logger.error(f"Repository error calculating leather inventory value: {str(e)}")
+            raise ServiceError(str(e))
         except Exception as e:
             logger.error(f"Error calculating leather inventory value: {str(e)}")
-            raise ValidationError(str(e))
+            raise ServiceError(str(e))
 
     def batch_update_leathers(self, updates: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
@@ -682,6 +767,10 @@ class LeatherService(BaseService, ILeatherService):
 
         Returns:
             List[Dict[str, Any]]: List of updated leathers as dictionaries
+
+        Raises:
+            ValidationError: If validation fails for any leather
+            ServiceError: If a service error occurs
         """
         try:
             # Validate and convert each update
@@ -690,26 +779,38 @@ class LeatherService(BaseService, ILeatherService):
                     raise ValidationError("Leather ID is required for batch update")
                 update = self._prepare_leather_data(update)
 
-            # Perform batch update
+            # Perform batch update using repository
             updated_leathers = self._repository.batch_update(updates)
-
-            # Commit changes
-            self._session.commit()
 
             # Convert to dictionaries
             result = [leather.to_dict() for leather in updated_leathers]
             logger.info(f"Batch updated {len(result)} leathers")
             return result
 
+        except ModelValidationError as e:
+            logger.error(f"Validation error in batch update: {str(e)}")
+            self._session.rollback()
+            raise ValidationError(str(e))
         except ValueError as e:
             logger.error(f"Validation error in batch update: {str(e)}")
             self._session.rollback()
             raise ValidationError(str(e))
-
+        except ModelNotFoundError as e:
+            logger.error(f"Not found error in batch update: {str(e)}")
+            self._session.rollback()
+            raise NotFoundError(str(e))
+        except RepositoryError as e:
+            logger.error(f"Repository error in batch update: {str(e)}")
+            self._session.rollback()
+            raise ServiceError(str(e))
+        except SQLAlchemyError as e:
+            logger.error(f"Database error in batch update: {str(e)}")
+            self._session.rollback()
+            raise ServiceError(str(e))
         except Exception as e:
             logger.error(f"Error in batch update: {str(e)}")
             self._session.rollback()
-            raise ValidationError(str(e))
+            raise ServiceError(str(e))
 
     def _prepare_leather_data(self, leather_data: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -798,6 +899,7 @@ class LeatherService(BaseService, ILeatherService):
             'cost_per_sqft': float,
             'thickness_mm': float,
             'size_sqft': float,
+            'area_available_sqft': float,
             'quantity': int
         }
 

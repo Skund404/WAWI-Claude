@@ -1,323 +1,149 @@
 # database/models/shopping_list.py
-from sqlalchemy import Column, String, Float, Integer, DateTime, ForeignKey, Boolean, Text
-from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
-
-from database.models.base import Base, BaseModel, ModelValidationError
+from database.models.base import Base
 from database.models.enums import Priority, ShoppingListStatus
-from database.models.mixins import TimestampMixin, ValidationMixin, TrackingMixin
-
-import logging
-import re
-import uuid
-from typing import Optional, List, Dict, Any
+from sqlalchemy import Column, Enum, String, Text, Boolean, Float, Integer, ForeignKey, DateTime
+from sqlalchemy.orm import relationship
 from datetime import datetime
+from utils.validators import validate_not_empty
 
 
-class ShoppingList(Base, BaseModel, TimestampMixin, ValidationMixin, TrackingMixin):
+class ShoppingList(Base):
     """
-    Represents a shopping list in the leatherworking inventory management system.
-
-    Attributes:
-        name (str): Name of the shopping list
-        description (Optional[str]): Detailed description of the shopping list
-        status (ShoppingListStatus): Current status of the shopping list
-        priority (Priority): Priority level of the shopping list
-        target_date (Optional[datetime]): Target date for completing the shopping list
-        is_completed (bool): Whether the shopping list is completed
-        items (List[ShoppingListItem]): List of items in the shopping list
-
-    Validation Rules:
-        - Name must be non-empty and between 2-100 characters
-        - Target date must be in the future if provided
-        - Must have at least one item or allow empty list
+    Model representing a shopping list for materials.
     """
-    __tablename__ = 'shopping_lists'
-
-    # Basic shopping list information
-    name = Column(String(100), nullable=False)
+    # Shopping list specific fields
+    name = Column(String(255), nullable=False, index=True)
     description = Column(Text, nullable=True)
-    status = Column(ShoppingListStatus, nullable=False, default=ShoppingListStatus.DRAFT)
-    priority = Column(Priority, nullable=False, default=Priority.LOW)
 
-    # Additional metadata
-    target_date = Column(DateTime, nullable=True)
-    is_completed = Column(Boolean, default=False)
+    status = Column(Enum(ShoppingListStatus), default=ShoppingListStatus.DRAFT, nullable=False)
+    priority = Column(Enum(Priority), default=Priority.MEDIUM, nullable=False)
+
+    due_date = Column(DateTime, nullable=True)
+    completion_date = Column(DateTime, nullable=True)
+
+    notes = Column(Text, nullable=True)
 
     # Relationships
-    items = relationship('ShoppingListItem',
-                         back_populates='shopping_list',
-                         cascade='all, delete-orphan')
+    items = relationship("ShoppingListItem", back_populates="shopping_list", cascade="all, delete-orphan")
 
     def __init__(self, **kwargs):
-        """
-        Initialize a ShoppingList instance with validation.
+        """Initialize a ShoppingList instance with validation.
 
         Args:
             **kwargs: Keyword arguments for shopping list attributes
 
         Raises:
-            ModelValidationError: If validation fails for any attribute
+            ValueError: If validation fails for any attribute
         """
+        self._validate_creation(kwargs)
         super().__init__(**kwargs)
-        self.validate()
 
-    def validate(self):
-        """
-        Validate shopping list attributes before saving.
-
-        Raises:
-            ModelValidationError: If any validation check fails
-        """
-        # Validate name
-        if not self.name or len(self.name) < 2 or len(self.name) > 100:
-            raise ModelValidationError(
-                "Shopping list name must be between 2 and 100 characters",
-                {"name": self.name}
-            )
-
-        # Validate target date
-        if self.target_date and self.target_date < datetime.now():
-            raise ModelValidationError(
-                "Target date must be in the future",
-                {"target_date": self.target_date}
-            )
-
-        # Validate status
-        if not isinstance(self.status, ShoppingListStatus):
-            raise ModelValidationError(
-                "Invalid shopping list status",
-                {"status": self.status}
-            )
-
-        # Validate priority
-        if not isinstance(self.priority, Priority):
-            raise ModelValidationError(
-                "Invalid priority",
-                {"priority": self.priority}
-            )
-
-    def update(self, **kwargs):
-        """
-        Update shopping list attributes with validation.
-
-        Args:
-            **kwargs: Keyword arguments with shopping list attributes to update
-
-        Returns:
-            ShoppingList: Updated shopping list instance
+    @classmethod
+    def _validate_creation(cls, data):
+        """Validate shopping list attributes before saving.
 
         Raises:
-            ModelValidationError: If validation fails for any field
+            ValueError: If any validation check fails
         """
-        for key, value in kwargs.items():
-            # Handle enum conversions
-            if key == 'status':
-                value = ShoppingListStatus(value)
-            elif key == 'priority':
-                value = Priority(value)
-
-            setattr(self, key, value)
-
-        self.validate()
-        return self
-
-    def add_item(self, item_data: Dict[str, Any]) -> 'ShoppingListItem':
-        """
-        Add a new item to the shopping list.
-
-        Args:
-            item_data (Dict[str, Any]): Data for the new shopping list item
-
-        Returns:
-            ShoppingListItem: The newly created item
-
-        Raises:
-            ModelValidationError: If item data is invalid
-        """
-        from database.models.shopping_list import ShoppingListItem
-
-        # Create item and link to this shopping list
-        item_data['shopping_list_id'] = self.id
-        item = ShoppingListItem(**item_data)
-
-        # Add to items collection
-        self.items.append(item)
-
-        return item
-
-    def remove_item(self, item_id: int) -> None:
-        """
-        Remove an item from the shopping list.
-
-        Args:
-            item_id (int): ID of the item to remove
-
-        Raises:
-            ModelValidationError: If item not found
-        """
-        for item in self.items[:]:
-            if item.id == item_id:
-                self.items.remove(item)
-                return
-
-        raise ModelValidationError(
-            "Item not found in shopping list",
-            {"item_id": item_id}
-        )
+        validate_not_empty(data, 'name', 'Shopping list name is required')
 
     def mark_completed(self):
-        """
-        Mark the shopping list as completed.
-        """
-        self.is_completed = True
+        """Mark the shopping list as completed."""
         self.status = ShoppingListStatus.COMPLETED
-
-        logging.info(f"Shopping list {self.id} marked as completed", extra={
-            "shopping_list_id": self.id,
-            "name": self.name
-        })
+        self.completion_date = datetime.utcnow()
 
     def reset(self):
-        """
-        Reset the shopping list to draft status.
-        """
-        self.is_completed = False
+        """Reset the shopping list to draft status."""
         self.status = ShoppingListStatus.DRAFT
-
-        logging.info(f"Shopping list {self.id} reset to draft", extra={
-            "shopping_list_id": self.id,
-            "name": self.name
-        })
+        self.completion_date = None
 
     def __repr__(self):
-        """
-        String representation of the shopping list.
+        """String representation of the shopping list.
 
         Returns:
             str: Descriptive string of the shopping list
         """
-        return (f"<ShoppingList(id={self.id}, name='{self.name}', "
-                f"status={self.status}, priority={self.priority})>")
+        return f"<ShoppingList(id={self.id}, name='{self.name}', status={self.status})>"
 
 
-class ShoppingListItem(Base, BaseModel, TimestampMixin):
+class ShoppingListItem(Base):
     """
-    Represents an individual item within a shopping list.
-
-    Attributes:
-        name (str): Name of the item
-        quantity (float): Quantity of the item
-        estimated_price (Optional[float]): Estimated price per unit
-        is_purchased (bool): Whether the item has been purchased
-        shopping_list_id (int): Foreign key to the parent shopping list
-        shopping_list (ShoppingList): Relationship to the parent shopping list
-
-    Validation Rules:
-        - Name must be non-empty
-        - Quantity must be positive
-        - Estimated price must be non-negative if provided
+    Model representing an item in a shopping list.
     """
-    __tablename__ = 'shopping_list_items'
+    # Shopping list item specific fields
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
 
-    # Item details
-    name = Column(String(200), nullable=False)
-    quantity = Column(Float, nullable=False, default=1.0)
-    estimated_price = Column(Float, nullable=True)
-    is_purchased = Column(Boolean, default=False)
+    quantity = Column(Float, default=1.0, nullable=False)
+    unit_price = Column(Float, nullable=True)
+    estimated_total = Column(Float, nullable=True)
 
-    # Relationship to shopping list
-    shopping_list_id = Column(Integer, ForeignKey('shopping_lists.id'), nullable=False)
-    shopping_list = relationship('ShoppingList', back_populates='items')
+    priority = Column(Enum(Priority), default=Priority.MEDIUM, nullable=False)
+    is_purchased = Column(Boolean, default=False, nullable=False)
+    purchase_date = Column(DateTime, nullable=True)
+
+    notes = Column(Text, nullable=True)
+
+    # Foreign keys
+    shopping_list_id = Column(Integer, ForeignKey("shopping_lists.id"), nullable=False)
+    material_id = Column(Integer, ForeignKey("materials.id"), nullable=True)
+    leather_id = Column(Integer, ForeignKey("leathers.id"), nullable=True)
+    hardware_id = Column(Integer, ForeignKey("hardware.id"), nullable=True)
+    supplier_id = Column(Integer, ForeignKey("suppliers.id"), nullable=True)
+
+    # Relationships
+    shopping_list = relationship("ShoppingList", back_populates="items")
+    material = relationship("Material", uselist=False, viewonly=True)
+    leather = relationship("Leather", uselist=False, viewonly=True)
+    hardware = relationship("Hardware", uselist=False, viewonly=True)
+    supplier = relationship("Supplier", uselist=False)
 
     def __init__(self, **kwargs):
-        """
-        Initialize a ShoppingListItem instance with validation.
+        """Initialize a ShoppingListItem instance with validation.
 
         Args:
             **kwargs: Keyword arguments for shopping list item attributes
 
         Raises:
-            ModelValidationError: If validation fails for any attribute
+            ValueError: If validation fails for any attribute
         """
+        self._validate_creation(kwargs)
         super().__init__(**kwargs)
-        self.validate()
 
-    def validate(self):
-        """
-        Validate shopping list item attributes before saving.
+        # Calculate estimated total if unit price is provided
+        if 'unit_price' in kwargs and 'quantity' in kwargs and 'estimated_total' not in kwargs:
+            self.estimated_total = self.unit_price * self.quantity
 
-        Raises:
-            ModelValidationError: If any validation check fails
-        """
-        # Validate name
-        if not self.name or len(self.name.strip()) == 0:
-            raise ModelValidationError(
-                "Item name cannot be empty",
-                {"name": self.name}
-            )
-
-        # Validate quantity
-        if self.quantity <= 0:
-            raise ModelValidationError(
-                "Quantity must be positive",
-                {"quantity": self.quantity}
-            )
-
-        # Validate estimated price
-        if self.estimated_price is not None and self.estimated_price < 0:
-            raise ModelValidationError(
-                "Estimated price cannot be negative",
-                {"estimated_price": self.estimated_price}
-            )
-
-    def update(self, **kwargs):
-        """
-        Update shopping list item attributes with validation.
-
-        Args:
-            **kwargs: Keyword arguments with item attributes to update
-
-        Returns:
-            ShoppingListItem: Updated item instance
+    @classmethod
+    def _validate_creation(cls, data):
+        """Validate shopping list item attributes before saving.
 
         Raises:
-            ModelValidationError: If validation fails for any field
+            ValueError: If any validation check fails
         """
-        for key, value in kwargs.items():
-            setattr(self, key, value)
+        validate_not_empty(data, 'name', 'Item name is required')
+        validate_not_empty(data, 'shopping_list_id', 'Shopping list ID is required')
 
-        self.validate()
-        return self
+        if 'quantity' in data and data['quantity'] <= 0:
+            raise ValueError("Quantity must be greater than zero")
+
+        if 'unit_price' in data and data['unit_price'] < 0:
+            raise ValueError("Unit price cannot be negative")
 
     def mark_purchased(self):
-        """
-        Mark the item as purchased.
-        """
+        """Mark the item as purchased."""
         self.is_purchased = True
-
-        logging.info(f"Shopping list item {self.id} marked as purchased", extra={
-            "item_id": self.id,
-            "name": self.name
-        })
+        self.purchase_date = datetime.utcnow()
 
     def reset_purchase_status(self):
-        """
-        Reset the purchase status of the item.
-        """
+        """Reset the purchase status of the item."""
         self.is_purchased = False
-
-        logging.info(f"Shopping list item {self.id} purchase status reset", extra={
-            "item_id": self.id,
-            "name": self.name
-        })
+        self.purchase_date = None
 
     def __repr__(self):
-        """
-        String representation of the shopping list item.
+        """String representation of the shopping list item.
 
         Returns:
             str: Descriptive string of the shopping list item
         """
-        return (f"<ShoppingListItem(id={self.id}, name='{self.name}', "
-                f"quantity={self.quantity}, purchased={self.is_purchased})>")
+        return f"<ShoppingListItem(id={self.id}, name='{self.name}', list_id={self.shopping_list_id}, purchased={self.is_purchased})>"

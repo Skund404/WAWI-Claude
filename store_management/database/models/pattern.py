@@ -1,88 +1,99 @@
 # database/models/pattern.py
-"""
-Pattern model module for the leatherworking store management system.
-
-Defines the Pattern class for tracking product patterns.
-"""
-
-import datetime
-from typing import Dict, Any, List, Optional
-
-from sqlalchemy import (
-    Column, String, Integer, Float, Text, DateTime, Enum
-)
-from sqlalchemy.orm import relationship
-
-from database.models.base import Base, BaseModel
+from database.models.base import Base
 from database.models.enums import SkillLevel
+from sqlalchemy import Column, Enum, String, Text, Integer, Float, Boolean, JSON, DateTime
+from sqlalchemy.orm import relationship
+from datetime import datetime
 
 
-class Pattern(Base, BaseModel):
+class Pattern(Base):
     """
-    Represents a leatherworking pattern.
+    Model representing leatherworking patterns.
     """
-    __tablename__ = 'patterns'  # Changed to plural for consistency
-
-    name = Column(String(255), nullable=False)
+    # Pattern specific fields
+    name = Column(String(255), nullable=False, index=True)
     description = Column(Text, nullable=True)
-    difficulty_level = Column(Enum(SkillLevel), nullable=True)
 
-    # Pattern metadata
-    estimated_time = Column(Integer, nullable=True)  # in minutes
-    estimated_cost = Column(Float, nullable=True)
-    materials_needed = Column(Text, nullable=True)
-    instructions = Column(Text, nullable=True)
+    skill_level = Column(Enum(SkillLevel), nullable=False, default=SkillLevel.BEGINNER)
     version = Column(String(20), nullable=True)
-    created_by = Column(String(100), nullable=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    width_mm = Column(Float, nullable=True)
+    height_mm = Column(Float, nullable=True)
+
+    estimated_time_hours = Column(Float, nullable=True)
+    estimated_leather_sqft = Column(Float, nullable=True)
+
+    instructions = Column(Text, nullable=True)
+    tools_required = Column(Text, nullable=True)
+    materials_required = Column(Text, nullable=True)
+
+    is_published = Column(Boolean, default=False, nullable=False)
+    publication_date = Column(DateTime, nullable=True)
+
+    file_path = Column(String(255), nullable=True)
+    metadata = Column(JSON, nullable=True)
 
     # Relationships
-    products = relationship("Product", back_populates="pattern")
+    components = relationship("PatternComponent", back_populates="pattern", cascade="all, delete-orphan")
     projects = relationship("Project", back_populates="pattern")
 
-    def __repr__(self) -> str:
-        """
-        String representation of the Pattern.
-
-        Returns:
-            str: Descriptive string of the pattern
-        """
-        return f"<Pattern id={self.id}, name='{self.name}', difficulty='{self.difficulty_level.name if self.difficulty_level else 'N/A'}'>"
-
-    def to_dict(self, include_details: bool = False) -> Dict[str, Any]:
-        """
-        Convert pattern to dictionary representation.
+    def __init__(self, **kwargs):
+        """Initialize a Pattern instance with validation.
 
         Args:
-            include_details (bool): Whether to include additional details
+            **kwargs: Keyword arguments with pattern attributes
 
-        Returns:
-            Dict[str, Any]: Dictionary representation of the pattern
+        Raises:
+            ValueError: If validation fails for any field
         """
-        result = super().to_dict()
-        result['created_at'] = self.created_at.isoformat() if self.created_at else None
+        self._validate_creation(kwargs)
+        super().__init__(**kwargs)
 
-        if include_details:
-            result['products_count'] = len(self.products)
-            result['projects_count'] = len(self.projects)
-
-        return result
-
-    def update_version(self, new_version: str) -> None:
-        """
-        Update the pattern version.
+    @classmethod
+    def _validate_creation(cls, data):
+        """Validate pattern data before creation.
 
         Args:
-            new_version (str): New version number
-        """
-        self.version = new_version
-        # Optionally, you could add timestamp or other version tracking logic here
+            data (dict): The data to validate
 
-    def get_related_products(self) -> List[Any]:
+        Raises:
+            ValueError: If validation fails
         """
-        Get all products using this pattern.
+        if 'name' not in data or not data['name']:
+            raise ValueError("Pattern name is required")
+
+        if 'skill_level' not in data:
+            data['skill_level'] = SkillLevel.BEGINNER
+
+    def publish(self):
+        """Mark the pattern as published and set publication date."""
+        self.is_published = True
+        self.publication_date = datetime.utcnow()
+
+    def unpublish(self):
+        """Mark the pattern as unpublished."""
+        self.is_published = False
+
+    def calculate_leather_requirement(self):
+        """Calculate total leather requirement based on components.
 
         Returns:
-            List[Any]: List of related products
+            float: Total estimated leather requirement in square feet
         """
-        return self.products
+        total = self.estimated_leather_sqft or 0
+
+        # If component relationships are loaded, add their requirements
+        if self.components:
+            for component in self.components:
+                if hasattr(component, 'area_sqft') and component.area_sqft:
+                    total += component.area_sqft
+
+        return total
+
+    def __repr__(self):
+        """String representation of the pattern.
+
+        Returns:
+            str: String representation
+        """
+        return f"<Pattern(id={self.id}, name='{self.name}', skill_level={self.skill_level})>"

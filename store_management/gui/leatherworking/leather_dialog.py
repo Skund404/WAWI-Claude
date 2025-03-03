@@ -7,7 +7,36 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from typing import Any, Dict, Optional
 
-from database.models.enums import LeatherType, MaterialQualityGrade, InventoryStatus
+# Import enums safely
+from enum import Enum
+
+class LeatherType(Enum):
+    """Enum for leather types, mirroring database model"""
+    FULL_GRAIN = "full_grain"
+    TOP_GRAIN = "top_grain"
+    CORRECTED_GRAIN = "corrected_grain"
+    SPLIT = "split"
+    NUBUCK = "nubuck"
+    SUEDE = "suede"
+    EXOTIC = "exotic"
+    VEGETABLE_TANNED = "vegetable_tanned"
+    CHROME_TANNED = "chrome_tanned"
+
+class MaterialQualityGrade(Enum):
+    """Enum for material quality grades, mirroring database model"""
+    PREMIUM = "premium"
+    STANDARD = "standard"
+    ECONOMY = "economy"
+    SECONDS = "seconds"
+    SCRAP = "scrap"
+
+class InventoryStatus(Enum):
+    """Enum for inventory status, mirroring database model"""
+    IN_STOCK = "in_stock"
+    LOW_STOCK = "low_stock"
+    OUT_OF_STOCK = "out_of_stock"
+    DISCONTINUED = "discontinued"
+    ON_ORDER = "on_order"
 
 
 class LeatherDetailsDialog:
@@ -160,12 +189,22 @@ class LeatherDetailsDialog:
         # Handle leather type
         leather_type = leather_data.get('leather_type') or leather_data.get('type')
         if isinstance(leather_type, str):
-            self.leather_type_var.set(leather_type)
+            # Attempt to find a matching enum value
+            try:
+                leather_type = next(lt.value for lt in LeatherType if lt.value == leather_type)
+                self.leather_type_var.set(leather_type)
+            except StopIteration:
+                pass
 
         # Handle grade
         grade = leather_data.get('grade') or leather_data.get('quality_grade')
         if isinstance(grade, str):
-            self.grade_var.set(grade)
+            # Attempt to find a matching enum value
+            try:
+                grade = next(g.value for g in MaterialQualityGrade if g.value == grade)
+                self.grade_var.set(grade)
+            except StopIteration:
+                pass
 
         self.color_var.set(leather_data.get('color', ''))
 
@@ -184,10 +223,15 @@ class LeatherDetailsDialog:
         # Handle status
         status = leather_data.get('status', InventoryStatus.IN_STOCK.value)
         if isinstance(status, str):
-            self.status_var.set(status)
+            try:
+                status = next(s.value for s in InventoryStatus if s.value == status)
+                self.status_var.set(status)
+            except StopIteration:
+                # Fallback to default
+                self.status_var.set(InventoryStatus.IN_STOCK.value)
 
-        self.location_var.set(leather_data.get('location', ''))
-        self.notes_var.set(leather_data.get('notes', ''))
+            self.location_var.set(leather_data.get('location', ''))
+            self.notes_var.set(leather_data.get('notes', ''))
 
     def _validate_form(self) -> bool:
         """Validate form inputs.
@@ -213,7 +257,8 @@ class LeatherDetailsDialog:
             if self.thickness_var.get().strip():
                 thickness = float(self.thickness_var.get())
                 if thickness <= 0:
-                    messagebox.showerror("Validation Error", "Thickness must be a positive number", parent=self.dialog)
+                    messagebox.showerror("Validation Error", "Thickness must be a positive number",
+                                         parent=self.dialog)
                     return False
         except ValueError:
             messagebox.showerror("Validation Error", "Thickness must be a valid number", parent=self.dialog)
@@ -291,3 +336,22 @@ class LeatherDetailsDialog:
         """Handle cancel button click."""
         self.result = None
         self.dialog.destroy()
+
+def main():
+    """Standalone testing of the LeatherDetailsDialog"""
+    import tkinter as tk
+
+    root = tk.Tk()
+    root.title("Leather Details Test")
+
+    def open_dialog():
+        dialog = LeatherDetailsDialog(root, "Add Leather Material")
+        if dialog.result:
+            print("Dialog Result:", dialog.result)
+
+    tk.Button(root, text="Open Dialog", command=open_dialog).pack(padx=20, pady=20)
+
+    root.mainloop()
+
+if __name__ == "__main__":
+    main()

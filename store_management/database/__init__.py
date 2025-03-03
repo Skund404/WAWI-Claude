@@ -3,19 +3,21 @@
 import logging
 from typing import Callable, Optional
 
-from sqlalchemy.orm import declarative_base
-
-from database.initialize import initialize_database
-from database.models.base import Base, BaseModel
-from database.models.components import Component, PatternComponent, ProjectComponent
-from database.models.enums import LeatherType, MaterialType, OrderStatus, ProjectStatus
 from utils.circular_import_resolver import CircularImportResolver
 
 logger = logging.getLogger(__name__)
 
-Base = declarative_base()
+# First, import Base from models.base
+from database.models.base import Base
+# Define BaseModel as an alias for Base
+BaseModel = Base
+
+from database.initialize import initialize_database
 
 try:
+    # Import models after Base and BaseModel are defined
+    from database.models.components import Component, PatternComponent, ProjectComponent
+    from database.models.enums import LeatherType, MaterialType, OrderStatus, ProjectStatus
     from database.models.hardware import Hardware
     from database.models.leather import Leather
     from database.models.material import Material, MaterialTransaction
@@ -28,4 +30,5 @@ try:
     from database.models.storage import Storage
     from database.models.supplier import Supplier
 except ImportError as e:
-    CircularImportResolver.register_pending_import(__name__, e)
+    # Use the correct method for circular import resolution
+    CircularImportResolver.register_lazy_import(__name__, e)

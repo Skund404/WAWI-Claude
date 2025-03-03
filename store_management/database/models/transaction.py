@@ -1,202 +1,197 @@
-# path: database/models/transaction.py
-"""
-Transaction models for the leatherworking store management application.
-
-This module defines the database models for inventory transactions,
-which track changes to material and part quantities.
-"""
-
-import enum
-from datetime import datetime
-from typing import Dict, Any, Optional
-
-from sqlalchemy import Column, String, Integer, Float, ForeignKey, Enum, Boolean, DateTime, Text
-from sqlalchemy.orm import relationship
-
-# Import base classes without causing circular dependencies
-from database.models.base import Base, BaseModel
+# database/models/transaction.py
+from database.models.base import Base
 from database.models.enums import TransactionType
-from utils.logger import get_logger
+from sqlalchemy import Column, Enum, Float, ForeignKey, Integer, String, Text, Boolean
+from sqlalchemy.orm import relationship
+from typing import Optional
 
-logger = get_logger(__name__)
 
-
-class BaseTransaction(Base, BaseModel):
+class BaseTransaction(Base):
     """
-    Base model for inventory transactions.
-
-    This is the foundation for specific transaction types like
-    InventoryTransaction and LeatherTransaction.
+    Base model for all transaction types.
     """
-    __tablename__ = 'transactions'
-
-    id = Column(Integer, primary_key=True)
+    # Base transaction fields
     transaction_type = Column(Enum(TransactionType), nullable=False)
+    quantity = Column(Float, default=0.0, nullable=False)
     notes = Column(Text, nullable=True)
-    timestamp = Column(DateTime, default=datetime.utcnow)
+    is_addition = Column(Boolean, default=True, nullable=False)
 
-    # Discriminator column for polymorphic identity
-    type = Column(String(50))
+    # Single-table inheritance discriminator
+    transaction_class = Column(String(50), nullable=False)
 
     __mapper_args__ = {
-        'polymorphic_identity': 'transaction',
-        'polymorphic_on': type
+        'polymorphic_on': transaction_class,
+        'polymorphic_identity': 'base_transaction'
     }
 
-    def __init__(self, transaction_type: TransactionType, notes: Optional[str] = None):
-        """
-        Initialize a new transaction.
+    def __init__(self, transaction_type: TransactionType, quantity: float,
+                 is_addition: bool = True, notes: Optional[str] = None, **kwargs):
+        """Initialize a new transaction.
 
         Args:
             transaction_type: Type of the transaction
+            quantity: Amount being transacted
+            is_addition: Whether this is an addition or reduction
             notes: Optional notes about the transaction
         """
-        self.transaction_type = transaction_type
-        self.notes = notes
-        logger.debug(f"Created {transaction_type.name} transaction")
+        kwargs.update({
+            'transaction_type': transaction_type,
+            'quantity': quantity,
+            'is_addition': is_addition,
+            'notes': notes
+        })
 
-    def __repr__(self) -> str:
-        """
-        Return a string representation of the transaction.
+        # Validate transaction data before creating
+        self._validate_creation(kwargs)
 
-        Returns:
-            str: String representation with id and type
-        """
-        return f"<Transaction(id={self.id}, type={self.transaction_type})>"
+        super().__init__(**kwargs)
 
-    def to_dict(self) -> Dict[str, Any]:
-        """
-        Convert the transaction to a dictionary.
-
-        Returns:
-            Dict[str, Any]: Dictionary representation of the transaction
-        """
-        result = {
-            'id': self.id,
-            'transaction_type': self.transaction_type.value if hasattr(self.transaction_type, 'value') else str(
-                self.transaction_type),
-            'notes': self.notes,
-            'timestamp': self.timestamp.isoformat() if self.timestamp else None,
-            'type': self.type
-        }
-        return result
-
-
-class InventoryTransaction(BaseTransaction):
-    """
-    Transaction for inventory parts.
-
-    This model represents transactions affecting the quantities of
-    inventory parts like buckles, rivets, etc.
-    """
-    __tablename__ = 'inventory_transactions'
-
-    id = Column(Integer, ForeignKey('transactions.id'), primary_key=True)
-    part_id = Column(Integer, ForeignKey('parts.id'), nullable=False)
-    quantity_change = Column(Integer, nullable=False)
-
-    # Relationship to the affected part
-    part = relationship("Part", backref="transactions")
-
-    __mapper_args__ = {
-        'polymorphic_identity': 'inventory_transaction',
-    }
-
-    def __init__(self, part_id: int, quantity_change: int,
-                 transaction_type: TransactionType, notes: Optional[str] = None):
-        """
-        Initialize a new inventory transaction.
+    @classmethod
+    def _validate_creation(cls, data):
+        """Validate transaction data before creation.
 
         Args:
-            part_id: ID of the part affected
-            quantity_change: Amount to change the quantity by (positive or negative)
-            transaction_type: Type of the transaction
-            notes: Optional notes about the transaction
+            data (dict): The data to validate
+
+        Raises:
+            ValueError: If validation fails
         """
-        super().__init__(transaction_type, notes)
-        self.part_id = part_id
-        self.quantity_change = quantity_change
-        logger.debug(f"Created inventory transaction for part ID {part_id}, change: {quantity_change}")
+        if 'transaction_type' not in data:
+            raise ValueError("Transaction type is required")
 
-    def to_dict(self) -> Dict[str, Any]:
+        if 'quantity' not in data:
+            raise ValueError("Quantity is required")
+
+        if data.get('quantity', 0) <= 0:
+            raise ValueError("Quantity must be greater than zero")
+
+
+class MaterialTransaction(BaseTransaction):
+    """
+    Model for transactions involving generic materials.
+    """
+    # Foreign keys
+    material_id = Column(Integer, ForeignKey("materials.id"), nullable=True)
+
+    # Relationships
+    material = relationship("Material", back_populates="transactions")
+
+    __mapper_args__ = {
+        'polymorphic_identity': 'material_transaction'
+    }
+
+    def __init__(self, material_id: int, **kwargs):
+        """Initialize a material transaction.
+
+        Args:
+            material_id: ID of the material being transacted
         """
-        Convert the transaction to a dictionary.
+        kwargs.update({
+            'material_id': material_id
+        })
+        super().__init__(**kwargs)
 
-        Returns:
-            Dict[str, Any]: Dictionary representation of the transaction
+    @classmethod
+    def _validate_creation(cls, data):
+        """Validate material transaction data before creation.
+
+        Args:
+            data (dict): The data to validate
+
+        Raises:
+            ValueError: If validation fails
         """
-        result = super().to_dict()
+        super()._validate_creation(data)
 
-        # Add part_id
-        result['part_id'] = self.part_id
-        result['quantity_change'] = self.quantity_change
-
-        return result
+        if 'material_id' not in data:
+            raise ValueError("Material ID is required")
 
 
 class LeatherTransaction(BaseTransaction):
     """
-    Transaction for leather inventory.
-
-    This model represents transactions affecting the areas of
-    leather materials, with additional tracking for wastage.
+    Model for transactions involving leather.
     """
-    __tablename__ = 'leather_transactions'
+    # Leather-specific fields
+    area_sqft = Column(Float, nullable=True)
 
-    id = Column(Integer, ForeignKey('transactions.id'), primary_key=True)
-    leather_id = Column(Integer, ForeignKey('leathers.id'), nullable=False)
-    area_change = Column(Float, nullable=False)  # in square feet or square meters
-    wastage = Column(Float, default=0.0)  # wastage during cutting
+    # Foreign keys
+    leather_id = Column(Integer, ForeignKey("leathers.id"), nullable=False)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=True)
 
-    # Relationship to the affected leather
-    leather = relationship("Leather", backref="transactions")
+    # Relationships
+    leather = relationship("Leather", back_populates="transactions")
+    project = relationship("Project", back_populates="leather_transactions")
 
     __mapper_args__ = {
-        'polymorphic_identity': 'leather_transaction',
+        'polymorphic_identity': 'leather_transaction'
     }
 
-    def __init__(self, leather_id: int, area_change: float,
-                 transaction_type: TransactionType, notes: Optional[str] = None,
-                 wastage: float = 0.0):
-        """
-        Initialize a new leather transaction.
+    def __init__(self, leather_id: int, **kwargs):
+        """Initialize a leather transaction.
 
         Args:
-            leather_id: ID of the leather affected
-            area_change: Amount to change the area by (positive or negative)
-            transaction_type: Type of the transaction
-            notes: Optional notes about the transaction
-            wastage: Amount of leather wasted during cutting
+            leather_id: ID of the leather being transacted
         """
-        super().__init__(transaction_type, notes)
-        self.leather_id = leather_id
-        self.area_change = area_change
-        self.wastage = wastage
+        kwargs.update({
+            'leather_id': leather_id,
+            'area_sqft': kwargs.get('quantity')  # Set area_sqft to match quantity for consistency
+        })
+        super().__init__(**kwargs)
 
-        logger.debug(
-            f"Created leather transaction for leather ID {leather_id}, area change: {area_change}, wastage: {wastage}")
+    @classmethod
+    def _validate_creation(cls, data):
+        """Validate leather transaction data before creation.
 
-    def to_dict(self) -> Dict[str, Any]:
+        Args:
+            data (dict): The data to validate
+
+        Raises:
+            ValueError: If validation fails
         """
-        Convert the transaction to a dictionary.
+        super()._validate_creation(data)
 
-        Returns:
-            Dict[str, Any]: Dictionary representation of the transaction
+        if 'leather_id' not in data:
+            raise ValueError("Leather ID is required")
+
+
+class HardwareTransaction(BaseTransaction):
+    """
+    Model for transactions involving hardware.
+    """
+    # Foreign keys
+    hardware_id = Column(Integer, ForeignKey("hardware.id"), nullable=False)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=True)
+
+    # Relationships
+    hardware = relationship("Hardware", back_populates="transactions")
+    project = relationship("Project", back_populates="hardware_transactions")
+
+    __mapper_args__ = {
+        'polymorphic_identity': 'hardware_transaction'
+    }
+
+    def __init__(self, hardware_id: int, **kwargs):
+        """Initialize a hardware transaction.
+
+        Args:
+            hardware_id: ID of the hardware being transacted
         """
-        result = super().to_dict()
+        kwargs.update({
+            'hardware_id': hardware_id
+        })
+        super().__init__(**kwargs)
 
-        # Add leather-specific fields
-        result['leather_id'] = self.leather_id
-        result['area_change'] = self.area_change
-        result['wastage'] = self.wastage
+    @classmethod
+    def _validate_creation(cls, data):
+        """Validate hardware transaction data before creation.
 
-        return result
+        Args:
+            data (dict): The data to validate
 
-    def net_area_change(self) -> float:
+        Raises:
+            ValueError: If validation fails
         """
-        Calculate the net area change including wastage.
+        super()._validate_creation(data)
 
-        Returns:
-            float: Net area change
-        """
-        return self.area_change - self.wastage
+        if 'hardware_id' not in data:
+            raise ValueError("Hardware ID is required")

@@ -1,121 +1,98 @@
 # database/models/storage.py
-"""
-Storage model module for the leatherworking store management system.
-
-Defines the Storage class for tracking inventory storage locations.
-"""
-
-from typing import Dict, Any, Optional
-
-from sqlalchemy import (
-    Column, String, Integer, Float, ForeignKey, Enum, Boolean,
-    DateTime, Text
-)
-from sqlalchemy.orm import relationship
-
-from database.models.base import Base, BaseModel
+from database.models.base import Base
 from database.models.enums import StorageLocationType
+from sqlalchemy import Column, Enum, String, Text, Boolean, Integer
+from sqlalchemy.orm import relationship
+from utils.validators import validate_not_empty
 
 
-class Storage(Base, BaseModel):
+class Storage(Base):
     """
-    Storage entity representing physical storage locations for inventory.
-
-    This class defines the storage location data model and provides methods for storage management.
+    Model representing storage locations for materials.
     """
-    __tablename__ = 'storage'
-
-    name = Column(String(100), nullable=False)
-    location = Column(String(255), nullable=True)
-    capacity = Column(Float, default=0.0)
-    current_occupancy = Column(Float, default=0.0)
-    type = Column(Enum(StorageLocationType), default=StorageLocationType.SHELF)
+    # Storage specific fields
+    name = Column(String(255), nullable=False, index=True)
     description = Column(Text, nullable=True)
-    is_active = Column(Boolean, default=True)
+
+    location_type = Column(Enum(StorageLocationType), nullable=False)
+
+    section = Column(String(50), nullable=True)
+    row = Column(String(50), nullable=True)
+    shelf = Column(String(50), nullable=True)
+    bin = Column(String(50), nullable=True)
+
+    capacity = Column(Integer, nullable=True)
+    is_full = Column(Boolean, default=False, nullable=False)
+
+    notes = Column(Text, nullable=True)
 
     # Relationships
+    leathers = relationship("Leather", back_populates="storage")
+    hardware = relationship("Hardware", back_populates="storage")
+    materials = relationship("Material", back_populates="storage")
     products = relationship("Product", back_populates="storage")
 
-    def __init__(self, name: str, location: str, capacity: float,
-                 current_occupancy: float, type: StorageLocationType,
-                 description: Optional[str] = None,
-                 is_active: bool = True, **kwargs):
-        """
-        Initialize a new Storage instance.
+    def __init__(self, **kwargs):
+        """Initialize a Storage instance with validation.
 
         Args:
-            name: The name of the storage location.
-            location: The physical location description.
-            capacity: The total capacity of the storage.
-            current_occupancy: The current used capacity.
-            type: The type of storage (e.g., Warehouse, Workshop, etc.).
-            description: A detailed description of the storage.
-            is_active: The current status of the storage.
-        """
-        super().__init__(**kwargs)  # Initialize the BaseModel
-        self.name = name
-        self.location = location
-        self.capacity = capacity
-        self.current_occupancy = current_occupancy
-        self.type = type
-        self.description = description
-        self.is_active = is_active
+            **kwargs: Keyword arguments with storage attributes
 
-    def __repr__(self) -> str:
+        Raises:
+            ValueError: If validation fails for any field
         """
-        Get a string representation of the storage location.
+        self._validate_creation(kwargs)
+        super().__init__(**kwargs)
 
-        Returns:
-            A string representation of the storage location.
-        """
-        return f"<Storage id={self.id}, name='{self.name}', type={self.type.name}>"
-
-    def occupancy_percentage(self) -> float:
-        """
-        Calculate the occupancy percentage of the storage.
-
-        Returns:
-            The occupancy percentage (0-100).
-        """
-        if self.capacity <= 0:
-            return 0.0
-        return (self.current_occupancy / self.capacity) * 100
-
-    def is_full(self) -> bool:
-        """
-        Check if the storage is full.
-
-        Returns:
-            True if the storage is full, False otherwise.
-        """
-        return self.current_occupancy >= self.capacity
-
-    def is_empty(self) -> bool:
-        """
-        Check if the storage is empty.
-
-        Returns:
-            True if the storage is empty, False otherwise.
-        """
-        return self.current_occupancy <= 0
-
-    def available_capacity(self) -> float:
-        """
-        Calculate the available capacity.
-
-        Returns:
-            The available capacity.
-        """
-        return max(0, self.capacity - self.current_occupancy)
-
-    def can_store(self, required_capacity: float) -> bool:
-        """
-        Check if the storage can accommodate the required capacity.
+    @classmethod
+    def _validate_creation(cls, data):
+        """Validate storage data before creation.
 
         Args:
-            required_capacity: The capacity required.
+            data (dict): The data to validate
+
+        Raises:
+            ValueError: If validation fails
+        """
+        validate_not_empty(data, 'name', 'Storage name is required')
+        validate_not_empty(data, 'location_type', 'Storage location type is required')
+
+    def mark_as_full(self, is_full=True):
+        """Mark the storage location as full or not full.
+
+        Args:
+            is_full (bool): Whether the storage location is full
+        """
+        self.is_full = is_full
+
+    def check_capacity(self, new_items_count=0):
+        """Check if the storage location has capacity for new items.
+
+        Args:
+            new_items_count (int): Number of new items to check capacity for
 
         Returns:
-            True if the storage can accommodate the required capacity, False otherwise.
+            bool: True if there is capacity, False otherwise
         """
-        return self.available_capacity() >= required_capacity
+        if self.capacity is None:
+            return True
+
+        current_count = 0
+        if self.leathers:
+            current_count += len(self.leathers)
+        if self.hardware:
+            current_count += len(self.hardware)
+        if self.materials:
+            current_count += len(self.materials)
+        if self.products:
+            current_count += len(self.products)
+
+        return (current_count + new_items_count) <= self.capacity
+
+    def __repr__(self):
+        """String representation of the storage location.
+
+        Returns:
+            str: String representation
+        """
+        return f"<Storage(id={self.id}, name='{self.name}', type={self.location_type})>"

@@ -1,106 +1,102 @@
 # database/models/part.py
-"""
-Part model module for the leatherworking store management system.
-
-Defines the Part class for tracking non-leather inventory components.
-"""
-
-import datetime
-from typing import Dict, Any, Optional
-
-from sqlalchemy import (
-    Column, String, Integer, Float, ForeignKey, Enum, Boolean,
-    DateTime, Text
-)
-from sqlalchemy.orm import relationship
-
-from database.models.base import Base, BaseModel
+from database.models.base import Base
 from database.models.enums import InventoryStatus
+from sqlalchemy import Column, Enum, String, Text, Float, Integer, ForeignKey, Boolean
+from sqlalchemy.orm import relationship
+from utils.validators import validate_not_empty, validate_positive_number
 
 
-class Part(Base, BaseModel):
+class Part(Base):
     """
-    Model for hardware parts and small items used in leatherworking.
-
-    This model represents non-leather components like buckles, rivets,
-    snaps, zippers, etc. that are tracked by count rather than area.
+    Model representing individual parts used in leatherworking projects.
     """
-    __tablename__ = 'part'
-
-    name = Column(String(255), nullable=False)
+    # Part specific fields
+    name = Column(String(255), nullable=False, index=True)
+    part_number = Column(String(50), nullable=True, unique=True)
     description = Column(Text, nullable=True)
-    part_number = Column(String(50), unique=True, nullable=True)
 
-    # Inventory tracking
-    current_quantity = Column(Float, default=0.0, nullable=False)
-    minimum_quantity = Column(Float, default=1.0, nullable=False)
-    unit_cost = Column(Float, default=0.0, nullable=False)
-    status = Column(Enum(InventoryStatus), default=InventoryStatus.IN_STOCK)
+    dimensions = Column(String(100), nullable=True)  # Format: "LxWxH"
+    weight = Column(Float, nullable=True)
 
-    # Supplier relationship
-    supplier_id = Column(Integer, ForeignKey('supplier.id'), nullable=True)
+    quantity = Column(Integer, default=0, nullable=False)
+    min_quantity = Column(Integer, default=0, nullable=False)
+
+    cost = Column(Float, default=0.0, nullable=False)
+    msrp = Column(Float, default=0.0, nullable=False)
+
+    status = Column(Enum(InventoryStatus), default=InventoryStatus.IN_STOCK, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+
+    # Foreign keys
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=True)
+    supplier_id = Column(Integer, ForeignKey("suppliers.id"), nullable=True)
+    storage_id = Column(Integer, ForeignKey("storage.id"), nullable=True)
+
+    # Relationships
+    product = relationship("Product", back_populates="parts")
     supplier = relationship("Supplier", back_populates="parts")
+    storage = relationship("Storage", back_populates="parts")
 
-    # Related components
-    components = relationship("ProjectComponent", back_populates="part")
-
-    def __repr__(self) -> str:
-        """
-        Return a string representation of the part.
-
-        Returns:
-            str: String representation with id, name, and type
-        """
-        return f"<Part id={self.id}, name='{self.name}'>"
-
-    def is_low_stock(self) -> bool:
-        """
-        Check if the part is low in stock.
-
-        Returns:
-            bool: True if the quantity is below the minimum stock level
-        """
-        return self.current_quantity < self.minimum_quantity
-
-    def is_out_of_stock(self) -> bool:
-        """
-        Check if the part is out of stock.
-
-        Returns:
-            bool: True if the quantity is zero
-        """
-        return self.current_quantity <= 0
-
-    def update_stock(self, quantity_change: float) -> None:
-        """
-        Update the stock quantity.
+    def __init__(self, **kwargs):
+        """Initialize a Part instance with validation.
 
         Args:
-            quantity_change: Amount to change the quantity by (positive or negative)
+            **kwargs: Keyword arguments with part attributes
+
+        Raises:
+            ValueError: If validation fails for any field
         """
-        new_quantity = self.current_quantity + quantity_change
+        self._validate_creation(kwargs)
+        super().__init__(**kwargs)
+
+    @classmethod
+    def _validate_creation(cls, data):
+        """Validate part data before creation.
+
+        Args:
+            data (dict): The data to validate
+
+        Raises:
+            ValueError: If validation fails
+        """
+        validate_not_empty(data, 'name', 'Part name is required')
+
+        if 'quantity' in data:
+            validate_positive_number(data, 'quantity', allow_zero=True)
+        if 'min_quantity' in data:
+            validate_positive_number(data, 'min_quantity', allow_zero=True)
+        if 'cost' in data:
+            validate_positive_number(data, 'cost', allow_zero=True)
+        if 'msrp' in data:
+            validate_positive_number(data, 'msrp', allow_zero=True)
+
+    def adjust_quantity(self, quantity_change):
+        """Adjust the part quantity.
+
+        Args:
+            quantity_change (int): The quantity to add (positive) or remove (negative)
+
+        Raises:
+            ValueError: If the resulting quantity would be negative
+        """
+        new_quantity = self.quantity + quantity_change
         if new_quantity < 0:
-            raise ValueError("Stock cannot be negative")
+            raise ValueError(f"Cannot adjust quantity to {new_quantity}. Current quantity is {self.quantity}.")
 
-        self.current_quantity = new_quantity
-        self._update_status()
+        self.quantity = new_quantity
 
-    def _update_status(self) -> None:
-        """Update the inventory status based on current quantity."""
-        if self.current_quantity <= 0:
+        # Update status
+        if self.quantity <= 0:
             self.status = InventoryStatus.OUT_OF_STOCK
-        elif self.current_quantity < self.minimum_quantity:
+        elif self.quantity <= self.min_quantity:
             self.status = InventoryStatus.LOW_STOCK
         else:
             self.status = InventoryStatus.IN_STOCK
 
-    def to_dict(self) -> Dict[str, Any]:
-        """
-        Convert the part to a dictionary.
+    def __repr__(self):
+        """String representation of the part.
 
         Returns:
-            Dict[str, Any]: Dictionary representation of the part
+            str: String representation
         """
-        result = super().to_dict()
-        result['supplier'] = self.supplier.name if self.supplier else None
-        return result
+        return f"<Part(id={self.id}, name='{self.name}', quantity={self.quantity}, status={self.status})>"

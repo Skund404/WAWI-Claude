@@ -1,86 +1,84 @@
-# Path: database/models/inventory.py
-"""
-Inventory Model for Leatherworking Store Management.
-
-Defines the database model for tracking inventory items.
-"""
-
-from sqlalchemy import Column, Integer, String, Float, DateTime, Enum
-from sqlalchemy.sql import func
-from database.models.base import Base, BaseModel
+# database/models/inventory.py
+from database.models.base import Base
 from database.models.enums import MaterialType, MeasurementUnit
-from database.models.mixins import TimestampMixin, TrackingMixin
+from sqlalchemy import Column, Enum, Float, String, Integer, ForeignKey
+from sqlalchemy.orm import relationship
 
 
-class Inventory(Base, BaseModel, TimestampMixin, TrackingMixin):
+class Inventory(Base):
     """
-    Represents an inventory item in the leatherworking store management system.
-
-    Attributes:
-        id (int): Unique identifier for the inventory item
-        material_type (MaterialType): Type of material
-        name (str): Name or description of the inventory item
-        quantity (float): Current quantity in stock
-        unit_of_measurement (MeasurementUnit): Unit for measuring the item
-        unit_price (float): Price per unit
-        location (str, optional): Storage location of the item
-        minimum_stock_level (float, optional): Minimum recommended stock level
-        last_adjusted_at (DateTime, optional): Timestamp of last stock adjustment
-        last_adjustment_reason (str, optional): Reason for last stock adjustment
+    Model representing the inventory system.
     """
-    __tablename__ = 'inventory'
+    # Inventory specific fields
+    item_name = Column(String(255), nullable=False, index=True)
+    item_type = Column(Enum(MaterialType), nullable=False)
 
-    # Basic item identification
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    material_type = Column(Enum(MaterialType), nullable=False)
-    name = Column(String(255), nullable=False)
+    quantity = Column(Float, default=0.0, nullable=False)
+    unit = Column(Enum(MeasurementUnit), nullable=False, default=MeasurementUnit.PIECE)
 
-    # Quantity and pricing
-    quantity = Column(Float, nullable=False, default=0.0)
-    unit_of_measurement = Column(Enum(MeasurementUnit), nullable=False)
-    unit_price = Column(Float, nullable=False, default=0.0)
+    reorder_point = Column(Float, default=0.0, nullable=False)
+    reorder_quantity = Column(Float, default=0.0, nullable=False)
 
-    # Optional tracking fields
-    location = Column(String(255), nullable=True)
-    minimum_stock_level = Column(Float, nullable=True)
+    # Foreign keys for item references
+    material_id = Column(Integer, ForeignKey("materials.id"), nullable=True)
+    leather_id = Column(Integer, ForeignKey("leathers.id"), nullable=True)
+    hardware_id = Column(Integer, ForeignKey("hardware.id"), nullable=True)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=True)
 
-    # Tracking stock adjustments
-    last_adjusted_at = Column(DateTime, nullable=True, onupdate=func.now())
-    last_adjustment_reason = Column(String(255), nullable=True)
+    # Location reference
+    storage_id = Column(Integer, ForeignKey("storage.id"), nullable=True)
+
+    # Relationships
+    material = relationship("Material", uselist=False, viewonly=True)
+    leather = relationship("Leather", uselist=False, viewonly=True)
+    hardware = relationship("Hardware", uselist=False, viewonly=True)
+    product = relationship("Product", uselist=False, viewonly=True)
+    storage = relationship("Storage", uselist=False)
+
+    def __init__(self, **kwargs):
+        """Initialize an Inventory instance with validation.
+
+        Args:
+            **kwargs: Keyword arguments with inventory attributes
+
+        Raises:
+            ValueError: If validation fails for any field
+        """
+        self._validate_creation(kwargs)
+        super().__init__(**kwargs)
+
+    @classmethod
+    def _validate_creation(cls, data):
+        """Validate inventory data before creation.
+
+        Args:
+            data (dict): The data to validate
+
+        Raises:
+            ValueError: If validation fails
+        """
+        if 'item_name' not in data or not data['item_name']:
+            raise ValueError("Item name is required")
+
+        if 'item_type' not in data:
+            raise ValueError("Item type is required")
+
+        # Ensure at least one item reference is provided
+        if not any(key in data for key in ['material_id', 'leather_id', 'hardware_id', 'product_id']):
+            raise ValueError("At least one of material_id, leather_id, hardware_id, or product_id must be specified")
+
+    def needs_reorder(self):
+        """Check if the inventory item needs to be reordered.
+
+        Returns:
+            bool: True if the quantity is below the reorder point
+        """
+        return self.quantity <= self.reorder_point
 
     def __repr__(self):
-        """
-        String representation of the Inventory item.
+        """String representation of the Inventory item.
 
         Returns:
             str: Descriptive string of the inventory item
         """
-        return (
-            f"<Inventory(id={self.id}, "
-            f"material_type={self.material_type}, "
-            f"name='{self.name}', "
-            f"quantity={self.quantity}, "
-            f"unit_price={self.unit_price})>"
-        )
-
-    def to_dict(self) -> dict:
-        """
-        Convert the Inventory item to a dictionary representation.
-
-        Returns:
-            dict: Dictionary representation of the inventory item
-        """
-        return {
-            'id': self.id,
-            'material_type': self.material_type.name if self.material_type else None,
-            'name': self.name,
-            'quantity': self.quantity,
-            'unit_of_measurement': self.unit_of_measurement.name if self.unit_of_measurement else None,
-            'unit_price': self.unit_price,
-            'location': self.location,
-            'minimum_stock_level': self.minimum_stock_level,
-            'last_adjusted_at': self.last_adjusted_at,
-            'last_adjustment_reason': self.last_adjustment_reason,
-            'created_at': self.created_at,
-            'updated_at': self.updated_at
-        }
+        return f"<Inventory(id={self.id}, name='{self.item_name}', type={self.item_type}, quantity={self.quantity})>"

@@ -11,12 +11,14 @@ from database.models.enums import OrderStatus
 from database.models.order import Order, OrderItem
 from database.models.product import Product
 from database.repositories.base_repository import BaseRepository
+from database.models.base import ModelValidationError
+from database.exceptions import DatabaseError, ModelNotFoundError, RepositoryError
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
 
 
-class OrderRepository(BaseRepository):
+class OrderRepository(BaseRepository[Order]):
     """
     Repository for Order model with enhanced querying capabilities.
 
@@ -96,7 +98,7 @@ class OrderRepository(BaseRepository):
 
         except SQLAlchemyError as e:
             self.logger.error(f"Database error in get_all_with_pagination: {str(e)}")
-            raise
+            raise RepositoryError(f"Failed to get orders with pagination: {str(e)}")
 
     def find_by(
             self,
@@ -112,6 +114,9 @@ class OrderRepository(BaseRepository):
 
         Returns:
             List of matching Order objects
+
+        Raises:
+            RepositoryError: If a database error occurs
         """
         try:
             self.logger.debug(f"Finding orders by filters: {filters}")
@@ -137,7 +142,7 @@ class OrderRepository(BaseRepository):
 
         except SQLAlchemyError as e:
             self.logger.error(f"Database error in find_by: {str(e)}")
-            raise
+            raise RepositoryError(f"Failed to find orders by filters: {str(e)}")
 
     def find_one_by(
             self,
@@ -153,6 +158,9 @@ class OrderRepository(BaseRepository):
 
         Returns:
             Matching Order object or None if not found
+
+        Raises:
+            RepositoryError: If a database error occurs
         """
         try:
             self.logger.debug(f"Finding one order by filters: {filters}")
@@ -182,7 +190,7 @@ class OrderRepository(BaseRepository):
 
         except SQLAlchemyError as e:
             self.logger.error(f"Database error in find_one_by: {str(e)}")
-            raise
+            raise RepositoryError(f"Failed to find order by filters: {str(e)}")
 
     def get_by_id(
             self,
@@ -200,6 +208,9 @@ class OrderRepository(BaseRepository):
 
         Returns:
             Order object or None if not found
+
+        Raises:
+            RepositoryError: If a database error occurs
         """
         try:
             self.logger.debug(
@@ -210,7 +221,7 @@ class OrderRepository(BaseRepository):
 
             # Filter out deleted orders if not explicitly included
             if not include_deleted:
-                query = query.where(Order.deleted == False)
+                query = query.where(Order.is_deleted == False)
 
             # Add eager loading for related entities if specified
             if include_related:
@@ -230,7 +241,7 @@ class OrderRepository(BaseRepository):
 
         except SQLAlchemyError as e:
             self.logger.error(f"Database error in get_by_id: {str(e)}")
-            raise
+            raise RepositoryError(f"Failed to get order by ID: {str(e)}")
 
     def get_by_order_number(self, order_number: str) -> Optional[Order]:
         """
@@ -241,6 +252,9 @@ class OrderRepository(BaseRepository):
 
         Returns:
             Order object or None if not found
+
+        Raises:
+            RepositoryError: If a database error occurs
         """
         try:
             self.logger.debug(f"Getting order by number: {order_number}")
@@ -249,7 +263,7 @@ class OrderRepository(BaseRepository):
             query = select(Order).where(
                 and_(
                     Order.order_number == order_number,
-                    Order.deleted == False
+                    Order.is_deleted == False
                 )
             ).options(
                 joinedload(Order.items),
@@ -267,7 +281,7 @@ class OrderRepository(BaseRepository):
 
         except SQLAlchemyError as e:
             self.logger.error(f"Database error in get_by_order_number: {str(e)}")
-            raise
+            raise RepositoryError(f"Failed to get order by number: {str(e)}")
 
     def get_by_customer(self, customer_name: str) -> List[Order]:
         """
@@ -278,6 +292,9 @@ class OrderRepository(BaseRepository):
 
         Returns:
             List of matching Order objects
+
+        Raises:
+            RepositoryError: If a database error occurs
         """
         try:
             self.logger.debug(f"Getting orders by customer name: {customer_name}")
@@ -286,7 +303,7 @@ class OrderRepository(BaseRepository):
             query = select(Order).where(
                 and_(
                     Order.customer_name.ilike(f"%{customer_name}%"),
-                    Order.deleted == False
+                    Order.is_deleted == False
                 )
             ).options(joinedload(Order.items))
 
@@ -297,7 +314,7 @@ class OrderRepository(BaseRepository):
 
         except SQLAlchemyError as e:
             self.logger.error(f"Database error in get_by_customer: {str(e)}")
-            raise
+            raise RepositoryError(f"Failed to get orders by customer: {str(e)}")
 
     def get_by_status(self, status: OrderStatus) -> List[Order]:
         """
@@ -308,6 +325,9 @@ class OrderRepository(BaseRepository):
 
         Returns:
             List of matching Order objects
+
+        Raises:
+            RepositoryError: If a database error occurs
         """
         try:
             self.logger.debug(f"Getting orders by status: {status}")
@@ -316,7 +336,7 @@ class OrderRepository(BaseRepository):
             query = select(Order).where(
                 and_(
                     Order.status == status,
-                    Order.deleted == False
+                    Order.is_deleted == False
                 )
             ).options(joinedload(Order.items))
 
@@ -327,7 +347,7 @@ class OrderRepository(BaseRepository):
 
         except SQLAlchemyError as e:
             self.logger.error(f"Database error in get_by_status: {str(e)}")
-            raise
+            raise RepositoryError(f"Failed to get orders by status: {str(e)}")
 
     def get_by_date_range(self, start_date: datetime, end_date: datetime) -> List[Order]:
         """
@@ -339,6 +359,9 @@ class OrderRepository(BaseRepository):
 
         Returns:
             List of matching Order objects
+
+        Raises:
+            RepositoryError: If a database error occurs
         """
         try:
             self.logger.debug(f"Getting orders by date range: {start_date} to {end_date}")
@@ -348,7 +371,7 @@ class OrderRepository(BaseRepository):
                 and_(
                     Order.order_date >= start_date,
                     Order.order_date <= end_date,
-                    Order.deleted == False
+                    Order.is_deleted == False
                 )
             ).options(joinedload(Order.items))
 
@@ -359,7 +382,7 @@ class OrderRepository(BaseRepository):
 
         except SQLAlchemyError as e:
             self.logger.error(f"Database error in get_by_date_range: {str(e)}")
-            raise
+            raise RepositoryError(f"Failed to get orders by date range: {str(e)}")
 
     def get_top_products(
             self,
@@ -377,6 +400,9 @@ class OrderRepository(BaseRepository):
 
         Returns:
             List of dictionaries with product info and quantity sold
+
+        Raises:
+            RepositoryError: If a database error occurs
         """
         try:
             self.logger.debug(f"Getting top products for period: {start_date} to {end_date}, limit={limit}")
@@ -395,7 +421,7 @@ class OrderRepository(BaseRepository):
                     OrderItem.order_id == Order.id,
                     Order.order_date >= start_date,
                     Order.order_date <= end_date,
-                    Order.deleted == False
+                    Order.is_deleted == False
                 ))
                 .group_by(Product.id, Product.name, Product.sku)
                 .order_by(func.sum(OrderItem.quantity).desc())
@@ -421,7 +447,7 @@ class OrderRepository(BaseRepository):
 
         except SQLAlchemyError as e:
             self.logger.error(f"Database error in get_top_products: {str(e)}")
-            raise
+            raise RepositoryError(f"Failed to get top products: {str(e)}")
 
     def get_revenue_by_period(
             self,
@@ -439,6 +465,9 @@ class OrderRepository(BaseRepository):
 
         Returns:
             List of dictionaries with period and revenue
+
+        Raises:
+            RepositoryError: If a database error occurs
         """
         try:
             self.logger.debug(f"Getting revenue by period: {start_date} to {end_date}, group_by={group_by}")
@@ -458,13 +487,13 @@ class OrderRepository(BaseRepository):
             query = (
                 select(
                     date_group.label("period"),
-                    func.sum(Order.total_amount).label("revenue")
+                    func.sum(Order.total).label("revenue")
                 )
                 .where(
                     and_(
                         Order.order_date >= start_date,
                         Order.order_date <= end_date,
-                        Order.deleted == False
+                        Order.is_deleted == False
                     )
                 )
                 .group_by(date_group)
@@ -487,7 +516,7 @@ class OrderRepository(BaseRepository):
 
         except SQLAlchemyError as e:
             self.logger.error(f"Database error in get_revenue_by_period: {str(e)}")
-            raise
+            raise RepositoryError(f"Failed to get revenue by period: {str(e)}")
 
     def add(self, order: Order) -> Order:
         """
@@ -498,6 +527,9 @@ class OrderRepository(BaseRepository):
 
         Returns:
             Added Order object
+
+        Raises:
+            RepositoryError: If a database error occurs
         """
         try:
             self.logger.debug(f"Adding new order: {order}")
@@ -510,7 +542,7 @@ class OrderRepository(BaseRepository):
 
         except SQLAlchemyError as e:
             self.logger.error(f"Database error in add: {str(e)}")
-            raise
+            raise RepositoryError(f"Failed to add order: {str(e)}")
 
     def update(self, order: Order) -> Order:
         """
@@ -521,6 +553,9 @@ class OrderRepository(BaseRepository):
 
         Returns:
             Updated Order object
+
+        Raises:
+            RepositoryError: If a database error occurs
         """
         try:
             self.logger.debug(f"Updating order: {order}")
@@ -533,7 +568,7 @@ class OrderRepository(BaseRepository):
 
         except SQLAlchemyError as e:
             self.logger.error(f"Database error in update: {str(e)}")
-            raise
+            raise RepositoryError(f"Failed to update order: {str(e)}")
 
     def delete(self, order: Order) -> None:
         """
@@ -543,6 +578,9 @@ class OrderRepository(BaseRepository):
 
         Args:
             order: Order object to delete
+
+        Raises:
+            RepositoryError: If a database error occurs
         """
         try:
             self.logger.debug(f"Deleting order: {order}")
@@ -552,11 +590,14 @@ class OrderRepository(BaseRepository):
 
         except SQLAlchemyError as e:
             self.logger.error(f"Database error in delete: {str(e)}")
-            raise
+            raise RepositoryError(f"Failed to delete order: {str(e)}")
 
     def commit(self) -> None:
         """
         Commit the current transaction.
+
+        Raises:
+            RepositoryError: If a database error occurs
         """
         try:
             self.logger.debug("Committing transaction")
@@ -567,11 +608,14 @@ class OrderRepository(BaseRepository):
         except SQLAlchemyError as e:
             self.logger.error(f"Database error in commit: {str(e)}")
             self.rollback()
-            raise
+            raise RepositoryError(f"Failed to commit transaction: {str(e)}")
 
     def rollback(self) -> None:
         """
         Roll back the current transaction.
+
+        Raises:
+            RepositoryError: If a database error occurs
         """
         try:
             self.logger.debug("Rolling back transaction")
@@ -581,4 +625,4 @@ class OrderRepository(BaseRepository):
 
         except SQLAlchemyError as e:
             self.logger.error(f"Database error in rollback: {str(e)}")
-            raise
+            raise RepositoryError(f"Failed to rollback transaction: {str(e)}")

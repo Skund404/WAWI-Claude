@@ -3,11 +3,12 @@ import abc
 import logging
 from typing import Any, Dict, Generic, List, Optional, TypeVar
 
+# Define a generic type variable for models
 T = TypeVar('T')
 
 
 class BaseApplicationException(Exception):
-    """Base exception class for application errors with context support."""
+    """Base class for all application exceptions."""
 
     def __init__(self, message: str, context: Optional[Dict[str, Any]] = None):
         """Initialize with message and context.
@@ -22,82 +23,67 @@ class BaseApplicationException(Exception):
 
 
 class NotFoundError(BaseApplicationException):
-    """Exception raised when an entity or resource is not found."""
+    """Exception raised when a requested resource is not found."""
     pass
 
 
 class ValidationError(BaseApplicationException):
-    """Exception raised when data validation fails."""
+    """Exception raised when input validation fails."""
+    pass
+
+
+class ServiceError(BaseApplicationException):
+    """Exception raised when a service operation fails."""
     pass
 
 
 class IBaseService(abc.ABC):
-    """Interface for base service operations."""
-
-    def validate_data(self, data: Dict[str, Any], required_fields: Optional[List[str]] = None) -> None:
-        """Validate input data against requirements.
-
-        Args:
-            data: Data to validate
-            required_fields: List of required field names
-
-        Raises:
-            ValidationError: If validation fails
-        """
-        # Check required fields
-        if required_fields:
-            missing_fields = [field for field in required_fields if field not in data]
-            if missing_fields:
-                raise ValidationError(
-                    f"Missing required fields: {', '.join(missing_fields)}",
-                    {"missing_fields": missing_fields}
-                )
-
-    def log_operation(self, operation: str, details: Optional[Dict[str, Any]] = None) -> None:
-        """Log a service operation with details.
-
-        Args:
-            operation: Description of the operation
-            details: Additional details about the operation
-        """
-        self.logger.info(f"{operation}: {details or {} }")
+    """Interface for base service functionality."""
+    pass
 
 
 class BaseService(Generic[T]):
-    """Base service implementation with common functionality."""
+    """
+    Base service implementation with common functionality.
+
+    This class provides common service methods and error handling patterns
+    to be used across all services.
+    """
 
     def __init__(self):
         """Initialize the base service with logging."""
         self.logger = logging.getLogger(self.__class__.__name__)
 
-    def validate_data(self, data: Dict[str, Any], required_fields: Optional[List[str]] = None) -> None:
-        """Validate input data against requirements.
+    def validate_input(self, data: Dict[str, Any], required_fields: List[str]) -> None:
+        """Validate that required fields are present in the input data.
 
         Args:
-            data: Data to validate
+            data: Input data to validate
             required_fields: List of required field names
 
         Raises:
-            ValidationError: If validation fails
+            ValidationError: If any required field is missing
         """
-        # Check required fields
-        if required_fields:
-            missing_fields = [field for field in required_fields if field not in data]
-            if missing_fields:
-                raise ValidationError(
-                    f"Missing required fields: {', '.join(missing_fields)}",
-                    {"missing_fields": missing_fields}
-                )
+        missing_fields = [field for field in required_fields if field not in data]
+        if missing_fields:
+            raise ValidationError(f"Missing required fields: {', '.join(missing_fields)}")
 
-    def log_operation(self, operation: str, details: Optional[Dict[str, Any]] = None) -> None:
-        """Log a service operation with details.
+    def to_dict(self, model: T, include_relationships: bool = False) -> Dict[str, Any]:
+        """Convert a model instance to a dictionary.
 
         Args:
-            operation: Description of the operation
-            details: Additional details about the operation
+            model: The model instance to convert
+            include_relationships: Whether to include related models
+
+        Returns:
+            Dictionary representation of the model
         """
-        self.logger.info(f"{operation}: {details or {} }")
+        # Use the model's to_dict method if available
+        if hasattr(model, 'to_dict') and callable(getattr(model, 'to_dict')):
+            return model.to_dict(include_relationships=include_relationships)
 
-
-# Add this for backwards compatibility
-Service = BaseService
+        # Fallback to manual conversion
+        result = {}
+        for column in model.__table__.columns:
+            result[column.name] = getattr(model, column.name)
+        return result

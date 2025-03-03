@@ -1,149 +1,144 @@
 # database/models/product.py
-from sqlalchemy import Column, String, Float, Boolean, DateTime, ForeignKey, Text
+from database.models.base import Base
+from sqlalchemy import Column, String, Text, Float, Boolean, Integer, ForeignKey, JSON
 from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
-from uuid import uuid4
-
-from database.models.base import Base, BaseModel
-from database.models.enums import MaterialType
-from database.models.mixins import TimestampMixin, ValidationMixin, CostingMixin, TrackingMixin
-from database.models.base import ModelValidationError
-
-import logging
-import re
+from utils.validators import validate_not_empty, validate_positive_number
 import uuid
 
 
-class Product(Base, BaseModel, TimestampMixin, ValidationMixin, CostingMixin, TrackingMixin):
+class Product(Base):
     """
-    Represents a product in the leatherworking inventory system.
-
-    Attributes:
-        name (str): Name of the product
-        description (str): Detailed description of the product
-        sku (str): Unique Stock Keeping Unit identifier
-        material_type (MaterialType): Type of primary material used
-        unit_cost (float): Cost to produce the product
-        sale_price (float): Selling price of the product
-        is_active (bool): Whether the product is currently available
-        supplier_id (int): Reference to the supplier of the product
-
-    Validation Rules:
-        - Name must be non-empty and between 2-100 characters
-        - SKU must follow a specific format
-        - Prices must be non-negative
-        - Material type must be a valid enum value
+    Model representing products sold in leatherworking business.
     """
-    __tablename__ = 'products'
-
-    # Basic product information
-    name = Column(String(100), nullable=False)
+    # Product specific fields
+    name = Column(String(255), nullable=False, index=True)
     description = Column(Text, nullable=True)
-    sku = Column(String(50), unique=True, nullable=False)
-    material_type = Column(MaterialType, nullable=False)
+    sku = Column(String(50), nullable=True, unique=True)
 
-    # Pricing and cost tracking
-    unit_cost = Column(Float, nullable=False, default=0.0)
-    sale_price = Column(Float, nullable=False, default=0.0)
-    is_active = Column(Boolean, default=True)
+    category = Column(String(100), nullable=True)
+    tags = Column(String(255), nullable=True)  # Comma-separated tags
+
+    price = Column(Float, default=0.0, nullable=False)
+    cost = Column(Float, default=0.0, nullable=False)
+
+    stock_quantity = Column(Integer, default=0, nullable=False)
+    min_stock_quantity = Column(Integer, default=0, nullable=False)
+
+    weight = Column(Float, nullable=True)
+    dimensions = Column(String(100), nullable=True)  # Format: "LxWxH"
+
+    is_active = Column(Boolean, default=True, nullable=False)
+    is_featured = Column(Boolean, default=False, nullable=False)
+
+    metadata = Column(JSON, nullable=True)
+
+    # Foreign keys
+    pattern_id = Column(Integer, ForeignKey("patterns.id"), nullable=True)
+    supplier_id = Column(Integer, ForeignKey("suppliers.id"), nullable=True)
+    storage_id = Column(Integer, ForeignKey("storage.id"), nullable=True)
 
     # Relationships
-    supplier_id = Column(Integer, ForeignKey('suppliers.id'), nullable=True)
-    supplier = relationship('Supplier', back_populates='products')
+    pattern = relationship("Pattern", back_populates="products")
+    supplier = relationship("Supplier", back_populates="products")
+    storage = relationship("Storage", back_populates="products")
+    order_items = relationship("OrderItem", back_populates="product")
+    parts = relationship("Part", back_populates="product")
+    production_records = relationship("Production", back_populates="product")
+    sales = relationship("Sales", back_populates="product")
 
     def __init__(self, **kwargs):
-        """
-        Initialize a Product instance with validation.
+        """Initialize a Product instance with validation.
 
         Args:
             **kwargs: Keyword arguments for product attributes
 
         Raises:
-            ModelValidationError: If validation fails for any attribute
+            ValueError: If validation fails for any attribute
         """
-        super().__init__(**kwargs)
-        self.validate()
+        # Generate SKU if not provided
+        if 'sku' not in kwargs and 'name' in kwargs:
+            kwargs['sku'] = self._generate_sku(kwargs['name'])
 
-    def validate(self):
-        """
-        Validate product attributes before saving.
+        self._validate_creation(kwargs)
+        super().__init__(**kwargs)
+
+    @classmethod
+    def _validate_creation(cls, data):
+        """Validate product attributes before saving.
 
         Raises:
-            ModelValidationError: If any validation check fails
+            ValueError: If any validation check fails
         """
-        # Validate name
-        if not self.name or len(self.name) < 2 or len(self.name) > 100:
-            raise ModelValidationError(
-                "Product name must be between 2 and 100 characters",
-                {"name": self.name}
-            )
+        validate_not_empty(data, 'name', 'Product name is required')
 
-        # Validate SKU format (example: LTH-PRD-XXXX)
-        if not re.match(r'^[A-Z]{3}-[A-Z]{3}-\d{4}$', self.sku):
-            raise ModelValidationError(
-                "SKU must follow format LTH-PRD-XXXX",
-                {"sku": self.sku}
-            )
+        if 'price' in data:
+            validate_positive_number(data, 'price', allow_zero=True)
+        if 'cost' in data:
+            validate_positive_number(data, 'cost', allow_zero=True)
+        if 'stock_quantity' in data:
+            validate_positive_number(data, 'stock_quantity', allow_zero=True)
+        if 'min_stock_quantity' in data:
+            validate_positive_number(data, 'min_stock_quantity', allow_zero=True)
 
-        # Validate pricing
-        if self.unit_cost < 0 or self.sale_price < 0:
-            raise ModelValidationError(
-                "Prices cannot be negative",
-                {"unit_cost": self.unit_cost, "sale_price": self.sale_price}
-            )
-
-        # Validate material type
-        if not isinstance(self.material_type, MaterialType):
-            raise ModelValidationError(
-                "Invalid material type",
-                {"material_type": self.material_type}
-            )
-
-    def update(self, **kwargs):
-        """
-        Update product attributes with validation.
+    def _generate_sku(self, name):
+        """Generate a SKU for the product based on name.
 
         Args:
-            **kwargs: Keyword arguments with product attributes to update
+            name (str): Product name
 
         Returns:
-            Product: Updated product instance
+            str: Generated SKU
+        """
+        # Take first 3 letters of name (uppercase) + 8 chars of a UUID
+        name_part = ''.join(c for c in name if c.isalnum())[:3].upper()
+        uuid_part = str(uuid.uuid4()).replace('-', '')[:8].upper()
+        return f"{name_part}-{uuid_part}"
+
+    def adjust_stock(self, quantity_change):
+        """Adjust the stock quantity.
+
+        Args:
+            quantity_change (int): The quantity to add (positive) or remove (negative)
 
         Raises:
-            ModelValidationError: If validation fails for any field
+            ValueError: If the resulting quantity would be negative
         """
-        for key, value in kwargs.items():
-            setattr(self, key, value)
+        new_quantity = self.stock_quantity + quantity_change
+        if new_quantity < 0:
+            raise ValueError(f"Cannot adjust stock to {new_quantity}. Current stock is {self.stock_quantity}.")
 
-        self.validate()
-        return self
+        self.stock_quantity = new_quantity
+
+    def calculate_profit_margin(self):
+        """Calculate the product's profit margin.
+
+        Returns:
+            float: Profit margin as a percentage, or None if price is zero
+        """
+        if self.price > 0:
+            return ((self.price - self.cost) / self.price) * 100
+        return None
+
+    def needs_restock(self):
+        """Check if the product needs to be restocked.
+
+        Returns:
+            bool: True if the stock quantity is below the minimum stock quantity
+        """
+        return self.stock_quantity <= self.min_stock_quantity
 
     def soft_delete(self):
-        """
-        Soft delete the product by marking it as inactive.
-        """
+        """Soft delete the product by marking it as inactive."""
         self.is_active = False
-        logging.info(f"Product {self.id} soft deleted", extra={
-            "product_id": self.id,
-            "product_name": self.name
-        })
 
     def restore(self):
-        """
-        Restore a soft-deleted product.
-        """
+        """Restore a soft-deleted product."""
         self.is_active = True
-        logging.info(f"Product {self.id} restored", extra={
-            "product_id": self.id,
-            "product_name": self.name
-        })
 
     def __repr__(self):
-        """
-        String representation of the product.
+        """String representation of the product.
 
         Returns:
             str: Descriptive string of the product
         """
-        return (f"<Product(id={self.id}, name='{self.name}', "
-                f"sku='{self.sku}', material_type={self.material_type})>")
+        return f"<Product(id={self.id}, name='{self.name}', sku='{self.sku}', stock={self.stock_quantity})>"

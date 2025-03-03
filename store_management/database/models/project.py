@@ -1,172 +1,156 @@
 # database/models/project.py
-from sqlalchemy import Column, String, Float, DateTime, Boolean, Enum, ForeignKey, Text, JSON
+from database.models.base import Base
+from database.models.enums import ProjectStatus, ProjectType, SkillLevel
+from sqlalchemy import Column, DateTime, Enum, Float, ForeignKey, Integer, JSON, String, Text, Boolean
 from sqlalchemy.orm import relationship
-from database.models.base import Base, BaseModel
-from database.models.base import ModelValidationError
-from database.models.enums import ProjectType, ProjectStatus, SkillLevel
-from database.models.mixins import TimestampMixin, ValidationMixin, CostingMixin, TrackingMixin
 from datetime import datetime
-import uuid
-import logging
-
-logger = logging.getLogger(__name__)
 
 
-class Project(Base, BaseModel, TimestampMixin, ValidationMixin, CostingMixin, TrackingMixin):
+class Project(Base):
     """
-    Represents a leatherworking project with comprehensive tracking and validation.
-
-    Attributes:
-        id (str): Unique identifier for the project
-        name (str): Project name
-        description (str): Detailed project description
-        project_type (ProjectType): Type of project (e.g., BAG, WALLET)
-        skill_level (SkillLevel): Skill level required for the project
-        status (ProjectStatus): Current status of the project
-        start_date (datetime): Project start date
-        end_date (datetime): Project completion date
-        estimated_hours (float): Estimated project duration
-        actual_hours (float): Actual project duration
-        is_completed (bool): Whether the project is completed
-        metadata (dict): Additional project metadata
+    Model representing a leatherworking project.
     """
-    __tablename__ = 'projects'
-
-    name = Column(String(255), nullable=False)
+    # Project specific fields
+    name = Column(String(255), nullable=False, index=True)
     description = Column(Text, nullable=True)
-    project_type = Column(Enum(ProjectType), nullable=False)
-    skill_level = Column(Enum(SkillLevel), nullable=False)
-    status = Column(Enum(ProjectStatus), nullable=False, default=ProjectStatus.PLANNING)
 
-    start_date = Column(DateTime, default=datetime.utcnow)
-    end_date = Column(DateTime, nullable=True)
+    project_type = Column(Enum(ProjectType), nullable=False)
+    skill_level = Column(Enum(SkillLevel), nullable=True)
+    status = Column(Enum(ProjectStatus), default=ProjectStatus.NEW, nullable=False)
+
+    start_date = Column(DateTime, nullable=True)
+    due_date = Column(DateTime, nullable=True)
+    completion_date = Column(DateTime, nullable=True)
 
     estimated_hours = Column(Float, nullable=True)
     actual_hours = Column(Float, nullable=True)
-    is_completed = Column(Boolean, default=False)
 
+    material_cost = Column(Float, default=0.0)
+    labor_cost = Column(Float, default=0.0)
+    overhead_cost = Column(Float, default=0.0)
+    total_cost = Column(Float, default=0.0)
+
+    notes = Column(Text, nullable=True)
     metadata = Column(JSON, nullable=True)
 
     # Relationships
-    components = relationship('ProjectComponent', back_populates='project', cascade='all, delete-orphan')
-    materials = relationship('Material', secondary='project_materials', back_populates='projects')
+    components = relationship("ProjectComponent", back_populates="project", cascade="all, delete-orphan")
+
+    # Foreign keys
+    pattern_id = Column(Integer, ForeignKey("patterns.id"), nullable=True)
+    pattern = relationship("Pattern", back_populates="projects")
 
     def __init__(self, **kwargs):
-        """
-        Initialize a Project instance with validation.
+        """Initialize a Project instance with validation.
 
         Args:
             **kwargs: Keyword arguments for project attributes
 
         Raises:
-            ModelValidationError: If validation fails
+            ValueError: If validation fails
         """
-        try:
-            super().__init__(**kwargs)
-            self.validate()
-        except Exception as e:
-            logger.error(f"Project initialization error: {str(e)}")
-            raise ModelValidationError(f"Invalid project data: {str(e)}")
+        self._validate_creation(kwargs)
+        super().__init__(**kwargs)
 
-    def validate(self):
-        """
-        Validate project attributes.
+        # Set start date if not provided
+        if 'start_date' not in kwargs and self.status not in [ProjectStatus.NEW, ProjectStatus.PLANNING]:
+            self.start_date = datetime.utcnow()
+
+    @classmethod
+    def _validate_creation(cls, data):
+        """Validate project attributes.
 
         Raises:
-            ModelValidationError: If any validation fails
+            ValueError: If any validation fails
         """
-        if not self.name or len(self.name) < 2:
-            raise ModelValidationError("Project name must be at least 2 characters long")
+        if 'name' not in data or not data['name']:
+            raise ValueError("Project name is required")
 
-        if self.start_date and self.end_date and self.start_date > self.end_date:
-            raise ModelValidationError("Start date cannot be after end date")
-
-        if self.estimated_hours is not None and self.estimated_hours < 0:
-            raise ModelValidationError("Estimated hours cannot be negative")
-
-        if self.actual_hours is not None and self.actual_hours < 0:
-            raise ModelValidationError("Actual hours cannot be negative")
+        if 'project_type' not in data:
+            raise ValueError("Project type is required")
 
     def update_status(self, new_status: ProjectStatus):
-        """
-        Update project status with logging.
+        """Update project status with logging.
 
         Args:
             new_status (ProjectStatus): New status to set
         """
         old_status = self.status
         self.status = new_status
-        logger.info(f"Project {self.id} status changed from {old_status} to {new_status}")
+
+        # Update related timestamps
+        if new_status == ProjectStatus.COMPLETED:
+            self.completion_date = datetime.utcnow()
+        elif old_status == ProjectStatus.NEW and new_status != ProjectStatus.NEW:
+            if not self.start_date:
+                self.start_date = datetime.utcnow()
 
     def complete(self):
-        """
-        Mark the project as completed.
-        """
-        if not self.is_completed:
-            self.is_completed = True
-            self.end_date = datetime.utcnow()
-            self.update_status(ProjectStatus.COMPLETED)
-            logger.info(f"Project {self.id} marked as completed")
+        """Mark the project as completed."""
+        self.update_status(ProjectStatus.COMPLETED)
+        self.completion_date = datetime.utcnow()
 
-    def __repr__(self):
-        """
-        String representation of the Project.
-
-        Returns:
-            str: Project details
-        """
-        return (f"<Project(id={self.id}, name='{self.name}', "
-                f"type={self.project_type}, status={self.status})>")
+    def calculate_total_cost(self):
+        """Calculate and update the total cost of the project."""
+        self.total_cost = self.material_cost + self.labor_cost + self.overhead_cost
+        return self.total_cost
 
 
-class ProjectComponent(Base, BaseModel, TimestampMixin):
+class ProjectComponent(Base):
     """
-    Represents a component within a project.
-
-    Attributes:
-        project_id (str): ID of the parent project
-        name (str): Component name
-        description (str): Component description
-        quantity (float): Quantity of the component
-        material_id (str): ID of the associated material
+    Model representing a component of a project.
     """
-    __tablename__ = 'project_components'
-
-    project_id = Column(String, ForeignKey('projects.id'), nullable=False)
+    # ProjectComponent specific fields
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
-    quantity = Column(Float, nullable=False, default=1.0)
-    material_id = Column(String, ForeignKey('materials.id'), nullable=True)
 
-    project = relationship('Project', back_populates='components')
-    material = relationship('Material')
+    quantity = Column(Float, default=1.0, nullable=False)
+    unit_cost = Column(Float, default=0.0, nullable=False)
+    total_cost = Column(Float, default=0.0, nullable=False)
+
+    is_completed = Column(Boolean, default=False, nullable=False)
+
+    # Foreign keys
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
+    material_id = Column(Integer, ForeignKey("materials.id"), nullable=True)
+    leather_id = Column(Integer, ForeignKey("leathers.id"), nullable=True)
+    hardware_id = Column(Integer, ForeignKey("hardware.id"), nullable=True)
+
+    # Relationships
+    project = relationship("Project", back_populates="components")
+    material = relationship("Material", back_populates="project_components")
+    leather = relationship("Leather", back_populates="project_components")
+    hardware = relationship("Hardware", back_populates="project_components")
 
     def __init__(self, **kwargs):
-        """
-        Initialize a ProjectComponent with validation.
+        """Initialize a ProjectComponent with validation.
 
         Args:
             **kwargs: Keyword arguments for component attributes
 
         Raises:
-            ModelValidationError: If validation fails
+            ValueError: If validation fails
         """
-        try:
-            super().__init__(**kwargs)
-            self.validate()
-        except Exception as e:
-            logger.error(f"Project component initialization error: {str(e)}")
-            raise ModelValidationError(f"Invalid project component data: {str(e)}")
+        self._validate_creation(kwargs)
+        super().__init__(**kwargs)
 
-    def validate(self):
-        """
-        Validate project component attributes.
+        # Calculate total cost if not provided
+        if 'total_cost' not in kwargs and 'unit_cost' in kwargs and 'quantity' in kwargs:
+            self.total_cost = self.quantity * self.unit_cost
+
+    @classmethod
+    def _validate_creation(cls, data):
+        """Validate project component attributes.
 
         Raises:
-            ModelValidationError: If any validation fails
+            ValueError: If any validation fails
         """
-        if not self.name or len(self.name) < 2:
-            raise ModelValidationError("Component name must be at least 2 characters long")
+        if 'name' not in data or not data['name']:
+            raise ValueError("Component name is required")
 
-        if self.quantity <= 0:
-            raise ModelValidationError("Component quantity must be positive")
+        if 'project_id' not in data:
+            raise ValueError("Project ID is required")
+
+        # Check that at least one of material, leather, or hardware is specified
+        if not any(key in data for key in ['material_id', 'leather_id', 'hardware_id']):
+            raise ValueError("At least one of material_id, leather_id, or hardware_id must be specified")
