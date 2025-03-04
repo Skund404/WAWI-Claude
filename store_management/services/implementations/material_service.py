@@ -260,24 +260,39 @@ class MaterialService(BaseService[Material], IMaterialService):
             log_error(f"Error retrieving material types: {str(e)}")
             raise ServiceError(f"Failed to retrieve material types: {str(e)}")
 
-    # Existing implementation methods
-
-    def get_materials(self, **kwargs):
+    # Updated get_materials method with proper enum handling
+    def get_materials(self, material_type=None, **kwargs):
         """
-        Retrieve materials based on optional filtering criteria.
+        Get materials with the given material type and optional filters.
 
         Args:
-            **kwargs: Filtering criteria for materials
+            material_type: The type of material to filter by.
+            **kwargs: Additional filters to apply.
 
         Returns:
-            List of material dictionaries
-
-        Raises:
-            ServiceError: If retrieval fails
+            List of materials matching the filters.
         """
         try:
+            self._logger.info(f"get_materials called with material_type={material_type}")
+
             # Build filter conditions based on keyword arguments
             conditions = []
+
+            # Handle material_type parameter (either as positional or keyword arg)
+            if material_type is not None:
+                # Handle different ways material_type might be provided
+                if hasattr(material_type, 'name'):
+                    # It's an enum object, use its name
+                    material_type_value = material_type.name
+                    self._logger.info(f"Using material_type enum name: {material_type_value}")
+                else:
+                    # It's something else (string, etc.), use it directly
+                    material_type_value = material_type
+                    self._logger.info(f"Using material_type value directly: {material_type_value}")
+
+                conditions.append(Material.material_type == material_type_value)
+
+            # Add search filter if provided
             if "search" in kwargs:
                 search_term = kwargs["search"]
                 conditions.append(
@@ -287,41 +302,57 @@ class MaterialService(BaseService[Material], IMaterialService):
                     )
                 )
 
-            # (Rest of the existing filtering logic remains the same)
+            # Add optional status filter
+            if "status" in kwargs:
+                status = kwargs["status"]
+                if hasattr(status, 'name'):  # Enum object
+                    conditions.append(Material.status == status.name)
+                else:  # String value or other
+                    conditions.append(Material.status == status)
+
+            # Add other filters
+            if "in_stock_only" in kwargs and kwargs["in_stock_only"]:
+                conditions.append(Material.quantity > 0)
+
+            if "min_price" in kwargs:
+                conditions.append(Material.price >= kwargs["min_price"])
+
+            if "max_price" in kwargs:
+                conditions.append(Material.price <= kwargs["max_price"])
+
+            if "min_area" in kwargs:
+                conditions.append(Material.area >= kwargs["min_area"])
+
+            if "max_area" in kwargs:
+                conditions.append(Material.area <= kwargs["max_area"])
+
+            # Leather specific filters
+            if "leather_type" in kwargs:
+                leather_type = kwargs["leather_type"]
+                if hasattr(leather_type, 'name'):  # Enum object
+                    conditions.append(Material.leather_type == leather_type.name)
+                else:  # String value or other
+                    conditions.append(Material.leather_type == leather_type)
+
+            if "quality_grade" in kwargs:
+                quality_grade = kwargs["quality_grade"]
+                if hasattr(quality_grade, 'name'):  # Enum object
+                    conditions.append(Material.quality_grade == quality_grade.name)
+                else:  # String value or other
+                    conditions.append(Material.quality_grade == quality_grade)
 
             # Create the base query
             query = select(Material)
+
+            # Apply filters if any
             if conditions:
                 query = query.where(*conditions)
 
-            try:
-                # Execute the query with explicit error handling
-                materials = self._session.execute(query).scalars().all()
-            except Exception as query_error:
-                # Log additional debug information if query fails
-                self._logger.error(f"Query execution error: {query_error}")
+            # Execute the query
+            materials = self._session.execute(query).scalars().all()
+            self._logger.info(f"Found {len(materials)} materials")
 
-                # Try to diagnose the problem
-                try:
-                    # Attempt to print out registered models and their properties
-                    from database.models.base import Base
-
-                    self._logger.info("Registered models and their properties:")
-                    for model in Base.__subclasses__():
-                        self._logger.info(f"Model: {model.__name__}")
-                        try:
-                            mapper = sqlalchemy.orm.class_mapper(model)
-                            properties = [prop.key for prop in mapper.iterate_properties]
-                            self._logger.info(f"  Properties: {properties}")
-                        except Exception as mapper_error:
-                            self._logger.error(f"  Error getting mapper for {model.__name__}: {mapper_error}")
-                except Exception as debug_error:
-                    self._logger.error(f"Error during model debugging: {debug_error}")
-
-                # Re-raise the original query error
-                raise
-
-            # Convert materials to dictionaries
+            # Convert materials to dictionaries with serialized enum values
             result = []
             for material in materials:
                 material_dict = self.to_dict(material)
@@ -336,19 +367,11 @@ class MaterialService(BaseService[Material], IMaterialService):
 
         except SQLAlchemyError as e:
             # Log detailed SQLAlchemy error
-            self._logger.error(f"Database error in get_materials: {e}", exc_info=True)
-
-            # Additional error context
-            self._logger.error(f"Error details: {str(e)}")
-
-            raise ServiceError(f"Database error: {str(e)}") from e
+            self._logger.error(f"Database error in get_materials: {e}")
+            raise
         except Exception as e:
-            # Catch-all for unexpected errors
-            self._logger.error(f"Unexpected error in get_materials: {e}", exc_info=True)
-
-            # Log additional context about kwargs and error
-            self._logger.error(f"Query kwargs: {kwargs}")
-
+            # Log unexpected errors
+            self._logger.error(f"Unexpected error in get_materials: {e}")
             raise ServiceError(f"Failed to retrieve materials: {str(e)}") from e
 
     def _serialize_enum_value(self, value):
@@ -373,91 +396,6 @@ class MaterialService(BaseService[Material], IMaterialService):
         except Exception as e:
             self._logger.warning(f"Error serializing enum value: {e}")
             return str(value)
-
-    # Updated get_materials method
-
-    def get_materials(self, **kwargs):
-        try:
-            # Remove the problematic debug logging
-            # Build filter conditions based on keyword arguments
-            conditions = []
-            if "search" in kwargs:
-                search_term = kwargs["search"]
-                conditions.append(
-                    or_(
-                        Material.name.ilike(f"%{search_term}%"),
-                        Material.description.ilike(f"%{search_term}%"),
-                    )
-                )
-
-            if "material_type" in kwargs:
-                material_type = kwargs["material_type"]
-                if isinstance(material_type, IMaterialType):
-                    conditions.append(Material.material_type == material_type)
-                elif isinstance(material_type, str):
-                    conditions.append(Material.material_type == MaterialType[material_type])
-
-            if "status" in kwargs:
-                status = kwargs["status"]
-                if isinstance(status, InventoryStatus):
-                    conditions.append(Material.status == status)
-                elif isinstance(status, str):
-                    conditions.append(Material.status == InventoryStatus[status])
-
-            if "in_stock_only" in kwargs and kwargs["in_stock_only"]:
-                conditions.append(Material.quantity > 0)
-
-            if "min_price" in kwargs:
-                conditions.append(Material.price >= kwargs["min_price"])
-
-            if "max_price" in kwargs:
-                conditions.append(Material.price <= kwargs["max_price"])
-
-            if "min_area" in kwargs:
-                conditions.append(Material.area >= kwargs["min_area"])
-
-            if "max_area" in kwargs:
-                conditions.append(Material.area <= kwargs["max_area"])
-
-            if "leather_type" in kwargs:
-                leather_type = kwargs["leather_type"]
-                if isinstance(leather_type, IMaterialType):
-                    conditions.append(Material.leather_type == leather_type)
-                elif isinstance(leather_type, str):
-                    conditions.append(Material.leather_type == MaterialType[leather_type])
-
-            if "quality_grade" in kwargs:
-                quality_grade = kwargs["quality_grade"]
-                if isinstance(quality_grade, IMaterialType):
-                    conditions.append(Material.quality_grade == quality_grade)
-                elif isinstance(quality_grade, str):
-                    conditions.append(Material.quality_grade == MaterialType[quality_grade])
-
-            # Query materials with filters
-            query = select(Material).where(*conditions)
-            materials = self._session.execute(query).scalars().all()
-
-            # Convert materials to dictionaries
-            result = []
-            for material in materials:
-                material_dict = self.to_dict(material)
-
-                # Serialize enum values
-                for key, value in material_dict.items():
-                    material_dict[key] = self._serialize_enum_value(value)
-
-                result.append(material_dict)
-
-            return result
-
-        except SQLAlchemyError as e:
-            # Log and re-raise SQLAlchemy errors
-            self._logger.error(f"Database error in get_materials: {e}", exc_info=True)
-            raise
-        except Exception as e:
-            # More comprehensive error logging
-            self._logger.error(f"Unexpected error in get_materials: {e}", exc_info=True)
-            raise ServiceError(f"Failed to retrieve materials: {str(e)}") from e
 
     def create_material(self, material_data: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new material.

@@ -57,6 +57,7 @@ class Pattern(Base):
         lazy="select"
     )
 
+    # Add the missing projects relationship to match Project.pattern
     projects = relationship(
         "Project",
         back_populates="pattern",
@@ -64,7 +65,13 @@ class Pattern(Base):
         cascade="save-update, merge"
     )
 
-    # Remove any cached or leftover 'products' relationship
+    # Products relationship (if needed)
+    products = relationship(
+        "Product",
+        back_populates="pattern",
+        lazy="select",
+        cascade="save-update, merge"
+    )
 
     @validates('name')
     def validate_name(self, key, name):
@@ -175,3 +182,4 @@ class Pattern(Base):
 
 # Explicitly register lazy imports to ensure proper configuration
 register_lazy_import('database.models.pattern.Pattern', 'database.models.pattern')
+register_lazy_import('database.models.pattern.Pattern.projects', 'database.models.project.Project')

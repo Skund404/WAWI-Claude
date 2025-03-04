@@ -1,16 +1,18 @@
 # database/relationship_configurator.py
 """
-Centralized configuration utility for managing SQLAlchemy model relationships.
-
-This module helps resolve circular import issues and ensures proper
-relationship configuration during application startup.
+Module for configuring SQLAlchemy model relationships.
+Provides functionality to initialize and configure all database models.
 """
 
-import logging
 import importlib
+import logging
 import sqlalchemy
 from sqlalchemy.orm import configure_mappers
 
+from database.models.base import Base
+from database.relationship_registration import initialize_relationships
+
+# Set up logger
 logger = logging.getLogger(__name__)
 
 
@@ -21,36 +23,72 @@ def import_all_models():
     This helps resolve circular import issues and ensures all models
     are loaded before mapper configuration.
     """
-    model_modules = [
-        'database.models.base',
-        'database.models.pattern',
-        'database.models.project',
-        'database.models.components',
-        'database.models.material',
-        'database.models.product',
-        'database.models.order',
-        'database.models.leather',
-        'database.models.hardware',
-        'database.models.storage',
-        'database.models.supplier',
-        # Add other model modules as needed
-    ]
+    try:
+        # Import base models first
+        logger.info("Importing model: Base")
+        from database.models.base import Base, BaseModel
+        logger.info("Imported model: BaseModel")
 
-    imported_models = []
-    for module_path in model_modules:
-        try:
-            module = importlib.import_module(module_path)
+        # Import core domain models
+        logger.info("Importing model: Pattern")
+        from database.models.pattern import Pattern
+        logger.info("Imported model: Pattern")
 
-            # Attempt to find and import all model classes
-            for name, obj in module.__dict__.items():
-                if isinstance(obj, type) and hasattr(obj, '__tablename__'):
-                    imported_models.append(obj)
-                    logger.info(f"Imported model: {obj.__name__}")
+        logger.info("Importing model: Project")
+        from database.models.project import Project
+        logger.info("Imported model: Project")
 
-        except Exception as e:
-            logger.error(f"Error importing module {module_path}: {e}")
+        logger.info("Importing model: Component")
+        from database.models.components import Component, ProjectComponent, PatternComponent
+        logger.info("Imported model: Component")
+        logger.info("Imported model: ProjectComponent")
+        logger.info("Imported model: PatternComponent")
 
-    return imported_models
+        logger.info("Importing model: Material")
+        from database.models.material import Material
+        logger.info("Imported model: Material")
+
+        logger.info("Importing model: Product")
+        from database.models.product import Product
+        logger.info("Imported model: Product")
+
+        logger.info("Importing model: Order")
+        from database.models.order import Order, OrderItem
+        logger.info("Imported model: Order")
+        logger.info("Imported model: OrderItem")
+
+        logger.info("Importing model: Leather")
+        from database.models.leather import Leather
+        logger.info("Imported model: Leather")
+
+        logger.info("Importing model: Hardware")
+        from database.models.hardware import Hardware
+        logger.info("Imported model: Hardware")
+
+        # Import supporting domain models
+        logger.info("Importing model: Storage")
+        from database.models.storage import Storage
+        logger.info("Imported model: Storage")
+
+        logger.info("Importing model: Supplier")
+        from database.models.supplier import Supplier
+        logger.info("Imported model: Supplier")
+
+        # Import transaction models last to avoid circular imports
+        logger.info("Importing model: Transaction")
+        from database.models.transaction import (
+            BaseTransaction,
+            MaterialTransaction,
+            LeatherTransaction,
+            HardwareTransaction
+        )
+        logger.info("Imported transaction models")
+
+        return True
+
+    except ImportError as e:
+        logger.error(f"Failed to import model: {str(e)}")
+        return False
 
 
 def configure_model_relationships():
@@ -66,44 +104,42 @@ def configure_model_relationships():
     try:
         logger.info("Starting comprehensive model relationship configuration")
 
-        # Import all models first
-        models = import_all_models()
-
-        if not models:
-            logger.error("No models found for configuration")
+        # First import all models
+        if not import_all_models():
+            logger.error("Failed to import all models")
             return False
 
-        # Attempt to configure mappers
-        try:
-            configure_mappers()
-            logger.info("Successfully configured all mappers")
-        except sqlalchemy.exc.InvalidRequestError as config_error:
-            logger.error(f"Mapper configuration error: {config_error}")
-
-            # Detailed error diagnostics
-            try:
-                # Try to identify specific configuration issues
-                from database.models.base import Base
-                Base.debug_registered_models()
-            except Exception as diag_error:
-                logger.error(f"Error during diagnostic logging: {diag_error}")
-
+        # Register relationships using the new relationship registration module
+        if not initialize_relationships():
+            logger.error("Failed to register model relationships")
             return False
 
-        # Additional validation
-        for model in models:
-            try:
-                # Verify mapper exists for each model
-                mapper = sqlalchemy.inspect(model)
-                logger.debug(f"Validated mapper for {model.__name__}")
-            except Exception as mapper_error:
-                logger.error(f"Mapper validation failed for {model.__name__}: {mapper_error}")
+        # Configure mappers
+        logger.info("Configuring SQLAlchemy mappers")
+        configure_mappers()
+        logger.info("Mappers configured successfully")
 
-        logger.info("Model relationship configuration completed successfully")
         return True
 
+    except sqlalchemy.exc.InvalidRequestError as e:
+        logger.error(f"Mapper configuration error: {str(e)}")
+
+        # Try to provide more diagnostic information
+        try:
+            # Get information about the Base class
+            table_names = [table.name for table in Base.metadata.sorted_tables]
+            logger.error(f"Configured tables: {', '.join(table_names)}")
+
+            # Try to get more information about the mapper that failed
+            if hasattr(e, 'args') and len(e.args) > 0:
+                error_message = e.args[0]
+                logger.error(f"Error details: {error_message}")
+        except Exception as diagnostic_error:
+            logger.error(f"Failed to collect additional diagnostic information: {diagnostic_error}")
+
+        return False
     except Exception as e:
-        logger.critical(f"Catastrophic error in model relationship configuration: {e}", exc_info=True)
+        logger.error(f"Unexpected error during model configuration: {str(e)}")
         return False
 
 
@@ -117,19 +153,26 @@ def initialize_database_models():
     Returns:
         bool: True if initialization was successful, False otherwise
     """
+    logger.info("Initializing database models")
+
     try:
-        logger.info("Initializing database models")
+        # Apply model patches first before importing models
+        logger.info("Applying model patches...")
+        try:
+            from database.patch_loader import load_and_apply_patches
+            load_and_apply_patches()
+        except ImportError as e:
+            logger.warning(f"Could not import patch loader: {e}")
+        except Exception as e:
+            logger.warning(f"Error applying model patches: {e}")
 
         # Import all models
-        models = import_all_models()
-        if not models:
-            logger.error("No models found during initialization")
+        if not import_all_models():
+            logger.error("Failed to import models")
             return False
 
         # Configure relationships
-        relationship_success = configure_model_relationships()
-
-        if not relationship_success:
+        if not configure_model_relationships():
             logger.error("Failed to configure model relationships")
             return False
 
@@ -137,5 +180,5 @@ def initialize_database_models():
         return True
 
     except Exception as e:
-        logger.critical(f"Fatal error during database model initialization: {e}", exc_info=True)
+        logger.error(f"Failed to initialize database models: {str(e)}")
         return False

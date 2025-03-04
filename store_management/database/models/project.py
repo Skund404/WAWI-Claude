@@ -89,6 +89,14 @@ class Project(Base):
         cascade="save-update, merge"
     )
 
+    # Add the missing production_records relationship
+    production_records = relationship(
+        "Production",
+        back_populates="project",
+        lazy="select",
+        cascade="save-update, merge"
+    )
+
     # Relationships that view existing transactions
     leather_transactions = relationship(
         "LeatherTransaction",

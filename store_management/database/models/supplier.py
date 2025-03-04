@@ -44,7 +44,12 @@ class Supplier(Base):
     orders = relationship("Order", back_populates="supplier")
     products = relationship("Product", back_populates="supplier")
     leathers = relationship("Leather", back_populates="supplier")
-    hardware = relationship("Hardware", back_populates="supplier")
+
+    # Removing problematic hardware relationship without foreign key
+    # hardware = relationship("Hardware", back_populates="supplier")
+
+    # Hardware items relationship will now be defined via backref in the Hardware model
+    # Access through supplier.hardware_items instead of supplier.hardware
 
     # Relationship to Part model - using string reference to avoid direct import
     # This allows SQLAlchemy to resolve the relationship during configuration phase

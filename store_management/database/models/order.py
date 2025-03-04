@@ -5,6 +5,10 @@ from datetime import datetime
 from sqlalchemy import Column, DateTime, Enum, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 from utils.validators import validate_not_empty, validate_positive_number
+from utils.circular_import_resolver import lazy_import, register_lazy_import
+
+# Lazy import Sales if needed to avoid circular dependencies
+# Sales = lazy_import("database.models.sales", "Sales")
 
 
 class Order(Base):
@@ -35,6 +39,9 @@ class Order(Base):
 
     # Relationships
     items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
+
+    # Add the missing sales relationship
+    sales = relationship("Sales", back_populates="order", lazy="select")
 
     # Foreign keys
     supplier_id = Column(Integer, ForeignKey("suppliers.id"), nullable=True)

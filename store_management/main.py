@@ -11,20 +11,31 @@ import sys
 import logging
 import traceback
 
+# Circular import resolution
 from utils.circular_import_resolver import register_lazy_import
 
-register_lazy_import("database.models.components.Component",
-                     lambda: __import__("database.models.components", fromlist=["Component"]).Component)
-register_lazy_import("database.models.components.PatternComponent",
-                     lambda: __import__("database.models.components", fromlist=["PatternComponent"]).PatternComponent)
-register_lazy_import("database.models.components.ProjectComponent",
-                     lambda: __import__("database.models.components", fromlist=["ProjectComponent"]).ProjectComponent)
+
+# Lazy import registration for complex models
+def _register_lazy_component_imports():
+    """Register lazy imports for component models to resolve circular dependencies."""
+    register_lazy_import("database.models.components.Component",
+                         lambda: __import__("database.models.components", fromlist=["Component"]).Component)
+    register_lazy_import("database.models.components.PatternComponent",
+                         lambda: __import__("database.models.components",
+                                            fromlist=["PatternComponent"]).PatternComponent)
+    register_lazy_import("database.models.components.ProjectComponent",
+                         lambda: __import__("database.models.components",
+                                            fromlist=["ProjectComponent"]).ProjectComponent)
+
 
 # Ensure the project root is in the Python path
-project_root = os.path.abspath(os.path.dirname(__file__))
-sys.path.insert(0, project_root)
+def _configure_python_path():
+    """Add project root to Python path to ensure proper module imports."""
+    project_root = os.path.abspath(os.path.dirname(__file__))
+    sys.path.insert(0, project_root)
 
-# Import Tkinter first to ensure it's available
+
+# Import core dependencies
 import tkinter as tk
 from tkinter import messagebox
 
@@ -41,30 +52,61 @@ from di.setup import setup_dependency_injection
 from gui.main_window import MainWindow
 
 
+def _validate_environment():
+    """
+    Perform pre-startup environment validation.
+
+    Raises:
+        EnvironmentError: If critical environment requirements are not met
+    """
+    # Add any critical environment checks here
+    # Examples:
+    # - Python version check
+    # - Required libraries check
+    # - Minimum system requirements
+    pass
+
 
 def setup_application_context() -> tk.Tk:
     """
-    Set up the application context, including logging, database, and dependency injection.
+    Set up the comprehensive application context.
+
+    Configures logging, initializes database, sets up dependency injection,
+    and prepares the root Tkinter window.
 
     Returns:
         tk.Tk: The root Tkinter window for the application
+
+    Raises:
+        Exception: For any critical initialization failures
     """
     try:
+        # Validate environment before proceeding
+        _validate_environment()
+
+        # Configure circular import resolution
+        _register_lazy_component_imports()
+        _configure_python_path()
+
         # Configure logging
         setup_logging()
         logger = logging.getLogger(__name__)
 
-        # Log database path
+        # Log database configuration
         db_path = get_database_path()
-        logger.info(f"Database path: {db_path}")
+        logger.info(f"Initializing database at: {db_path}")
 
         # Initialize database
-        initialize_database()
-        logger.info("Database initialized successfully")
+        try:
+            initialize_database()
+            logger.info("Database initialized successfully")
+        except Exception as db_error:
+            logger.error(f"Database initialization failed: {db_error}")
+            raise
 
         # Reset and setup dependency injection
         container = DependencyContainer()
-        container.reset()
+        container.clear_cache()  # Ensure clean slate
         setup_dependency_injection()
         logger.info("Dependency injection setup completed")
 
@@ -74,8 +116,8 @@ def setup_application_context() -> tk.Tk:
 
         return root
 
-    except Exception as e:
-        logging.error(f"Application startup error: {e}")
+    except Exception as setup_error:
+        logging.error(f"Application context setup failed: {setup_error}")
         logging.error(traceback.format_exc())
         raise
 
@@ -83,30 +125,41 @@ def setup_application_context() -> tk.Tk:
 def main():
     """
     Main application entry point with comprehensive error handling.
+    Manages the entire application lifecycle from startup to shutdown.
     """
     try:
         # Set up application context
         root = setup_application_context()
 
         try:
-            # Attempt to create main window
+            # Create and launch main window
             main_window = MainWindow(root, DependencyContainer())
             main_window.mainloop()
-        except Exception as main_window_error:
-            logging.error(f"Failed to create main window: {main_window_error}")
 
+        except Exception as window_error:
+            logging.error(f"Main window initialization failed: {window_error}")
+            messagebox.showerror(
+                "Window Initialization Error",
+                f"Could not create main application window:\n{window_error}\n\n"
+                "Please check logs for more details."
+            )
+            raise
 
+    except Exception as critical_error:
+        # Last resort error handling for unrecoverable errors
+        logging.critical(f"Unrecoverable application startup error: {critical_error}")
+        logging.critical(traceback.format_exc())
 
-    except Exception as startup_error:
-        # Last resort error handling
-        logging.error(f"Critical application startup error: {startup_error}")
-        logging.error(traceback.format_exc())
-
-        # Show error message box
+        # Show comprehensive error message
         messagebox.showerror(
-            "Application Startup Error",
-            f"Could not start the application:\n{startup_error}\n\n"
-            "Please check logs for more details."
+            "Critical Application Error",
+            f"A critical error prevented the application from starting:\n\n"
+            f"{critical_error}\n\n"
+            "Possible causes:\n"
+            "- Database connection issues\n"
+            "- Dependency injection failures\n"
+            "- Missing configuration\n\n"
+            "Please check application logs and consult documentation."
         )
         sys.exit(1)
 

@@ -45,18 +45,23 @@ class Storage(Base):
         lazy='dynamic',
         cascade='save-update, merge'
     )
-    hardwares = relationship(
-        "Hardware",
-        back_populates="storage",
-        lazy='dynamic',
-        cascade='save-update, merge'
-    )
-    materials = relationship(
-        "Material",
-        back_populates="storage",
-        lazy='dynamic',
-        cascade='save-update, merge'
-    )
+
+    # Removing problematic hardware relationship without foreign key
+    # hardwares = relationship(
+    #     "Hardware",
+    #     back_populates="storage",
+    #     lazy='dynamic',
+    #     cascade='save-update, merge'
+    # )
+
+    # Removing problematic materials relationship without foreign key
+    # materials = relationship(
+    #     "Material",
+    #     back_populates="storage",
+    #     lazy='dynamic',
+    #     cascade='save-update, merge'
+    # )
+
     products = relationship(
         "Product",
         back_populates="storage",
@@ -178,8 +183,8 @@ class Storage(Base):
         try:
             current_count = (
                     self.leathers.count() +
-                    self.hardwares.count() +
-                    self.materials.count() +
+                    # self.hardwares.count() +  # Commented out to match the relationship comment
+                    # self.materials.count() +  # Commented out to match the relationship comment
                     self.products.count() +
                     self.parts.count()
             )

@@ -8,7 +8,7 @@ from services.interfaces.project_service import IProjectService, ProjectType, Sk
 from database.models.project import Project, ProjectComponent
 from database.repositories.project_repository import ProjectRepository
 from services.base_service import BaseService, NotFoundError, ValidationError
-from utils.logging import log_debug, log_error, log_info
+from utils.logger import log_info, log_error, log_debug
 
 
 class ProjectService(BaseService, IProjectService):

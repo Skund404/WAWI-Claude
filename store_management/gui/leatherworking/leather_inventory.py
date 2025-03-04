@@ -16,6 +16,7 @@ from datetime import time
 from functools import lru_cache
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+
 # Tkinter imports
 import tkinter as tk
 import tkinter.ttk as ttk

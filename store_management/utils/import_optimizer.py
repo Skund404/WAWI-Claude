@@ -1,102 +1,177 @@
 # utils/import_optimizer.py
 import os
 import sys
+import ast
 import importlib
+import pkgutil
 import traceback
-from typing import Any, Dict, Optional, Set
+from typing import Dict, List, Set, Any
 
 
 class ImportOptimizer:
     """
-    Advanced import management and optimization utility.
+    Comprehensive import analysis and optimization utility.
     """
-    _import_cache: Dict[str, Any] = {}
-    _dependency_graph: Dict[str, Set[str]] = {}
-    _circular_imports: Set[tuple] = set()
 
     @classmethod
-    def optimize_imports(cls, project_root: str):
+    def optimize_imports(cls, project_root: str) -> Dict[str, Any]:
         """
-        Optimize import paths and detect potential issues.
+        Perform comprehensive import optimization for a project.
 
         Args:
             project_root (str): Root directory of the project
-        """
-        key_dirs = [
-            project_root,
-            os.path.join(project_root, 'store_management'),
-            os.path.join(project_root, 'store_management', 'database'),
-            os.path.join(project_root, 'store_management', 'services')
-        ]
-
-        for directory in key_dirs:
-            if directory not in sys.path:
-                sys.path.insert(0, directory)
-
-    @classmethod
-    def safe_import(cls, module_path: str, class_name: Optional[str] = None) -> Any:
-        """
-        Safely import a module or class with advanced caching.
-
-        Args:
-            module_path (str): Dot-separated module path
-            class_name (Optional[str]): Optional specific class to import
 
         Returns:
-            Imported module or class
+            Dict containing optimization analysis results
         """
-        if module_path in cls._import_cache:
-            imported = cls._import_cache[module_path]
-            return getattr(imported, class_name) if class_name else imported
+        # Ensure project root is in Python path
+        if project_root not in sys.path:
+            sys.path.insert(0, project_root)
 
-        try:
-            imported = importlib.import_module(module_path)
-            cls._import_cache[module_path] = imported
-            cls._track_dependencies(module_path)
-            return getattr(imported, class_name) if class_name else imported
-        except (ImportError, AttributeError) as e:
-            print(f'Import Error for {module_path}: {e}')
-            raise
-
-    @classmethod
-    def _track_dependencies(cls, module_path: str):
-        """
-        Track module dependencies to detect potential circular imports.
-
-        Args:
-            module_path (str): Module path to analyze
-        """
-        try:
-            module = sys.modules[module_path]
-            dependencies = set()
-
-            for name, value in module.__dict__.items():
-                if hasattr(value, '__module__'):
-                    dependencies.add(value.__module__)
-
-            cls._dependency_graph[module_path] = dependencies
-
-            for dep in dependencies:
-                if module_path in cls._dependency_graph.get(dep, set()):
-                    cls._circular_imports.add((module_path, dep))
-
-        except Exception as e:
-            print(f'Error tracking dependencies for {module_path}: {e}')
-
-    @classmethod
-    def get_dependency_report(cls) -> Dict:
-        """
-        Generate a report of module dependencies and potential issues.
-
-        Returns:
-            Dict containing dependency and import information
-        """
-        return {
-            'dependency_graph': cls._dependency_graph,
-            'circular_imports': list(cls._circular_imports),
-            'cached_imports': list(cls._import_cache.keys())
+        # Initialize results dictionary
+        results = {
+            'total_modules': 0,
+            'circular_dependencies': {},
+            'optimization_suggestions': {},
+            'unused_imports': {}
         }
 
+        # Find all Python modules in the project
+        modules = cls._find_python_modules(project_root)
+        results['total_modules'] = len(modules)
 
-# Initialize import paths when module is loaded
-ImportOptimizer.optimize_imports(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+        # Analyze each module
+        for module_path in modules:
+            try:
+                # Relative path from project root
+                rel_path = os.path.relpath(module_path, project_root)
+                module_name = rel_path.replace(os.path.sep, '.')[:-3]  # Remove .py extension
+
+                # Analyze imports
+                module_results = cls._analyze_module_imports(module_path)
+
+                # Store results if any findings
+                if module_results['circular_dependencies']:
+                    results['circular_dependencies'][module_name] = module_results['circular_dependencies']
+
+                if module_results['optimization_suggestions']:
+                    results['optimization_suggestions'][module_name] = module_results['optimization_suggestions']
+
+                if module_results['unused_imports']:
+                    results['unused_imports'][module_name] = module_results['unused_imports']
+
+            except Exception as e:
+                print(f"Error analyzing {module_path}: {e}")
+                traceback.print_exc()
+
+        return results
+
+    @classmethod
+    def _find_python_modules(cls, project_root: str) -> List[str]:
+        """
+        Find all Python modules in the project.
+
+        Args:
+            project_root (str): Root directory to search
+
+        Returns:
+            List of full paths to Python modules
+        """
+        python_modules = []
+        for root, _, files in os.walk(project_root):
+            for file in files:
+                if file.endswith('.py') and not file.startswith('__'):
+                    full_path = os.path.join(root, file)
+                    python_modules.append(full_path)
+        return python_modules
+
+    @classmethod
+    def _analyze_module_imports(cls, module_path: str) -> Dict[str, List[str]]:
+        """
+        Analyze imports in a single module.
+
+        Args:
+            module_path (str): Full path to the Python module
+
+        Returns:
+            Dictionary with import analysis results
+        """
+        with open(module_path, 'r') as file:
+            try:
+                module_ast = ast.parse(file.read())
+            except SyntaxError:
+                return {
+                    'circular_dependencies': [],
+                    'optimization_suggestions': [],
+                    'unused_imports': []
+                }
+
+        # Track imports and their usage
+        imports = {}
+        used_names = set()
+        circular_dependencies = []
+        optimization_suggestions = []
+        unused_imports = []
+
+        # Analyze module
+        for node in ast.walk(module_ast):
+            # Track import statements
+            if isinstance(node, (ast.Import, ast.ImportFrom)):
+                cls._process_import_node(node, imports)
+
+            # Track name usage
+            if isinstance(node, (ast.Name, ast.Attribute)):
+                used_names.add(getattr(node, 'id', None))
+
+        # Identify unused imports and potential optimizations
+        for import_name, details in imports.items():
+            # Check for unused imports
+            if import_name not in used_names:
+                unused_imports.append(f"{details['type']}: {import_name}")
+
+            # Suggest import optimizations
+            if details['type'] == 'from' and details['module'] == 'typing':
+                optimization_suggestions.append(f"Consider using typing.TYPE_CHECKING for {import_name}")
+
+        # Detect potential circular dependencies (simplified)
+        try:
+            module_name = os.path.splitext(os.path.basename(module_path))[0]
+            imported_module_names = [imp for imp in imports.keys()]
+            if module_name in imported_module_names:
+                circular_dependencies.append(f"Potential self-import or circular dependency")
+        except Exception:
+            pass
+
+        return {
+            'circular_dependencies': circular_dependencies,
+            'optimization_suggestions': optimization_suggestions,
+            'unused_imports': unused_imports
+        }
+
+    @classmethod
+    def _process_import_node(cls, node: ast.AST, imports: Dict[str, Dict[str, str]]):
+        """
+        Process import nodes to extract import details.
+
+        Args:
+            node (ast.AST): Import AST node
+            imports (Dict): Dictionary to store import details
+        """
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                imports[alias.name] = {
+                    'type': 'import',
+                    'module': alias.name,
+                    'asname': alias.asname
+                }
+
+        elif isinstance(node, ast.ImportFrom):
+            module = node.module or ''
+            for alias in node.names:
+                full_name = f"{module}.{alias.name}" if module else alias.name
+                imports[alias.name] = {
+                    'type': 'from',
+                    'module': module,
+                    'name': alias.name,
+                    'asname': alias.asname
+                }
