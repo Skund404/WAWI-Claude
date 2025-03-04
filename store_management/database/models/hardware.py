@@ -7,11 +7,11 @@ from sqlalchemy.orm import relationship
 from typing import Optional
 from utils.validators import validate_not_empty, validate_positive_number, validate_string
 
-
 class Hardware(Base):
     """
     Model representing hardware items used in leatherworking projects.
     """
+    __tablename__ = 'hardwares'
     # Define specific columns for this model (Base already has id, uuid, etc.)
     name = Column(String(255), nullable=False, index=True)
     description = Column(String(1000), nullable=True)
@@ -30,8 +30,8 @@ class Hardware(Base):
 
     status = Column(Enum(InventoryStatus), default=InventoryStatus.IN_STOCK)
 
-    # Relationships
-    transactions = relationship("InventoryTransaction", back_populates="hardware")
+    # Use a string reference to avoid circular dependencies
+    transactions = relationship("HardwareTransaction", viewonly=True)
 
     def __init__(self, **kwargs):
         """Initialize a Hardware instance with validation.

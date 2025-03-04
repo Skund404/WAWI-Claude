@@ -1,15 +1,31 @@
 # database/models/pattern.py
+import logging
+from datetime import datetime
+from typing import Dict, Any, Optional, List
+
+from sqlalchemy import Column, Enum, String, Text, Float, Boolean, JSON, DateTime, Integer
+from sqlalchemy.orm import relationship, validates
+from sqlalchemy.exc import SQLAlchemyError
+
 from database.models.base import Base
 from database.models.enums import SkillLevel
-from sqlalchemy import Column, Enum, String, Text, Integer, Float, Boolean, JSON, DateTime
-from sqlalchemy.orm import relationship
-from datetime import datetime
+from utils.circular_import_resolver import lazy_import, register_lazy_import
+
+# Setup logger
+logger = logging.getLogger(__name__)
+
+# Lazy import to prevent circular dependencies
+Project = lazy_import("database.models.project", "Project")
+PatternComponent = lazy_import("database.models.components", "PatternComponent")
 
 
 class Pattern(Base):
     """
-    Model representing leatherworking patterns.
+    Model representing leatherworking patterns with comprehensive
+    validation and relationship management.
     """
+    __tablename__ = 'patterns'
+
     # Pattern specific fields
     name = Column(String(255), nullable=False, index=True)
     description = Column(Text, nullable=True)
@@ -31,69 +47,131 @@ class Pattern(Base):
     publication_date = Column(DateTime, nullable=True)
 
     file_path = Column(String(255), nullable=True)
-    pattern_metadata  = Column(JSON, nullable=True)
+    pattern_metadata = Column(JSON, nullable=True)
 
-    # Relationships
-    components = relationship("PatternComponent", back_populates="pattern", cascade="all, delete-orphan")
-    projects = relationship("Project", back_populates="pattern")
+    # Relationships with explicit configuration
+    components = relationship(
+        "PatternComponent",
+        back_populates="pattern",
+        cascade="all, delete-orphan",
+        lazy="select"
+    )
+
+    projects = relationship(
+        "Project",
+        back_populates="pattern",
+        lazy="select",
+        cascade="save-update, merge"
+    )
+
+    # Remove any cached or leftover 'products' relationship
+
+    @validates('name')
+    def validate_name(self, key, name):
+        """Validate pattern name."""
+        if not name or len(name) > 255:
+            raise ValueError("Pattern name must be between 1 and 255 characters")
+        return name
 
     def __init__(self, **kwargs):
-        """Initialize a Pattern instance with validation.
+        """
+        Initialize a Pattern instance with comprehensive validation.
 
         Args:
             **kwargs: Keyword arguments with pattern attributes
 
         Raises:
             ValueError: If validation fails for any field
+            TypeError: If invalid data types are provided
         """
-        self._validate_creation(kwargs)
-        super().__init__(**kwargs)
+        try:
+            # Remove any keys not in the model to prevent unexpected attribute errors
+            filtered_kwargs = {k: v for k, v in kwargs.items() if hasattr(self.__class__, k)}
 
-    @classmethod
-    def _validate_creation(cls, data):
-        """Validate pattern data before creation.
+            super().__init__(**filtered_kwargs)
+        except (ValueError, TypeError, SQLAlchemyError) as e:
+            self._handle_initialization_error(e, kwargs)
+
+    def _handle_initialization_error(self, error: Exception, data: Dict[str, Any]) -> None:
+        """
+        Handle initialization errors with detailed logging.
 
         Args:
-            data (dict): The data to validate
+            error (Exception): The caught exception
+            data (dict): The input data that caused the error
 
         Raises:
-            ValueError: If validation fails
+            ValueError: Re-raises the original error with additional context
         """
-        if 'name' not in data or not data['name']:
-            raise ValueError("Pattern name is required")
+        error_context = {
+            'input_data': data,
+            'error_type': type(error).__name__,
+            'error_message': str(error)
+        }
 
-        if 'skill_level' not in data:
-            data['skill_level'] = SkillLevel.BEGINNER
+        # Log the error
+        logger.error(f"Pattern Initialization Error: {error_context}")
 
-    def publish(self):
-        """Mark the pattern as published and set publication date."""
-        self.is_published = True
-        self.publication_date = datetime.utcnow()
+        # Re-raise with more context
+        raise ValueError(f"Failed to create Pattern: {str(error)}") from error
 
-    def unpublish(self):
-        """Mark the pattern as unpublished."""
-        self.is_published = False
+    def publish(self) -> None:
+        """
+        Mark the pattern as published and set publication date.
 
-    def calculate_leather_requirement(self):
-        """Calculate total leather requirement based on components.
+        Raises:
+            RuntimeError: If publication fails
+        """
+        try:
+            self.is_published = True
+            self.publication_date = datetime.utcnow()
+            logger.info(f"Pattern {self.id} published")
+        except Exception as e:
+            logger.error(f"Error publishing pattern: {e}")
+            raise RuntimeError(f"Failed to publish pattern: {str(e)}") from e
+
+    def calculate_leather_requirement(self) -> float:
+        """
+        Calculate total leather requirement based on components.
 
         Returns:
             float: Total estimated leather requirement in square feet
+
+        Raises:
+            RuntimeError: If calculation fails
         """
-        total = self.estimated_leather_sqft or 0
+        try:
+            total = self.estimated_leather_sqft or 0.0
 
-        # If component relationships are loaded, add their requirements
-        if self.components:
-            for component in self.components:
-                if hasattr(component, 'area_sqft') and component.area_sqft:
-                    total += component.area_sqft
+            # If component relationships are loaded, add their requirements
+            if self.components:
+                for component in self.components:
+                    try:
+                        component_area = getattr(component, 'area_sqft', 0) or 0
+                        total += component_area
+                    except Exception as component_error:
+                        logger.warning(f"Error calculating component area: {component_error}")
 
-        return total
+            logger.debug(f"Calculated leather requirement for Pattern {self.id}: {total} sq ft")
+            return total
+        except Exception as e:
+            logger.error(f"Error calculating leather requirement: {e}")
+            raise RuntimeError(f"Failed to calculate leather requirement: {str(e)}") from e
 
-    def __repr__(self):
-        """String representation of the pattern.
+    def __repr__(self) -> str:
+        """
+        Detailed string representation of the pattern.
 
         Returns:
-            str: String representation
+            str: Comprehensive string representation
         """
-        return f"<Pattern(id={self.id}, name='{self.name}', skill_level={self.skill_level})>"
+        return (
+            f"<Pattern(id={self.id}, name='{self.name}', "
+            f"skill_level={self.skill_level}, "
+            f"published={self.is_published}, "
+            f"version='{self.version or 'N/A'}')>"
+        )
+
+
+# Explicitly register lazy imports to ensure proper configuration
+register_lazy_import('database.models.pattern.Pattern', 'database.models.pattern')

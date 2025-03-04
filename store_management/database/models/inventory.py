@@ -22,18 +22,28 @@ class Inventory(Base):
     # Foreign keys for item references
     material_id = Column(Integer, ForeignKey("materials.id"), nullable=True)
     leather_id = Column(Integer, ForeignKey("leathers.id"), nullable=True)
-    hardware_id = Column(Integer, ForeignKey("hardware.id"), nullable=True)
+    hardware_id = Column(Integer, ForeignKey("hardwares.id"), nullable=True)
     product_id = Column(Integer, ForeignKey("products.id"), nullable=True)
 
     # Location reference
-    storage_id = Column(Integer, ForeignKey("storage.id"), nullable=True)
+    storage_id = Column(Integer, ForeignKey("storages.id"), nullable=True)
 
-    # Relationships
-    material = relationship("Material", uselist=False, viewonly=True)
-    leather = relationship("Leather", uselist=False, viewonly=True)
-    hardware = relationship("Hardware", uselist=False, viewonly=True)
-    product = relationship("Product", uselist=False, viewonly=True)
-    storage = relationship("Storage", uselist=False)
+    # Relationships with explicit join conditions
+    material = relationship("Material",
+                            uselist=False,
+                            primaryjoin="Inventory.material_id == Material.id")
+    leather = relationship("Leather",
+                           uselist=False,
+                           primaryjoin="Inventory.leather_id == Leather.id")
+    hardware = relationship("Hardware",
+                            uselist=False,
+                            primaryjoin="Inventory.hardware_id == Hardware.id")
+    product = relationship("Product",
+                           uselist=False,
+                           primaryjoin="Inventory.product_id == Product.id")
+    storage = relationship("Storage",
+                           uselist=False,
+                           primaryjoin="Inventory.storage_id == Storage.id")
 
     def __init__(self, **kwargs):
         """Initialize an Inventory instance with validation.

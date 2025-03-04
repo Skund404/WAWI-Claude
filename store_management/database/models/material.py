@@ -11,6 +11,10 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
 from .enums import MaterialType, TransactionType, InventoryStatus
+from utils.circular_import_resolver import lazy_import, register_lazy_import
+
+# Register lazy import to avoid circular dependency
+register_lazy_import('database.models.transaction.MaterialTransaction', 'database.models.transaction')
 
 
 class Material(Base):
@@ -34,12 +38,18 @@ class Material(Base):
     price: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     area: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
 
-    # Relationships
-    transactions: Mapped[list['MaterialTransaction']] = relationship(
-        'MaterialTransaction',
-        back_populates='material',
+    transactions = relationship(
+        "MaterialTransaction",
+        primaryjoin="Material.id == MaterialTransaction.material_id",
+        viewonly=False,
         cascade='all, delete-orphan'
     )
+    project_components = relationship(
+        "ProjectComponent",
+        primaryjoin="Material.id == ProjectComponent.material_id",
+        viewonly=True
+    )
+
 
     @classmethod
     def _validate_creation(cls, data):
@@ -77,55 +87,3 @@ class Material(Base):
             raise ValueError("Quantity cannot become negative")
 
 
-class MaterialTransaction(Base):
-    """
-    Represents a transaction (purchase, usage, adjustment) for a material.
-    """
-    __tablename__ = 'material_transactions'
-
-    # Primary key
-    id: Mapped[int] = mapped_column(primary_key=True)
-
-    # Foreign key to material
-    material_id: Mapped[int] = mapped_column(ForeignKey('materials.id'), nullable=False)
-
-    # Transaction details
-    transaction_type: Mapped[TransactionType] = mapped_column(nullable=False)
-    quantity: Mapped[float] = mapped_column(Float, nullable=False)
-    notes: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
-
-    # Timestamps
-    transaction_date: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
-
-    # Relationship
-    material: Mapped[Material] = relationship('Material', back_populates='transactions')
-
-    @classmethod
-    def _validate_creation(cls, data):
-        """
-        Validate material transaction creation data.
-
-        Args:
-            data (dict): Transaction creation data
-
-        Raises:
-            ValueError: If validation fails
-        """
-        # Validate required fields
-        if 'material_id' not in data:
-            raise ValueError("Material ID is required")
-
-        if 'transaction_type' not in data:
-            raise ValueError("Transaction type is required")
-
-        # Validate quantity
-        quantity = data.get('quantity', 0)
-        if quantity <= 0:
-            raise ValueError("Transaction quantity must be positive")
-
-    def _validate_instance(self):
-        """
-        Additional instance-level validation.
-        """
-        if self.quantity <= 0:
-            raise ValueError("Transaction quantity must be positive")

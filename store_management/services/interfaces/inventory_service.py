@@ -13,7 +13,7 @@ from utils.circular_import_resolver import lazy_import
 from typing import Any, Callable, Dict, List, Optional
 
 # Lazy import to avoid circular dependency
-MaterialType = lazy_import("services.interfaces.material_service.MaterialType")
+MaterialType = lazy_import("services.interfaces.material_service", "MaterialType")
 
 
 class IInventoryService(ABC):

@@ -11,6 +11,15 @@ import sys
 import logging
 import traceback
 
+from utils.circular_import_resolver import register_lazy_import
+
+register_lazy_import("database.models.components.Component",
+                     lambda: __import__("database.models.components", fromlist=["Component"]).Component)
+register_lazy_import("database.models.components.PatternComponent",
+                     lambda: __import__("database.models.components", fromlist=["PatternComponent"]).PatternComponent)
+register_lazy_import("database.models.components.ProjectComponent",
+                     lambda: __import__("database.models.components", fromlist=["ProjectComponent"]).ProjectComponent)
+
 # Ensure the project root is in the Python path
 project_root = os.path.abspath(os.path.dirname(__file__))
 sys.path.insert(0, project_root)

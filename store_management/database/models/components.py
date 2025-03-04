@@ -1,133 +1,264 @@
-# path: database/models/components.py
+# database/models/components.py
 """
-Component models for the store management application.
-
-This module defines the database models for components used in projects,
-patterns, and products, including their relationships and attributes.
+Component models for patterns and projects.
 """
 
-import enum
-from typing import List, Optional, Union, Dict, Any
-from datetime import datetime
+from sqlalchemy import Column, Integer, String, Text, Float, Boolean, ForeignKey, Enum
+from sqlalchemy.orm import relationship
+from typing import Optional
 
-from sqlalchemy import Column, String, Float, ForeignKey, Enum, Boolean, Text
-from sqlalchemy.orm import Mapped, mapped_column, relationship, backref
-
-# Import the Base from the updated base module
 from database.models.base import Base
-from database.models.enums import ComponentType
+from database.models.enums import ComponentType, MaterialType
+from utils.circular_import_resolver import lazy_import, register_lazy_import
+
+# Register lazy imports to avoid circular dependencies
+register_lazy_import('database.models.project.Project', 'database.models.project')
+register_lazy_import('database.models.pattern.Pattern', 'database.models.pattern')
+register_lazy_import('database.models.material.Material', 'database.models.material')
+register_lazy_import('database.models.leather.Leather', 'database.models.leather')
+register_lazy_import('database.models.hardware.Hardware', 'database.models.hardware')
 
 
 class Component(Base):
     """
-    Base model for all components in the system.
-
-    This is the foundation for specific component types like
-    PatternComponent and ProjectComponent.
+    Base model for all component types.
     """
-    __tablename__ = 'components'
+    __abstract__ = True  # Mark as abstract to prevent direct table creation
 
-    # Add this line to handle the "Table already defined" error
-    __table_args__ = {'extend_existing': True}
+    # Common fields for all components
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    quantity = Column(Float, default=1.0, nullable=False)
 
-    # Polymorphic base configuration
-    type: Mapped[str] = mapped_column(String(50), nullable=False)
+    # Component metadata
+    width = Column(Float, nullable=True)  # in inches or cm
+    height = Column(Float, nullable=True)  # in inches or cm
+    length = Column(Float, nullable=True)  # in inches or cm
+    area = Column(Float, nullable=True)  # calculated area
+    notes = Column(Text, nullable=True)
 
-    # Component attributes
-    name: Mapped[str] = mapped_column(String(100), nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    component_type: Mapped[ComponentType] = mapped_column(nullable=False)
-    quantity: Mapped[float] = mapped_column(Float, default=1.0)
-    unit: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
-    cost: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    # Single-table inheritance discriminator
+    type = Column(String(50), nullable=False)
 
-    # Polymorphic configuration for single-table inheritance
     __mapper_args__ = {
-        'polymorphic_identity': 'component',
         'polymorphic_on': type
     }
 
-    def calculate_cost(self) -> float:
-        """Calculate the cost of the component."""
-        return self.cost or 0.0
+    def calculate_area(self) -> Optional[float]:
+        """
+        Calculate the area of the component if dimensions are provided.
 
-    def validate(self) -> bool:
-        """Validate the component data."""
-        # Basic validation
-        if not self.name:
-            return False
-        if self.quantity <= 0:
-            return False
-        return True
-
-
-# For Pattern and Project components, use single-table inheritance
-# This avoids the column conflict issue entirely by using one table
-class PatternComponent(Component):
-    """
-    Component used in a pattern template.
-
-    PatternComponents define the theoretical components needed for a pattern,
-    without being tied to a specific project instance.
-    """
-    # Add this line to extend the parent table
-    __table_args__ = {'extend_existing': True}
-
-    # Pattern relationship attributes
-    # Pattern relationships stored in same table
-    pattern_id: Mapped[Optional[int]] = mapped_column(ForeignKey('patterns.id'), nullable=True)
-    min_quantity: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    max_quantity: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    is_optional: Mapped[bool] = mapped_column(Boolean, default=False, nullable=True)
-    pattern_notes: Mapped[Optional[str]] = mapped_column('notes', Text, nullable=True)
-
-    # Many-to-one: PatternComponent => Pattern
-    pattern = relationship("Pattern", back_populates="components")
-
-    # Polymorphic configuration for single-table inheritance
-    __mapper_args__ = {
-        'polymorphic_identity': 'pattern_component',
-    }
-
-    def __repr__(self) -> str:
-        return f"<PatternComponent(id={self.id}, name='{self.name}', pattern_id={self.pattern_id})>"
+        Returns:
+            Optional[float]: Calculated area or None if dimensions are missing
+        """
+        if self.width and self.height:
+            self.area = self.width * self.height
+            return self.area
+        return None
 
 
 class ProjectComponent(Component):
     """
-    Component used in a specific project.
-
-    ProjectComponents represent actual materials used in a concrete project,
-    with actual quantities and costs.
+    Components used in specific projects.
     """
-    # Add this line to extend the parent table
-    __table_args__ = {'extend_existing': True}
+    __tablename__ = 'components'
 
-    # Project relationship attributes
-    # Project relationships stored in same table
-    project_id: Mapped[Optional[int]] = mapped_column(ForeignKey('projects.id'), nullable=True)
-    planned_quantity: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    actual_quantity: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    wastage: Mapped[float] = mapped_column(Float, default=0.0, nullable=True)
-    efficiency: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    is_completed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=True)
-    project_notes: Mapped[Optional[str]] = mapped_column('project_notes', Text, nullable=True)
+    # Additional fields specific to project components
+    is_complete = Column(Boolean, default=False, nullable=False)
 
-    # Many-to-one: ProjectComponent => Project
-    project = relationship("Project", back_populates="components")
+    # Material relationship fields
+    material_type = Column(Enum(MaterialType), nullable=True)
 
-    # Polymorphic configuration for single-table inheritance
+    # Foreign keys for different material types
+    material_id = Column(Integer, ForeignKey("materials.id"), nullable=True)
+    leather_id = Column(Integer, ForeignKey("leathers.id"), nullable=True)
+    hardware_id = Column(Integer, ForeignKey("hardwares.id"), nullable=True)
+
+    # Project foreign key
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
+
+    # Relationships with explicit join conditions
+    project = relationship(
+        "Project",
+        primaryjoin="ProjectComponent.project_id == Project.id",
+        foreign_keys=[project_id],
+        back_populates="components"
+    )
+
+    # Generic material relationship
+    material = relationship(
+        "Material",
+        primaryjoin="ProjectComponent.material_id == Material.id",
+        foreign_keys=[material_id],
+        viewonly=False
+    )
+
+    # Leather relationship
+    leather = relationship(
+        "Leather",
+        primaryjoin="ProjectComponent.leather_id == Leather.id",
+        foreign_keys=[leather_id],
+        viewonly=False
+    )
+
+    # Hardware relationship
+    hardware = relationship(
+        "Hardware",
+        primaryjoin="ProjectComponent.hardware_id == Hardware.id",
+        foreign_keys=[hardware_id],
+        viewonly=False
+    )
+
     __mapper_args__ = {
-        'polymorphic_identity': 'project_component',
+        'polymorphic_identity': 'project_component'
     }
 
+    def __init__(self, **kwargs):
+        """
+        Initialize a project component with validation.
+
+        Args:
+            **kwargs: Component attributes
+
+        Raises:
+            ValueError: If validation fails
+        """
+        # Validate required fields
+        if 'project_id' not in kwargs:
+            raise ValueError("Project ID is required for project components")
+
+        if 'name' not in kwargs:
+            raise ValueError("Component name is required")
+
+        # Validate material relationships
+        material_fields = sum(1 for field in ['material_id', 'leather_id', 'hardware_id']
+                              if field in kwargs and kwargs[field] is not None)
+
+        if material_fields > 1:
+            raise ValueError("Only one material type can be associated with a component")
+
+        # Set material_type based on the provided material ID
+        if 'leather_id' in kwargs and kwargs['leather_id'] is not None:
+            kwargs['material_type'] = MaterialType.LEATHER
+        elif 'hardware_id' in kwargs and kwargs['hardware_id'] is not None:
+            kwargs['material_type'] = MaterialType.HARDWARE
+        elif 'material_id' in kwargs and kwargs['material_id'] is not None:
+            kwargs['material_type'] = MaterialType.GENERIC
+
+        super().__init__(**kwargs)
+
+    def mark_complete(self, is_complete: bool = True) -> None:
+        """
+        Mark the component as complete or incomplete.
+
+        Args:
+            is_complete (bool): Component completion status
+        """
+        self.is_complete = is_complete
+
+    def calculate_cost(self) -> Optional[float]:
+        """
+        Calculate the cost of this component based on material and dimensions.
+
+        Returns:
+            Optional[float]: Component cost or None if cannot be calculated
+        """
+        # Ensure area is calculated
+        if not self.area:
+            self.calculate_area()
+
+        if not self.area:
+            return None
+
+        # Calculate cost based on material type
+        if self.material_type == MaterialType.LEATHER and self.leather:
+            return self.area * self.leather.cost_per_sqft * self.quantity
+        elif self.material_type == MaterialType.HARDWARE and self.hardware:
+            return self.hardware.cost_per_unit * self.quantity
+        elif self.material_type == MaterialType.GENERIC and self.material:
+            # This would need to be implemented based on your material pricing model
+            return None
+
+        return None
+
     def __repr__(self) -> str:
+        """String representation of the component."""
         return f"<ProjectComponent(id={self.id}, name='{self.name}', project_id={self.project_id})>"
 
-    def calculate_efficiency(self) -> float:
-        """Calculate the material efficiency for this component."""
-        if not self.planned_quantity or not self.actual_quantity:
-            return 0.0
 
-        used = self.actual_quantity - self.wastage
-        return (used / self.planned_quantity) * 100.0
+class PatternComponent(Component):
+    """
+    Components used in pattern templates.
+    """
+    __tablename__ = 'pattern_components'
+
+    # Pattern component specific fields
+    suggested_material = Column(String(255), nullable=True)
+    instructions = Column(Text, nullable=True)
+
+    # Pattern foreign key
+    pattern_id = Column(Integer, ForeignKey("patterns.id"), nullable=False)
+
+    # Relationships with explicit join conditions
+    pattern = relationship(
+        "Pattern",
+        primaryjoin="PatternComponent.pattern_id == Pattern.id",
+        foreign_keys=[pattern_id],
+        back_populates="components"
+    )
+
+    __mapper_args__ = {
+        'polymorphic_identity': 'pattern_component'
+    }
+
+    def __init__(self, **kwargs):
+        """
+        Initialize a pattern component with validation.
+
+        Args:
+            **kwargs: Component attributes
+
+        Raises:
+            ValueError: If validation fails
+        """
+        # Validate required fields
+        if 'pattern_id' not in kwargs:
+            raise ValueError("Pattern ID is required for pattern components")
+
+        if 'name' not in kwargs:
+            raise ValueError("Component name is required")
+
+        super().__init__(**kwargs)
+
+    def create_project_component(self, project_id: int, **kwargs) -> ProjectComponent:
+        """
+        Create a project component based on this pattern component.
+
+        Args:
+            project_id (int): ID of the project to associate with
+            **kwargs: Additional attributes for the project component
+
+        Returns:
+            ProjectComponent: Newly created project component
+        """
+        # Combine pattern component attributes with provided kwargs
+        component_data = {
+            'name': self.name,
+            'description': self.description,
+            'width': self.width,
+            'height': self.height,
+            'length': self.length,
+            'quantity': self.quantity,
+            'project_id': project_id,
+            'area': self.area
+        }
+
+        # Override with any provided kwargs
+        component_data.update(kwargs)
+
+        # Create and return the new project component
+        return ProjectComponent(**component_data)
+
+    def __repr__(self) -> str:
+        """String representation of the component."""
+        return f"<PatternComponent(id={self.id}, name='{self.name}', pattern_id={self.pattern_id})>"

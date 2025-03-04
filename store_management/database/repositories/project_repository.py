@@ -8,13 +8,15 @@ from sqlalchemy.orm import joinedload, Session
 from sqlalchemy.exc import SQLAlchemyError
 
 from database.repositories.base_repository import BaseRepository
-from database.models.project import Project, ProjectComponent
+from database.models.project import Project
+from database.models.components import ProjectComponent  # Update this import
 from database.models.enums import ProjectType, ProjectStatus, SkillLevel
 from database.exceptions import DatabaseError
 from utils.error_handler import (
     NotFoundError,
     ValidationError
 )
+
 
 class ProjectRepository(BaseRepository):
     """

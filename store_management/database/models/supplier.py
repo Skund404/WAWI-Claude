@@ -4,13 +4,19 @@ from database.models.enums import SupplierStatus
 from sqlalchemy import Column, Enum, String, Text, Boolean
 from sqlalchemy.orm import relationship
 import re
+import logging
 from utils.validators import validate_not_empty
+from utils.circular_import_resolver import lazy_import, register_lazy_import
+
+# Set up logger
+logger = logging.getLogger(__name__)
 
 
 class Supplier(Base):
     """
     Model representing material suppliers.
     """
+    __tablename__ = 'suppliers'
     # Supplier specific fields
     name = Column(String(255), nullable=False, index=True)
     description = Column(Text, nullable=True)
@@ -34,11 +40,32 @@ class Supplier(Base):
     delivery_terms = Column(String(255), nullable=True)
     notes = Column(Text, nullable=True)
 
-    # Relationships
+    # Regular relationships
     orders = relationship("Order", back_populates="supplier")
     products = relationship("Product", back_populates="supplier")
     leathers = relationship("Leather", back_populates="supplier")
     hardware = relationship("Hardware", back_populates="supplier")
+
+    # Relationship to Part model - using string reference to avoid direct import
+    # This allows SQLAlchemy to resolve the relationship during configuration phase
+    parts = relationship("Part", back_populates="supplier")
+
+    def __init_subclass__(cls, **kwargs):
+        """
+        Class method called when the class is subclassed.
+        Used to register lazy imports to handle circular dependencies.
+
+        Args:
+            **kwargs: Additional keyword arguments
+        """
+        super().__init_subclass__(**kwargs)
+        # Register lazy imports for circular dependencies if needed
+        try:
+            # Register the Part model for lazy import
+            register_lazy_import("database.models.part.Part")
+            logger.debug(f"Registered lazy import for Part model in {cls.__name__}")
+        except Exception as e:
+            logger.warning(f"Error registering lazy imports in {cls.__name__}: {e}")
 
     def __init__(self, **kwargs):
         """Initialize a Supplier instance with validation.
@@ -49,8 +76,12 @@ class Supplier(Base):
         Raises:
             ValueError: If validation fails for any field
         """
-        self._validate_creation(kwargs)
-        super().__init__(**kwargs)
+        try:
+            self._validate_creation(kwargs)
+            super().__init__(**kwargs)
+        except Exception as e:
+            logger.error(f"Error initializing Supplier: {e}")
+            raise
 
     @classmethod
     def _validate_creation(cls, data):
@@ -79,11 +110,21 @@ class Supplier(Base):
 
     def mark_as_inactive(self):
         """Mark the supplier as inactive."""
-        self.status = SupplierStatus.INACTIVE
+        try:
+            self.status = SupplierStatus.INACTIVE
+            logger.info(f"Supplier {self.id} ({self.name}) marked as inactive")
+        except Exception as e:
+            logger.error(f"Error marking supplier {self.id} as inactive: {e}")
+            raise
 
     def mark_as_active(self):
         """Mark the supplier as active."""
-        self.status = SupplierStatus.ACTIVE
+        try:
+            self.status = SupplierStatus.ACTIVE
+            logger.info(f"Supplier {self.id} ({self.name}) marked as active")
+        except Exception as e:
+            logger.error(f"Error marking supplier {self.id} as active: {e}")
+            raise
 
     def set_as_preferred(self, is_preferred=True):
         """Set the supplier as preferred or not preferred.
@@ -91,7 +132,13 @@ class Supplier(Base):
         Args:
             is_preferred (bool): Whether the supplier is preferred
         """
-        self.is_preferred = is_preferred
+        try:
+            self.is_preferred = is_preferred
+            status = "preferred" if is_preferred else "not preferred"
+            logger.info(f"Supplier {self.id} ({self.name}) set as {status}")
+        except Exception as e:
+            logger.error(f"Error setting preferred status for supplier {self.id}: {e}")
+            raise
 
     def __repr__(self):
         """String representation of the supplier.

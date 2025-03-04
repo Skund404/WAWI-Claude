@@ -6,40 +6,71 @@ Provides a comprehensive interface for managing leather inventory with advanced
 filtering, sorting, and visualization capabilities.
 """
 
+# Optimized and consolidated imports
+from __future__ import annotations  # Enable more robust type hinting
+
+import functools
+# Standard library imports
 import logging
+from datetime import time
 from functools import lru_cache
+from typing import Any, Dict, List, Optional, Tuple, Union
+
+# Tkinter imports
 import tkinter as tk
 import tkinter.ttk as ttk
 import tkinter.messagebox as messagebox
 import tkinter.filedialog
 import tkinter.simpledialog
-from typing import Any, Dict, List, Optional, Tuple, Union
 
-# Import matplotlib for visualizations
+# Third-party visualization imports
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import matplotlib.ticker as mtick
 
-# Import service interfaces
+# Circular import resolution
+from utils.circular_import_resolver import lazy_import
+
+# Service and model imports
 from services.interfaces.material_service import IMaterialService, MaterialType
 from services.interfaces.project_service import IProjectService
+from database.models.enums import (
+    LeatherType,
+    MaterialQualityGrade,
+    InventoryStatus,
+    TransactionType
+)
 
-# Import base view
+# View and dialog imports
 from gui.base_view import BaseView
-
-# Import leather dialog
 from gui.leatherworking.leather_dialog import LeatherDetailsDialog
 
-# Import enums
-from database.models.enums import LeatherType, MaterialQualityGrade, InventoryStatus, TransactionType
-from database.models.base import Base
-# Import utility modules
+# Add this to your application initialization code (perhaps in __init__.py)
+from utils.circular_import_resolver import register_lazy_import
+
+# Register the transaction classes for lazy imports
+register_lazy_import("database.models.transaction.HardwareTransaction",
+                    lambda: __import__("database.models.transaction", fromlist=["HardwareTransaction"]).HardwareTransaction)
+register_lazy_import("database.models.transaction.LeatherTransaction",
+                    lambda: __import__("database.models.transaction", fromlist=["LeatherTransaction"]).LeatherTransaction)
+register_lazy_import("database.models.transaction.MaterialTransaction",
+                    lambda: __import__("database.models.transaction", fromlist=["MaterialTransaction"]).MaterialTransaction)
+
+# Utility imports
 from utils.validators import DataSanitizer
 from utils.notifications import StatusNotification
 from utils.exporters import OrderExporter
 from utils.performance_tracker import PERFORMANCE_TRACKER
+from database.models.project import ProjectComponent
 
-# Import pattern configuration
+# Configuration import
 from config.pattern_config import PATTERN_CONFIG
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from di.container import DependencyContainer
+    from services.interfaces.material_service import IMaterialService
 
 
 class LeatherInventoryView(BaseView):
@@ -93,6 +124,55 @@ class LeatherInventoryView(BaseView):
 
         # Log initialization
         self._logger.info("Leather Inventory View initialized")
+
+    def track_performance(func):
+        """Decorator to track method performance with automatic logging."""
+
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            start_time = time.time()
+            try:
+                result = func(*args, **kwargs)
+                PERFORMANCE_TRACKER.log_method_call(func.__name__, time.time() - start_time)
+                return result
+            except Exception as e:
+                PERFORMANCE_TRACKER.log_error(func.__name__, e)
+                raise
+
+        return wrapper
+
+    @classmethod
+    def debug_registered_models(cls) -> List[str]:
+        """
+        Comprehensive debugging of registered models.
+
+        Returns:
+            List[str]: Detailed information about registered models
+        """
+        debug_info = []
+
+        # Safely iterate through registered models
+        for full_path, models in cls._registered_models.items():
+            # Ensure models is a list (or convert to list)
+            if not isinstance(models, list):
+                models = [models]
+
+            entry = f"{full_path}: {len(models)} model(s)"
+            if len(models) > 1:
+                entry += " (POTENTIAL DUPLICATE)"
+            debug_info.append(entry)
+
+            # If multiple models, provide more details
+            if len(models) > 1:
+                for model in models:
+                    debug_info.append(f"  - {model.__module__}.{model.__name__} (id: {id(model)})")
+
+        # Print and return debug information
+        print("Registered Models:")
+        for info in debug_info:
+            print(info)
+
+        return debug_info
 
     def _setup_ui(self):
         """Set up the advanced UI components."""
@@ -974,6 +1054,104 @@ class LeatherInventoryView(BaseView):
         except Exception as e:
             self.handle_service_error(e, "Failed to export leather inventory")
 
+    def validate_model_registration(self):
+        """
+        Comprehensive validation and logging of model registrations to diagnose registration issues.
+
+        This method provides detailed insights into:
+        - Total number of registered models
+        - Unique model paths
+        - Potential duplicate registrations
+        - Model details including module, inheritance, and attributes
+        """
+        from database.models import base
+        import inspect
+        import logging
+
+        # Get registered models from BaseModelMetaclass
+        registered_models = getattr(base.BaseModelMetaclass, '_registered_models', {})
+
+        # Logging setup
+        logging.info("=" * 50)
+        logging.info("Model Registration Diagnostic Report")
+        logging.info("=" * 50)
+
+        # Basic registration statistics
+        logging.info(f"Total Registered Models: {len(registered_models)}")
+
+        # Detailed model registration analysis
+        model_details = {}
+        for full_path, model_class in registered_models.items():
+            try:
+                # Extract module and class name
+                module_name, class_name = full_path.rsplit('.', 1)
+
+                # Collect model details
+                model_details[full_path] = {
+                    'module': module_name,
+                    'class_name': class_name,
+                    'base_classes': [base.__name__ for base in model_class.__bases__],
+                    'is_abstract': getattr(model_class, '__abstract__', False),
+                    'attributes': [attr for attr in dir(model_class) if not attr.startswith('_')]
+                }
+            except Exception as e:
+                logging.error(f"Error processing model {full_path}: {e}")
+
+        # Detect potential duplicate registrations
+        duplicate_paths = {}
+        for full_path, count in [(path, list(registered_models.keys()).count(path)) for path in
+                                 registered_models.keys()]:
+            if count > 1:
+                duplicate_paths[full_path] = count
+
+        # Log duplicate registrations
+        if duplicate_paths:
+            logging.warning("Potential Duplicate Model Registrations:")
+            for path, count in duplicate_paths.items():
+                logging.warning(f"  - {path}: {count} occurrences")
+                # Optional: Log details of duplicate registrations
+                logging.warning(f"    Details: {model_details.get(path, 'No additional details')}")
+
+        # Detailed model information
+        logging.info("\nDetailed Model Information:")
+        for full_path, details in model_details.items():
+            logging.info(f"\nModel: {full_path}")
+            logging.info(f"  Module: {details['module']}")
+            logging.info(f"  Base Classes: {', '.join(details['base_classes'])}")
+            logging.info(f"  Is Abstract: {details['is_abstract']}")
+            logging.info(f"  Key Attributes: {', '.join(details['attributes'][:10])}")  # Limit to first 10 attributes
+
+        # Identify potential inheritance issues
+        logging.info("\nPotential Inheritance Analysis:")
+        for full_path, details in model_details.items():
+            # Check for multiple inheritance
+            if len(details['base_classes']) > 2:  # More than Base and one other class
+                logging.warning(f"Multiple Inheritance Detected: {full_path}")
+                logging.warning(f"  Base Classes: {details['base_classes']}")
+
+        # Optional: Check for naming conventions
+        def check_naming_convention(class_name):
+            """Basic check for model naming conventions."""
+            if not class_name.endswith(('Model', 'Base')):
+                return False
+            return True
+
+        invalid_names = [
+            path for path, details in model_details.items()
+            if not check_naming_convention(details['class_name'])
+        ]
+
+        if invalid_names:
+            logging.warning("\nModels with Potential Naming Convention Issues:")
+            for path in invalid_names:
+                logging.warning(f"  - {path}")
+
+        logging.info("\n" + "=" * 50)
+        logging.info("Model Registration Diagnostic Complete")
+        logging.info("=" * 50)
+
+        return model_details
+
     def visualize_inventory_data(self):
         """Create advanced visualizations of leather inventory data."""
         if not self.treeview.get_children():
@@ -1513,6 +1691,34 @@ class LeatherInventoryView(BaseView):
 
         except Exception as e:
             self.handle_service_error(e, "Failed to setup transaction dialog")
+
+    def setup_logger(name: str, level: int = logging.INFO) -> logging.Logger:
+        """Create a standardized logger with consistent formatting."""
+        logger = logging.getLogger(name)
+        logger.setLevel(level)
+
+        # Create console handler
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(level)
+
+        # Create formatter
+        formatter = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S'
+        )
+        console_handler.setFormatter(formatter)
+
+        # Add handler to logger
+        logger.addHandler(console_handler)
+
+        return logger
+
+    def create_matplotlib_figure(figsize: Tuple[int, int] = (8, 5)) -> Tuple[plt.Figure, plt.Axes]:
+        """Create a standardized matplotlib figure with proper DPI and style."""
+        plt.style.use('seaborn')  # Use a clean, modern style
+        fig, ax = plt.subplots(figsize=figsize, dpi=100)
+        fig.tight_layout(pad=3.0)  # Add padding
+        return fig, ax
 
     def _view_transaction_history(self):
         """View transaction history for the selected material."""

@@ -3,9 +3,11 @@
 Comprehensive base model for SQLAlchemy models with advanced utility methods.
 """
 
+from .model_metaclass import BaseModelInterface
 import enum
 import uuid
 import logging
+import re
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Type, TypeVar
 
@@ -30,30 +32,181 @@ class ModelValidationError(Exception):
 
 class BaseModelMetaclass(DeclarativeBase.__class__):
     """
-    Custom metaclass to resolve inheritance conflicts.
+    Custom metaclass to resolve inheritance conflicts and track model registrations.
     """
 
+
+    # Class-level dictionary to track registered models with full paths
+    _registered_models: Dict[str, Type] = {}
+
     def __new__(mcs, name, bases, attrs):
-        # Only apply mixins to models that don't inherit from another model with the same mixin
-        # First check if any of the bases already includes these mixins
-        skip_mixins = set()
-        for base in bases:
-            if hasattr(base, '__dict__'):
-                for mixin in [TimestampMixin, ValidationMixin, CostingMixin, TrackingMixin]:
-                    # Check if any of the mixin's methods are already present in the base
-                    mixin_methods = [key for key in mixin.__dict__ if not key.startswith('__')]
-                    base_methods = [key for key in base.__dict__ if not key.startswith('__')]
-                    if any(method in base_methods for method in mixin_methods):
-                        skip_mixins.add(mixin)
+        """
+        Custom metaclass method to apply interface validation and mixin application.
 
-        # Add mixin methods to the class, skipping those already added via base classes
-        for mixin in [TimestampMixin, ValidationMixin, CostingMixin, TrackingMixin]:
-            if mixin not in skip_mixins:
-                for key, value in mixin.__dict__.items():
-                    if key not in attrs and not key.startswith('__'):
-                        attrs[key] = value
+        Args:
+            mcs: The metaclass
+            name: Name of the class being created
+            bases: Base classes of the new class
+            attrs: Attributes of the new class
 
-        return super().__new__(mcs, name, bases, attrs)
+        Returns:
+            The newly created class
+        """
+        # Create the class using SQLAlchemy's metaclass behavior
+        new_class = super().__new__(mcs, name, bases, attrs)
+
+        # Skip registration for abstract classes
+        if attrs.get('__abstract__', False):
+            return new_class
+
+        # Generate full path for the model with module and class name
+        full_path = f"{new_class.__module__}.{new_class.__name__}"
+
+        try:
+            # Log model registration
+            print(f"Registering model: {full_path}")
+
+            # Register the model
+            mcs._registered_models[full_path] = new_class
+
+            # Intelligent mixin application
+            available_mixins = [TimestampMixin, ValidationMixin, CostingMixin, TrackingMixin]
+            applied_mixins = []
+
+            for mixin in available_mixins:
+                # Skip if mixin methods are already present in the class or its bases
+                should_apply = True
+                mixin_methods = {key for key in dir(mixin) if
+                                 not key.startswith('__') and callable(getattr(mixin, key))}
+
+                for base in bases + (new_class,):
+                    base_methods = {key for key in dir(base) if
+                                    not key.startswith('__') and callable(getattr(base, key))}
+                    if mixin_methods.intersection(base_methods):
+                        should_apply = False
+                        break
+
+                if should_apply:
+                    # Apply mixin methods
+                    for key, value in mixin.__dict__.items():
+                        if not key.startswith('__') and key not in attrs and callable(value):
+                            setattr(new_class, key, value)
+                    applied_mixins.append(mixin.__name__)
+
+            # Log applied mixins
+            if applied_mixins:
+                print(f"Mixins applied to {name}: {', '.join(applied_mixins)}")
+
+        except Exception as e:
+            logging.error(f"Error registering model {full_path}: {e}")
+
+        return new_class
+
+    @classmethod
+    def get_registered_models(cls) -> Dict[str, List[Type]]:
+        """
+        Get all registered models with full paths.
+
+        Returns:
+            Dict[str, List[Type]]: Dictionary of registered model names and their classes
+        """
+        return cls._registered_models
+
+    @classmethod
+    def debug_registered_models(cls) -> Dict[str, List[str]]:
+        """
+        Comprehensive and safe debugging of registered models.
+
+        Returns:
+            Dict[str, List[str]]: Detailed information about registered models
+        """
+        debug_info = {}
+
+        try:
+            logger.info("===== Registered Models Debug =====")
+
+            # Safely iterate through registered models
+            for full_path, registered_item in cls._registered_models.items():
+                try:
+                    # Normalize to list if it's a single class
+                    models = [registered_item] if isinstance(registered_item, type) else registered_item
+
+                    # Filter out non-class items
+                    models = [model for model in models if isinstance(model, type)]
+
+                    if not models:
+                        continue
+
+                    # Collect model details
+                    model_details = []
+                    for model in models:
+                        try:
+                            # Get model attributes safely
+                            model_details.append(f"{model.__module__}.{model.__name__}")
+                        except Exception as model_error:
+                            logger.warning(f"Error processing model details: {model_error}")
+
+                    # Store in debug info
+                    debug_info[full_path] = model_details
+
+                    # Log details
+                    logger.info(f"{full_path}: {len(model_details)} model(s)")
+                    for detail in model_details:
+                        logger.info(f"  - {detail}")
+
+                except Exception as path_error:
+                    logger.error(f"Error processing registered models for {full_path}: {path_error}")
+
+        except Exception as e:
+            logger.critical(f"Catastrophic error in debug_registered_models: {e}", exc_info=True)
+
+        return debug_info
+
+    def find_problematic_registrations(cls):
+        """
+        Identify potentially problematic model registrations.
+
+        Returns:
+            Dict[str, Any]: Detailed information about potentially duplicate or incorrectly registered models
+        """
+        problematic_registrations = {}
+
+        try:
+            logger.info("===== Analyzing Model Registrations =====")
+
+            # Check for duplicate or unexpected registrations
+            for full_path, registered_item in cls._registered_models.items():
+                # Determine the type of registration
+                if isinstance(registered_item, type):
+                    # Single model registration
+                    continue
+                elif isinstance(registered_item, list):
+                    # Multiple models registered under same path
+                    if len(registered_item) > 1:
+                        problematic_registrations[full_path] = {
+                            'models': [f"{model.__module__}.{model.__name__}" for model in registered_item],
+                            'issue': 'Multiple models registered under same path'
+                        }
+                else:
+                    # Unexpected registration type
+                    problematic_registrations[full_path] = {
+                        'type': type(registered_item).__name__,
+                        'issue': 'Unexpected registration type'
+                    }
+
+            # Log problematic registrations
+            if problematic_registrations:
+                logger.warning("Problematic model registrations found:")
+                for path, details in problematic_registrations.items():
+                    logger.warning(f"{path}: {details}")
+            else:
+                logger.info("No problematic model registrations found.")
+
+        except Exception as e:
+            logger.error(f"Error analyzing model registrations: {e}", exc_info=True)
+
+        return problematic_registrations
+
 
 
 class Base(DeclarativeBase, metaclass=BaseModelMetaclass):
@@ -79,7 +232,6 @@ class Base(DeclarativeBase, metaclass=BaseModelMetaclass):
         Returns:
             str: Automatically generated table name
         """
-        import re
         # Convert camelCase or PascalCase to snake_case
         s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', cls.__name__)
         s2 = re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
@@ -245,38 +397,6 @@ class Base(DeclarativeBase, metaclass=BaseModelMetaclass):
         return f"<{self.__class__.__name__} id={self.id}, uuid={self.uuid}>"
 
 
-# Optional: Add global event listeners for additional tracking or validation
-@event.listens_for(Mapper, 'before_insert')
-def receive_before_insert(mapper, connection, target):
-    """
-    Global event listener for pre-insert operations.
-    Can be used for additional validation or tracking.
-    """
-    try:
-        # Perform any pre-insert validations or tracking
-        if hasattr(target, '_validate_before_insert'):
-            target._validate_before_insert()
-    except Exception as e:
-        logger.error(f"Pre-insert validation failed: {str(e)}")
-        raise
-
-
-@event.listens_for(Mapper, 'before_update')
-def receive_before_update(mapper, connection, target):
-    """
-    Global event listener for pre-update operations.
-    Can be used for additional validation or tracking.
-    """
-    try:
-        # Perform any pre-update validations or tracking
-        if hasattr(target, '_validate_before_update'):
-            target._validate_before_update()
-    except Exception as e:
-        logger.error(f"Pre-update validation failed: {str(e)}")
-        raise
-
-
-# Add this after the existing Base class definition
 class BaseModel(Base):
     """
     Compatibility base model that inherits from Base.
@@ -315,3 +435,34 @@ class BaseModel(Base):
         ]
         pk_str = ', '.join(pk_attrs) if pk_attrs else 'no primary key'
         return f"{self.__class__.__name__}({pk_str})"
+
+
+# Optional: Add global event listeners for additional tracking or validation
+@event.listens_for(Mapper, 'before_insert')
+def receive_before_insert(mapper, connection, target):
+    """
+    Global event listener for pre-insert operations.
+    Can be used for additional validation or tracking.
+    """
+    try:
+        # Perform any pre-insert validations or tracking
+        if hasattr(target, '_validate_before_insert'):
+            target._validate_before_insert()
+    except Exception as e:
+        logger.error(f"Pre-insert validation failed: {str(e)}")
+        raise
+
+
+@event.listens_for(Mapper, 'before_update')
+def receive_before_update(mapper, connection, target):
+    """
+    Global event listener for pre-update operations.
+    Can be used for additional validation or tracking.
+    """
+    try:
+        # Perform any pre-update validations or tracking
+        if hasattr(target, '_validate_before_update'):
+            target._validate_before_update()
+    except Exception as e:
+        logger.error(f"Pre-update validation failed: {str(e)}")
+        raise

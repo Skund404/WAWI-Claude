@@ -11,6 +11,7 @@ class Leather(Base):
     """
     Model representing leather materials.
     """
+    __tablename__ = 'leathers'
     # Leather specific fields
     name = Column(String(255), nullable=False, index=True)
     description = Column(Text, nullable=True)
@@ -33,13 +34,20 @@ class Leather(Base):
     is_active = Column(Boolean, default=True, nullable=False)
 
     supplier_id = Column(Integer, ForeignKey("suppliers.id"), nullable=True)
-    storage_id = Column(Integer, ForeignKey("storage.id"), nullable=True)
+    storage_id = Column(Integer, ForeignKey("storages.id"), nullable=True)
 
     # Relationships
     transactions = relationship("LeatherTransaction", back_populates="leather", cascade="all, delete-orphan")
     supplier = relationship("Supplier", back_populates="leathers")
     storage = relationship("Storage", back_populates="leathers")
-    project_components = relationship("ProjectComponent", back_populates="leather")
+    project_components = relationship(
+        "ProjectComponent",
+        primaryjoin="and_(foreign(Leather.id) == remote(ProjectComponent.material_id), "
+                    "ProjectComponent.type == 'project_component')",
+        viewonly=True,
+
+    )
+    project_component_id = Column(Integer, ForeignKey('components.id'), nullable=True)
 
     def __init__(self, **kwargs):
         """Initialize a Leather instance with validation.

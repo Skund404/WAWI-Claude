@@ -34,6 +34,23 @@ class MaterialCalculator(BaseView):
         self._setup_layout()
         self.load_initial_materials()
 
+    def debug_model_registration(self):
+        """
+        Debug method to investigate model registration issues.
+        """
+        try:
+            from database.models.base import Base
+
+            # Get registered models
+            registered_models = Base.debug_registered_models()
+
+            # Log each registered model
+            for model_name in registered_models:
+                self._logger.info(f"Registered Model: {model_name}")
+
+        except Exception as e:
+            self._logger.error(f"Error debugging model registration: {str(e)}")
+
     def _setup_layout(self):
         """Configure the material calculator layout."""
         # Main container with vertical layout

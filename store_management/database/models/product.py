@@ -10,6 +10,7 @@ class Product(Base):
     """
     Model representing products sold in leatherworking business.
     """
+    __tablename__ = 'products'
     # Product specific fields
     name = Column(String(255), nullable=False, index=True)
     description = Column(Text, nullable=True)
@@ -35,7 +36,7 @@ class Product(Base):
     # Foreign keys
     pattern_id = Column(Integer, ForeignKey("patterns.id"), nullable=True)
     supplier_id = Column(Integer, ForeignKey("suppliers.id"), nullable=True)
-    storage_id = Column(Integer, ForeignKey("storage.id"), nullable=True)
+    storage_id = Column(Integer, ForeignKey("storages.id"), nullable=True)
 
     # Relationships
     pattern = relationship("Pattern", back_populates="products")

@@ -1,8 +1,10 @@
+# utils/circular_import_resolver.py
 """
-Utility for resolving circular imports.
+Enhanced utility for resolving circular imports.
 
 This module provides utilities to help resolve circular imports
-by deferring imports until they are actually needed.
+by deferring imports until they are actually needed, with improved
+support for SQLAlchemy models and relationships.
 """
 
 import importlib
@@ -18,7 +20,8 @@ class CircularImportResolver:
     Utility class for resolving circular imports.
 
     This class provides methods to lazily import modules and classes
-    to avoid circular import issues.
+    to avoid circular import issues, with specialized handling for
+    SQLAlchemy models and relationships.
     """
 
     _module_cache: Dict[str, Any] = {}
@@ -26,6 +29,7 @@ class CircularImportResolver:
     _lazy_imports: Dict[str, Callable] = {}
     _registered_modules: Set[str] = set()
     _import_stack: Set[str] = set()  # Track imports in process to detect circular dependencies
+    _relationship_map: Dict[str, Dict[str, str]] = {}  # Track relationship definitions for models
 
     @classmethod
     def get_module(cls, module_path: str) -> Any:
@@ -97,79 +101,97 @@ class CircularImportResolver:
             raise
 
     @classmethod
-    def lazy_import(cls, module_path: str, class_name: Optional[str] = None) -> Callable:
+    def lazy_import(cls, module_path: str, class_name: Optional[str] = None) -> Any:
         """
         Lazily import a module or class.
 
-        Use this as a decorator to defer imports until the function is called.
+        This version returns a proxy object that resolves the import when
+        accessed, providing better compatibility with SQLAlchemy relationships.
 
         Args:
             module_path: Dot-separated path to the module
             class_name: Optional name of the class to import
 
         Returns:
-            A decorator function
+            LazyImportProxy or the module itself
 
         Example:
-            @CircularImportResolver.lazy_import('services.implementations.material_service', 'MaterialService')
-            def get_material_service():
-                return MaterialService()
+            Material = lazy_import('database.models.material', 'Material')
+            material = Material(name='test')  # Import only happens here
         """
-        def decorator(func: Callable[..., T]) -> Callable[..., T]:
-            def wrapper(*args, **kwargs) -> T:
-                try:
-                    if class_name:
-                        # Import the specific class
-                        imported = cls.get_class(module_path, class_name)
-                    else:
-                        # Import the entire module
-                        imported = cls.get_module(module_path)
-
-                    # Add the imported module or class to the function's globals
-                    func.__globals__[class_name or module_path.split('.')[-1]] = imported
-
-                    # Call the original function
-                    return func(*args, **kwargs)
-                except (ImportError, AttributeError) as e:
-                    logging.error(f"Lazy import failed: {e}")
-                    raise
-
-            # Preserve metadata
-            wrapper.__name__ = func.__name__
-            wrapper.__doc__ = func.__doc__
-            wrapper.__module__ = func.__module__
-
-            return wrapper
-
-        return decorator
+        if class_name:
+            # For class imports, return a proxy
+            return LazyImportProxy(lambda: cls.get_class(module_path, class_name))
+        else:
+            # For module imports, we can directly return the module
+            return cls.get_module(module_path)
 
     @classmethod
-    def register_lazy_import(cls, import_path: str, loader_func: Optional[Callable] = None) -> None:
+    def register_lazy_import(cls, import_path: str, module_path: str = None) -> None:
         """
         Register a lazy import to be resolved later.
 
         Args:
             import_path: Dot-separated path including module and class (e.g. 'module.path.ClassName')
-            loader_func: Optional function that returns the imported object
+            module_path: Optional module path if different from import_path
+
+        Example:
+            register_lazy_import('database.models.material.Material', 'database.models.material')
         """
-        if loader_func is None:
-            # If no loader function is provided, create a default one
-            module_path, class_name = import_path.rsplit('.', 1)
+        if not module_path:
+            # Default to the module part of the import path
+            # Make sure the import_path has at least one dot before trying to split
+            if '.' in import_path:
+                module_path = import_path.rsplit('.', 1)[0]
+            else:
+                # If there's no dot, then use the import_path as both module and class name
+                module_path = import_path
+                class_name = import_path
+                logger.warning(
+                    f"Import path '{import_path}' does not contain a module separator. Using as both module and class.")
 
-            def default_loader():
-                try:
-                    return cls.get_class(module_path, class_name)
-                except (ImportError, AttributeError) as e:
-                    logging.error(f"Failed to lazy load {import_path}: {e}")
-                    return None
+        # Only try to extract class_name if we didn't already set it above
+        if not locals().get('class_name'):
+            if '.' in import_path:
+                class_name = import_path.rsplit('.', 1)[1]
+            else:
+                class_name = import_path
 
-            loader_func = default_loader
+        def loader_func():
+            try:
+                return cls.get_class(module_path, class_name)
+            except (ImportError, AttributeError) as e:
+                logging.error(f"Failed to lazy load {import_path}: {e}")
+                return None
 
         cls._lazy_imports[import_path] = loader_func
 
         # Mark the module as registered
-        module_path = import_path.rsplit('.', 1)[0]
         cls._registered_modules.add(module_path)
+
+    @classmethod
+    def register_relationship(cls, source_model: str, relationship_name: str, target_model: str) -> None:
+        """
+        Register a relationship between SQLAlchemy models.
+
+        This helps with generating proper join conditions even with circular dependencies.
+
+        Args:
+            source_model: Full path to the source model (e.g. 'database.models.project.Project')
+            relationship_name: Name of the relationship attribute
+            target_model: Full path to the target model (e.g. 'database.models.component.Component')
+        """
+        if source_model not in cls._relationship_map:
+            cls._relationship_map[source_model] = {}
+
+        cls._relationship_map[source_model][relationship_name] = target_model
+
+        # Also register both models for lazy import
+        src_module = source_model.rsplit('.', 1)[0]
+        tgt_module = target_model.rsplit('.', 1)[0]
+
+        cls.register_lazy_import(source_model, src_module)
+        cls.register_lazy_import(target_model, tgt_module)
 
     @classmethod
     def resolve_lazy_import(cls, import_path: str) -> Any:
@@ -202,6 +224,22 @@ class CircularImportResolver:
             cls._import_stack.discard(import_path)
 
     @classmethod
+    def get_relationship_info(cls, source_model: str, relationship_name: str) -> Optional[str]:
+        """
+        Get information about a registered relationship.
+
+        Args:
+            source_model: Full path to the source model
+            relationship_name: Name of the relationship attribute
+
+        Returns:
+            Target model path or None if not found
+        """
+        if source_model in cls._relationship_map and relationship_name in cls._relationship_map[source_model]:
+            return cls._relationship_map[source_model][relationship_name]
+        return None
+
+    @classmethod
     def is_module_registered(cls, module_path: str) -> bool:
         """
         Check if a module has been registered for lazy imports.
@@ -222,6 +260,29 @@ class CircularImportResolver:
         cls._lazy_imports.clear()
         cls._registered_modules.clear()
         cls._import_stack.clear()
+        cls._relationship_map.clear()
+
+
+class LazyImportProxy:
+    """
+    Proxy class for lazy imports that resolves the actual class on first use.
+    Compatible with SQLAlchemy relationship targets.
+    """
+    def __init__(self, import_func: Callable[[], Type[T]]):
+        self._import_func = import_func
+        self._actual_class = None
+
+    def __call__(self, *args, **kwargs):
+        if self._actual_class is None:
+            self._actual_class = self._import_func()
+
+        return self._actual_class(*args, **kwargs)
+
+    def __getattr__(self, name: str) -> Any:
+        if self._actual_class is None:
+            self._actual_class = self._import_func()
+
+        return getattr(self._actual_class, name)
 
 
 # Function aliases for convenience
@@ -252,29 +313,41 @@ def get_class(module_path: str, class_name: str) -> Type:
     return CircularImportResolver.get_class(module_path, class_name)
 
 
-def lazy_import(module_path: str, class_name: Optional[str] = None) -> Callable:
+def lazy_import(module_path: str, class_name: Optional[str] = None) -> Any:
     """
-    Decorator for lazy importing modules or classes.
+    Lazily import a module or class.
 
     Args:
         module_path: Dot-separated path to the module
         class_name: Optional name of the class to import
 
     Returns:
-        A decorator function
+        LazyImportProxy or the module itself
     """
     return CircularImportResolver.lazy_import(module_path, class_name)
 
 
-def register_lazy_import(import_path: str, loader_func: Optional[Callable] = None) -> None:
+def register_lazy_import(import_path: str, module_path: str = None) -> None:
     """
     Register a lazy import to be resolved later.
 
     Args:
         import_path: Dot-separated path including module and class
-        loader_func: Optional function that returns the imported object
+        module_path: Optional module path if different from import_path
     """
-    CircularImportResolver.register_lazy_import(import_path, loader_func)
+    CircularImportResolver.register_lazy_import(import_path, module_path)
+
+
+def register_relationship(source_model: str, relationship_name: str, target_model: str) -> None:
+    """
+    Register a relationship between SQLAlchemy models.
+
+    Args:
+        source_model: Full path to the source model
+        relationship_name: Name of the relationship attribute
+        target_model: Full path to the target model
+    """
+    CircularImportResolver.register_relationship(source_model, relationship_name, target_model)
 
 
 def resolve_lazy_import(import_path: str) -> Any:
@@ -288,6 +361,20 @@ def resolve_lazy_import(import_path: str) -> Any:
         The imported object
     """
     return CircularImportResolver.resolve_lazy_import(import_path)
+
+
+def get_relationship_info(source_model: str, relationship_name: str) -> Optional[str]:
+    """
+    Get information about a registered relationship.
+
+    Args:
+        source_model: Full path to the source model
+        relationship_name: Name of the relationship attribute
+
+    Returns:
+        Target model path or None if not found
+    """
+    return CircularImportResolver.get_relationship_info(source_model, relationship_name)
 
 
 def is_module_registered(module_path: str) -> bool:
