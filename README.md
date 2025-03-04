@@ -1,180 +1,96 @@
-# Store Management System
+# Not release ready
+# Leatherworking Store Management Application
 
-## Overview
-
-A comprehensive inventory and order management application designed for small to medium-sized businesses, providing robust tracking of inventory, orders, recipes, and suppliers.
+This application provides a comprehensive solution for managing a leatherworking store, including inventory management, order processing, project tracking, and more.
 
 ## Features
+- Manage leather, hardware, and other material inventory
+- Track inventory quantities, storage locations, suppliers and more  
+- Create and manage customer orders
+- Generate and print picking lists for order fulfillment
+- Manage leatherworking projects and track progress
+- Analyze project costs and optimize pricing
+- Powerful reporting and analytics capabilities
+- Extensible architecture with dependency injection
+- SQLite database for data persistence 
+- Integrated backup and restore functionality
 
-### Inventory Management
-- Real-time stock tracking
-- Multi-level inventory monitoring
-- Automatic low-stock alerts
-- Detailed inventory transactions
-
-### Order Processing
-- Complete order lifecycle management
-- Supplier order tracking
-- Status-based order filtering
-- Automated order status updates
-
-### Recipe and Production Management
-- Recipe creation and tracking
-- Material availability checks
-- Production order management
-- Recipe cost calculation
-
-### Supplier Management
-- Supplier performance tracking
-- Detailed supplier information
-- Order history analysis
-- Supplier rating system
-
-### Storage Management
-- Storage location tracking
-- Capacity and utilization monitoring
-- Product placement tracking
-- Efficient space management
-
-## Technical Architecture
-
-### Core Technologies
-- Python
-- SQLAlchemy ORM
-- Tkinter GUI
-- SQLite Database
-- Alembic Migrations
-
-### Database Access Pattern
-- Mixin-based database interactions
-- Flexible query capabilities
-- Performance-optimized database operations
-- Comprehensive error handling
-
-### Key Components
-- Robust database managers
-- Flexible service layer
-- Comprehensive error tracking
-- Modular design
-
-## Installation
+## Getting Started
 
 ### Prerequisites
-- Python 3.8+
-- pip
+- Python 3.7+
+- SQLite 3
 
-### Setup
-```bash
-# Clone the repository
-git clone https://github.com/your-org/store-management.git
+### Installation
+1. Clone the repo:
+   ```sh
+   git clone https://github.com/yourusername/leatherworking-store-app.git
+   ```
+2. Install dependencies:
+   ```sh
+   cd leatherworking-store-app
+   pip install -r requirements.txt
+   ```
+3. Run database migrations:
+   ```sh
+   python -m database.migrations.migration_manager
+   ```
+4. Start the application:
+   ```sh 
+   python main.py
+   ```
 
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows, use `venv\Scripts\activate`
+## Architecture Overview
+The application follows a layered architecture with clear separation of concerns:
+- `gui` - Tkinter based graphical user interface 
+- `services` - Business logic layer with service interfaces and implementations
+- `database` - Data access layer using SQLAlchemy ORM
+- `di` - Dependency injection setup for decoupling components
+- `utils` - Various utility modules for cross-cutting concerns
 
-# Install dependencies
-pip install -r requirements.txt
+## Database Schema
+The application uses a SQLite database with the following key entities:
+- `Material` - Represents inventory items like leather, hardware etc.
+- `Storage` - Represents physical storage locations 
+- `Supplier` - Represents material suppliers
+- `Order` - Represents customer orders
+- `OrderItem` - Line items within an order 
+- `Project` - Represents leatherworking projects
+- `ProjectComponent` - Components/materials used in a project
+- `PickingList` - Represents a picking list for order fulfillment
 
-# Initialize database
-python -m store_management.database.initialize
-```
+Refer to the `database/models` directory for the complete schema definition.
 
-## Quick Start
+## Dependency Injection
+The application uses a custom dependency injection system to decouple components and facilitate testing. The DI setup is defined in the `di` directory.
+
+To access a service from within the application, use the `@inject` decorator:
 
 ```python
-# Basic usage example
-from store_management.services import InventoryService, OrderService
+from di.core import inject
+from services.interfaces import IMaterialService
 
-# Initialize services
-inventory_service = InventoryService()
-order_service = OrderService()
-
-# Add a new product
-inventory_service.add_part({
-    'name': 'Widget',
-    'quantity': 100,
-    'unit_price': 9.99
-})
-
-# Create an order
-order_service.create_order({
-    'customer_name': 'ACME Corp',
-    'total_amount': 499.50
-}, [
-    {'product_id': 1, 'quantity': 50}
-])
+@inject(IMaterialService)
+def some_function(material_service: IMaterialService):
+    # use the injected service
 ```
 
-## Development
+## Testing
+The application includes a comprehensive test suite covering various layers:
+- `tests/test_integration.py` - End-to-end integration tests
+- `tests/test_database` - Database and repository tests  
+- `tests/test_services` - Service layer unit tests
 
-### Running Tests
-```bash
-# Run unit tests
-python -m pytest tests/
-
-# Run performance tests
-python -m pytest tests/performance/
+To run all tests:
+```sh
+pytest
 ```
-
-### Contributing
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
-
-## Mixin Database Access
-
-### Search Capabilities
-```python
-# Advanced searching
-results = manager.search('query')
-results = manager.advanced_search({
-    'name': {'op': 'like', 'value': '%product%'},
-    'price': {'op': '>', 'value': 100}
-})
-```
-
-### Complex Filtering
-```python
-# Multi-condition filtering
-results = manager.filter_complex([
-    {'field': 'status', 'op': '==', 'value': 'active'},
-    {'field': 'price', 'op': '>', 'value': 50}
-])
-```
-
-## Performance Metrics
-- Search: < 0.5 seconds (10,000 records)
-- Complex Queries: Near-native SQLAlchemy performance
-- Minimal query overhead
 
 ## License
-[Specify License]
+Distributed under the MIT License. See `LICENSE` for more information.
 
-## Support
-- GitHub Issues
-- Email: support@storemanagement.com
+## Contact
+Pascal - 
+https://github.com/Skund404/WAWI-Claude
 
-## Roadmap
-- [ ] Cloud Sync
-- [ ] Advanced Reporting
-- [ ] Multi-location Support
-- [ ] Machine Learning Inventory Predictions
-
-## System Requirements
-- Operating System: Windows 10+, macOS 10.14+, Linux
-- RAM: 4GB+
-- Storage: 500MB+
-- CPU: Dual-core 2.0 GHz+
-
-## Security
-- Encrypted database connections
-- Role-based access control
-- Comprehensive logging
-- Regular security updates
-```
-
-This README provides a comprehensive overview of the Store Management System, covering its features, technical architecture, installation process, usage examples, and development guidelines. It highlights the key technical innovations, particularly the mixin-based database access pattern, while remaining accessible to both technical and non-technical readers.
-
-Would you like me to elaborate on any specific section or provide more detailed information about any aspect of the project?
+Let me know if you would like me to modify or expand the README in any way! I'm happy to refine it further.
