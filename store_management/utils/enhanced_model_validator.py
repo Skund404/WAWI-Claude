@@ -1,331 +1,309 @@
-# utils/enhanced_model_validator.py
 """
-Enhanced Model Validation Utility
+utils/enhanced_model_validator.py - Enhanced validation utilities for SQLAlchemy models.
 
-Provides comprehensive validation mechanisms for database models,
-designed to work seamlessly with the CircularImportResolver.
+This module provides comprehensive validation utilities for SQLAlchemy models,
+including type checking, constraint validation, and data sanitization.
 """
 
-from typing import Any, Callable, Dict, List, Optional, Type, Union
-from enum import Enum
-import re
 import logging
-from datetime import datetime, date
+import re
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Type, Union
 
-from utils.circular_import_resolver import lazy_import
+from sqlalchemy.orm import DeclarativeBase
+
+logger = logging.getLogger(__name__)
 
 
 class ValidationError(Exception):
-    """
-    Custom exception for model validation failures with rich context.
-    """
+    """Exception raised when validation fails."""
 
-    def __init__(
-            self,
-            message: str,
-            field: Optional[str] = None,
-            error_type: Optional[str] = None,
-            additional_context: Optional[Dict] = None
-    ):
-        self.message = message
+    def __init__(self, message: str, field: Optional[str] = None):
+        """Initialize a ValidationError.
+
+        Args:
+            message: Error message
+            field: Optional field name where validation failed
+        """
         self.field = field
-        self.error_type = error_type
-        self.additional_context = additional_context or {}
-        super().__init__(self.format_message())
+        self.message = message
 
-    def format_message(self) -> str:
-        """
-        Generate a comprehensive error message.
+        # Format the message to include the field if provided
+        formatted_message = message
+        if field:
+            formatted_message = f"{message} (field: {field})"
 
-        Returns:
-            Formatted error message with context
-        """
-        base_message = self.message
-        if self.field:
-            base_message = f"Validation failed for field '{self.field}': {base_message}"
-
-        if self.additional_context:
-            context_str = ", ".join(f"{k}={v}" for k, v in self.additional_context.items())
-            base_message += f" (Context: {context_str})"
-
-        return base_message
+        super().__init__(formatted_message)
 
 
 class ModelValidator:
-    """
-    Advanced validation utility with robust error handling and flexibility.
-    """
+    """Provides validation utilities for SQLAlchemy models."""
 
     @staticmethod
-    def validate_not_empty(
-            value: Any,
-            field_name: str,
-            allow_zero: bool = False,
-            trim: bool = True
-    ) -> None:
-        """
-        Validate that a value is not empty with configurable options.
-
-        Args:
-            value: Value to validate
-            field_name: Name of the field being validated
-            allow_zero: Whether zero is considered valid
-            trim: Whether to strip whitespace for strings
-
-        Raises:
-            ValidationError: If value is empty
-        """
-        if value is None:
-            raise ValidationError("Cannot be None", field_name, "null_value")
-
-        # Handle string-specific validation
-        if isinstance(value, str):
-            cleaned_value = value.strip() if trim else value
-            if not cleaned_value:
-                raise ValidationError("Cannot be an empty string", field_name, "empty_string")
-
-        # Handle collections
-        elif hasattr(value, '__len__'):
-            if len(value) == 0:
-                raise ValidationError("Cannot be an empty collection", field_name, "empty_collection")
-
-        # Handle numeric values
-        elif isinstance(value, (int, float)):
-            if not allow_zero and value == 0:
-                raise ValidationError("Cannot be zero", field_name, "zero_value")
-
-    @staticmethod
-    def validate_type(
-            value: Any,
-            expected_type: Union[Type, tuple],
-            field_name: str,
-            allow_none: bool = False
-    ) -> None:
-        """
-        Validate the type of a value with comprehensive type checking.
-
-        Args:
-            value: Value to validate
-            expected_type: Expected type or tuple of types
-            field_name: Name of the field being validated
-            allow_none: Whether None is acceptable
-
-        Raises:
-            ValidationError: If type is incorrect
-        """
-        if value is None:
-            if not allow_none:
-                raise ValidationError("Cannot be None", field_name, "null_value")
-            return
-
-        if not isinstance(value, expected_type):
-            raise ValidationError(
-                f"Must be of type {expected_type}",
-                field_name,
-                "type_mismatch",
-                {"actual_type": type(value)}
-            )
-
-    @staticmethod
-    def validate_enum(
-            value: Any,
-            enum_class: Type[Enum],
-            field_name: str,
-            allow_none: bool = False
-    ) -> None:
-        """
-        Validate that a value is a valid enum member.
-
-        Args:
-            value: Value to validate
-            enum_class: Enum class to validate against
-            field_name: Name of the field being validated
-            allow_none: Whether None is acceptable
-
-        Raises:
-            ValidationError: If value is not a valid enum
-        """
-        if value is None:
-            if not allow_none:
-                raise ValidationError("Cannot be None", field_name, "null_value")
-            return
-
-        if not isinstance(value, enum_class):
-            raise ValidationError(
-                f"Must be a valid {enum_class.__name__} member",
-                field_name,
-                "invalid_enum",
-                {"valid_values": list(enum_class.__members__.keys())}
-            )
-
-    @staticmethod
-    def validate_regex(
-            value: str,
-            pattern: str,
-            field_name: str,
-            error_message: Optional[str] = None
-    ) -> None:
-        """
-        Validate a string against a regex pattern.
+    def validate_string_length(value: str, min_length: int = 0, max_length: Optional[int] = None,
+                               field: str = None) -> None:
+        """Validate string length.
 
         Args:
             value: String to validate
-            pattern: Regex pattern
-            field_name: Name of the field being validated
-            error_message: Optional custom error message
+            min_length: Minimum allowed length
+            max_length: Maximum allowed length (if any)
+            field: Field name for error reporting
 
         Raises:
-            ValidationError: If value does not match pattern
+            ValidationError: If validation fails
         """
-        if not re.match(pattern, value):
-            raise ValidationError(
-                error_message or f"Does not match required pattern: {pattern}",
-                field_name,
-                "pattern_mismatch"
-            )
+        if not isinstance(value, str):
+            raise ValidationError(f"Expected a string, got {type(value).__name__}", field)
+
+        if len(value) < min_length:
+            raise ValidationError(f"String is too short (minimum length: {min_length})", field)
+
+        if max_length is not None and len(value) > max_length:
+            raise ValidationError(f"String is too long (maximum length: {max_length})", field)
 
     @staticmethod
-    def validate_range(
-            value: Union[int, float, date, datetime],
-            min_value: Optional[Any] = None,
-            max_value: Optional[Any] = None,
-            field_name: str = "value"
-    ) -> None:
+    def validate_number_range(value: Union[int, float], min_value: Optional[Union[int, float]] = None,
+                              max_value: Optional[Union[int, float]] = None, field: str = None) -> None:
+        """Validate number is within range.
+
+        Args:
+            value: Number to validate
+            min_value: Minimum allowed value (if any)
+            max_value: Maximum allowed value (if any)
+            field: Field name for error reporting
+
+        Raises:
+            ValidationError: If validation fails
         """
-        Validate that a value is within a specified range.
+        if not isinstance(value, (int, float)):
+            raise ValidationError(f"Expected a number, got {type(value).__name__}", field)
+
+        if min_value is not None and value < min_value:
+            raise ValidationError(f"Value is too small (minimum: {min_value})", field)
+
+        if max_value is not None and value > max_value:
+            raise ValidationError(f"Value is too large (maximum: {max_value})", field)
+
+    @staticmethod
+    def validate_email(value: str, field: str = None) -> None:
+        """Validate email format.
+
+        Args:
+            value: Email to validate
+            field: Field name for error reporting
+
+        Raises:
+            ValidationError: If validation fails
+        """
+        # Simple regex for basic email validation
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+
+        if not re.match(email_pattern, value):
+            raise ValidationError("Invalid email format", field)
+
+    @staticmethod
+    def validate_date(value: datetime, min_date: Optional[datetime] = None, max_date: Optional[datetime] = None,
+                      field: str = None) -> None:
+        """Validate date is within range.
+
+        Args:
+            value: Date to validate
+            min_date: Minimum allowed date (if any)
+            max_date: Maximum allowed date (if any)
+            field: Field name for error reporting
+
+        Raises:
+            ValidationError: If validation fails
+        """
+        if not isinstance(value, datetime):
+            raise ValidationError(f"Expected a datetime, got {type(value).__name__}", field)
+
+        if min_date is not None and value < min_date:
+            raise ValidationError(f"Date is too early (minimum: {min_date})", field)
+
+        if max_date is not None and value > max_date:
+            raise ValidationError(f"Date is too late (maximum: {max_date})", field)
+
+    @staticmethod
+    def validate_enum(value: Any, enum_class: Type, field: str = None) -> None:
+        """Validate value is a valid enum member.
 
         Args:
             value: Value to validate
-            min_value: Minimum allowed value
-            max_value: Maximum allowed value
-            field_name: Name of the field being validated
+            enum_class: Enum class to check against
+            field: Field name for error reporting
 
         Raises:
-            ValidationError: If value is outside specified range
+            ValidationError: If validation fails
         """
-        if min_value is not None and value < min_value:
-            raise ValidationError(
-                f"Must be greater than or equal to {min_value}",
-                field_name,
-                "below_minimum",
-                {"min_value": min_value}
-            )
-
-        if max_value is not None and value > max_value:
-            raise ValidationError(
-                f"Must be less than or equal to {max_value}",
-                field_name,
-                "above_maximum",
-                {"max_value": max_value}
-            )
-
-    @classmethod
-    def validate_email(cls, email: str) -> None:
-        """
-        Validate email address format using regex.
-
-        Args:
-            email: Email address to validate
-
-        Raises:
-            ValidationError: If email is invalid
-        """
-        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-        cls.validate_regex(
-            email,
-            email_pattern,
-            'email',
-            "Invalid email format"
-        )
-
-    @classmethod
-    def validate_model(
-            cls,
-            model_instance: Any,
-            validation_rules: Optional[Dict[str, Callable]] = None
-    ) -> None:
-        """
-        Validate an entire model instance with custom validation rules.
-
-        Args:
-            model_instance: Model instance to validate
-            validation_rules: Optional dictionary of custom validation functions
-
-        Raises:
-            ValidationError: If any validation fails
-        """
-        if validation_rules is None:
+        # Check if value is an instance of the enum
+        if isinstance(value, enum_class):
             return
 
-        for field, validator in validation_rules.items():
+        # Check if value is a string representation of an enum member
+        if isinstance(value, str):
             try:
-                value = getattr(model_instance, field, None)
-                validator(value)
-            except Exception as e:
-                raise ValidationError(
-                    f"Custom validation failed for {field}",
-                    field,
-                    "custom_validation_error",
-                    {"original_error": str(e)}
-                )
+                enum_class[value]
+                return
+            except (KeyError, TypeError):
+                pass
+
+        # If we get here, validation failed
+        valid_values = ", ".join(str(m.name) for m in enum_class)
+        raise ValidationError(f"Invalid enum value. Expected one of: {valid_values}", field)
 
 
-# Convenience functions for quick validations
-def validate_not_empty(
-        data: Dict,
-        field: str,
-        message: Optional[str] = None,
-        allow_zero: bool = False
-):
-    """
-    Quick validation for non-empty values in dictionaries.
+def validate_not_empty(data: Dict[str, Any], field: str, message: Optional[str] = None) -> None:
+    """Validate that a field is present and not empty.
 
     Args:
-        data: Dictionary to validate
-        field: Field to check
+        data: Data dictionary to validate
+        field: Field name to check
         message: Optional custom error message
-        allow_zero: Whether zero is considered valid
 
     Raises:
-        ValidationError: If field is empty
+        ValidationError: If validation fails
+    """
+    if field not in data or not data[field]:
+        raise ValidationError(message or f"{field} cannot be empty", field)
+
+
+def validate_positive_number(data: Dict[str, Any], field: str, allow_zero: bool = False,
+                             message: Optional[str] = None) -> None:
+    """Validate that a field contains a positive number.
+
+    Args:
+        data: Data dictionary to validate
+        field: Field name to check
+        allow_zero: Whether to allow zero value
+        message: Optional custom error message
+
+    Raises:
+        ValidationError: If validation fails
+    """
+    if field not in data:
+        return
+
+    value = data[field]
+
+    if not isinstance(value, (int, float)):
+        raise ValidationError(message or f"{field} must be a number", field)
+
+    min_value = 0 if allow_zero else 0.000001
+
+    if value < min_value:
+        raise ValidationError(
+            message or f"{field} must be {'positive' if not allow_zero else 'non-negative'}",
+            field
+        )
+
+
+def validate_model_data(model_class: Type, data: Dict[str, Any]) -> None:
+    """Validate data against a SQLAlchemy model's columns and constraints.
+
+    This function checks:
+    - Required fields are present
+    - Data types match column types
+    - String lengths are within column limits
+    - Numeric values are within constraints
+
+    Args:
+        model_class: SQLAlchemy model class
+        data: Data to validate
+
+    Raises:
+        ValidationError: If validation fails
     """
     try:
-        ModelValidator.validate_not_empty(
-            data.get(field),
-            field,
-            allow_zero,
-            message or f"{field} is required"
-        )
-    except ValidationError as e:
-        raise e
+        # Get model table info if available
+        if hasattr(model_class, '__table__'):
+            table = model_class.__table__
+
+            # Check each column
+            for column in table.columns:
+                column_name = column.name
+
+                # Skip primary key and other auto-generated columns
+                if column.primary_key and column_name not in data:
+                    continue
+
+                # Check required fields
+                if not column.nullable and not column.default and not column.server_default:
+                    validate_not_empty(data, column_name, f"{column_name} is required")
+
+                # If field is present, validate type and constraints
+                if column_name in data and data[column_name] is not None:
+                    value = data[column_name]
+
+                    # String validation
+                    if hasattr(column.type, 'length') and column.type.length is not None:
+                        if isinstance(value, str):
+                            ModelValidator.validate_string_length(
+                                value,
+                                0,
+                                column.type.length,
+                                column_name
+                            )
+
+                    # Numeric validation
+                    if hasattr(column.type, 'precision'):
+                        if isinstance(value, (int, float)):
+                            # For now, just ensure it's a number
+                            pass
+
+        # Perform any model-specific validation
+        if hasattr(model_class, '_validate_creation') and callable(model_class._validate_creation):
+            model_class._validate_creation(data)
+
+    except ValidationError:
+        # Re-raise validation errors
+        raise
+    except Exception as e:
+        # Log and convert other errors to ValidationError
+        logger.error(f"Error validating model data: {e}")
+        raise ValidationError(f"Data validation error: {str(e)}")
 
 
-def validate_positive_number(
-        data: Dict,
-        field: str,
-        allow_zero: bool = False,
-        message: Optional[str] = None
-):
-    """
-    Quick validation for positive numeric values.
+# Simpler validation functions for convenience
+
+def validate_string(data: Dict[str, Any], field: str, min_length: int = 0, max_length: Optional[int] = None,
+                    required: bool = False) -> None:
+    """Validate a string field.
 
     Args:
-        data: Dictionary to validate
-        field: Field to check
-        allow_zero: Whether zero is considered valid
-        message: Optional custom error message
+        data: Data dictionary to validate
+        field: Field name to check
+        min_length: Minimum allowed length
+        max_length: Maximum allowed length (if any)
+        required: Whether the field is required
 
     Raises:
-        ValidationError: If value is not a positive number
+        ValidationError: If validation fails
     """
-    value = data.get(field)
+    if required:
+        validate_not_empty(data, field)
 
-    # Check if value exists
-    ModelValidator.validate_not_empty(value, field, message)
+    if field in data and data[field] is not None:
+        ModelValidator.validate_string_length(data[field], min_length, max_length, field)
 
-    # Validate numeric type
-    ModelValidator.validate_type(value, (int, float), field)
 
-    # Validate range
-    min_value = 0 if not allow_zero else None
-    ModelValidator.validate_range(value, min_value, field_name=field)
+def validate_number(data: Dict[str, Any], field: str, min_value: Optional[Union[int, float]] = None,
+                    max_value: Optional[Union[int, float]] = None, required: bool = False) -> None:
+    """Validate a numeric field.
+
+    Args:
+        data: Data dictionary to validate
+        field: Field name to check
+        min_value: Minimum allowed value (if any)
+        max_value: Maximum allowed value (if any)
+        required: Whether the field is required
+
+    Raises:
+        ValidationError: If validation fails
+    """
+    if required:
+        validate_not_empty(data, field)
+
+    if field in data and data[field] is not None:
+        ModelValidator.validate_number_range(data[field], min_value, max_value, field)

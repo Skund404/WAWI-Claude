@@ -31,10 +31,10 @@ from utils.enhanced_model_validator import (
 logger = logging.getLogger(__name__)
 
 # Register lazy imports to resolve potential circular dependencies
-register_lazy_import('database.models.product.Product', 'database.models.product')
-register_lazy_import('database.models.supplier.Supplier', 'database.models.supplier')
-register_lazy_import('database.models.storage.Storage', 'database.models.storage')
-register_lazy_import('database.models.project.Project', 'database.models.project')
+register_lazy_import('database.models.product.Product', 'database.models.product', 'Product')
+register_lazy_import('database.models.supplier.Supplier', 'database.models.supplier', 'Supplier')
+register_lazy_import('database.models.storage.Storage', 'database.models.storage', 'Storage')
+register_lazy_import('database.models.project.Project', 'database.models.project', 'Project')
 
 
 class Part(Base):
@@ -262,4 +262,4 @@ class Part(Base):
 
 
 # Final registration for lazy imports
-register_lazy_import('database.models.part.Part', 'database.models.part')
+register_lazy_import('database.models.part.Part', 'database.models.part', 'Part')

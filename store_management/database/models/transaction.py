@@ -18,7 +18,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from database.models.base import Base
 from database.models.enums import TransactionType
-from utils.circular_import_resolver import lazy_import, register_lazy_import, register_relationship
+from utils.circular_import_resolver import lazy_import, register_lazy_import
 
 # Setup logger
 logger = logging.getLogger(__name__)
@@ -30,22 +30,13 @@ Hardware = lazy_import('database.models.hardware', 'Hardware')
 Project = lazy_import('database.models.project', 'Project')
 
 # Register lazy imports
-register_lazy_import('database.models.material.Material', 'database.models.material')
-register_lazy_import('database.models.leather.Leather', 'database.models.leather')
-register_lazy_import('database.models.hardware.Hardware', 'database.models.hardware')
-register_lazy_import('database.models.project.Project', 'database.models.project')
+register_lazy_import('database.models.material.Material', 'database.models.material', 'Material')
+register_lazy_import('database.models.leather.Leather', 'database.models.leather', 'Leather')
+register_lazy_import('database.models.hardware.Hardware', 'database.models.hardware', 'Hardware')
+register_lazy_import('database.models.project.Project', 'database.models.project', 'Project')
 
-# Register relationships to help with circular dependencies
-register_relationship('database.models.transaction.MaterialTransaction', 'material',
-                      'database.models.material.Material')
-register_relationship('database.models.transaction.LeatherTransaction', 'leather',
-                      'database.models.leather.Leather')
-register_relationship('database.models.transaction.LeatherTransaction', 'project',
-                      'database.models.project.Project')
-register_relationship('database.models.transaction.HardwareTransaction', 'hardware',
-                      'database.models.hardware.Hardware')
-register_relationship('database.models.transaction.HardwareTransaction', 'project',
-                      'database.models.project.Project')
+# We'll define the relationships directly in the classes instead of using register_relationship
+# Since register_relationship expects class objects, not strings
 
 
 class BaseTransaction(Base):

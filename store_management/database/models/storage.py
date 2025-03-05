@@ -9,11 +9,10 @@ relationship management, and circular import resolution.
 import logging
 from datetime import datetime
 from typing import Dict, Any, Optional, List, Union
-
+from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy import Column, Enum, String, Text, Boolean, Integer
-from sqlalchemy.orm import relationship
 from sqlalchemy.exc import SQLAlchemyError
-
+from sqlalchemy.orm import Mapped, relationship
 from database.models.base import Base, ModelValidationError
 from database.models.enums import StorageLocationType
 from utils.circular_import_resolver import (
@@ -27,11 +26,11 @@ from utils.enhanced_model_validator import (
 )
 
 # Register lazy imports to resolve potential circular dependencies
-register_lazy_import('Leather', 'database.models.leather')
-register_lazy_import('Product', 'database.models.product')
-register_lazy_import('Part', 'database.models.part')
-register_lazy_import('Hardware', 'database.models.hardware')
-register_lazy_import('Material', 'database.models.material')
+register_lazy_import('Leather', 'database.models.leather', 'Leather')
+register_lazy_import('Product', 'database.models.product', 'Product')
+register_lazy_import('Part', 'database.models.part','Part')
+register_lazy_import('Hardware', 'database.models.hardware', 'Hardware')
+register_lazy_import('Material', 'database.models.material', 'Material')
 
 # Setup logger
 logger = logging.getLogger(__name__)
@@ -63,15 +62,40 @@ class Storage(Base):
     notes = Column(Text, nullable=True)
 
     # Relationships using standard SQLAlchemy approach
-    leathers = relationship("Leather", back_populates="storage",
-                            lazy="lazy", cascade="save-update, merge")
+    leathers: Mapped[List["Leather"]] = relationship(
+        "Leather",
+        back_populates="storage",
+        lazy="selectin",
+        cascade="all, delete-orphan"
+    )
 
-    products = relationship("Product", back_populates="storage",
-                            lazy="lazy", cascade="save-update, merge")
+    products: Mapped[List["Product"]] = relationship(
+        "Product",
+        back_populates="storage",
+        lazy="selectin",
+        cascade="all, delete-orphan"
+    )
 
-    parts = relationship("Part", back_populates="storage",
-                         lazy="lazy", cascade="save-update, merge")
+    parts: Mapped[List["Part"]] = relationship(
+        "Part",
+        back_populates="storage",
+        lazy="selectin",
+        cascade="all, delete-orphan"
+    )
 
+    hardware_items: Mapped[List["Hardware"]] = relationship(
+        "Hardware",
+        back_populates="storage",
+        lazy="selectin",
+        cascade="all, delete-orphan"
+    )
+
+    material_items: Mapped[List["Material"]] = relationship(
+        "Material",
+        back_populates="storage",
+        lazy="selectin",
+        cascade="all, delete-orphan"
+    )
     def __init__(self, **kwargs):
         """
         Initialize a Storage instance with comprehensive validation.
@@ -151,6 +175,14 @@ class Storage(Base):
             if hasattr(self, 'parts') and callable(getattr(self.parts, 'count', None)):
                 current_items_count += self.parts.count()
 
+            # Safely count hardware items if available
+            if hasattr(self, 'hardware_items') and callable(getattr(self.hardware_items, 'count', None)):
+                current_items_count += self.hardware_items.count()
+
+            # Safely count material items if available
+            if hasattr(self, 'material_items') and callable(getattr(self.material_items, 'count', None)):
+                current_items_count += self.material_items.count()
+
             if current_items_count < self.capacity:
                 raise ValidationError(
                     "Storage marked as full but has available capacity",
@@ -220,6 +252,14 @@ class Storage(Base):
             if hasattr(self, 'parts') and callable(getattr(self.parts, 'count', None)):
                 current_count += self.parts.count()
 
+            # Safely count hardware items if available
+            if hasattr(self, 'hardware_items') and callable(getattr(self.hardware_items, 'count', None)):
+                current_count += self.hardware_items.count()
+
+            # Safely count material items if available
+            if hasattr(self, 'material_items') and callable(getattr(self.material_items, 'count', None)):
+                current_count += self.material_items.count()
+
             # Check if new items would exceed capacity
             return (current_count + new_items_count) <= self.capacity
 
@@ -273,6 +313,10 @@ class Storage(Base):
             item_count += self.products.count()
         if hasattr(self, 'parts') and callable(getattr(self.parts, 'count', None)):
             item_count += self.parts.count()
+        if hasattr(self, 'hardware_items') and callable(getattr(self.hardware_items, 'count', None)):
+            item_count += self.hardware_items.count()
+        if hasattr(self, 'material_items') and callable(getattr(self.material_items, 'count', None)):
+            item_count += self.material_items.count()
 
         return (
             f"<Storage(id={self.id}, "
@@ -285,4 +329,10 @@ class Storage(Base):
 
 
 # Register this class for lazy imports by others
-register_lazy_import('Storage', 'database.models.storage')
+register_lazy_import('Storage', 'database.models.storage', 'Storage')
+# Register relationships for lazy loading
+register_lazy_import('StorageLeatherRelationship', 'database.models.storage', 'Storage')
+register_lazy_import('StorageProductRelationship', 'database.models.storage', 'Storage')
+register_lazy_import('StoragePartRelationship', 'database.models.storage', 'Storage')
+register_lazy_import('StorageHardwareRelationship', 'database.models.storage', 'Storage')
+register_lazy_import('StorageMaterialRelationship', 'database.models.storage', 'Storage')

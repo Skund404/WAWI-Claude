@@ -1,335 +1,168 @@
 # database/models/order.py
-"""
-Enhanced Order Model with Advanced Relationship and Validation Strategies
-
-This module defines the Order model with comprehensive validation,
-relationship management, and circular import resolution.
-"""
-
-import logging
+from typing import List, Optional, Dict, Any
 from datetime import datetime
-from typing import Dict, Any, Optional, List, Union
 
-from sqlalchemy import Column, DateTime, Enum, Float, ForeignKey, Integer, String, Text
-from sqlalchemy.orm import relationship
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import ForeignKey, DateTime, Float, Enum, String, Text
+from sqlalchemy.orm import relationship, Mapped, mapped_column
 
 from database.models.base import Base, ModelValidationError
 from database.models.enums import OrderStatus, PaymentStatus
-from utils.circular_import_resolver import (
-    lazy_import,
-    register_lazy_import
-)
-from utils.enhanced_model_validator import (
-    ModelValidator,
-    ValidationError,
-    validate_not_empty,
-    validate_positive_number
-)
+from utils import register_lazy_import
+import logging
 
-# Setup logger
-logger = logging.getLogger(__name__)
-
-# Register lazy imports to resolve potential circular dependencies
-register_lazy_import('database.models.order.OrderItem', 'database.models.order')
-register_lazy_import('database.models.supplier.Supplier', 'database.models.supplier')
-register_lazy_import('database.models.sales.Sales', 'database.models.sales')
-
-# Lazy load model classes to prevent circular imports
-OrderItem = lazy_import("database.models.order", "OrderItem")
-Supplier = lazy_import("database.models.supplier", "Supplier")
-Sales = lazy_import("database.models.sales", "Sales")
-
+# Forward declarations for circular imports
+OrderItem = None
+Customer = None
 
 class Order(Base):
-    """
-    Enhanced Order model with comprehensive validation and relationship management.
-
-    Represents a customer order with advanced tracking and relationship configuration.
-    """
+    """Represents a customer order with comprehensive tracking and validation."""
     __tablename__ = 'orders'
 
-    # Order identification and customer details
-    order_number = Column(String(50), unique=True, index=True)
-    customer_name = Column(String(255), nullable=False)
-    customer_email = Column(String(255), nullable=True)
-    customer_phone = Column(String(20), nullable=True)
+    # Customer fields
+    customer_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("customers.id", ondelete="SET NULL"),
+        nullable=True
+    )
+    customer_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    customer_email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    customer_phone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
 
-    # Temporal tracking
-    order_date = Column(DateTime, default=datetime.utcnow, nullable=False)
-    shipping_date = Column(DateTime, nullable=True)
-    delivery_date = Column(DateTime, nullable=True)
+    register_lazy_import('Sales', 'database.models.sales', 'Sales')
+    # Relationship with Customer model
+    customer: Mapped[Optional['Customer']] = relationship(
+        'Customer',
+        back_populates='orders',
+        lazy='selectin'
+    )
 
-    # Status tracking
-    status = Column(Enum(OrderStatus), default=OrderStatus.QUOTE_REQUEST, nullable=False)
-    payment_status = Column(Enum(PaymentStatus), default=PaymentStatus.PENDING, nullable=False)
-
-    # Financial tracking
-    subtotal = Column(Float, default=0.0, nullable=False)
-    tax = Column(Float, default=0.0, nullable=False)
-    shipping_cost = Column(Float, default=0.0, nullable=False)
-    total = Column(Float, default=0.0, nullable=False)
-
-    # Additional details
-    shipping_address = Column(Text, nullable=True)
-    billing_address = Column(Text, nullable=True)
-    notes = Column(Text, nullable=True)
-
-    # Foreign keys with lazy import support
-    supplier_id = Column(Integer, ForeignKey("suppliers.id"), nullable=True)
-
-    # Relationships configured to avoid circular imports
-    items = relationship(
-        "OrderItem",
+    sales: Mapped[List["Sales"]] = relationship(
+        "Sales",
         back_populates="order",
-        lazy='select',
+        lazy="selectin",
         cascade="all, delete-orphan"
     )
 
-    sales = relationship(
-        "Sales",
-        back_populates="order",
-        lazy='select'
+    # Order details
+    order_date: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.utcnow,
+        nullable=False
+    )
+    shipping_date: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    delivery_date: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+    # Address information
+    shipping_address: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    billing_address: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Notes
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Tracking
+    tracking_number: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+
+    # Status tracking
+    status: Mapped[OrderStatus] = mapped_column(
+        Enum(OrderStatus),
+        default=OrderStatus.QUOTE_REQUEST,
+        nullable=False
+    )
+    payment_status: Mapped[PaymentStatus] = mapped_column(
+        Enum(PaymentStatus),
+        default=PaymentStatus.PENDING,
+        nullable=False
     )
 
-    supplier = relationship(
-        "Supplier",
-        back_populates="orders",
-        lazy='select'
+    # Financial tracking
+    subtotal: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    tax: Mapped[float] = mapped_column(Float, default=0.0, nullable=False, info={"alias": "tax_amount"})
+    shipping_cost: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    total: Mapped[float] = mapped_column(Float, default=0.0, nullable=False, info={"alias": "total_amount"})
+
+    # Foreign key for supplier orders
+    supplier_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("suppliers.id", ondelete="SET NULL"),
+        nullable=True
+    )
+
+    # Supplier relationship
+    supplier: Mapped[Optional['Supplier']] = relationship(
+        'Supplier',
+        back_populates='orders',
+        lazy='selectin'
     )
 
     def __init__(self, **kwargs):
-        """
-        Initialize an Order instance with comprehensive validation.
+        """Initialize the Order instance."""
+        super().__init__(**kwargs)
+        self.calculate_total()
 
-        Args:
-            **kwargs: Keyword arguments for order attributes
+    def calculate_total(self):
+        """Calculate the total order amount."""
+        if hasattr(self, 'items'):
+            # Calculate subtotal from items
+            items_subtotal = sum(getattr(item, 'subtotal', 0) for item in self.items)
+            self.subtotal = items_subtotal
 
-        Raises:
-            ModelValidationError: If validation fails
-        """
+        self.total = self.subtotal + self.tax + self.shipping_cost
+        return self.total
+
+    def add_item(self, order_item):
+        """Add an item to the order and update total."""
+        if not hasattr(self, 'items'):
+            self.items = []
+
+        # Set the order reference
+        order_item.order = self
+        self.items.append(order_item)
+
+        # Recalculate totals
+        self.calculate_total()
+
+    def remove_item(self, order_item):
+        """Remove an item from the order and update total."""
+        if hasattr(self, 'items') and order_item in self.items:
+            self.items.remove(order_item)
+            # Recalculate totals
+            self.calculate_total()
+
+
+# Set up relationship later to avoid circular imports
+def setup_relationships():
+    global OrderItem, Customer
+
+    # Set up OrderItem relationship
+    if OrderItem is None:
         try:
-            # Validate and filter input data
-            self._validate_creation(kwargs)
+            from database.models.order_item import OrderItem as OI
+            OrderItem = OI
 
-            # Initialize base model
-            super().__init__(**kwargs)
-
-            # Calculate total if not already set
-            if 'total' not in kwargs and 'subtotal' in kwargs:
-                self.calculate_total()
-
-        except (ValidationError, SQLAlchemyError) as e:
-            logger.error(f"Order initialization failed: {e}")
-            raise ModelValidationError(f"Failed to create Order: {str(e)}") from e
-
-    @classmethod
-    def _validate_creation(cls, data: Dict[str, Any]) -> None:
-        """
-        Validate order creation data with comprehensive checks.
-
-        Args:
-            data (Dict[str, Any]): Order creation data to validate
-
-        Raises:
-            ValidationError: If validation fails
-        """
-        # Validate core required fields
-        validate_not_empty(data, 'customer_name', 'Customer name is required')
-
-        # Validate numeric fields
-        numeric_fields = [
-            'subtotal', 'tax', 'shipping_cost', 'total'
-        ]
-
-        for field in numeric_fields:
-            if field in data:
-                validate_positive_number(
-                    data,
-                    field,
-                    allow_zero=True,
-                    message=f"{field.replace('_', ' ').title()} must be a non-negative number"
+            # Set up relationship if not already set
+            if not hasattr(Order, 'items'):
+                Order.items = relationship(
+                    'OrderItem',
+                    back_populates='order',
+                    cascade='all, delete-orphan',
+                    lazy='selectin'
                 )
+        except ImportError:
+            logger.warning("Could not import OrderItem")
 
-        # Validate order and payment status
-        if 'status' in data:
-            ModelValidator.validate_enum(
-                data['status'],
-                OrderStatus,
-                'status'
-            )
-
-        if 'payment_status' in data:
-            ModelValidator.validate_enum(
-                data['payment_status'],
-                PaymentStatus,
-                'payment_status'
-            )
-
-        # Validate email if provided
-        if 'customer_email' in data and data['customer_email']:
-            try:
-                ModelValidator.validate_email(data['customer_email'])
-            except ValidationError as e:
-                raise ValidationError("Invalid email format", "customer_email")
-
-    def _validate_instance(self) -> None:
-        """
-        Perform additional validation after instance creation.
-
-        Raises:
-            ValidationError: If instance validation fails
-        """
-        # Validate order total
-        self._validate_order_total()
-
-        # Validate relationships
-        if self.supplier and not hasattr(self.supplier, 'id'):
-            raise ValidationError("Invalid supplier reference", "supplier")
-
-    def _validate_order_total(self) -> None:
-        """
-        Validate that the order total matches the calculated total.
-
-        Raises:
-            ValidationError: If total calculation is inconsistent
-        """
-        calculated_total = (
-                self.subtotal +
-                self.tax +
-                self.shipping_cost
-        )
-
-        # Allow small floating-point discrepancies
-        if abs(calculated_total - self.total) > 0.01:
-            logger.warning(
-                f"Order total mismatch. "
-                f"Calculated: {calculated_total}, Stored: {self.total}"
-            )
-            self.total = calculated_total
-
-    def calculate_total(self) -> float:
-        """
-        Calculate the order total based on subtotal, tax, and shipping cost.
-
-        Returns:
-            float: Calculated total cost
-        """
+    # Set up Customer relationship
+    if Customer is None:
         try:
-            self.total = self.subtotal + self.tax + self.shipping_cost
-            return self.total
-        except Exception as e:
-            logger.error(f"Total calculation failed: {e}")
-            raise ModelValidationError(f"Order total calculation failed: {str(e)}")
+            from database.models.customer import Customer as C
+            Customer = C
+            # Relationship is already defined in class attribute
+        except ImportError:
+            logger.warning("Could not import Customer")
 
-    def update_status(self, new_status: OrderStatus) -> None:
-        """
-        Update the order status with validation and tracking.
+    # Try to import Supplier 
+    try:
+        from database.models.supplier import Supplier
+        # Relationship is already defined in class attribute
+    except ImportError:
+        logger.warning("Could not import Supplier")
 
-        Args:
-            new_status (OrderStatus): The new status to set
-
-        Raises:
-            ModelValidationError: If status update is invalid
-        """
-        try:
-            # Validate status transition
-            self._validate_status_transition(new_status)
-
-            # Update status
-            self.status = new_status
-
-            # Update related timestamps
-            if new_status == OrderStatus.SHIPPED:
-                self.shipping_date = datetime.utcnow()
-            elif new_status == OrderStatus.DELIVERED:
-                self.delivery_date = datetime.utcnow()
-
-            logger.info(f"Order {self.id} status updated to {new_status}")
-
-        except Exception as e:
-            logger.error(f"Order status update failed: {e}")
-            raise ModelValidationError(f"Cannot update order status: {str(e)}")
-
-    def _validate_status_transition(self, new_status: OrderStatus) -> None:
-        """
-        Validate order status transitions.
-
-        Args:
-            new_status (OrderStatus): Proposed new status
-
-        Raises:
-            ModelValidationError: If status transition is invalid
-        """
-        # Example of a basic status transition validation
-        invalid_transitions = {
-            OrderStatus.QUOTE_REQUEST: [OrderStatus.DELIVERED],
-            OrderStatus.CANCELLED: [
-                OrderStatus.IN_PRODUCTION,
-                OrderStatus.SHIPPED,
-                OrderStatus.DELIVERED
-            ]
-        }
-
-        if self.status in invalid_transitions:
-            forbidden_statuses = invalid_transitions[self.status]
-            if new_status in forbidden_statuses:
-                raise ModelValidationError(
-                    f"Cannot transition from {self.status} to {new_status}"
-                )
-
-    def apply_payment(self, payment_amount: float) -> None:
-        """
-        Apply a payment to the order.
-
-        Args:
-            payment_amount (float): Amount of payment received
-
-        Raises:
-            ModelValidationError: If payment application fails
-        """
-        try:
-            # Validate payment amount
-            validate_positive_number(
-                {'payment': payment_amount},
-                'payment',
-                message="Payment amount must be a positive number"
-            )
-
-            # Calculate remaining balance
-            remaining_balance = self.total - payment_amount
-
-            # Update payment status
-            if remaining_balance <= 0:
-                self.payment_status = PaymentStatus.PAID
-            elif remaining_balance > 0:
-                self.payment_status = PaymentStatus.PARTIALLY_PAID
-
-            logger.info(
-                f"Payment of {payment_amount} applied to Order {self.id}. "
-                f"Remaining balance: {remaining_balance}"
-            )
-
-        except Exception as e:
-            logger.error(f"Payment application failed: {e}")
-            raise ModelValidationError(f"Cannot apply payment: {str(e)}")
-
-    def __repr__(self) -> str:
-        """
-        Provide a comprehensive string representation of the order.
-
-        Returns:
-            str: Detailed order representation
-        """
-        return (
-            f"<Order(id={self.id}, "
-            f"order_number='{self.order_number}', "
-            f"customer='{self.customer_name}', "
-            f"status={self.status}, "
-            f"total={self.total}, "
-            f"payment_status={self.payment_status})>"
-        )
-
-
-# Final registration for lazy imports
-register_lazy_import('database.models.order.Order', 'database.models.order')
+# Try to setup relationships immediately
+setup_relationships()

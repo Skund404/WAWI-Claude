@@ -10,10 +10,12 @@ import logging
 from datetime import datetime
 from typing import Dict, Any, Optional, List, Union
 
-from sqlalchemy import Column, Enum, Float, DateTime, Text
+from sqlalchemy import Column, Enum, Float, DateTime, Text, Integer
 from sqlalchemy import ForeignKey, String
 from sqlalchemy.orm import relationship
 from sqlalchemy.exc import SQLAlchemyError
+from typing import List, Optional
+from sqlalchemy.orm import Mapped, mapped_column
 
 from database.models.base import Base, ModelValidationError
 from database.models.enums import (
@@ -36,11 +38,11 @@ from utils.enhanced_model_validator import (
 logger = logging.getLogger(__name__)
 
 # Register lazy imports to resolve potential circular dependencies
-register_lazy_import('database.models.supplier.Supplier', 'database.models.supplier')
-register_lazy_import('database.models.storage.Storage', 'database.models.storage')
-register_lazy_import('database.models.transaction.MaterialTransaction', 'database.models.transaction')
-register_lazy_import('database.models.project.Project', 'database.models.project')
-register_lazy_import('database.models.components.ProjectComponent', 'database.models.components')
+register_lazy_import('database.models.supplier.Supplier', 'database.models.supplier', 'Supplier')
+register_lazy_import('database.models.storage.Storage', 'database.models.storage', 'Storage')
+register_lazy_import('database.models.transaction.MaterialTransaction', 'database.models.transaction', 'MaterialTransaction')
+register_lazy_import('database.models.project.Project', 'database.models.project', 'Project')
+register_lazy_import('database.models.components.ProjectComponent', 'database.models.components', 'ProjectComponent')
 
 
 class Material(Base):
@@ -75,19 +77,33 @@ class Material(Base):
     last_updated = Column(DateTime, default=datetime.utcnow, nullable=True)
 
     # Relationships configured to avoid circular imports
-    transactions = relationship(
-        "MaterialTransaction",
-        back_populates="material",
-        lazy='select',
-        cascade='all, delete-orphan'
+    storage_id: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        ForeignKey("storages.id", ondelete="SET NULL"),
+        nullable=True
     )
 
-    project_components = relationship(
+    # Add storage relationship
+
+    project_components: Mapped[List["ProjectComponent"]] = relationship(
         "ProjectComponent",
         back_populates="material",
-        lazy='select'
+        lazy="selectin",
+        cascade="all, delete-orphan"
     )
 
+    storage: Mapped[Optional["Storage"]] = relationship(
+        "Storage",
+        back_populates="material_items",
+        lazy="selectin"
+    )
+
+    transactions: Mapped[List["MaterialTransaction"]] = relationship(
+        "MaterialTransaction",
+        back_populates="material",
+        lazy="selectin",
+        cascade="all, delete-orphan"
+    )
     def __init__(self, **kwargs):
         """
         Initialize a Material instance with comprehensive validation.
@@ -259,4 +275,4 @@ class Material(Base):
 
 
 # Final registration for lazy imports
-register_lazy_import('database.models.material.Material', 'database.models.material')
+register_lazy_import('database.models.material.Material', 'database.models.material', 'Material')

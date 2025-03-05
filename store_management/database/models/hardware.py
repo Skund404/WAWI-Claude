@@ -20,7 +20,7 @@ from database.models.enums import (
     MeasurementUnit,
     TransactionType
 )
-from database.models.hardware_enums import (
+from database.models.enums import (
     HardwareType,
     HardwareMaterial,
     HardwareFinish
@@ -40,11 +40,11 @@ from utils.enhanced_model_validator import (
 logger = logging.getLogger(__name__)
 
 # Lazy import potential related models
-register_lazy_import('database.models.supplier.Supplier', 'database.models.supplier')
-register_lazy_import('database.models.storage.Storage', 'database.models.storage')
-register_lazy_import('database.models.transaction.HardwareTransaction', 'database.models.transaction')
-register_lazy_import('database.models.project.Project', 'database.models.project')
-register_lazy_import('database.models.components.ProjectComponent', 'database.models.components')
+register_lazy_import('database.models.supplier.Supplier', 'database.models.supplier', 'Supplier')
+register_lazy_import('database.models.storage.Storage', 'database.models.storage', 'Storage')
+register_lazy_import('database.models.transaction.HardwareTransaction', 'database.models.transaction', 'HardwareTransaction')
+register_lazy_import('database.models.project.Project', 'database.models.project', 'Project')
+register_lazy_import('database.models.components.ProjectComponent', 'database.models.components', 'ProjectComponent')
 
 
 class Hardware(Base):
@@ -106,9 +106,9 @@ class Hardware(Base):
     project_components = relationship(
         "ProjectComponent",
         back_populates="hardware",
+        viewonly=True,  # Add this line to make it a view-only relationship
         lazy='select'
     )
-
     def __init__(self, **kwargs):
         """
         Initialize a Hardware instance with comprehensive validation.
@@ -302,4 +302,4 @@ class Hardware(Base):
 
 
 # Final registration for lazy imports
-register_lazy_import('database.models.hardware.Hardware', 'database.models.hardware')
+register_lazy_import('database.models.hardware.Hardware', 'database.models.hardware', 'Hardware')

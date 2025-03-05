@@ -5,7 +5,8 @@ import logging
 import uuid
 
 from services.interfaces.project_service import IProjectService, ProjectType, SkillLevel, ProjectStatus
-from database.models.project import Project, ProjectComponent
+from database.models.project import Project  # Ensure this import is correct
+from database.models.components import ProjectComponent
 from database.repositories.project_repository import ProjectRepository
 from services.base_service import BaseService, NotFoundError, ValidationError
 from utils.logger import log_info, log_error, log_debug
@@ -49,29 +50,31 @@ class ProjectService(BaseService, IProjectService):
         """
         try:
             # Validate required fields
-            required_fields = ['name', 'project_type', 'skill_level']
+            required_fields = ['name', 'project_type']
             for field in required_fields:
                 if field not in project_data:
                     raise ValidationError(f"Missing required field: {field}")
 
             # Validate project type and skill level
-            if not isinstance(project_data['project_type'], ProjectType):
-                raise ValidationError(f"Invalid project type: {project_data['project_type']}")
+            if 'project_type' in project_data:
+                if not isinstance(project_data['project_type'], ProjectType):
+                    raise ValidationError(f"Invalid project type: {project_data['project_type']}")
 
-            if not isinstance(project_data['skill_level'], SkillLevel):
-                raise ValidationError(f"Invalid skill level: {project_data['skill_level']}")
+            if 'skill_level' in project_data:
+                if not isinstance(project_data['skill_level'], SkillLevel):
+                    raise ValidationError(f"Invalid skill level: {project_data['skill_level']}")
 
             # Set default values
-            project_data.setdefault('status', ProjectStatus.PLANNING)
-            project_data.setdefault('progress', 0)
-            project_data.setdefault('created_at', datetime.utcnow())
-            project_data.setdefault('updated_at', datetime.utcnow())
+            project_data.setdefault('status', ProjectStatus.INITIAL_CONSULTATION)
+            project_data.setdefault('start_date', datetime.utcnow())
 
-            # Create project
-            project = self._repository.create_project_with_components(
-                project_data,
-                project_data.get('components', [])
-            )
+            # Create project using repository method
+            project = self._repository.create(project_data)
+
+            # Handle components if provided
+            if 'components' in project_data and project_data['components']:
+                for component_data in project_data['components']:
+                    self.add_component_to_project(project.id, component_data)
 
             log_info(f"Created project: {project.name}")
             return project
@@ -104,7 +107,7 @@ class ProjectService(BaseService, IProjectService):
 
     def update_project(self, project_id: str, updates: Dict[str, Any]) -> Project:
         """
-        Update a project with comprehensive validation.
+        Update an existing project with comprehensive validation.
 
         Args:
             project_id (str): Unique project identifier
@@ -118,23 +121,28 @@ class ProjectService(BaseService, IProjectService):
             ValidationError: If update data is invalid
         """
         try:
-            # Validate project type and skill level if present
-            if 'project_type' in updates and not isinstance(updates['project_type'], ProjectType):
-                raise ValidationError(f"Invalid project type: {updates['project_type']}")
+            # Validate project type if present
+            if 'project_type' in updates:
+                if not isinstance(updates['project_type'], ProjectType):
+                    raise ValidationError(f"Invalid project type: {updates['project_type']}")
 
-            if 'skill_level' in updates and not isinstance(updates['skill_level'], SkillLevel):
-                raise ValidationError(f"Invalid skill level: {updates['skill_level']}")
+            # Validate skill level if present
+            if 'skill_level' in updates:
+                if not isinstance(updates['skill_level'], SkillLevel):
+                    raise ValidationError(f"Invalid skill level: {updates['skill_level']}")
 
-            # Update with timestamp
+            # Add updated timestamp
             updates['updated_at'] = datetime.utcnow()
 
-            project = self._repository.update_project(project_id, updates)
+            # Update project
+            project = self._repository.update(project_id, updates)
+
             log_info(f"Updated project: {project_id}")
             return project
 
         except Exception as e:
             log_error(f"Failed to update project {project_id}: {str(e)}")
-            raise
+            raise ValidationError(f"Project update failed: {str(e)}")
 
     def delete_project(self, project_id: str) -> bool:
         """
@@ -150,7 +158,7 @@ class ProjectService(BaseService, IProjectService):
             NotFoundError: If project is not found
         """
         try:
-            success = self._repository.delete_project(project_id)
+            success = self._repository.delete(project_id)
             if success:
                 log_info(f"Deleted project: {project_id}")
             return success
@@ -178,15 +186,28 @@ class ProjectService(BaseService, IProjectService):
             if not component_data.get('name'):
                 raise ValidationError("Component name is required")
 
+            # Ensure project exists
+            project = self.get_project(project_id)
+
+            # Add project_id to component data
+            component_data['project_id'] = project_id
             component_data['created_at'] = datetime.utcnow()
 
-            project = self._repository.add_component_to_project(project_id, component_data)
+            # Create component (assuming repository method or direct model creation)
+            component = ProjectComponent(**component_data)
+
+            # Add to project's components
+            project.components.append(component)
+
+            # Save changes
+            self._repository.save(project)
+
             log_info(f"Added component to project {project_id}")
             return project
 
         except Exception as e:
             log_error(f"Failed to add component to project {project_id}: {str(e)}")
-            raise
+            raise ValidationError(f"Component addition failed: {str(e)}")
 
     def remove_component_from_project(self, project_id: str, component_id: str) -> Project:
         """
@@ -203,7 +224,24 @@ class ProjectService(BaseService, IProjectService):
             NotFoundError: If project or component is not found
         """
         try:
-            project = self._repository.remove_component_from_project(project_id, component_id)
+            # Retrieve project
+            project = self.get_project(project_id)
+
+            # Find and remove the component
+            component = next(
+                (comp for comp in project.components if str(comp.id) == str(component_id)),
+                None
+            )
+
+            if not component:
+                raise NotFoundError(f"Component {component_id} not found in project {project_id}")
+
+            # Remove component
+            project.components.remove(component)
+
+            # Save changes
+            self._repository.save(project)
+
             log_info(f"Removed component {component_id} from project {project_id}")
             return project
 
@@ -231,25 +269,29 @@ class ProjectService(BaseService, IProjectService):
                 raise ValidationError("Progress must be between 0 and 100")
 
             # Determine status based on progress
-            status = ProjectStatus.PLANNING if progress == 0 else (
-                ProjectStatus.IN_PROGRESS if progress < 50 else (
-                    ProjectStatus.REFINEMENT if progress < 100 else ProjectStatus.COMPLETED
-                )
+            status = (
+                ProjectStatus.PLANNING if progress == 0 else
+                ProjectStatus.IN_PROGRESS if progress < 50 else
+                ProjectStatus.REFINEMENT if progress < 100 else
+                ProjectStatus.COMPLETED
             )
 
+            # Prepare updates
             updates = {
                 'progress': progress,
                 'status': status,
                 'updated_at': datetime.utcnow()
             }
 
-            project = self._repository.update_project(project_id, updates)
+            # Update project
+            project = self._repository.update(project_id, updates)
+
             log_info(f"Updated project {project_id} progress to {progress}%")
             return project
 
         except Exception as e:
             log_error(f"Failed to update project progress {project_id}: {str(e)}")
-            raise
+            raise ValidationError(f"Progress update failed: {str(e)}")
 
     def list_projects(
             self,
@@ -269,6 +311,7 @@ class ProjectService(BaseService, IProjectService):
             List[Project]: Filtered list of projects
         """
         try:
+            # Prepare filters
             filters = {}
             if project_type:
                 filters['project_type'] = project_type
@@ -277,13 +320,16 @@ class ProjectService(BaseService, IProjectService):
             if status:
                 filters['status'] = status
 
+            # Use repository method to find projects
             projects = self._repository.find_projects_by_complex_criteria(filters)
+
             log_debug(f"Listed {len(projects)} projects with filters: {filters}")
             return projects
 
         except Exception as e:
             log_error(f"Failed to list projects: {str(e)}")
             raise
+
 
     def generate_project_complexity_report(self, project_id: str) -> Dict[str, Any]:
         """

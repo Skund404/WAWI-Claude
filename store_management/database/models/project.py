@@ -28,11 +28,11 @@ from utils.enhanced_model_validator import (
 )
 
 # Register lazy imports to resolve potential circular dependencies
-register_lazy_import('ProjectComponent', 'database.models.components')
-register_lazy_import('Pattern', 'database.models.pattern')
-register_lazy_import('Production', 'database.models.production')
-register_lazy_import('LeatherTransaction', 'database.models.transaction')
-register_lazy_import('HardwareTransaction', 'database.models.transaction')
+register_lazy_import('ProjectComponent', 'database.models.components', 'ProjectComponent')
+register_lazy_import('Pattern', 'database.models.pattern', 'Pattern')
+register_lazy_import('Production', 'database.models.production', 'Production')
+register_lazy_import('LeatherTransaction', 'database.models.transaction', 'LeatherTransaction')
+register_lazy_import('HardwareTransaction', 'database.models.transaction', 'HardwareTransaction')
 
 # Setup logger
 logger = logging.getLogger(__name__)
@@ -80,19 +80,19 @@ class Project(Base):
     pattern_id = Column(Integer, ForeignKey("patterns.id"), nullable=True)
 
     # Relationships using standard SQLAlchemy approach
-    pattern = relationship("Pattern", back_populates="projects", lazy="lazy")
+    pattern = relationship("Pattern", back_populates="projects", lazy="select")
 
     components = relationship("ProjectComponent", back_populates="project",
-                              cascade="all, delete-orphan", lazy="selectin")
+                              cascade="all, delete-orphan", lazy="select")
 
-    production_records = relationship("Production", back_populates="project", lazy="lazy")
+    production_records = relationship("Production", back_populates="project", lazy="select")
 
     # View-only relationships with transactions
     leather_transactions = relationship("LeatherTransaction", back_populates="project",
-                                        lazy="lazy")
+                                        lazy="select")
 
     hardware_transactions = relationship("HardwareTransaction", back_populates="project",
-                                         lazy="lazy")
+                                         lazy="select")
 
     def __init__(self, **kwargs):
         """
@@ -343,4 +343,4 @@ class Project(Base):
 
 
 # Register this class for lazy imports by others
-register_lazy_import('Project', 'database.models.project')
+register_lazy_import('Project', 'database.models.project', 'Project')

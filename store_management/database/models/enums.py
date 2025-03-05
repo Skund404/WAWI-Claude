@@ -1,36 +1,143 @@
 # database/models/enums.py
 """
-Enumeration classes for the leatherworking store management system.
+Comprehensive Enumeration classes for the leatherworking store management system.
 
-This module defines all the enum types used throughout the application.
+This module defines all enum types used throughout the application,
+covering various aspects of the business from hardware to project management.
 """
 
 import enum
+from enum import Enum, auto
 from typing import Dict, Any, List
-from enum import Enum
 
+# Order and Project Status Enums
 class OrderStatus(enum.Enum):
     """Detailed enumeration of order statuses for custom leatherwork."""
-    QUOTE_REQUEST = "quote_request"     # Initial customer inquiry
-    DESIGN_CONSULTATION = "design_consultation"  # Discussing project details
-    DESIGN_APPROVAL = "design_approval"  # Customer approves final design
-    MATERIALS_SOURCING = "materials_sourcing"  # Selecting and acquiring materials
-    DEPOSIT_RECEIVED = "deposit_received"  # Customer paid initial deposit
-    IN_PRODUCTION = "in_production"     # Project is being crafted
-    QUALITY_REVIEW = "quality_review"   # Final quality inspection
-    READY_FOR_PICKUP = "ready_for_pickup"  # Completed and waiting for customer
-    SHIPPED = "shipped"                 # Sent to customer
-    DELIVERED = "delivered"             # Received by customer
-    COMPLETED = "completed"             # Fully satisfied transaction
-    CANCELLED = "cancelled"             # Order cancelled
-    REFUNDED = "refunded"               # Fully refunded order
+    QUOTE_REQUEST = "quote_request"
+    DESIGN_CONSULTATION = "design_consultation"
+    DESIGN_APPROVAL = "design_approval"
+    MATERIALS_SOURCING = "materials_sourcing"
+    DEPOSIT_RECEIVED = "deposit_received"
+    IN_PRODUCTION = "in_production"
+    QUALITY_REVIEW = "quality_review"
+    READY_FOR_PICKUP = "ready_for_pickup"
+    SHIPPED = "shipped"
+    DELIVERED = "delivered"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+    REFUNDED = "refunded"
 
+class PaymentStatus(enum.Enum):
+    """Payment status for orders and transactions."""
+    PENDING = "pending"
+    PAID = "paid"
+    PARTIALLY_PAID = "partially_paid"
+    REFUNDED = "refunded"
+    CANCELLED = "cancelled"
+
+# Customer-related Enums
+class CustomerStatus(enum.Enum):
+    """Represents the current status of a customer in the system."""
+    ACTIVE = "active"
+    INACTIVE = "inactive"
+    SUSPENDED = "suspended"
+    ARCHIVED = "archived"
+    POTENTIAL = "potential"
+
+class CustomerTier(enum.Enum):
+    """Represents different customer loyalty or spending tiers."""
+    STANDARD = "standard"
+    PREMIUM = "premium"
+    VIP = "vip"
+    NEW = "new"
+
+class CustomerSource(enum.Enum):
+    """Represents the source or channel through which the customer was acquired."""
+    WEBSITE = "website"
+    RETAIL = "retail"
+    REFERRAL = "referral"
+    MARKETING = "marketing"
+    SOCIAL_MEDIA = "social_media"
+    TRADE_SHOW = "trade_show"
+    WORD_OF_MOUTH = "word_of_mouth"
+    EMAIL_CAMPAIGN = "email_campaign"
+    OTHER = "other"
+
+# Hardware-related Enums
+class HardwareType(enum.Enum):
+    """Types of hardware used in leatherworking projects."""
+    BUCKLE = "buckle"
+    SNAP = "snap"
+    RIVET = "rivet"
+    ZIPPER = "zipper"
+    CLASP = "clasp"
+    BUTTON = "button"
+    D_RING = "d_ring"
+    O_RING = "o_ring"
+    MAGNETIC_CLOSURE = "magnetic_closure"
+    KEY_RING = "key_ring"
+    CONCHO = "concho"
+    EYELET = "eyelet"
+    GROMMET = "grommet"
+    HOOK = "hook"
+    STUD = "stud"
+    SCREW = "screw"
+    LOCK = "lock"
+    PLATE = "plate"
+    CORNER = "corner"
+    OTHER = "other"
+
+class HardwareMaterial(enum.Enum):
+    """Materials that hardware items can be made of."""
+    BRASS = "brass"
+    STEEL = "steel"
+    STAINLESS_STEEL = "stainless_steel"
+    NICKEL = "nickel"
+    SILVER = "silver"
+    GOLD = "gold"
+    BRONZE = "bronze"
+    ALUMINUM = "aluminum"
+    COPPER = "copper"
+    ZINC = "zinc"
+    PEWTER = "pewter"
+    TITANIUM = "titanium"
+    PLASTIC = "plastic"
+    NYLON = "nylon"
+    CARBON_FIBER = "carbon_fiber"
+    WOOD = "wood"
+    CERAMIC = "ceramic"
+    OTHER = "other"
+
+class HardwareFinish(enum.Enum):
+    """Finishes that can be applied to hardware items."""
+    POLISHED = "polished"
+    BRUSHED = "brushed"
+    ANTIQUE = "antique"
+    MATTE = "matte"
+    CHROME = "chrome"
+    NICKEL_PLATED = "nickel_plated"
+    BRASS_PLATED = "brass_plated"
+    GOLD_PLATED = "gold_plated"
+    BLACK_OXIDE = "black_oxide"
+    PAINTED = "painted"
+    POWDER_COATED = "powder_coated"
+    COPPER_PLATED = "copper_plated"
+    SATIN = "satin"
+    NATURAL = "natural"
+    DISTRESSED = "distressed"
+    HAMMERED = "hammered"
+    PATINA = "patina"
+    GALVANIZED = "galvanized"
+    ANODIZED = "anodized"
+    OTHER = "other"
+
+# Existing Enums from the previous implementation
 class PickingListStatus(enum.Enum):
     """Enumeration of picking list status values."""
-    DRAFT = "draft"              # Initial state when created
-    IN_PROGRESS = "in_progress"  # Picking has started
-    COMPLETED = "completed"      # All items have been picked
-    CANCELLED = "cancelled"      # Picking list cancelled
+    DRAFT = "draft"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
 
 class MaterialQualityGrade(enum.Enum):
     """Enumeration of material quality grades."""
@@ -40,7 +147,6 @@ class MaterialQualityGrade(enum.Enum):
     SECONDS = "seconds"
     SCRAP = "scrap"
 
-
 class InventoryStatus(enum.Enum):
     """Enumeration of inventory status values."""
     IN_STOCK = "in_stock"
@@ -48,7 +154,6 @@ class InventoryStatus(enum.Enum):
     OUT_OF_STOCK = "out_of_stock"
     DISCONTINUED = "discontinued"
     ON_ORDER = "on_order"
-
 
 class ShoppingListStatus(enum.Enum):
     """Status values for shopping lists."""
@@ -64,7 +169,6 @@ class SupplierStatus(enum.Enum):
     PENDING = "pending"
     BLACKLISTED = "blacklisted"
 
-
 class StorageLocationType(enum.Enum):
     """Enumeration of storage location types."""
     SHELF = "shelf"
@@ -74,7 +178,6 @@ class StorageLocationType(enum.Enum):
     RACK = "rack"
     BOX = "box"
     OTHER = "other"
-
 
 class MeasurementUnit(enum.Enum):
     """Enumeration of measurement units."""
@@ -90,7 +193,6 @@ class MeasurementUnit(enum.Enum):
     INCH = "inch"
     FOOT = "foot"
 
-
 class Priority(enum.Enum):
     """Enumeration of priority levels."""
     LOW = "low"
@@ -98,7 +200,6 @@ class Priority(enum.Enum):
     HIGH = "high"
     URGENT = "urgent"
     CRITICAL = "critical"
-
 
 class TransactionType(enum.Enum):
     """Enumeration of transaction types."""
@@ -109,23 +210,12 @@ class TransactionType(enum.Enum):
     WASTE = "waste"
     TRANSFER = "transfer"
 
-
 class QualityCheckStatus(enum.Enum):
     """Enumeration of quality check status values."""
     PENDING = "pending"
     PASSED = "passed"
     FAILED = "failed"
     CONDITIONALLY_PASSED = "conditionally_passed"
-
-
-class PaymentStatus(enum.Enum):
-    """Enumeration of payment status values."""
-    PENDING = "pending"
-    PAID = "paid"
-    PARTIALLY_PAID = "partially_paid"
-    REFUNDED = "refunded"
-    CANCELLED = "cancelled"
-
 
 class ComponentType(enum.Enum):
     """Enumeration of component types used in patterns and projects."""
@@ -163,7 +253,6 @@ class ProjectType(enum.Enum):
     CUSTOM = "custom"
     OTHER = "other"
 
-
 class LeatherType(enum.Enum):
     """Extensive enumeration of leather types and characteristics."""
     # Tanning Methods
@@ -194,7 +283,6 @@ class LeatherType(enum.Enum):
     BUFFALO = "buffalo"
     KANGAROO = "kangaroo"
 
-
 class LeatherFinish(enum.Enum):
     """Detailed enumeration of leather finishing techniques."""
     ANILINE = "aniline"
@@ -206,8 +294,6 @@ class LeatherFinish(enum.Enum):
     DISTRESSED = "distressed"
     PATENT = "patent"
     NAPPA = "nappa"
-
-
 
 class ProjectStatus(enum.Enum):
     """Detailed project status for custom leatherwork."""
@@ -233,7 +319,6 @@ class ProjectStatus(enum.Enum):
     ON_HOLD = "on_hold"
     CANCELLED = "cancelled"
 
-
 class ToolCategory(enum.Enum):
     """Categorization of leatherworking tools."""
     CUTTING = "cutting"
@@ -246,7 +331,6 @@ class ToolCategory(enum.Enum):
     CONDITIONING = "conditioning"
     HARDWARE_INSTALLATION = "hardware_installation"
     PATTERN_MAKING = "pattern_making"
-
 
 class MaterialType(enum.Enum):
     """Comprehensive material types for leatherworking."""
@@ -268,7 +352,6 @@ class MaterialType(enum.Enum):
     PADDING = "padding"
     OTHER = "other"
 
-
 class SkillLevel(enum.Enum):
     """Skill levels for leatherworking techniques and projects."""
     BEGINNER = "beginner"
@@ -276,7 +359,6 @@ class SkillLevel(enum.Enum):
     ADVANCED = "advanced"
     MASTER = "master"
     EXPERT = "expert"
-
 
 class QualityGrade(enum.Enum):
     """Detailed quality grading for leatherwork."""

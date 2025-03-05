@@ -27,11 +27,11 @@ from utils.enhanced_model_validator import (
 )
 
 # Register lazy imports to resolve potential circular dependencies
-register_lazy_import('Order', 'database.models.order')
-register_lazy_import('Product', 'database.models.product')
-register_lazy_import('Leather', 'database.models.leather')
-register_lazy_import('Hardware', 'database.models.hardware')
-register_lazy_import('Part', 'database.models.part')
+register_lazy_import('Order', 'database.models.order', 'Order')
+register_lazy_import('Product', 'database.models.product', 'Product')
+register_lazy_import('Leather', 'database.models.leather', 'Leather')
+register_lazy_import('Hardware', 'database.models.hardware', 'Hardware')
+register_lazy_import('Part', 'database.models.part', 'Part')
 
 # Setup logger
 logger = logging.getLogger(__name__)
@@ -73,11 +73,11 @@ class Supplier(Base):
     notes = Column(Text, nullable=True)
 
     # Relationships using standard SQLAlchemy approach
-    orders = relationship("Order", back_populates="supplier", lazy="lazy")
-    products = relationship("Product", back_populates="supplier", lazy="lazy")
-    leathers = relationship("Leather", back_populates="supplier", lazy="lazy")
-    hardware_items = relationship("Hardware", back_populates="supplier", lazy="lazy")
-    parts = relationship("Part", back_populates="supplier", lazy="lazy")
+    orders = relationship("Order", back_populates="supplier", lazy="select")
+    products = relationship("Product", back_populates="supplier", lazy="select")
+    leathers = relationship("Leather", back_populates="supplier", lazy="select")
+    hardware_items = relationship("Hardware", back_populates="supplier", lazy="select")
+    parts = relationship("Part", back_populates="supplier", lazy="select")
 
     def __init__(self, **kwargs):
         """
@@ -237,4 +237,4 @@ class Supplier(Base):
 
 
 # Register this class for lazy imports by others
-register_lazy_import('Supplier', 'database.models.supplier')
+register_lazy_import('Supplier', 'database.models.supplier', 'Supplier')

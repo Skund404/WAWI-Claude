@@ -1,314 +1,221 @@
-# utils/enhanced_relationship_strategy.py
 """
-Advanced Relationship Configuration and Management Strategy
+utils/enhanced_relationship_strategy.py - Enhanced relationship configuration utilities for SQLAlchemy models.
 
-Provides robust mechanisms for defining and managing SQLAlchemy model relationships
-with comprehensive support for circular dependencies and lazy loading.
+This module provides sophisticated tools to handle complex relationship configurations with proper
+circular import resolution and flexible loading strategies.
 """
 
-from typing import Any, Callable, Dict, List, Optional, Type, Union, Tuple
-from enum import Enum, auto
+import logging
+from typing import Any, Dict, Optional, Type, Union, List, Callable
+
 from sqlalchemy.orm import relationship, RelationshipProperty
-from sqlalchemy import ForeignKey, Column, inspect
-from sqlalchemy.orm.relationships import RelationshipProperty as SQLARelationship
 
-from utils.circular_import_resolver import (
-    lazy_import,
-    register_lazy_import,
-    register_relationship
-)
+from utils.circular_import_resolver import lazy_import, register_lazy_import
+
+logger = logging.getLogger(__name__)
 
 
-class RelationshipLoadingStrategy(Enum):
-    """
-    Comprehensive enum for relationship loading strategies.
-    """
-    LAZY = auto()  # Default lazy loading
-    EAGER = auto()  # Immediate loading
-    SUBQUERY = auto()  # Subquery loading
-    SELECTIN = auto()  # Select-in loading
-    JOINED = auto()  # Joined loading
+class RelationshipLoadingStrategy:
+    """Enumeration of available relationship loading strategies."""
+
+    # Loading strategies
+    LAZY = 'select'
+    EAGER = 'joined'
+    SUBQUERY = 'subquery'
+    SELECTIN = 'selectin'
+    IMMEDIATE = 'immediate'
+    NOLOAD = 'noload'
+    RAISE = 'raise'
 
 
 class RelationshipConfiguration:
-    """
-    Advanced relationship configuration utility for SQLAlchemy models.
-    """
+    """Handles sophisticated configuration of SQLAlchemy relationships with enhanced features."""
 
-    @staticmethod
-    def _resolve_loading_strategy(strategy: RelationshipLoadingStrategy) -> str:
-        """
-        Convert enum loading strategy to SQLAlchemy lazy loading configuration.
+    _registered_models = {}
+    _pending_relationships = []
+
+    @classmethod
+    def register_model(cls, model_name: str, model_class: Type) -> None:
+        """Register a model class for future relationship resolution.
 
         Args:
-            strategy: Relationship loading strategy
+            model_name: String name of the model
+            model_class: The actual model class
+        """
+        cls._registered_models[model_name] = model_class
+        logger.debug(f"Registered model {model_name} for relationship resolution")
+
+        # Resolve any pending relationships for this model
+        cls._resolve_pending_relationships(model_name)
+
+    @classmethod
+    def _resolve_pending_relationships(cls, model_name: str) -> None:
+        """Resolve any pending relationships for a newly registered model.
+
+        Args:
+            model_name: Name of the model that was just registered
+        """
+        remaining_pending = []
+
+        for pending in cls._pending_relationships:
+            if pending.get('target_model_name') == model_name:
+                # This pending relationship can now be resolved
+                try:
+                    source_class = cls._registered_models.get(pending.get('source_model_name'))
+                    target_class = cls._registered_models.get(model_name)
+
+                    if source_class and target_class:
+                        # Create the relationship
+                        rel_prop = relationship(
+                            target_class,
+                            **pending.get('kwargs', {})
+                        )
+
+                        # Set the relationship on the source class
+                        setattr(source_class, pending.get('relationship_name'), rel_prop)
+
+                        logger.debug(
+                            f"Resolved pending relationship: {pending.get('source_model_name')}."
+                            f"{pending.get('relationship_name')} -> {model_name}"
+                        )
+                    else:
+                        # Keep in pending if either class is not yet available
+                        remaining_pending.append(pending)
+                except Exception as e:
+                    logger.error(f"Error resolving pending relationship: {e}")
+                    remaining_pending.append(pending)
+            else:
+                remaining_pending.append(pending)
+
+        # Update the pending relationships list
+        cls._pending_relationships = remaining_pending
+
+    @classmethod
+    def get_model_class(cls, model_name: str) -> Optional[Type]:
+        """Get a registered model class by name.
+
+        Args:
+            model_name: Name of the model to retrieve
 
         Returns:
-            SQLAlchemy lazy loading configuration string
+            The model class or None if not found
         """
-        strategy_map = {
-            RelationshipLoadingStrategy.LAZY: 'select',
-            RelationshipLoadingStrategy.EAGER: 'joined',
-            RelationshipLoadingStrategy.SUBQUERY: 'subquery',
-            RelationshipLoadingStrategy.SELECTIN: 'selectin',
-            RelationshipLoadingStrategy.JOINED: 'joined'
-        }
-        return strategy_map.get(strategy, 'select')
+        return cls._registered_models.get(model_name)
 
     @classmethod
     def configure_relationship(
             cls,
-            source_model: Type,
-            target_model: Union[Type, str],
+            source_model: str,
+            target_model: str,
             relationship_name: str,
             back_populates: Optional[str] = None,
-            loading_strategy: RelationshipLoadingStrategy = RelationshipLoadingStrategy.LAZY,
-            cascade: Optional[str] = None,
-            foreign_keys: Optional[List[Column]] = None,
-            use_lazy_import: bool = True,
-            secondary: Optional[Any] = None,
-            uselist: bool = True
+            loading_strategy: str = RelationshipLoadingStrategy.LAZY,
+            **kwargs
     ) -> RelationshipProperty:
-        """
-        Configure a comprehensive SQLAlchemy relationship with advanced options.
+        """Configure a SQLAlchemy relationship with circular import resolution.
 
         Args:
-            source_model: The model class defining the relationship
-            target_model: Target model for the relationship
-            relationship_name: Name of the relationship attribute
-            back_populates: Name of the back-reference attribute
-            loading_strategy: Relationship loading strategy
-            cascade: Cascade configuration
-            foreign_keys: Optional foreign key columns
-            use_lazy_import: Whether to use lazy import for the target model
-            secondary: Association table for many-to-many relationships
-            uselist: Whether the relationship is a collection
+            source_model: Source model class path
+            target_model: Target model class path
+            relationship_name: Name of the relationship
+            back_populates: Optional back_populates parameter
+            loading_strategy: Loading strategy to use
+            **kwargs: Additional arguments to pass to relationship()
 
         Returns:
             Configured SQLAlchemy relationship
         """
-        # Resolve lazy import if needed
-        if use_lazy_import and isinstance(target_model, str):
-            target_model = lazy_import(target_model)
+        try:
+            # Extract model names from paths
+            source_model_name = source_model.split('.')[-1]
+            target_model_name = target_model.split('.')[-1]
 
-        # Default cascade configuration
-        if cascade is None:
-            cascade = "save-update, merge"
+            # Register the source model for lazy import
+            register_lazy_import(source_model, source_model_name)
 
-        # Resolve loading strategy
-        lazy_config = cls._resolve_loading_strategy(loading_strategy)
+            # Register the target model for lazy import
+            register_lazy_import(target_model, target_model_name)
 
-        # Build relationship configuration
-        relationship_config = {
-            'back_populates': back_populates,
-            'lazy': lazy_config,
-            'cascade': cascade,
-            'uselist': uselist
-        }
+            # Set back_populates if provided
+            if back_populates:
+                kwargs['back_populates'] = back_populates
 
-        # Add foreign keys if specified
-        if foreign_keys:
-            relationship_config['foreign_keys'] = foreign_keys
+            # Set loading strategy
+            kwargs['lazy'] = loading_strategy
 
-        # Add secondary table for many-to-many
-        if secondary:
-            relationship_config['secondary'] = secondary
+            # Attempt to get the target model class
+            target_class = None
 
-        # Create and register the relationship
-        relationship_prop = relationship(target_model, **relationship_config)
+            # First try the registered models cache
+            if target_model_name in cls._registered_models:
+                target_class = cls._registered_models[target_model_name]
+                logger.debug(f"Found {target_model_name} in registered models cache")
+            else:
+                # Try lazy import
+                try:
+                    target_class = lazy_import(target_model)
+                    logger.debug(f"Lazy imported {target_model}")
+                except ImportError as e:
+                    logger.debug(f"Could not lazy import {target_model}: {e}")
 
-        # Register the relationship for resolution
-        register_relationship(
-            f"{source_model.__module__}.{source_model.__name__}",
-            relationship_name,
-            f"{target_model.__module__}.{target_model.__name__}"
-        )
+            # If we got the target class, create the relationship
+            if target_class:
+                logger.debug(f"Creating relationship to {target_model_name} with args: {kwargs}")
+                return relationship(target_class, **kwargs)
 
-        return relationship_prop
+            # Otherwise, add to pending relationships for later resolution
+            logger.debug(f"Adding pending relationship: {source_model_name}.{relationship_name} -> {target_model_name}")
+            cls._pending_relationships.append({
+                'source_model_name': source_model_name,
+                'source_model': source_model,
+                'target_model_name': target_model_name,
+                'target_model': target_model,
+                'relationship_name': relationship_name,
+                'kwargs': kwargs
+            })
 
-    @classmethod
-    def create_foreign_key(
-            cls,
-            source_model: Type,
-            target_model: Union[Type, str],
-            nullable: bool = True,
-            use_lazy_import: bool = True,
-            custom_column_name: Optional[str] = None
-    ) -> Column:
-        """
-        Create a foreign key column for a relationship.
+            # Return a relationship with the string name that SQLAlchemy will resolve later
+            # This is a fallback for Declarative Base initialization
+            logger.debug(f"Using string-based relationship for now: {target_model_name}")
+            return relationship(target_model_name, **kwargs)
 
-        Args:
-            source_model: The source model class
-            target_model: Target model for the foreign key
-            nullable: Whether the foreign key can be null
-            use_lazy_import: Whether to use lazy import for the target model
-            custom_column_name: Optional custom name for the foreign key column
+        except Exception as e:
+            logger.error(f"Error configuring relationship {source_model}.{relationship_name} -> {target_model}: {e}")
 
-        Returns:
-            SQLAlchemy foreign key column
-        """
-        # Resolve lazy import if needed
-        if use_lazy_import and isinstance(target_model, str):
-            target_model = lazy_import(target_model)
+            # Fallback to string-based relationship as a last resort
+            if isinstance(target_model, str) and "." in target_model:
+                target_model_name = target_model.split(".")[-1]
+            else:
+                target_model_name = target_model
 
-        # Determine column name
-        if custom_column_name:
-            column_name = custom_column_name
-        else:
-            # Use standard naming convention
-            column_name = f"{target_model.__name__.lower()}_id"
+            logger.warning(f"Falling back to string-based relationship: {target_model_name}")
+            if back_populates:
+                kwargs['back_populates'] = back_populates
 
-        # Create and return foreign key column
-        return Column(
-            column_name,
-            ForeignKey(f"{target_model.__tablename__}.id"),
-            nullable=nullable
-        )
+            kwargs['lazy'] = loading_strategy
+            return relationship(target_model_name, **kwargs)
 
     @classmethod
-    def define_many_to_one_relationship(
-            cls,
-            source_model: Type,
-            target_model: Union[Type, str],
-            relationship_name: str,
-            back_populates: Optional[str] = None,
-            nullable: bool = True,
-            loading_strategy: RelationshipLoadingStrategy = RelationshipLoadingStrategy.LAZY,
-            use_lazy_import: bool = True
-    ) -> Tuple[Column, RelationshipProperty]:
-        """
-        Define a standard many-to-one relationship with comprehensive configuration.
+    def initialize_relationships(cls) -> bool:
+        """Initialize all pending relationships.
 
-        Args:
-            source_model: The source model class
-            target_model: Target model for the relationship
-            relationship_name: Name of the relationship attribute
-            back_populates: Name of the back-reference attribute
-            nullable: Whether the foreign key can be null
-            loading_strategy: Relationship loading strategy
-            use_lazy_import: Whether to use lazy import for the target model
+        This method should be called during application startup
+        after all models have been registered.
 
         Returns:
-            Tuple of (foreign key column, relationship property)
+            bool: True if initialization was successful, False otherwise
         """
-        # Create foreign key column
-        foreign_key = cls.create_foreign_key(
-            source_model,
-            target_model,
-            nullable=nullable,
-            use_lazy_import=use_lazy_import
-        )
+        try:
+            # Process any remaining pending relationships
+            if cls._pending_relationships:
+                logger.warning(f"There are {len(cls._pending_relationships)} unresolved relationships")
+                for pending in cls._pending_relationships:
+                    logger.debug(
+                        f"Unresolved: {pending.get('source_model_name')}."
+                        f"{pending.get('relationship_name')} -> {pending.get('target_model_name')}"
+                    )
 
-        # Add foreign key to source model
-        setattr(source_model, foreign_key.name, foreign_key)
-
-        # Configure relationship
-        relationship_prop = cls.configure_relationship(
-            source_model,
-            target_model,
-            relationship_name,
-            back_populates,
-            loading_strategy,
-            foreign_keys=[foreign_key],
-            uselist=False  # Many-to-one is not a list
-        )
-
-        # Set relationship on source model
-        setattr(source_model, relationship_name, relationship_prop)
-
-        return foreign_key, relationship_prop
-
-    @classmethod
-    def define_many_to_many_relationship(
-            cls,
-            source_model: Type,
-            target_model: Union[Type, str],
-            association_table: Any,
-            relationship_name: str,
-            back_populates: Optional[str] = None,
-            loading_strategy: RelationshipLoadingStrategy = RelationshipLoadingStrategy.LAZY,
-            use_lazy_import: bool = True
-    ) -> RelationshipProperty:
-        """
-        Define a many-to-many relationship using an association table.
-
-        Args:
-            source_model: The source model class
-            target_model: Target model for the relationship
-            association_table: SQLAlchemy Table for the many-to-many relationship
-            relationship_name: Name of the relationship attribute
-            back_populates: Name of the back-reference attribute
-            loading_strategy: Relationship loading strategy
-            use_lazy_import: Whether to use lazy import for the target model
-
-        Returns:
-            Configured relationship property
-        """
-        # Configure many-to-many relationship
-        relationship_prop = cls.configure_relationship(
-            source_model,
-            target_model,
-            relationship_name,
-            back_populates,
-            loading_strategy,
-            secondary=association_table,
-            uselist=True  # Many-to-many is always a list
-        )
-
-        # Set relationship on source model
-        setattr(source_model, relationship_name, relationship_prop)
-
-        return relationship_prop
-
-
-# Example usage demonstrating relationship configuration strategies
-if __name__ == "__main__":
-    from sqlalchemy import Column, Integer, String, Table, MetaData
-    from sqlalchemy.orm import declarative_base
-
-    Base = declarative_base()
-
-
-    class User(Base):
-        __tablename__ = 'users'
-        id = Column(Integer, primary_key=True)
-        name = Column(String)
-
-
-    class Project(Base):
-        __tablename__ = 'projects'
-        id = Column(Integer, primary_key=True)
-        name = Column(String)
-
-        # Demonstrate relationship configuration
-        user_id, user = RelationshipConfiguration.define_many_to_one_relationship(
-            source_model=Project,
-            target_model=User,
-            relationship_name='user',
-            back_populates='projects',
-            nullable=False,
-            loading_strategy=RelationshipLoadingStrategy.EAGER
-        )
-
-        # Define many-to-many relationship
-        metadata = MetaData()
-        project_tags = Table('project_tags', metadata,
-                             Column('project_id', Integer, ForeignKey('projects.id')),
-                             Column('tag_id', Integer, ForeignKey('tags.id'))
-                             )
-
-        tags = RelationshipConfiguration.define_many_to_many_relationship(
-            source_model=Project,
-            target_model='Tag',  # Demonstrates lazy import
-            association_table=project_tags,
-            relationship_name='tags',
-            back_populates='projects',
-            loading_strategy=RelationshipLoadingStrategy.SELECTIN
-        )
-
-
-    # Register lazy import for Tag
-    register_lazy_import('database.models.tag.Tag')
-
-    print("Relationship configuration example complete.")
+            return True
+        except Exception as e:
+            logger.error(f"Error initializing relationships: {e}")
+            return False

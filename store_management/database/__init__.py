@@ -44,15 +44,15 @@ except ImportError as e:
     logger.error(f"Import error in database module: {e}")
 
 # Register lazy imports for transaction models
-register_lazy_import("database.models.transaction.HardwareTransaction", "database.models.transaction")
-register_lazy_import("database.models.transaction.LeatherTransaction", "database.models.transaction")
-register_lazy_import("database.models.transaction.MaterialTransaction", "database.models.transaction")
-register_lazy_import("database.models.transaction.BaseTransaction", "database.models.transaction")
+register_lazy_import("database.models.transaction.HardwareTransaction", "database.models.transaction", "HardwareTransaction")
+register_lazy_import("database.models.transaction.LeatherTransaction", "database.models.transaction", "LeatherTransaction")
+register_lazy_import("database.models.transaction.MaterialTransaction", "database.models.transaction", "MaterialTransaction")
+register_lazy_import("database.models.transaction.BaseTransaction", "database.models.transaction", "BaseTransaction")
 
 # Optional: Register lazy imports for other models if needed
-register_lazy_import("database.models.hardware.Hardware", "database.models.hardware")
-register_lazy_import("database.models.leather.Leather", "database.models.leather")
-register_lazy_import("database.models.material.Material", "database.models.material")
+register_lazy_import("database.models.hardware.Hardware", "database.models.hardware", "Hardware")
+register_lazy_import("database.models.leather.Leather", "database.models.leather", "Leather")
+register_lazy_import("database.models.material.Material", "database.models.material", "Material")
 
 # Add logging to help debug import issues
 logger.debug("database package initialization complete")

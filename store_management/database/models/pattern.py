@@ -28,9 +28,9 @@ from utils.enhanced_model_validator import (
 )
 
 # Register lazy imports to resolve potential circular dependencies
-register_lazy_import('Product', 'database.models.product')
-register_lazy_import('Project', 'database.models.project')
-register_lazy_import('PatternComponent', 'database.models.components')
+register_lazy_import('Product', 'database.models.product', 'Product')
+register_lazy_import('Project', 'database.models.project', 'Project')
+register_lazy_import('PatternComponent', 'database.models.components', 'PatternComponent')
 
 # Setup logger
 logger = logging.getLogger(__name__)
@@ -71,10 +71,16 @@ class Pattern(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     # Relationships using standard SQLAlchemy approach
-    products = relationship("Product", back_populates="pattern", lazy="lazy")
-    projects = relationship("Project", back_populates="pattern", lazy="lazy")
+    products = relationship("Product", back_populates="pattern", lazy="select")
+    projects = relationship("Project", back_populates="pattern", lazy="select")
     components = relationship("PatternComponent", back_populates="pattern",
                               cascade="all, delete-orphan", lazy="selectin")
+
+    project_components = relationship(
+        "ProjectComponent",
+        back_populates="pattern",
+        lazy="select"
+    )
 
     def update_version(self, new_version: str) -> None:
         """
@@ -225,4 +231,4 @@ class Pattern(Base):
 
 
 # Register this class for lazy imports by others
-register_lazy_import('Pattern', 'database.models.pattern')
+register_lazy_import('Pattern', 'database.models.pattern', 'Pattern')

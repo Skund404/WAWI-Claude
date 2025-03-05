@@ -1,316 +1,230 @@
 # utils/circular_import_resolver.py
 """
-Enhanced utility for resolving circular imports.
+Utility for resolving circular import dependencies in the application.
 
-This module provides utilities to help resolve circular imports
-by deferring imports until they are actually needed, with improved
-support for SQLAlchemy models and relationships.
+This module provides a mechanism to handle circular dependencies between modules
+by using lazy imports and resolving them at runtime. It's particularly useful
+for SQLAlchemy models with complex relationships.
 """
 
-import importlib
 import logging
-import sys
-from typing import Any, Callable, Dict, Optional, Set, Type, TypeVar, Union
+import functools
+import importlib
+import inspect
+from types import ModuleType
+from typing import Any, Callable, Dict, List, Optional, Type, TypeVar, Union, cast, get_type_hints
 
-# Type variable for generic function
+# Type definition for relationship configuration
 T = TypeVar('T')
+RelationshipCallback = Callable[[], Any]
 
-class CircularImportResolver:
+# Setup logger
+logger = logging.getLogger(__name__)
+
+# Global registries
+_lazy_imports: Dict[str, Dict[str, str]] = {}
+_relationship_registry: Dict[str, Dict[str, RelationshipCallback]] = {}
+_resolved_imports: Dict[str, Any] = {}
+_module_aliases: Dict[str, str] = {}
+_class_aliases: Dict[str, Dict[str, tuple]] = {}
+_registered_paths: set = set()
+
+
+def register_module_alias(alias_path: str, actual_path: str) -> None:
     """
-    Utility class for resolving circular imports.
-
-    This class provides methods to lazily import modules and classes
-    to avoid circular import issues, with specialized handling for
-    SQLAlchemy models and relationships.
-    """
-
-    _module_cache: Dict[str, Any] = {}
-    _class_cache: Dict[str, Any] = {}
-    _lazy_imports: Dict[str, Callable] = {}
-    _registered_modules: Set[str] = set()
-    _import_stack: Set[str] = set()  # Track imports in process to detect circular dependencies
-    _relationship_map: Dict[str, Dict[str, str]] = {}  # Track relationship definitions for models
-
-    @classmethod
-    def get_module(cls, module_path: str) -> Any:
-        """
-        Get a module by its path, with caching.
-
-        Args:
-            module_path: Dot-separated path to the module
-
-        Returns:
-            The imported module
-
-        Raises:
-            ImportError: If the module cannot be imported
-        """
-        # Check for circular import
-        if module_path in cls._import_stack:
-            logging.debug(f"Potential circular import detected for {module_path}")
-            # Return from cache if available to break the cycle
-            if module_path in cls._module_cache:
-                return cls._module_cache[module_path]
-            raise ImportError(f"Circular import detected for {module_path}")
-
-        # Return cached module if available
-        if module_path in cls._module_cache:
-            return cls._module_cache[module_path]
-
-        try:
-            # Add to import stack to detect circular imports
-            cls._import_stack.add(module_path)
-
-            module = importlib.import_module(module_path)
-            cls._module_cache[module_path] = module
-            return module
-        except ImportError as e:
-            logging.error(f"Failed to import module {module_path}: {e}")
-            raise
-        finally:
-            # Remove from import stack
-            cls._import_stack.discard(module_path)
-
-    @classmethod
-    def get_class(cls, module_path: str, class_name: str) -> Type:
-        """
-        Get a class from a module, with caching.
-
-        Args:
-            module_path: Dot-separated path to the module
-            class_name: Name of the class to import
-
-        Returns:
-            The imported class
-
-        Raises:
-            ImportError: If the module or class cannot be imported
-            AttributeError: If the class doesn't exist in the module
-        """
-        cache_key = f"{module_path}.{class_name}"
-        if cache_key in cls._class_cache:
-            return cls._class_cache[cache_key]
-
-        try:
-            module = cls.get_module(module_path)
-            class_obj = getattr(module, class_name)
-            cls._class_cache[cache_key] = class_obj
-            return class_obj
-        except (ImportError, AttributeError) as e:
-            logging.error(f"Failed to import class {class_name} from {module_path}: {e}")
-            raise
-
-    @classmethod
-    def lazy_import(cls, module_path: str, class_name: Optional[str] = None) -> Any:
-        """
-        Lazily import a module or class.
-
-        This version returns a proxy object that resolves the import when
-        accessed, providing better compatibility with SQLAlchemy relationships.
-
-        Args:
-            module_path: Dot-separated path to the module
-            class_name: Optional name of the class to import
-
-        Returns:
-            LazyImportProxy or the module itself
-
-        Example:
-            Material = lazy_import('database.models.material', 'Material')
-            material = Material(name='test')  # Import only happens here
-        """
-        if class_name:
-            # For class imports, return a proxy
-            return LazyImportProxy(lambda: cls.get_class(module_path, class_name))
-        else:
-            # For module imports, we can directly return the module
-            return cls.get_module(module_path)
-
-    @classmethod
-    def register_lazy_import(cls, import_path: str, module_path: str = None) -> None:
-        """
-        Register a lazy import to be resolved later.
-
-        Args:
-            import_path: Dot-separated path including module and class (e.g. 'module.path.ClassName')
-            module_path: Optional module path if different from import_path
-
-        Example:
-            register_lazy_import('database.models.material.Material', 'database.models.material')
-        """
-        if not module_path:
-            # Default to the module part of the import path
-            # Make sure the import_path has at least one dot before trying to split
-            if '.' in import_path:
-                module_path = import_path.rsplit('.', 1)[0]
-            else:
-                # If there's no dot, then use the import_path as both module and class name
-                module_path = import_path
-                class_name = import_path
-                logger.warning(
-                    f"Import path '{import_path}' does not contain a module separator. Using as both module and class.")
-
-        # Only try to extract class_name if we didn't already set it above
-        if not locals().get('class_name'):
-            if '.' in import_path:
-                class_name = import_path.rsplit('.', 1)[1]
-            else:
-                class_name = import_path
-
-        def loader_func():
-            try:
-                return cls.get_class(module_path, class_name)
-            except (ImportError, AttributeError) as e:
-                logging.error(f"Failed to lazy load {import_path}: {e}")
-                return None
-
-        cls._lazy_imports[import_path] = loader_func
-
-        # Mark the module as registered
-        cls._registered_modules.add(module_path)
-
-    @classmethod
-    def register_relationship(cls, source_model: str, relationship_name: str, target_model: str) -> None:
-        """
-        Register a relationship between SQLAlchemy models.
-
-        This helps with generating proper join conditions even with circular dependencies.
-
-        Args:
-            source_model: Full path to the source model (e.g. 'database.models.project.Project')
-            relationship_name: Name of the relationship attribute
-            target_model: Full path to the target model (e.g. 'database.models.component.Component')
-        """
-        if source_model not in cls._relationship_map:
-            cls._relationship_map[source_model] = {}
-
-        cls._relationship_map[source_model][relationship_name] = target_model
-
-        # Also register both models for lazy import
-        src_module = source_model.rsplit('.', 1)[0]
-        tgt_module = target_model.rsplit('.', 1)[0]
-
-        cls.register_lazy_import(source_model, src_module)
-        cls.register_lazy_import(target_model, tgt_module)
-
-    @classmethod
-    def resolve_lazy_import(cls, import_path: str) -> Any:
-        """
-        Resolve a previously registered lazy import.
-
-        Args:
-            import_path: The full import path to resolve
-
-        Returns:
-            The imported object or None if not found
-
-        Raises:
-            KeyError: If the import path hasn't been registered
-        """
-        if import_path not in cls._lazy_imports:
-            raise KeyError(f"No lazy import registered for {import_path}")
-
-        # Check if we're in a circular import situation
-        if import_path in cls._import_stack:
-            logging.debug(f"Circular resolution detected for {import_path}, returning partial result")
-            return None
-
-        try:
-            cls._import_stack.add(import_path)
-            loader = cls._lazy_imports[import_path]
-            result = loader()
-            return result
-        finally:
-            cls._import_stack.discard(import_path)
-
-    @classmethod
-    def get_relationship_info(cls, source_model: str, relationship_name: str) -> Optional[str]:
-        """
-        Get information about a registered relationship.
-
-        Args:
-            source_model: Full path to the source model
-            relationship_name: Name of the relationship attribute
-
-        Returns:
-            Target model path or None if not found
-        """
-        if source_model in cls._relationship_map and relationship_name in cls._relationship_map[source_model]:
-            return cls._relationship_map[source_model][relationship_name]
-        return None
-
-    @classmethod
-    def is_module_registered(cls, module_path: str) -> bool:
-        """
-        Check if a module has been registered for lazy imports.
-
-        Args:
-            module_path: The module path to check
-
-        Returns:
-            True if the module is registered, False otherwise
-        """
-        return module_path in cls._registered_modules
-
-    @classmethod
-    def clear_cache(cls) -> None:
-        """Clear all caches and registrations."""
-        cls._module_cache.clear()
-        cls._class_cache.clear()
-        cls._lazy_imports.clear()
-        cls._registered_modules.clear()
-        cls._import_stack.clear()
-        cls._relationship_map.clear()
-
-
-class LazyImportProxy:
-    """
-    Proxy class for lazy imports that resolves the actual class on first use.
-    Compatible with SQLAlchemy relationship targets.
-    """
-    def __init__(self, import_func: Callable[[], Type[T]]):
-        self._import_func = import_func
-        self._actual_class = None
-
-    def __call__(self, *args, **kwargs):
-        if self._actual_class is None:
-            self._actual_class = self._import_func()
-
-        return self._actual_class(*args, **kwargs)
-
-    def __getattr__(self, name: str) -> Any:
-        if self._actual_class is None:
-            self._actual_class = self._import_func()
-
-        return getattr(self._actual_class, name)
-
-
-# Function aliases for convenience
-def get_module(module_path: str) -> Any:
-    """
-    Get a module by its path.
+    Register an alias for a module path.
 
     Args:
-        module_path: Dot-separated path to the module
+        alias_path: The alias path to register
+        actual_path: The actual module path
+    """
+    global _module_aliases
+    _module_aliases[alias_path] = actual_path
+    logger.debug(f"Registered module alias: {alias_path} -> {actual_path}")
+
+
+def register_class_alias(module_path: str, class_name: str,
+                         actual_module_path: str, actual_class_name: Optional[str] = None) -> None:
+    """
+    Register an alias for a class within a module.
+
+    Args:
+        module_path: The module path where the class is expected
+        class_name: The class name that is expected
+        actual_module_path: The actual module path where the class exists
+        actual_class_name: The actual class name (if different)
+    """
+    global _class_aliases
+
+    if module_path not in _class_aliases:
+        _class_aliases[module_path] = {}
+
+    actual_class = actual_class_name or class_name
+    _class_aliases[module_path][class_name] = (actual_module_path, actual_class)
+
+    logger.debug(f"Registered class alias: {module_path}.{class_name} -> {actual_module_path}.{actual_class}")
+
+
+def register_lazy_import(target_name: str, module_path: str, class_name: str) -> None:
+    """
+    Register a lazy import to be resolved at runtime.
+
+    Args:
+        target_name: A unique identifier for this import
+        module_path: Import path to the module
+        class_name: Name of the class to import from the module
+
+    Example:
+        register_lazy_import('Product', 'database.models.product', 'Product')
+    """
+    global _lazy_imports, _resolved_imports
+
+    if target_name in _resolved_imports:
+        logger.debug(f"Lazy import '{target_name}' already resolved, skipping registration")
+        return
+
+    if target_name not in _lazy_imports:
+        _lazy_imports[target_name] = {}
+
+    _lazy_imports[target_name]['module_path'] = module_path
+    _lazy_imports[target_name]['class_name'] = class_name
+    logger.debug(f"Registered lazy import: {target_name} -> {module_path}.{class_name}")
+
+
+def get_module(module_path: str) -> ModuleType:
+    """
+    Get a module by path, handling aliases.
+
+    Args:
+        module_path: Path to the module
 
     Returns:
         The imported module
+
+    Raises:
+        ImportError: If module cannot be imported
     """
-    return CircularImportResolver.get_module(module_path)
+    global _module_aliases
+
+    try:
+        # Check for module alias
+        if module_path in _module_aliases:
+            actual_path = _module_aliases[module_path]
+            logger.debug(f"Using module alias: {module_path} -> {actual_path}")
+            module_path = actual_path
+
+        # Attempt to import the module
+        module = importlib.import_module(module_path)
+        return module
+    except ImportError as e:
+        logger.error(f"Error importing module {module_path}: {e}")
+        raise
 
 
 def get_class(module_path: str, class_name: str) -> Type:
     """
-    Get a class from a module.
+    Get a class from a module, handling special cases.
 
     Args:
-        module_path: Dot-separated path to the module
-        class_name: Name of the class to import
+        module_path: Path to the module
+        class_name: Name of the class
 
     Returns:
-        The imported class
+        The class
+
+    Raises:
+        ImportError: If module or class cannot be imported
     """
-    return CircularImportResolver.get_class(module_path, class_name)
+    global _class_aliases
+
+    try:
+        # Check for class alias
+        if module_path in _class_aliases and class_name in _class_aliases[module_path]:
+            actual_module_path, actual_class_name = _class_aliases[module_path][class_name]
+            logger.debug(f"Using class alias: {module_path}.{class_name} -> {actual_module_path}.{actual_class_name}")
+
+            try:
+                actual_module = get_module(actual_module_path)
+                if hasattr(actual_module, actual_class_name):
+                    return getattr(actual_module, actual_class_name)
+            except (ImportError, AttributeError) as e:
+                logger.error(f"Failed to import aliased class {actual_module_path}.{actual_class_name}: {e}")
+                # Continue with standard import attempt
+
+        # Special case handling for OrderItem
+        if class_name == "OrderItem" and module_path == "database.models.order":
+            try:
+                # First try to import from dedicated order_item module
+                order_item_module = get_module("database.models.order_item")
+                if hasattr(order_item_module, "OrderItem"):
+                    return getattr(order_item_module, "OrderItem")
+            except ImportError:
+                pass
+
+        # Special case handling for ProjectComponent
+        if class_name == "ProjectComponent" and module_path == "database.models.project":
+            try:
+                # Try to import from components module
+                components_module = get_module("database.models.components")
+                if hasattr(components_module, "ProjectComponent"):
+                    return getattr(components_module, "ProjectComponent")
+            except ImportError:
+                pass
+
+        # Standard import
+        module = get_module(module_path)
+
+        if hasattr(module, class_name):
+            return getattr(module, class_name)
+
+        raise ImportError(f"Class {class_name} not found in module {module_path}")
+    except ImportError as e:
+        logger.error(f"Error getting class {class_name} from module {module_path}: {e}")
+        raise
+
+
+def resolve_lazy_import(target_name: str) -> Any:
+    """
+    Resolve a registered lazy import.
+
+    Args:
+        target_name: The unique identifier for the import to resolve
+
+    Returns:
+        The imported class or object
+
+    Raises:
+        ImportError: If the lazy import cannot be resolved
+    """
+    global _lazy_imports, _resolved_imports
+
+    if target_name in _resolved_imports:
+        return _resolved_imports[target_name]
+
+    if target_name not in _lazy_imports:
+        logger.error(f"No lazy import registered for {target_name}")
+        raise ImportError(f"No lazy import registered for {target_name}")
+
+    try:
+        import_info = _lazy_imports[target_name]
+        module_path = import_info['module_path']
+        class_name = import_info['class_name']
+
+        # Import the module
+        module = importlib.import_module(module_path)
+
+        # Get the class or object from the module
+        if hasattr(module, class_name):
+            resolved = getattr(module, class_name)
+            _resolved_imports[target_name] = resolved
+            logger.debug(f"Resolved lazy import: {target_name} -> {module_path}.{class_name}")
+            return resolved
+        else:
+            logger.error(f"Class {class_name} not found in module {module_path}")
+            raise ImportError(f"Class {class_name} not found in module {module_path}")
+    except Exception as e:
+        logger.error(f"Error resolving lazy import {target_name}: {e}")
+        raise ImportError(f"Failed to resolve lazy import: {e}") from e
 
 
 def lazy_import(module_path: str, class_name: Optional[str] = None) -> Any:
@@ -318,78 +232,265 @@ def lazy_import(module_path: str, class_name: Optional[str] = None) -> Any:
     Lazily import a module or class.
 
     Args:
-        module_path: Dot-separated path to the module
+        module_path: Path to the module
         class_name: Optional name of the class to import
 
     Returns:
-        LazyImportProxy or the module itself
+        The imported module or class
     """
-    return CircularImportResolver.lazy_import(module_path, class_name)
+    try:
+        # Import the module
+        module = get_module(module_path)
+
+        # If no class name is provided, return the module
+        if not class_name:
+            return module
+
+        # Get the class from the module
+        if hasattr(module, class_name):
+            return getattr(module, class_name)
+
+        # Special case handling
+        if class_name == "OrderItem" and module_path == "database.models.order":
+            try:
+                order_item_module = get_module("database.models.order_item")
+                if hasattr(order_item_module, "OrderItem"):
+                    return getattr(order_item_module, "OrderItem")
+            except ImportError:
+                pass
+
+        if class_name == "ProjectComponent" and module_path == "database.models.project":
+            try:
+                comp_module = get_module("database.models.components")
+                if hasattr(comp_module, "ProjectComponent"):
+                    return getattr(comp_module, "ProjectComponent")
+            except ImportError:
+                pass
+
+        # Class not found
+        logger.error(f"Class {class_name} not found in module {module_path}")
+        raise ImportError(f"Class {class_name} not found in module {module_path}")
+    except Exception as e:
+        logger.error(f"Error in lazy_import for {module_path}.{class_name}: {e}")
+        raise ImportError(f"Failed in lazy_import: {e}") from e
 
 
-def register_lazy_import(import_path: str, module_path: str = None) -> None:
+def register_relationship(
+        owner_class: Type,
+        relationship_name: str,
+        callback: RelationshipCallback
+) -> None:
     """
-    Register a lazy import to be resolved later.
+    Register a relationship configuration to be resolved later.
 
     Args:
-        import_path: Dot-separated path including module and class
-        module_path: Optional module path if different from import_path
-    """
-    CircularImportResolver.register_lazy_import(import_path, module_path)
-
-
-def register_relationship(source_model: str, relationship_name: str, target_model: str) -> None:
-    """
-    Register a relationship between SQLAlchemy models.
-
-    Args:
-        source_model: Full path to the source model
+        owner_class: The SQLAlchemy model class that owns the relationship
         relationship_name: Name of the relationship attribute
-        target_model: Full path to the target model
+        callback: A callback function that returns the relationship definition
     """
-    CircularImportResolver.register_relationship(source_model, relationship_name, target_model)
+    global _relationship_registry
+
+    key = f"{owner_class.__module__}.{owner_class.__name__}"
+    if key not in _relationship_registry:
+        _relationship_registry[key] = {}
+
+    _relationship_registry[key][relationship_name] = callback
+    logger.debug(f"Registered relationship: {key}.{relationship_name}")
 
 
-def resolve_lazy_import(import_path: str) -> Any:
+def resolve_relationship(owner_class: Type, relationship_name: str) -> Any:
     """
-    Resolve a previously registered lazy import.
+    Resolve a previously registered relationship.
 
     Args:
-        import_path: The full import path to resolve
-
-    Returns:
-        The imported object
-    """
-    return CircularImportResolver.resolve_lazy_import(import_path)
-
-
-def get_relationship_info(source_model: str, relationship_name: str) -> Optional[str]:
-    """
-    Get information about a registered relationship.
-
-    Args:
-        source_model: Full path to the source model
+        owner_class: The SQLAlchemy model class that owns the relationship
         relationship_name: Name of the relationship attribute
 
     Returns:
-        Target model path or None if not found
+        The resolved relationship configuration
     """
-    return CircularImportResolver.get_relationship_info(source_model, relationship_name)
+    global _relationship_registry
+
+    key = f"{owner_class.__module__}.{owner_class.__name__}"
+
+    if key not in _relationship_registry or relationship_name not in _relationship_registry[key]:
+        logger.error(f"No relationship registered for {key}.{relationship_name}")
+        raise ValueError(f"No relationship registered for {key}.{relationship_name}")
+
+    try:
+        callback = _relationship_registry[key][relationship_name]
+        result = callback()
+        logger.debug(f"Resolved relationship: {key}.{relationship_name}")
+        return result
+    except Exception as e:
+        logger.error(f"Error resolving relationship {key}.{relationship_name}: {e}")
+        raise ValueError(f"Failed to resolve relationship {key}.{relationship_name}: {e}") from e
 
 
-def is_module_registered(module_path: str) -> bool:
+def resolve_lazy_relationships() -> None:
     """
-    Check if a module has been registered for lazy imports.
+    Resolve all registered lazy relationships and apply them to their models.
+
+    This should be called after all models have been imported and initialized.
+    """
+    global _relationship_registry
+
+    from sqlalchemy.orm import relationship
+
+    resolved_count = 0
+    failed_count = 0
+
+    for owner_key, relationships in _relationship_registry.items():
+        # Extract module and class name from owner_key
+        if '.' not in owner_key:
+            logger.warning(f"Invalid owner_key format: {owner_key}")
+            continue
+
+        module_path, class_name = owner_key.rsplit('.', 1)
+
+        try:
+            # Get the owner class
+            module = importlib.import_module(module_path)
+            if not hasattr(module, class_name):
+                logger.warning(f"Class {class_name} not found in module {module_path}")
+                continue
+
+            owner_class = getattr(module, class_name)
+
+            # Process each relationship for this owner
+            for rel_name, callback in relationships.items():
+                try:
+                    # Get the relationship definition from the callback
+                    rel_def = callback()
+                    # Set the relationship on the owner class
+                    setattr(owner_class, rel_name, rel_def)
+                    resolved_count += 1
+                    logger.debug(f"Applied relationship: {owner_key}.{rel_name}")
+                except Exception as e:
+                    failed_count += 1
+                    logger.error(f"Failed to resolve lazy relationship {owner_key}.{rel_name}: {e}")
+        except Exception as e:
+            logger.error(f"Error resolving lazy import {owner_key}.None: {e}")
+            failed_count += len(relationships)
+
+    logger.info(f"Resolved {resolved_count} lazy relationships, {failed_count} failed")
+
+
+# Helper function to lazily create a relationship
+def lazy_relationship(model_path: str, **kwargs) -> RelationshipCallback:
+    """
+    Create a callback that returns a SQLAlchemy relationship.
 
     Args:
-        module_path: The module path to check
+        model_path: Path to the target model (e.g., 'Module.ClassName')
+        **kwargs: Additional relationship arguments
 
     Returns:
-        True if the module is registered, False otherwise
+        A callback that will create the relationship
     """
-    return CircularImportResolver.is_module_registered(module_path)
+
+    def callback():
+        from sqlalchemy.orm import relationship
+        target = lazy_import(model_path)
+        return relationship(target, **kwargs)
+
+    return callback
 
 
-def clear_cache() -> None:
-    """Clear all circular import resolver caches."""
-    CircularImportResolver.clear_cache()
+class CircularImportResolver:
+    """Class-based interface for resolving circular imports."""
+
+    @staticmethod
+    def reset() -> None:
+        """Reset the resolver state for testing."""
+        global _lazy_imports, _resolved_imports, _relationship_registry
+        global _module_aliases, _class_aliases, _registered_paths
+
+        _lazy_imports = {}
+        _resolved_imports = {}
+        _relationship_registry = {}
+        _module_aliases = {}
+        _class_aliases = {}
+        _registered_paths = set()
+
+    @staticmethod
+    def register_module_alias(alias_path: str, actual_path: str) -> None:
+        """Register an alias for a module path."""
+        register_module_alias(alias_path, actual_path)
+
+    @staticmethod
+    def register_class_alias(module_path: str, class_name: str,
+                             actual_module_path: str, actual_class_name: Optional[str] = None) -> None:
+        """Register an alias for a class within a module."""
+        register_class_alias(module_path, class_name, actual_module_path, actual_class_name)
+
+    @staticmethod
+    def register_lazy_import(target_name: str, module_path: str, class_name: str) -> None:
+        """
+        Register a lazy import to be resolved later.
+
+        Args:
+            target_name: A unique name for this lazy import
+            module_path: Full Python path to the module containing the target class
+            class_name: Name of the class to import from the module
+        """
+        register_lazy_import(target_name, module_path, class_name)
+
+    @staticmethod
+    def resolve_lazy_import(target_name: str) -> Any:
+        """
+        Resolve a previously registered lazy import.
+
+        Args:
+            target_name: The unique name of the lazy import to resolve
+
+        Returns:
+            The imported class or object
+        """
+        return resolve_lazy_import(target_name)
+
+    @staticmethod
+    def register_relationship(owner_class: Type, relationship_name: str, callback: RelationshipCallback) -> None:
+        """
+        Register a relationship configuration to be resolved later.
+
+        Args:
+            owner_class: The SQLAlchemy model class that owns the relationship
+            relationship_name: Name of the relationship attribute
+            callback: A callback function that returns the relationship definition
+        """
+        register_relationship(owner_class, relationship_name, callback)
+
+    @staticmethod
+    def resolve_relationship(owner_class: Type, relationship_name: str) -> Any:
+        """
+        Resolve a previously registered relationship.
+
+        Args:
+            owner_class: The SQLAlchemy model class that owns the relationship
+            relationship_name: Name of the relationship attribute
+
+        Returns:
+            The resolved relationship configuration
+        """
+        return resolve_relationship(owner_class, relationship_name)
+
+    @staticmethod
+    def get_module(module_path: str) -> ModuleType:
+        """Get a module by path, handling aliases."""
+        return get_module(module_path)
+
+    @staticmethod
+    def get_class(module_path: str, class_name: str) -> Type:
+        """Get a class from a module, handling special cases."""
+        return get_class(module_path, class_name)
+
+
+# Register common aliases to handle model hierarchies
+register_module_alias('database.models.order.Order', 'database.models.order')
+register_module_alias('database.models.order.OrderItem', 'database.models.order_item')
+register_module_alias('database.models.order_item.Order', 'database.models.order')
+register_module_alias('database.models.order_item.OrderItem', 'database.models.order_item')
+
+# Register special case for ProjectComponent being in the components module, not project module
+register_class_alias('database.models.project', 'ProjectComponent', 'database.models.components', 'ProjectComponent')

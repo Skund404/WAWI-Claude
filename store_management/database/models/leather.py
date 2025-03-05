@@ -13,7 +13,9 @@ from typing import Dict, Any, Optional, List, Union
 from sqlalchemy import Column, Enum, Float, ForeignKey, Integer, String, Text, Boolean
 from sqlalchemy.orm import relationship
 from sqlalchemy.exc import SQLAlchemyError
-
+from sqlalchemy.orm import relationship
+from typing import List, Optional
+from sqlalchemy.orm import Mapped, mapped_column
 from database.models.base import Base, ModelValidationError
 from database.models.enums import (
     InventoryStatus,
@@ -36,11 +38,11 @@ from utils.enhanced_model_validator import (
 logger = logging.getLogger(__name__)
 
 # Register lazy imports to resolve potential circular dependencies
-register_lazy_import('database.models.supplier.Supplier', 'database.models.supplier')
-register_lazy_import('database.models.storage.Storage', 'database.models.storage')
-register_lazy_import('database.models.transaction.LeatherTransaction', 'database.models.transaction')
-register_lazy_import('database.models.project.Project', 'database.models.project')
-register_lazy_import('database.models.components.ProjectComponent', 'database.models.components')
+register_lazy_import('database.models.supplier.Supplier', 'database.models.supplier', 'Supplier')
+register_lazy_import('database.models.storage.Storage', 'database.models.storage', 'Storage')
+register_lazy_import('database.models.transaction.LeatherTransaction', 'database.models.transaction', 'LeatherTransaction')
+register_lazy_import('database.models.project.Project', 'database.models.project', 'Project')
+register_lazy_import('database.models.components.ProjectComponent', 'database.models.components', 'ProjectComponent')
 
 
 class Leather(Base):
@@ -81,29 +83,33 @@ class Leather(Base):
     storage_id = Column(Integer, ForeignKey("storages.id"), nullable=True)
 
     # Relationships configured to avoid circular imports
-    transactions = relationship(
+    transactions: Mapped[List["LeatherTransaction"]] = relationship(
         "LeatherTransaction",
         back_populates="leather",
-        lazy='select',
-        cascade='all, delete-orphan'
+        lazy="selectin",
+        cascade="all, delete-orphan"
     )
 
-    supplier = relationship(
+    # Update supplier relationship
+    supplier: Mapped[Optional["Supplier"]] = relationship(
         "Supplier",
         back_populates="leathers",
-        lazy='select'
+        lazy="selectin"
     )
 
-    storage = relationship(
+    # Update storage relationship
+    storage: Mapped[Optional["Storage"]] = relationship(
         "Storage",
         back_populates="leathers",
-        lazy='select'
+        lazy="selectin"
     )
 
-    project_components = relationship(
+    # Update project_components relationship
+    project_components: Mapped[List["ProjectComponent"]] = relationship(
         "ProjectComponent",
         back_populates="leather",
-        lazy='select'
+        lazy="selectin",
+        cascade="save-update, merge"  # Removed refresh-expire
     )
 
     def __init__(self, **kwargs):
@@ -187,93 +193,6 @@ class Leather(Base):
                 "area_available_sqft"
             )
 
-    def adjust_area(self, area_change: float, transaction_type: TransactionType,
-                    notes: Optional[str] = None) -> None:
-        """
-        Adjust available leather area with comprehensive validation.
-
-        Args:
-            area_change: Amount to adjust in square feet
-            transaction_type: Type of transaction
-            notes: Optional notes about the transaction
-
-        Raises:
-            ModelValidationError: If area adjustment is invalid
-        """
-        try:
-            # Validate area change
-            validate_positive_number(
-                {'area_change': abs(area_change)},
-                'area_change',
-                message="Area change must be a non-negative number"
-            )
-
-            # Validate resulting area
-            new_area = (self.area_available_sqft or 0.0) + area_change
-
-            if new_area < 0:
-                raise ModelValidationError(
-                    f"Cannot reduce area below zero. Current: {self.area_available_sqft}, Change: {area_change}"
-                )
-
-            # Update area
-            self.area_available_sqft = new_area
-
-            # Update status based on available area
-            if self.area_available_sqft <= 0:
-                self.status = InventoryStatus.OUT_OF_STOCK
-            elif self.area_available_sqft <= 1.0:  # Example threshold for low stock
-                self.status = InventoryStatus.LOW_STOCK
-            else:
-                self.status = InventoryStatus.IN_STOCK
-
-            # Log the adjustment
-            logger.info(
-                f"Leather {self.id} area adjusted. "
-                f"Change: {area_change}, New Area: {self.area_available_sqft}"
-            )
-
-        except Exception as e:
-            logger.error(f"Area adjustment failed: {e}")
-            raise ModelValidationError(f"Leather area adjustment failed: {str(e)}")
-
-    def calculate_total_value(self) -> float:
-        """
-        Calculate the total value of the leather based on available area.
-
-        Returns:
-            float: Total value of the leather
-        """
-        try:
-            total_value = (self.area_available_sqft or 0.0) * self.price_per_sqft
-            return total_value
-        except Exception as e:
-            logger.error(f"Value calculation failed: {e}")
-            raise ModelValidationError(f"Leather value calculation failed: {str(e)}")
-
-    def mark_as_inactive(self) -> None:
-        """
-        Mark the leather as inactive.
-        """
-        self.is_active = False
-        self.status = InventoryStatus.OUT_OF_STOCK
-        logger.info(f"Leather {self.id} marked as inactive")
-
-    def restore(self) -> None:
-        """
-        Restore an inactive leather item.
-        """
-        self.is_active = True
-        # Restore status based on available area
-        if self.area_available_sqft is not None:
-            if self.area_available_sqft <= 0:
-                self.status = InventoryStatus.OUT_OF_STOCK
-            elif self.area_available_sqft <= 1.0:
-                self.status = InventoryStatus.LOW_STOCK
-            else:
-                self.status = InventoryStatus.IN_STOCK
-        logger.info(f"Leather {self.id} restored")
-
     def __repr__(self) -> str:
         """
         Provide a comprehensive string representation of the leather.
@@ -291,4 +210,4 @@ class Leather(Base):
 
 
 # Final registration for lazy imports
-register_lazy_import('database.models.leather.Leather', 'database.models.leather')
+register_lazy_import('database.models.leather.Leather', 'database.models.leather', 'Leather')

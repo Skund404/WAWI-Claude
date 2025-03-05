@@ -1376,3 +1376,763 @@ class PickingListView(BaseView):
         """Compatibility method that forwards to _delete_picking_list."""
         self.logger.info("_delete_list called, forwarding to _delete_picking_list")
         return self._delete_picking_list()
+
+    def _delete_picking_list(self):
+        """Delete the selected picking list."""
+        try:
+            # Check if a list is selected
+            selected_item = self.lists_tree.selection()
+            if not selected_item:
+                messagebox.showinfo("Delete", "Please select a picking list to delete")
+                return
+
+            # Get the list ID
+            list_id = int(self.lists_tree.item(selected_item[0], "values")[0])
+
+            # Confirm deletion
+            list_name = self.lists_tree.item(selected_item[0], "values")[1]
+            if not messagebox.askyesno("Confirm Delete",
+                                       f"Are you sure you want to delete picking list '{list_name}'?"):
+                return
+
+            # Delete the list
+            if not self.picking_list_service:
+                self.picking_list_service = self.app.get_service(IPickingListService)
+
+            if self.picking_list_service.delete_list(list_id):
+                # Reset UI
+                self._clear_details()
+                self._toggle_details(False)
+                self.current_picking_list_id = None
+
+                # Remove from treeview
+                self.lists_tree.delete(selected_item)
+
+                # Show success message
+                messagebox.showinfo("Success", f"Picking list '{list_name}' has been deleted")
+                self.logger.info(f"Deleted picking list {list_id}: {list_name}")
+
+        except Exception as e:
+            self.logger.error(f"Error deleting picking list: {str(e)}")
+            messagebox.showerror("Delete Error", f"Failed to delete picking list: {str(e)}")
+
+    def _save_picking_list(self):
+        """Save changes to the current picking list."""
+        try:
+            # Check if a picking list is selected
+            if not hasattr(self, 'current_picking_list_id') or not self.current_picking_list_id:
+                messagebox.showinfo("Save", "No picking list selected")
+                return
+
+            # Get form data
+            name = self.list_name_var.get().strip()
+            status = self.list_status_var.get()
+
+            # Get priority (extract number from format like "0 (Normal)")
+            priority_text = self.list_priority_var.get()
+            try:
+                priority = int(priority_text.split(' ')[0])
+            except (ValueError, IndexError):
+                priority = 0
+
+            assigned_to = self.list_assigned_var.get().strip()
+            notes = self.list_notes_text.get("1.0", tk.END).strip()
+
+            # Validate required fields
+            if not name:
+                messagebox.showerror("Validation Error", "Picking list name is required")
+                return
+
+            # Create update data
+            update_data = {
+                "name": name,
+                "status": status,
+                "priority": priority,
+                "assigned_to": assigned_to,
+                "notes": notes
+            }
+
+            # Update the picking list
+            if not self.picking_list_service:
+                self.picking_list_service = self.app.get_service(IPickingListService)
+
+            updated_list = self.picking_list_service.update_list(self.current_picking_list_id, update_data)
+
+            if updated_list:
+                # Update treeview item
+                for item_id in self.lists_tree.get_children():
+                    if int(self.lists_tree.item(item_id, "values")[0]) == self.current_picking_list_id:
+                        self.lists_tree.item(item_id, values=(
+                            updated_list["id"],
+                            updated_list["name"],
+                            updated_list["status"],
+                            len(updated_list.get("items", [])),
+                            self._format_priority(updated_list.get("priority", 0))
+                        ))
+                        break
+
+                # Show success message
+                messagebox.showinfo("Success", "Picking list updated successfully")
+                self.logger.info(f"Updated picking list {self.current_picking_list_id}")
+
+        except Exception as e:
+            self.logger.error(f"Error saving picking list: {str(e)}")
+            messagebox.showerror("Save Error", f"Failed to save picking list: {str(e)}")
+
+    def _add_item(self):
+        """Add an item to the current picking list."""
+        try:
+            # Check if a picking list is selected
+            if not hasattr(self, 'current_picking_list_id') or not self.current_picking_list_id:
+                messagebox.showinfo("Add Item", "Please select a picking list first")
+                return
+
+            # Create dialog
+            dialog = tk.Toplevel(self)
+            dialog.title("Add Picking List Item")
+            dialog.geometry("600x450")
+            dialog.transient(self)
+            dialog.grab_set()
+
+            # Create form frame
+            form_frame = ttk.Frame(dialog, padding=10)
+            form_frame.pack(fill=tk.BOTH, expand=True)
+
+            # Item info section
+            item_frame = ttk.LabelFrame(form_frame, text="Item Information")
+            item_frame.pack(fill=tk.X, pady=10)
+
+            item_grid = ttk.Frame(item_frame)
+            item_grid.pack(fill=tk.X, padx=10, pady=10)
+
+            # Item name
+            ttk.Label(item_grid, text="Item Name:").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
+            name_var = tk.StringVar()
+            name_entry = ttk.Entry(item_grid, textvariable=name_var, width=40)
+            name_entry.grid(row=0, column=1, columnspan=3, sticky=tk.W, padx=5, pady=5)
+
+            # Item type
+            ttk.Label(item_grid, text="Item Type:").grid(row=1, column=0, sticky=tk.W, padx=5, pady=5)
+            type_var = tk.StringVar(value="Material")
+            type_combo = ttk.Combobox(item_grid, textvariable=type_var,
+                                      values=["Material", "Hardware", "Leather", "Tool", "Other"], width=15)
+            type_combo.grid(row=1, column=1, sticky=tk.W, padx=5, pady=5)
+
+            # Required quantity
+            ttk.Label(item_grid, text="Required Quantity:").grid(row=1, column=2, sticky=tk.W, padx=5, pady=5)
+            quantity_var = tk.DoubleVar(value=1.0)
+            quantity_spinbox = ttk.Spinbox(item_grid, from_=0.1, to=9999.9, increment=0.1,
+                                           textvariable=quantity_var, width=10)
+            quantity_spinbox.grid(row=1, column=3, sticky=tk.W, padx=5, pady=5)
+
+            # Unit
+            ttk.Label(item_grid, text="Unit:").grid(row=2, column=0, sticky=tk.W, padx=5, pady=5)
+            unit_var = tk.StringVar(value="pcs")
+            unit_combo = ttk.Combobox(item_grid, textvariable=unit_var,
+                                      values=["pcs", "m", "cm", "mm", "kg", "g", "oz", "lb"], width=10)
+            unit_combo.grid(row=2, column=1, sticky=tk.W, padx=5, pady=5)
+
+            # Storage location
+            ttk.Label(item_grid, text="Storage Location:").grid(row=3, column=0, sticky=tk.W, padx=5, pady=5)
+            location_var = tk.StringVar()
+            location_entry = ttk.Entry(item_grid, textvariable=location_var, width=40)
+            location_entry.grid(row=3, column=1, columnspan=3, sticky=tk.W, padx=5, pady=5)
+
+            # Description and notes
+            description_frame = ttk.LabelFrame(form_frame, text="Details")
+            description_frame.pack(fill=tk.BOTH, expand=True, pady=10)
+
+            details_grid = ttk.Frame(description_frame)
+            details_grid.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+            # Description
+            ttk.Label(details_grid, text="Description:").grid(row=0, column=0, sticky=tk.NW, padx=5, pady=5)
+            description_text = tk.Text(details_grid, height=3, width=50)
+            description_text.grid(row=0, column=1, sticky=tk.W, padx=5, pady=5)
+
+            # Notes
+            ttk.Label(details_grid, text="Notes:").grid(row=1, column=0, sticky=tk.NW, padx=5, pady=5)
+            notes_text = tk.Text(details_grid, height=3, width=50)
+            notes_text.grid(row=1, column=1, sticky=tk.W, padx=5, pady=5)
+
+            # Buttons
+            button_frame = ttk.Frame(form_frame)
+            button_frame.pack(fill=tk.X, pady=10)
+
+            def save_item():
+                """Save the new item."""
+                try:
+                    # Validate required fields
+                    if not name_var.get().strip():
+                        messagebox.showerror("Validation Error", "Item name is required")
+                        return
+
+                    # Create item data
+                    item_data = {
+                        "name": name_var.get().strip(),
+                        "item_type": type_var.get(),
+                        "required_quantity": float(quantity_var.get()),
+                        "unit": unit_var.get(),
+                        "storage_location": location_var.get().strip(),
+                        "description": description_text.get("1.0", tk.END).strip(),
+                        "notes": notes_text.get("1.0", tk.END).strip(),
+                        "is_picked": False,
+                        "picked_quantity": 0
+                    }
+
+                    # Save to service
+                    if not self.picking_list_service:
+                        self.picking_list_service = self.app.get_service(IPickingListService)
+
+                    result = self.picking_list_service.add_item_to_list(self.current_picking_list_id, item_data)
+
+                    if result:
+                        # Update picking list
+                        self._on_list_select()
+
+                        # Show success message
+                        messagebox.showinfo("Success", "Item added successfully")
+                        dialog.destroy()
+
+                except Exception as e:
+                    self.logger.error(f"Error adding item: {str(e)}")
+                    messagebox.showerror("Error", f"Failed to add item: {str(e)}")
+
+            ttk.Button(button_frame, text="Add Item", command=save_item).pack(side=tk.LEFT, padx=5)
+            ttk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
+
+            # Focus name field
+            name_entry.focus_set()
+
+        except Exception as e:
+            self.logger.error(f"Error creating add item dialog: {str(e)}")
+            messagebox.showerror("Error", f"Failed to open add item dialog: {str(e)}")
+
+    def _remove_item(self):
+        """Remove the selected item from the current picking list."""
+        try:
+            # Check if a picking list is selected
+            if not hasattr(self, 'current_picking_list_id') or not self.current_picking_list_id:
+                messagebox.showinfo("Remove Item", "Please select a picking list first")
+                return
+
+            # Check if an item is selected
+            selected_item = self.items_tree.selection()
+            if not selected_item:
+                messagebox.showinfo("Remove Item", "Please select an item to remove")
+                return
+
+            # Get the item ID
+            item_id = int(self.items_tree.item(selected_item[0], "values")[0])
+            item_name = self.items_tree.item(selected_item[0], "values")[2]  # Name is in the third column
+
+            # Confirm deletion
+            if not messagebox.askyesno("Confirm Remove", f"Are you sure you want to remove item '{item_name}'?"):
+                return
+
+            # Remove the item
+            if not self.picking_list_service:
+                self.picking_list_service = self.app.get_service(IPickingListService)
+
+            if self.picking_list_service.remove_item_from_list(self.current_picking_list_id, item_id):
+                # Remove from treeview
+                self.items_tree.delete(selected_item)
+
+                # Show success message
+                messagebox.showinfo("Success", f"Item '{item_name}' has been removed")
+                self.logger.info(f"Removed item {item_id} from picking list {self.current_picking_list_id}")
+
+        except Exception as e:
+            self.logger.error(f"Error removing item: {str(e)}")
+            messagebox.showerror("Error", f"Failed to remove item: {str(e)}")
+
+    def _mark_item_picked(self):
+        """Mark the selected item as picked."""
+        try:
+            # Check if a picking list is selected
+            if not hasattr(self, 'current_picking_list_id') or not self.current_picking_list_id:
+                messagebox.showinfo("Mark Picked", "Please select a picking list first")
+                return
+
+            # Check if an item is selected
+            selected_item = self.items_tree.selection()
+            if not selected_item:
+                messagebox.showinfo("Mark Picked", "Please select an item to mark as picked")
+                return
+
+            # Get item data
+            item_values = self.items_tree.item(selected_item[0], "values")
+            item_id = int(item_values[0])
+            item_name = item_values[2]  # Name is in the third column
+            required_qty = float(item_values[3])  # Required quantity is in the fourth column
+            current_status = item_values[7]  # Status is in the eighth column
+
+            # Check if already picked
+            if current_status == "Picked":
+                if not messagebox.askyesno("Already Picked",
+                                           f"Item '{item_name}' is already marked as picked. Do you want to update the quantity?"):
+                    return
+
+            # Ask for quantity
+            qty_dialog = tk.Toplevel(self)
+            qty_dialog.title("Pick Quantity")
+            qty_dialog.transient(self)
+            qty_dialog.grab_set()
+
+            # Set up the dialog
+            ttk.Label(qty_dialog, text=f"Picking quantity for: {item_name}").pack(padx=10, pady=10)
+
+            qty_frame = ttk.Frame(qty_dialog)
+            qty_frame.pack(padx=10, pady=10)
+
+            ttk.Label(qty_frame, text="Required:").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
+            ttk.Label(qty_frame, text=str(required_qty)).grid(row=0, column=1, sticky=tk.W, padx=5, pady=5)
+
+            ttk.Label(qty_frame, text="Quantity Picked:").grid(row=1, column=0, sticky=tk.W, padx=5, pady=5)
+            picked_qty_var = tk.DoubleVar(value=required_qty)  # Default to required quantity
+            picked_qty_spinbox = ttk.Spinbox(qty_frame, from_=0.1, to=9999.9, increment=0.1,
+                                             textvariable=picked_qty_var, width=10)
+            picked_qty_spinbox.grid(row=1, column=1, sticky=tk.W, padx=5, pady=5)
+
+            # Notes
+            ttk.Label(qty_dialog, text="Notes:").pack(anchor=tk.W, padx=10)
+            notes_text = tk.Text(qty_dialog, height=3, width=40)
+            notes_text.pack(fill=tk.X, padx=10, pady=5)
+
+            # Buttons
+            button_frame = ttk.Frame(qty_dialog)
+            button_frame.pack(fill=tk.X, pady=10)
+
+            def save_picked():
+                """Save the picked quantity."""
+                try:
+                    # Get quantity
+                    picked_qty = float(picked_qty_var.get())
+
+                    # Validate quantity
+                    if picked_qty <= 0:
+                        messagebox.showerror("Validation Error", "Picked quantity must be greater than zero")
+                        return
+
+                    # Create update data
+                    update_data = {
+                        "picked_quantity": picked_qty,
+                        "is_picked": True,
+                        "notes": notes_text.get("1.0", tk.END).strip()
+                    }
+
+                    # Save the changes
+                    if not self.picking_list_service:
+                        self.picking_list_service = self.app.get_service(IPickingListService)
+
+                    if self.picking_list_service.update_picking_list_item(item_id, update_data):
+                        # Update treeview
+                        self.items_tree.item(selected_item, values=(
+                            item_values[0],  # ID
+                            item_values[1],  # Type
+                            item_values[2],  # Name
+                            item_values[3],  # Required
+                            picked_qty,  # Picked - updated
+                            item_values[5],  # Unit
+                            item_values[6],  # Location
+                            "Picked"  # Status - updated
+                        ))
+
+                        # Close dialog
+                        qty_dialog.destroy()
+
+                        # Check if all items are picked and ask to update list status
+                        all_picked = True
+                        for child in self.items_tree.get_children():
+                            if self.items_tree.item(child, "values")[7] != "Picked":
+                                all_picked = False
+                                break
+
+                        if all_picked:
+                            if messagebox.askyesno("Complete Picking List",
+                                                   "All items have been picked. Mark the picking list as completed?"):
+                                self.picking_list_service.update_list(
+                                    self.current_picking_list_id,
+                                    {"status": PickingListStatus.COMPLETED.name}
+                                )
+                                # Update the list status in the treeview
+                                for list_item in self.lists_tree.get_children():
+                                    if int(self.lists_tree.item(list_item, "values")[
+                                               0]) == self.current_picking_list_id:
+                                        values = list(self.lists_tree.item(list_item, "values"))
+                                        values[2] = PickingListStatus.COMPLETED.name
+                                        self.lists_tree.item(list_item, values=values)
+                                        break
+
+                        # Show success message
+                        messagebox.showinfo("Success", f"Item '{item_name}' marked as picked")
+                        self.logger.info(
+                            f"Marked item {item_id} as picked in picking list {self.current_picking_list_id}")
+
+                except Exception as e:
+                    self.logger.error(f"Error marking item as picked: {str(e)}")
+                    messagebox.showerror("Error", f"Failed to mark item as picked: {str(e)}")
+
+            ttk.Button(button_frame, text="Save", command=save_picked).pack(side=tk.LEFT, padx=5)
+            ttk.Button(button_frame, text="Cancel", command=qty_dialog.destroy).pack(side=tk.LEFT, padx=5)
+
+            # Set focus to quantity spinbox
+            picked_qty_spinbox.focus_set()
+
+        except Exception as e:
+            self.logger.error(f"Error in mark item picked: {str(e)}")
+            messagebox.showerror("Error", f"An error occurred: {str(e)}")
+
+    def _import_items_from_file(self):
+        """Import items for the current picking list from a file."""
+        try:
+            # Check if a picking list is selected
+            if not hasattr(self, 'current_picking_list_id') or not self.current_picking_list_id:
+                messagebox.showinfo("Import Items", "Please select a picking list first")
+                return
+
+            # Ask for file
+            file_types = [
+                ("CSV files", "*.csv"),
+                ("Excel files", "*.xlsx;*.xls"),
+                ("All files", "*.*")
+            ]
+
+            file_path = filedialog.askopenfilename(
+                title="Select File to Import",
+                filetypes=file_types
+            )
+
+            if not file_path:
+                return  # User cancelled
+
+            # Determine file type
+            if file_path.lower().endswith(('.xlsx', '.xls')):
+                if not PANDAS_AVAILABLE:
+                    messagebox.showerror("Import Error",
+                                         "Excel import requires pandas library. Please install pandas or use CSV format.")
+                    return
+                self._import_from_excel(file_path)
+            elif file_path.lower().endswith('.csv'):
+                self._import_from_csv(file_path)
+            else:
+                messagebox.showerror("Import Error", "Unsupported file format. Please use CSV or Excel.")
+
+        except Exception as e:
+            self.logger.error(f"Error importing items from file: {str(e)}")
+            messagebox.showerror("Import Error", f"Failed to import items: {str(e)}")
+
+    def _import_from_csv(self, file_path):
+        """Import items from CSV file."""
+        try:
+            imported_items = []
+
+            with open(file_path, 'r', newline='') as csvfile:
+                reader = csv.DictReader(csvfile)
+
+                if not reader.fieldnames:
+                    messagebox.showerror("Import Error", "CSV file has no headers")
+                    return
+
+                # Check required columns
+                required_columns = ['name', 'quantity', 'unit']
+                missing_columns = [col for col in required_columns if col not in reader.fieldnames]
+
+                if missing_columns:
+                    messagebox.showerror("Import Error",
+                                         f"CSV file is missing required columns: {', '.join(missing_columns)}")
+                    return
+
+                # Process rows
+                for row in reader:
+                    item = {
+                        'name': row.get('name', '').strip(),
+                        'required_quantity': float(row.get('quantity', 0)),
+                        'unit': row.get('unit', 'pcs').strip(),
+                        'item_type': row.get('type', 'Material').strip(),
+                        'storage_location': row.get('location', '').strip(),
+                        'description': row.get('description', '').strip(),
+                        'notes': row.get('notes', '').strip(),
+                        'is_picked': False,
+                        'picked_quantity': 0
+                    }
+
+                    # Validate required fields
+                    if not item['name']:
+                        continue  # Skip items without name
+
+                    imported_items.append(item)
+
+            # Confirm import
+            if not imported_items:
+                messagebox.showinfo("Import Result", "No valid items found in the file")
+                return
+
+            if not messagebox.askyesno("Confirm Import",
+                                       f"Found {len(imported_items)} items to import. Continue?"):
+                return
+
+            # Add items to picking list
+            if not self.picking_list_service:
+                self.picking_list_service = self.app.get_service(IPickingListService)
+
+            successful_imports = 0
+            for item in imported_items:
+                try:
+                    if self.picking_list_service.add_item_to_list(self.current_picking_list_id, item):
+                        successful_imports += 1
+                except Exception as e:
+                    self.logger.error(f"Error importing item {item['name']}: {str(e)}")
+
+            # Refresh view
+            self._on_list_select()
+
+            # Show result
+            messagebox.showinfo("Import Complete",
+                                f"Successfully imported {successful_imports} of {len(imported_items)} items")
+
+        except Exception as e:
+            self.logger.error(f"Error importing from CSV: {str(e)}")
+            messagebox.showerror("Import Error", f"Failed to import from CSV: {str(e)}")
+
+    def _import_from_excel(self, file_path):
+        """Import items from Excel file."""
+        try:
+            import pandas as pd
+
+            # Read Excel file
+            df = pd.read_excel(file_path)
+
+            # Check required columns
+            required_columns = ['name', 'quantity', 'unit']
+            missing_columns = [col for col in required_columns if col not in df.columns]
+
+            if missing_columns:
+                messagebox.showerror("Import Error",
+                                     f"Excel file is missing required columns: {', '.join(missing_columns)}")
+                return
+
+            # Process rows
+            imported_items = []
+            for _, row in df.iterrows():
+                try:
+                    item = {
+                        'name': str(row.get('name', '')).strip(),
+                        'required_quantity': float(row.get('quantity', 0)),
+                        'unit': str(row.get('unit', 'pcs')).strip(),
+                        'item_type': str(row.get('type', 'Material')).strip(),
+                        'storage_location': str(row.get('location', '')).strip(),
+                        'description': str(row.get('description', '')).strip(),
+                        'notes': str(row.get('notes', '')).strip(),
+                        'is_picked': False,
+                        'picked_quantity': 0
+                    }
+
+                    # Validate required fields
+                    if not item['name'] or pd.isna(row.get('name')):
+                        continue  # Skip items without name
+
+                    imported_items.append(item)
+                except Exception as e:
+                    self.logger.error(f"Error processing Excel row: {str(e)}")
+
+            # Confirm import
+            if not imported_items:
+                messagebox.showinfo("Import Result", "No valid items found in the file")
+                return
+
+            if not messagebox.askyesno("Confirm Import",
+                                       f"Found {len(imported_items)} items to import. Continue?"):
+                return
+
+            # Add items to picking list
+            if not self.picking_list_service:
+                self.picking_list_service = self.app.get_service(IPickingListService)
+
+            successful_imports = 0
+            for item in imported_items:
+                try:
+                    if self.picking_list_service.add_item_to_list(self.current_picking_list_id, item):
+                        successful_imports += 1
+                except Exception as e:
+                    self.logger.error(f"Error importing item {item['name']}: {str(e)}")
+
+            # Refresh view
+            self._on_list_select()
+
+            # Show result
+            messagebox.showinfo("Import Complete",
+                                f"Successfully imported {successful_imports} of {len(imported_items)} items")
+
+        except Exception as e:
+            self.logger.error(f"Error importing from Excel: {str(e)}")
+            messagebox.showerror("Import Error", f"Failed to import from Excel: {str(e)}")
+
+    def _edit_item(self, event=None):
+        """
+        Edit the selected picking list item.
+
+        Args:
+            event: Optional event that triggered the edit action
+        """
+        try:
+            # Check if a picking list is selected
+            if not hasattr(self, 'current_picking_list_id') or not self.current_picking_list_id:
+                messagebox.showinfo("Edit Item", "Please select a picking list first")
+                return
+
+            # Check if an item is selected
+            selected_item = self.items_tree.selection()
+            if not selected_item:
+                messagebox.showinfo("Edit Item", "Please select an item to edit")
+                return
+
+            # Get the item ID
+            item_id = int(self.items_tree.item(selected_item[0], "values")[0])
+
+            # Find the item in the current picking list
+            if not self.picking_list_service:
+                self.picking_list_service = self.app.get_service(IPickingListService)
+
+            # Get the current picking list with updated data
+            picking_list = self.picking_list_service.get_picking_list(self.current_picking_list_id)
+
+            # Find the item in the list
+            item = next((i for i in picking_list.get("items", []) if i["id"] == item_id), None)
+
+            if not item:
+                messagebox.showerror("Error", f"Item with ID {item_id} not found in picking list")
+                return
+
+            # Create dialog
+            dialog = tk.Toplevel(self)
+            dialog.title("Edit Picking List Item")
+            dialog.geometry("600x450")
+            dialog.transient(self)
+            dialog.grab_set()
+
+            # Create form frame
+            form_frame = ttk.Frame(dialog, padding=10)
+            form_frame.pack(fill=tk.BOTH, expand=True)
+
+            # Item info section
+            item_frame = ttk.LabelFrame(form_frame, text="Item Information")
+            item_frame.pack(fill=tk.X, pady=10)
+
+            item_grid = ttk.Frame(item_frame)
+            item_grid.pack(fill=tk.X, padx=10, pady=10)
+
+            # Item name
+            ttk.Label(item_grid, text="Item Name:").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
+            name_var = tk.StringVar(value=item["name"])
+            name_entry = ttk.Entry(item_grid, textvariable=name_var, width=40)
+            name_entry.grid(row=0, column=1, columnspan=3, sticky=tk.W, padx=5, pady=5)
+
+            # Item type
+            ttk.Label(item_grid, text="Item Type:").grid(row=1, column=0, sticky=tk.W, padx=5, pady=5)
+            type_var = tk.StringVar(value=item.get("item_type", "Material"))
+            type_combo = ttk.Combobox(item_grid, textvariable=type_var,
+                                      values=["Material", "Hardware", "Leather", "Tool", "Other"], width=15)
+            type_combo.grid(row=1, column=1, sticky=tk.W, padx=5, pady=5)
+
+            # Required quantity
+            ttk.Label(item_grid, text="Required Quantity:").grid(row=1, column=2, sticky=tk.W, padx=5, pady=5)
+            quantity_var = tk.DoubleVar(value=item["required_quantity"])
+            quantity_spinbox = ttk.Spinbox(item_grid, from_=0.1, to=9999.9, increment=0.1,
+                                           textvariable=quantity_var, width=10)
+            quantity_spinbox.grid(row=1, column=3, sticky=tk.W, padx=5, pady=5)
+
+            # Picked quantity
+            ttk.Label(item_grid, text="Picked Quantity:").grid(row=2, column=2, sticky=tk.W, padx=5, pady=5)
+            picked_var = tk.DoubleVar(value=item.get("picked_quantity", 0))
+            picked_spinbox = ttk.Spinbox(item_grid, from_=0, to=9999.9, increment=0.1,
+                                         textvariable=picked_var, width=10)
+            picked_spinbox.grid(row=2, column=3, sticky=tk.W, padx=5, pady=5)
+
+            # Unit
+            ttk.Label(item_grid, text="Unit:").grid(row=2, column=0, sticky=tk.W, padx=5, pady=5)
+            unit_var = tk.StringVar(value=item["unit"])
+            unit_combo = ttk.Combobox(item_grid, textvariable=unit_var,
+                                      values=["pcs", "m", "cm", "mm", "kg", "g", "oz", "lb"], width=10)
+            unit_combo.grid(row=2, column=1, sticky=tk.W, padx=5, pady=5)
+
+            # Storage location
+            ttk.Label(item_grid, text="Storage Location:").grid(row=3, column=0, sticky=tk.W, padx=5, pady=5)
+            location_var = tk.StringVar(value=item.get("storage_location", ""))
+            location_entry = ttk.Entry(item_grid, textvariable=location_var, width=40)
+            location_entry.grid(row=3, column=1, columnspan=3, sticky=tk.W, padx=5, pady=5)
+
+            # Status
+            ttk.Label(item_grid, text="Status:").grid(row=4, column=0, sticky=tk.W, padx=5, pady=5)
+            status_var = tk.BooleanVar(value=item.get("is_picked", False))
+            status_check = ttk.Checkbutton(item_grid, text="Picked", variable=status_var)
+            status_check.grid(row=4, column=1, sticky=tk.W, padx=5, pady=5)
+
+            # Description and notes
+            description_frame = ttk.LabelFrame(form_frame, text="Details")
+            description_frame.pack(fill=tk.BOTH, expand=True, pady=10)
+
+            details_grid = ttk.Frame(description_frame)
+            details_grid.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+            # Description
+            ttk.Label(details_grid, text="Description:").grid(row=0, column=0, sticky=tk.NW, padx=5, pady=5)
+            description_text = tk.Text(details_grid, height=3, width=50)
+            description_text.grid(row=0, column=1, sticky=tk.W, padx=5, pady=5)
+            if item.get("description"):
+                description_text.insert("1.0", item["description"])
+
+            # Notes
+            ttk.Label(details_grid, text="Notes:").grid(row=1, column=0, sticky=tk.NW, padx=5, pady=5)
+            notes_text = tk.Text(details_grid, height=3, width=50)
+            notes_text.grid(row=1, column=1, sticky=tk.W, padx=5, pady=5)
+            if item.get("notes"):
+                notes_text.insert("1.0", item["notes"])
+
+            # Buttons
+            button_frame = ttk.Frame(form_frame)
+            button_frame.pack(fill=tk.X, pady=10)
+
+            def save_item():
+                """Save the edited item."""
+                try:
+                    # Validate required fields
+                    if not name_var.get().strip():
+                        messagebox.showerror("Validation Error", "Item name is required")
+                        return
+
+                    # Create update data
+                    item_data = {
+                        "name": name_var.get().strip(),
+                        "item_type": type_var.get(),
+                        "required_quantity": float(quantity_var.get()),
+                        "picked_quantity": float(picked_var.get()),
+                        "unit": unit_var.get(),
+                        "storage_location": location_var.get().strip(),
+                        "description": description_text.get("1.0", tk.END).strip(),
+                        "notes": notes_text.get("1.0", tk.END).strip(),
+                        "is_picked": status_var.get()
+                    }
+
+                    # Update the item
+                    if self.picking_list_service.update_picking_list_item(item_id, item_data):
+                        # Update the picking list view
+                        self._on_list_select()
+
+                        # Show success message
+                        messagebox.showinfo("Success", "Item updated successfully")
+                        dialog.destroy()
+
+                except Exception as e:
+                    self.logger.error(f"Error updating item: {str(e)}")
+                    messagebox.showerror("Error", f"Failed to update item: {str(e)}")
+
+            ttk.Button(button_frame, text="Save Changes", command=save_item).pack(side=tk.LEFT, padx=5)
+            ttk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
+
+            # Focus name field
+            name_entry.focus_set()
+
+        except Exception as e:
+            self.logger.error(f"Error opening edit item dialog: {str(e)}")
+            messagebox.showerror("Error", f"Failed to open edit dialog: {str(e)}")

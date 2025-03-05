@@ -7,6 +7,10 @@ from sqlalchemy import and_, or_, func, distinct
 from sqlalchemy.orm import joinedload, Session
 from sqlalchemy.exc import SQLAlchemyError
 
+from contextlib import contextmanager
+from database.sqlalchemy.session import get_db_session
+
+
 from database.repositories.base_repository import BaseRepository
 from database.models.project import Project
 from database.models.components import ProjectComponent  # Update this import
@@ -26,17 +30,31 @@ class ProjectRepository(BaseRepository):
     and managing project data with robust error handling.
     """
 
-    def __init__(self, session: Optional[Session] = None):
+    def __init__(self, session=None):
         """
         Initialize the project repository.
 
         Args:
-            session (Optional[Session]): SQLAlchemy database session
+            session: SQLAlchemy database session
         """
         super().__init__(session, Project)
         self.logger = logging.getLogger(__name__)
+        if session is None:
+            self.session = get_db_session()
 
-    # ... (previous methods remain the same)
+    @contextmanager
+    def session_scope(self):
+        """Provide a transactional scope around a series of operations."""
+        if self.session is None:
+            self.session = get_db_session()
+
+        session = self.session
+        try:
+            yield session
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            raise e
 
     def search_projects(self, query: str) -> List[Project]:
         """
@@ -283,3 +301,43 @@ class ProjectRepository(BaseRepository):
         except SQLAlchemyError as e:
             self.logger.error(f"Failed to retrieve projects by deadline: {str(e)}")
             raise DatabaseError(f"Database error retrieving projects by deadline: {str(e)}")
+
+    def find_projects_by_complex_criteria(self, filters: Dict[str, Any]) -> List[Project]:
+        """
+        Find projects based on complex filter criteria.
+
+        Args:
+            filters (Dict[str, Any]): Dictionary of filter conditions
+
+        Returns:
+            List[Project]: Matching projects
+        """
+        try:
+            with self.session_scope() as session:
+                # Start with base query
+                query = session.query(Project)
+
+                # Apply filters based on provided criteria
+                for key, value in filters.items():
+                    if hasattr(Project, key):
+                        query = query.filter(getattr(Project, key) == value)
+
+                # Optional: Add support for specific enum types
+                if 'project_type' in filters and isinstance(filters['project_type'], ProjectType):
+                    query = query.filter(Project.project_type == filters['project_type'])
+
+                if 'skill_level' in filters and isinstance(filters['skill_level'], SkillLevel):
+                    query = query.filter(Project.skill_level == filters['skill_level'])
+
+                if 'status' in filters and isinstance(filters['status'], ProjectStatus):
+                    query = query.filter(Project.status == filters['status'])
+
+                # Execute and return results
+                results = query.all()
+
+                self.logger.info(f"Found {len(results)} projects matching criteria: {filters}")
+                return results
+
+        except SQLAlchemyError as e:
+            self.logger.error(f"Failed to find projects with criteria {filters}: {str(e)}")
+            raise DatabaseError(f"Database error finding projects: {str(e)}")

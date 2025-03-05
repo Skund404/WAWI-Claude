@@ -10,7 +10,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from datetime import datetime
 
 from database.models.hardware import Hardware
-from database.models.hardware_enums import HardwareType, HardwareMaterial, HardwareFinish
+from database.models.enums import HardwareType, HardwareMaterial, HardwareFinish
 from database.models.enums import InventoryStatus, TransactionType
 from database.repositories.hardware_repository import HardwareRepository
 from database.sqlalchemy.session import get_db_session

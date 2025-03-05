@@ -11,7 +11,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload
 
 from database.models.hardware import Hardware
-from database.models.hardware_enums import HardwareType, HardwareMaterial, HardwareFinish
+from database.models.enums import HardwareType, HardwareMaterial, HardwareFinish
 from database.models.enums import InventoryStatus
 from database.repositories.base_repository import BaseRepository
 from services.interfaces.material_service import IMaterialService

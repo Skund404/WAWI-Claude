@@ -373,3 +373,173 @@ class ShoppingListService(BaseService, IShoppingListService):
                 "error": str(e)
             })
             raise NotFoundError(f"Error calculating shopping list total: {str(e)}")
+
+    def create_shopping_list(self, data: Dict[str, Any]) -> ShoppingList:
+        """
+        Create a new shopping list.
+
+        Args:
+            data (Dict[str, Any]): Shopping list data including name, status, etc.
+
+        Returns:
+            ShoppingList: The created shopping list
+        """
+        try:
+            # Validate required fields
+            if 'name' not in data or not data['name']:
+                raise ValidationError("Shopping list name is required")
+
+            # Create new shopping list instance
+            shopping_list = ShoppingList(
+                name=data['name'],
+                description=data.get('description', ''),
+                status=data.get('status', ShoppingListStatus.PENDING),
+                priority=data.get('priority', Priority.MEDIUM),
+                due_date=data.get('due_date'),
+                created_by=data.get('created_by', 'system')
+            )
+
+            # Add to session and commit
+            self.session.add(shopping_list)
+            self.session.commit()
+
+            self.logger.info(f"Shopping list created successfully", extra={
+                "shopping_list_id": shopping_list.id,
+                "name": shopping_list.name
+            })
+
+            return shopping_list
+
+        except SQLAlchemyError as e:
+            self.session.rollback()
+            self.logger.error(f"Error creating shopping list: {str(e)}", extra={
+                "data": data,
+                "error": str(e)
+            })
+            raise ValidationError(f"Failed to create shopping list: {str(e)}")
+
+    def get_shopping_list_by_id(self, list_id: int) -> ShoppingList:
+        """
+        Get a shopping list by ID.
+
+        Args:
+            list_id (int): ID of the shopping list
+
+        Returns:
+            ShoppingList: Shopping list object
+
+        Raises:
+            NotFoundError: If shopping list doesn't exist
+        """
+        try:
+            shopping_list = self.session.query(ShoppingList).get(list_id)
+
+            if not shopping_list:
+                raise NotFoundError(f"Shopping list with ID {list_id} not found")
+
+            return shopping_list
+
+        except SQLAlchemyError as e:
+            self.logger.error(f"Error retrieving shopping list: {str(e)}", extra={
+                "list_id": list_id,
+                "error": str(e)
+            })
+            raise NotFoundError(f"Error retrieving shopping list: {str(e)}")
+
+    def update_shopping_list(self, list_id: int, data: Dict[str, Any]) -> ShoppingList:
+        """
+        Update an existing shopping list.
+
+        Args:
+            list_id (int): ID of the shopping list to update
+            data (Dict[str, Any]): Shopping list data to update
+
+        Returns:
+            ShoppingList: Updated shopping list
+
+        Raises:
+            NotFoundError: If shopping list doesn't exist
+            ValidationError: If update data is invalid
+        """
+        try:
+            # Retrieve existing shopping list
+            shopping_list = self.get_shopping_list_by_id(list_id)
+
+            # Update fields if provided
+            if 'name' in data:
+                shopping_list.name = data['name']
+
+            if 'description' in data:
+                shopping_list.description = data['description']
+
+            if 'status' in data:
+                shopping_list.status = data['status']
+
+            if 'priority' in data:
+                shopping_list.priority = data['priority']
+
+            if 'due_date' in data:
+                shopping_list.due_date = data['due_date']
+
+            # Commit changes
+            self.session.commit()
+
+            self.logger.info(f"Shopping list updated successfully", extra={
+                "shopping_list_id": shopping_list.id,
+                "updates": list(data.keys())
+            })
+
+            return shopping_list
+
+        except (ValueError, TypeError) as e:
+            self.session.rollback()
+            self.logger.error(f"Shopping list update failed: {str(e)}", extra={
+                "list_id": list_id,
+                "data": data,
+                "error": str(e)
+            })
+            raise ValidationError(f"Invalid update data: {str(e)}")
+
+        except SQLAlchemyError as e:
+            self.session.rollback()
+            self.logger.error(f"Database error during shopping list update: {str(e)}", extra={
+                "list_id": list_id,
+                "data": data,
+                "error": str(e)
+            })
+            raise ValidationError(f"Database error: {str(e)}")
+
+    def delete_shopping_list(self, list_id: int) -> bool:
+        """
+        Delete a shopping list.
+
+        Args:
+            list_id (int): ID of the shopping list to delete
+
+        Returns:
+            bool: True if deletion was successful
+
+        Raises:
+            NotFoundError: If shopping list doesn't exist
+        """
+        try:
+            # Retrieve existing shopping list
+            shopping_list = self.get_shopping_list_by_id(list_id)
+
+            # Delete the shopping list
+            self.session.delete(shopping_list)
+            self.session.commit()
+
+            self.logger.info(f"Shopping list deleted successfully", extra={
+                "shopping_list_id": list_id
+            })
+
+            return True
+
+        except SQLAlchemyError as e:
+            self.session.rollback()
+            self.logger.error(f"Error deleting shopping list: {str(e)}", extra={
+                "list_id": list_id,
+                "error": str(e)
+            })
+            raise NotFoundError(f"Error deleting shopping list: {str(e)}")

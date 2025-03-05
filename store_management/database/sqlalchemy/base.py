@@ -3,15 +3,12 @@
 """
 Custom base module for SQLAlchemy models with common methods and representations.
 """
-
+import sqlalchemy
 from typing import Dict, Any
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import DeclarativeMeta
-from di.core import inject
-
-
-
+from sqlalchemy.orm import DeclarativeMeta, declarative_base
+from sqlalchemy import inspect
 Base: DeclarativeMeta = declarative_base()
+from sqlalchemy import orm
 
 class CustomBase:
     """
@@ -19,7 +16,6 @@ class CustomBase:
 
     Provides a consistent __repr__ and to_dict method for all models.
     """
-
 
     def __repr__(self) -> str:
         """
@@ -30,12 +26,11 @@ class CustomBase:
         """
         # Filter out private and callable attributes
         attrs = ', '.join(
-            f'{k}={repr(v)}' 
-            for k, v in self.__dict__.items() 
+            f'{k}={repr(v)}'
+            for k, v in self.__dict__.items()
             if not k.startswith('_') and not callable(v)
         )
         return f'{self.__class__.__name__}({attrs})'
-
 
     def to_dict(self) -> Dict[str, Any]:
         """
@@ -46,6 +41,6 @@ class CustomBase:
         """
         # Use SQLAlchemy table columns to ensure consistent dictionary conversion
         return {
-            column.name: getattr(self, column.name) 
-            for column in self.__table__.columns
+            c.key: getattr(self, c.key)
+            for c in inspect(self).mapper.column_attrs
         }

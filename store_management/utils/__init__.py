@@ -6,8 +6,18 @@ Initialization module for utils package in the leatherworking store management a
 import logging
 from typing import Optional, Union
 
-from .circular_import_resolver import CircularImportResolver, get_module
-
+from .circular_import_resolver import (
+    CircularImportResolver,
+    register_lazy_import,
+    resolve_lazy_import,
+    lazy_import,
+    register_relationship,
+    resolve_relationship,
+    resolve_lazy_relationships,
+    get_module,
+    get_class,
+    lazy_relationship
+)
 
 
 

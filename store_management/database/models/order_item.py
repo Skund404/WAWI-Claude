@@ -1,95 +1,93 @@
-from database import BaseModel
-from di.core import inject
-from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
-from enum import Enum
-from datetime import datetime
-from typing import List, Optional, Dict, Any
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Enum as SQLAEnum
-from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
-from sqlalchemy.orm import declarative_base
+# database/models/order_item.py
+from typing import Optional
+from sqlalchemy import Float, ForeignKey, String
+from sqlalchemy.orm import relationship, Mapped, mapped_column
 
-"""
-Separate module for OrderItem to break circular import dependency.
-"""
+from database.models.base import Base, ModelValidationError
 
+# Forward declarations for circular imports
+Order = None
+Product = None
 
-class OrderItem(BaseModel):
-    """
-    Represents an individual item within an order.
-
-    Attributes:
-        id (int): Primary key for the order item.
-        order_id (int): Foreign key referencing the parent order.
-        product_id (int): Foreign key referencing the product.
-        quantity (float): Quantity of the product in the order.
-        unit_price (float): Price per unit of the product.
-        order (relationship): Relationship to the parent Order.
-        product (relationship): Relationship to the associated Product.
-    """
+class OrderItem(Base):
+    """Represents an individual item within an order."""
     __tablename__ = 'order_items'
-    id = Column(Integer, primary_key=True)
-    order_id = Column(Integer, ForeignKey('orders.id'))
-    product_id = Column(Integer, ForeignKey('products.id'))
-    quantity = Column(Float, nullable=False)
-    unit_price = Column(Float, nullable=False)
-    order = relationship('Order', back_populates='items', lazy='subquery')
-    product = relationship(
-        'Product', back_populates='order_items', lazy='subquery')
 
-    @inject(MaterialService)
-    def __init__(self, product_id: int, quantity: float, unit_price: float):
-        """
-        Initialize an OrderItem.
+    # Foreign key relationships
+    order_id: Mapped[int] = mapped_column(ForeignKey('orders.id'), nullable=False)
+    product_id: Mapped[Optional[int]] = mapped_column(ForeignKey('products.id'), nullable=True)
 
-        Args:
-            product_id (int): ID of the product.
-            quantity (float): Quantity of the product.
-            unit_price (float): Price per unit of the product.
-        """
-        self.product_id = product_id
-        self.quantity = quantity
-        self.unit_price = unit_price
+    # Item details
+    item_name: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    quantity: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
+    unit_price: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    discount: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    total_price: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
 
-    @inject(MaterialService)
-    def __repr__(self) -> str:
-        """
-        String representation of the OrderItem.
+    # Product relationship
+    product: Mapped[Optional['Product']] = relationship(
+        'Product',
+        lazy='selectin'
+    )
 
-        Returns:
-            str: Formatted string describing the order.
-        """
-        return (
-            f'<OrderItem(id={self.id}, product_id={self.product_id}, quantity={self.quantity}, unit_price={self.unit_price})>'
-        )
+    def __init__(self, **kwargs):
+        """Initialize the OrderItem instance."""
+        # Handle subtotal/line_total/total_price naming variations
+        if 'subtotal' in kwargs and 'total_price' not in kwargs:
+            kwargs['total_price'] = kwargs.pop('subtotal')
+        elif 'line_total' in kwargs and 'total_price' not in kwargs:
+            kwargs['total_price'] = kwargs.pop('line_total')
 
-    @inject(MaterialService)
-    def update_quantity(self, new_quantity: float) -> None:
-        """
-        Update the quantity of the order item.
+        # Calculate total_price if not provided
+        if 'total_price' not in kwargs and 'quantity' in kwargs and 'unit_price' in kwargs:
+            kwargs['total_price'] = kwargs['quantity'] * kwargs['unit_price'] - kwargs.get('discount', 0)
 
-        Args:
-            new_quantity (float): New quantity to set.
-        """
-        self.quantity = new_quantity
+        # If product_id is provided but item_name isn't, we should try to lookup the product name
+        # But for now just use a placeholder
+        if 'product_id' in kwargs and 'item_name' not in kwargs:
+            kwargs['item_name'] = f"Product #{kwargs['product_id']}"
 
-    @inject(MaterialService)
-    def calculate_total_price(self) -> float:
-        """
-        Calculate the total price for this order item.
+        super().__init__(**kwargs)
 
-        Returns:
-            float: Total price (quantity * unit price).
-        """
-        return self.quantity * self.unit_price
+    @property
+    def subtotal(self) -> float:
+        """Calculate the subtotal for this order item."""
+        return self.total_price + self.discount
 
-    @inject(MaterialService)
-    def to_dict(self) -> dict:
-        """
-        Convert OrderItem to dictionary representation.
+    @property
+    def line_total(self) -> float:
+        """Alias for total_price for compatibility."""
+        return self.total_price
 
-        Returns:
-            dict: Dictionary containing OrderItem attributes.
-        """
-        return {'id': self.id, 'product_id': self.product_id, 'quantity':
-                self.quantity, 'unit_price': self.unit_price}
+
+# Set up relationship later to avoid circular imports
+def setup_relationships():
+    global Order, Product
+
+    # Set up Order relationship
+    if Order is None:
+        try:
+            from database.models.order import Order as O
+            Order = O
+
+            # Set up relationship if not already set
+            if not hasattr(OrderItem, 'order'):
+                OrderItem.order = relationship(
+                    'Order',
+                    back_populates='items',
+                    lazy='selectin'
+                )
+        except ImportError:
+            logger.warning("Could not import Order")
+
+    # Set up Product relationship
+    if Product is None:
+        try:
+            from database.models.product import Product as P
+            Product = P
+            # Relationship is already defined in class attribute
+        except ImportError:
+            logger.warning("Could not import Product")
+
+# Try to setup relationships immediately
+setup_relationships()

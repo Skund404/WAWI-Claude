@@ -1,6 +1,6 @@
 # database/models/product.py
 """
-Enhanced Product Model with Standard SQLAlchemy Relationship Approach
+Enhanced Product Model with SQLAlchemy 2.0 Relationship Approach
 
 This module defines the Product model with comprehensive validation,
 relationship management, and circular import resolution.
@@ -9,13 +9,14 @@ relationship management, and circular import resolution.
 import logging
 import uuid
 from datetime import datetime
-from typing import Dict, Any, Optional, List, Union
+from typing import Dict, Any, Optional, List
 
-from sqlalchemy import Column, String, Text, Float, Boolean, Integer, ForeignKey, JSON
-from sqlalchemy.orm import relationship
+from sqlalchemy import String, Text, Float, Boolean, Integer, ForeignKey, JSON, Enum
+from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.exc import SQLAlchemyError
 
 from database.models.base import Base, ModelValidationError
+from database.models.enums import MaterialType  # Assuming you have an enum for material types
 from utils.circular_import_resolver import (
     lazy_import,
     register_lazy_import
@@ -27,13 +28,14 @@ from utils.enhanced_model_validator import (
 )
 
 # Register lazy imports to resolve potential circular dependencies
-register_lazy_import('Pattern', 'database.models.pattern')
-register_lazy_import('Supplier', 'database.models.supplier')
-register_lazy_import('Storage', 'database.models.storage')
-register_lazy_import('OrderItem', 'database.models.order')
-register_lazy_import('Part', 'database.models.part')
-register_lazy_import('Production', 'database.models.production')
-register_lazy_import('Sales', 'database.models.sales')
+register_lazy_import('Pattern', 'database.models.pattern', 'Pattern')  # This one is already correct
+register_lazy_import('Supplier', 'database.models.supplier', 'Supplier')
+register_lazy_import('Storage', 'database.models.storage', 'Storage')
+register_lazy_import('OrderItem', 'database.models.order', 'OrderItem')
+register_lazy_import('Part', 'database.models.part', 'Part')
+register_lazy_import('Production', 'database.models.production', 'Production')
+register_lazy_import('Sales', 'database.models.sales', 'Sales')
+register_lazy_import('Component', 'database.models.components', 'Component')
 
 # Setup logger
 logger = logging.getLogger(__name__)
@@ -49,46 +51,101 @@ class Product(Base):
     __tablename__ = 'products'
 
     # Core product attributes
-    name = Column(String(255), nullable=False, index=True)
-    description = Column(Text, nullable=True)
-    sku = Column(String(50), nullable=True, unique=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    sku: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, unique=True)
 
     # Categorization and metadata
-    category = Column(String(100), nullable=True)
-    tags = Column(String(255), nullable=True)  # Comma-separated tags
+    category: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    tags: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)  # Comma-separated tags
+
+    # Product type
+    material_type: Mapped[Optional[MaterialType]] = mapped_column(
+        Enum(MaterialType),
+        nullable=True
+    )
 
     # Financial tracking
-    price = Column(Float, default=0.0, nullable=False)
-    cost = Column(Float, default=0.0, nullable=False)
+    price: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    cost: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
 
     # Inventory management
-    stock_quantity = Column(Integer, default=0, nullable=False)
-    min_stock_quantity = Column(Integer, default=0, nullable=False)
+    stock_quantity: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    min_stock_quantity: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     # Physical characteristics
-    weight = Column(Float, nullable=True)
-    dimensions = Column(String(100), nullable=True)  # Format: "LxWxH"
+    weight: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    dimensions: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)  # Format: "LxWxH"
 
     # Status flags
-    is_active = Column(Boolean, default=True, nullable=False)
-    is_featured = Column(Boolean, default=False, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    is_featured: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     # Additional metadata
-    product_metadata = Column(JSON, nullable=True)
+    product_metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
 
-    # Foreign keys with lazy import support
-    pattern_id = Column(Integer, ForeignKey("patterns.id"), nullable=True)
-    supplier_id = Column(Integer, ForeignKey("suppliers.id"), nullable=True)
-    storage_id = Column(Integer, ForeignKey("storages.id"), nullable=True)
+    # Foreign keys with explicitly configured relationships
+    pattern_id: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        ForeignKey("patterns.id", ondelete="SET NULL"),
+        nullable=True
+    )
+    supplier_id: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        ForeignKey("suppliers.id", ondelete="SET NULL"),
+        nullable=True
+    )
+    storage_id: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        ForeignKey("storages.id", ondelete="SET NULL"),
+        nullable=True
+    )
 
-    # Relationships using standard SQLAlchemy approach
-    pattern = relationship("Pattern", back_populates="products", lazy="lazy")
-    supplier = relationship("Supplier", back_populates="products", lazy="lazy")
-    storage = relationship("Storage", back_populates="products", lazy="lazy")
-    order_items = relationship("OrderItem", back_populates="product", lazy="lazy")
-    parts = relationship("Part", back_populates="product", lazy="lazy")
-    production_records = relationship("Production", back_populates="product", lazy="lazy")
-    sales = relationship("Sales", back_populates="product", lazy="lazy")
+    # Relationships with careful configuration
+    pattern: Mapped[Optional["Pattern"]] = relationship(
+        "Pattern",
+        back_populates="products",
+        lazy="selectin",
+        foreign_keys=[pattern_id]
+    )
+    supplier: Mapped[Optional["Supplier"]] = relationship(
+        "Supplier",
+        back_populates="products",
+        lazy="selectin",
+        foreign_keys=[supplier_id]
+    )
+    storage: Mapped[Optional["Storage"]] = relationship(
+        "Storage",
+        back_populates="products",
+        lazy="selectin",
+        foreign_keys=[storage_id]
+    )
+    order_items: Mapped[List["OrderItem"]] = relationship(
+        "OrderItem",
+        back_populates="product",
+        lazy="selectin"
+    )
+    parts: Mapped[List["Part"]] = relationship(
+        "Part",
+        back_populates="product",
+        lazy="selectin"
+    )
+    production_records: Mapped[List["Production"]] = relationship(
+        "Production",
+        back_populates="product",
+        lazy="selectin"
+    )
+    sales: Mapped[List["Sales"]] = relationship(
+        "Sales",
+        back_populates="product",
+        lazy="selectin"
+    )
+    components: Mapped[List["Component"]] = relationship(
+        "ProjectComponent",
+        back_populates="product",
+        lazy="selectin",
+        cascade="all, delete-orphan"
+    )
 
     def __init__(self, **kwargs):
         """
@@ -110,6 +167,9 @@ class Product(Base):
 
             # Initialize base model
             super().__init__(**kwargs)
+
+            # Post-initialization validation
+            self._validate_instance()
 
         except (ValidationError, SQLAlchemyError) as e:
             logger.error(f"Product initialization failed: {e}")
@@ -288,4 +348,4 @@ class Product(Base):
 
 
 # Register this class for lazy imports by others
-register_lazy_import('Product', 'database.models.product')
+register_lazy_import('Product', 'database.models.product', 'Product')

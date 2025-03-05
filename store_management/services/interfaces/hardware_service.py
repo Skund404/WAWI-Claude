@@ -7,7 +7,7 @@ Defines the contract for hardware management in the leatherworking application.
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Union
 
-from database.models.hardware_enums import HardwareType, HardwareMaterial, HardwareFinish
+from database.models.enums import HardwareType, HardwareMaterial, HardwareFinish
 from database.models.enums import InventoryStatus, TransactionType
 
 

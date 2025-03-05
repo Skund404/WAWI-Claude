@@ -26,8 +26,8 @@ from utils.enhanced_model_validator import (
 )
 
 # Register lazy imports to resolve potential circular dependencies
-register_lazy_import('Product', 'database.models.product')
-register_lazy_import('Project', 'database.models.project')
+register_lazy_import('Product', 'database.models.product', 'Product')
+register_lazy_import('Project', 'database.models.project', 'Project')
 
 # Setup logger
 logger = logging.getLogger(__name__)
@@ -62,8 +62,8 @@ class Production(Base):
     project_id = Column(Integer, ForeignKey("projects.id"), nullable=True)
 
     # Relationships using standard SQLAlchemy approach
-    product = relationship("Product", back_populates="production_records", lazy="lazy")
-    project = relationship("Project", back_populates="production_records", lazy="lazy")
+    product = relationship("Product", back_populates="production_records", lazy="select")
+    project = relationship("Project", back_populates="production_records", lazy="select")
 
     def __init__(self, **kwargs):
         """
@@ -223,4 +223,4 @@ class Production(Base):
 
 
 # Register this class for lazy imports by others
-register_lazy_import('Production', 'database.models.production')
+register_lazy_import('Production', 'database.models.production', 'Production')
