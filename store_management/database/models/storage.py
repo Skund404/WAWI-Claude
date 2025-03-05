@@ -1,24 +1,48 @@
 # database/models/storage.py
-from typing import Dict, Any, Optional
+"""
+Enhanced Storage Model with Standard SQLAlchemy Relationship Approach
 
-from database.models.base import Base
-from database.models.enums import StorageLocationType
-from database.models.leather import Leather
-from database.models.hardware import Hardware
-from database.models.material import Material
-from database.models.product import Product
+This module defines the Storage model with comprehensive validation,
+relationship management, and circular import resolution.
+"""
+
+import logging
+from datetime import datetime
+from typing import Dict, Any, Optional, List, Union
 
 from sqlalchemy import Column, Enum, String, Text, Boolean, Integer
 from sqlalchemy.orm import relationship
 from sqlalchemy.exc import SQLAlchemyError
 
-from utils.validators import validate_not_empty
+from database.models.base import Base, ModelValidationError
+from database.models.enums import StorageLocationType
+from utils.circular_import_resolver import (
+    lazy_import,
+    register_lazy_import
+)
+from utils.enhanced_model_validator import (
+    ValidationError,
+    validate_not_empty,
+    validate_positive_number
+)
+
+# Register lazy imports to resolve potential circular dependencies
+register_lazy_import('Leather', 'database.models.leather')
+register_lazy_import('Product', 'database.models.product')
+register_lazy_import('Part', 'database.models.part')
+register_lazy_import('Hardware', 'database.models.hardware')
+register_lazy_import('Material', 'database.models.material')
+
+# Setup logger
+logger = logging.getLogger(__name__)
 
 
 class Storage(Base):
     """
-    Model representing storage locations for materials with robust
-    capacity and relationship management.
+    Enhanced Storage model with comprehensive validation and relationship management.
+
+    Represents storage locations for materials with robust
+    capacity and relationship configuration.
     """
     __tablename__ = 'storages'
 
@@ -38,111 +62,100 @@ class Storage(Base):
 
     notes = Column(Text, nullable=True)
 
-    # Relationships with explicit configuration
-    leathers = relationship(
-        "Leather",
-        back_populates="storage",
-        lazy='dynamic',
-        cascade='save-update, merge'
-    )
+    # Relationships using standard SQLAlchemy approach
+    leathers = relationship("Leather", back_populates="storage",
+                            lazy="lazy", cascade="save-update, merge")
 
-    # Removing problematic hardware relationship without foreign key
-    # hardwares = relationship(
-    #     "Hardware",
-    #     back_populates="storage",
-    #     lazy='dynamic',
-    #     cascade='save-update, merge'
-    # )
+    products = relationship("Product", back_populates="storage",
+                            lazy="lazy", cascade="save-update, merge")
 
-    # Removing problematic materials relationship without foreign key
-    # materials = relationship(
-    #     "Material",
-    #     back_populates="storage",
-    #     lazy='dynamic',
-    #     cascade='save-update, merge'
-    # )
-
-    products = relationship(
-        "Product",
-        back_populates="storage",
-        lazy='dynamic',
-        cascade='save-update, merge'
-    )
-    parts = relationship(
-        "Part",
-        back_populates="storage",
-        lazy='dynamic',
-        cascade='save-update, merge'
-    )
+    parts = relationship("Part", back_populates="storage",
+                         lazy="lazy", cascade="save-update, merge")
 
     def __init__(self, **kwargs):
         """
-        Initialize a Storage instance with robust validation.
+        Initialize a Storage instance with comprehensive validation.
 
         Args:
-            **kwargs: Keyword arguments with storage attributes
+            **kwargs: Keyword arguments for storage attributes
 
         Raises:
-            ValueError: If validation fails for any field
-            TypeError: If invalid data types are provided
+            ModelValidationError: If validation fails
         """
         try:
+            # Validate and filter input data
             self._validate_creation(kwargs)
+
+            # Initialize base model
             super().__init__(**kwargs)
-        except (ValueError, TypeError) as e:
-            self._handle_initialization_error(e, kwargs)
+
+        except (ValidationError, SQLAlchemyError) as e:
+            logger.error(f"Storage initialization failed: {e}")
+            raise ModelValidationError(f"Failed to create Storage: {str(e)}") from e
 
     @classmethod
     def _validate_creation(cls, data: Dict[str, Any]) -> None:
         """
-        Comprehensive validation for storage creation data.
+        Validate storage creation data with comprehensive checks.
 
         Args:
-            data (dict): The data to validate
+            data (Dict[str, Any]): Storage creation data to validate
 
         Raises:
-            ValueError: If validation fails
-            TypeError: If data types are incorrect
+            ValidationError: If validation fails
         """
-        if not isinstance(data, dict):
-            raise TypeError("Input must be a dictionary")
-
+        # Validate core required fields
         validate_not_empty(data, 'name', 'Storage name is required')
         validate_not_empty(data, 'location_type', 'Storage location type is required')
 
-        # Additional custom validations
-        if 'capacity' in data:
-            try:
-                capacity = data['capacity']
-                if not isinstance(capacity, (int, type(None))):
-                    raise ValueError("Capacity must be an integer or None")
-                if capacity is not None and capacity < 0:
-                    raise ValueError("Capacity cannot be negative")
-            except (TypeError, ValueError) as e:
-                raise ValueError(f"Invalid capacity: {str(e)}")
+        # Validate location type
+        if 'location_type' in data:
+            validate_not_empty(data, 'location_type', 'Storage location type is required')
 
-    def _handle_initialization_error(self, error: Exception, data: Dict[str, Any]) -> None:
+        # Validate capacity
+        if 'capacity' in data and data['capacity'] is not None:
+            validate_positive_number(
+                data,
+                'capacity',
+                allow_zero=True,
+                message="Capacity must be a non-negative number"
+            )
+
+    def _validate_instance(self) -> None:
         """
-        Handle initialization errors with detailed logging.
-
-        Args:
-            error (Exception): The caught exception
-            data (dict): The input data that caused the error
+        Perform additional validation after instance creation.
 
         Raises:
-            ValueError: Re-raises the original error with additional context
+            ValidationError: If instance validation fails
         """
-        error_context = {
-            'input_data': data,
-            'error_type': type(error).__name__,
-            'error_message': str(error)
-        }
+        # Validate storage details
+        if self.capacity is not None and self.capacity < 0:
+            raise ValidationError(
+                "Capacity cannot be negative",
+                "capacity"
+            )
 
-        # Log the error (replace with your logging mechanism)
-        print(f"Storage Initialization Error: {error_context}")
+        # Validate full status - modified to safely check related collections
+        if self.is_full and self.capacity is not None:
+            current_items_count = 0
 
-        # Re-raise with more context
-        raise ValueError(f"Failed to create Storage: {str(error)}") from error
+            # Safely count leathers if available
+            if hasattr(self, 'leathers') and callable(getattr(self.leathers, 'count', None)):
+                current_items_count += self.leathers.count()
+
+            # Safely count products if available
+            if hasattr(self, 'products') and callable(getattr(self.products, 'count', None)):
+                current_items_count += self.products.count()
+
+            # Safely count parts if available
+            if hasattr(self, 'parts') and callable(getattr(self.parts, 'count', None)):
+                current_items_count += self.parts.count()
+
+            if current_items_count < self.capacity:
+                raise ValidationError(
+                    "Storage marked as full but has available capacity",
+                    "is_full"
+                )
 
     def mark_as_full(self, is_full: bool = True) -> None:
         """
@@ -152,12 +165,23 @@ class Storage(Base):
             is_full (bool): Whether the storage location is full
 
         Raises:
-            TypeError: If is_full is not a boolean
+            ModelValidationError: If marking as full fails
         """
-        if not isinstance(is_full, bool):
-            raise TypeError("is_full must be a boolean value")
+        try:
+            # Validate input
+            if not isinstance(is_full, bool):
+                raise ModelValidationError("is_full must be a boolean value")
 
-        self.is_full = is_full
+            # Update full status
+            self.is_full = is_full
+
+            logger.info(
+                f"Storage {self.id} {'marked as full' if is_full else 'marked as not full'}"
+            )
+
+        except Exception as e:
+            logger.error(f"Marking storage full status failed: {e}")
+            raise ModelValidationError(f"Cannot update storage full status: {str(e)}")
 
     def check_capacity(self, new_items_count: int = 0) -> bool:
         """
@@ -170,40 +194,95 @@ class Storage(Base):
             bool: True if there is capacity, False otherwise
 
         Raises:
-            TypeError: If new_items_count is not an integer
+            ModelValidationError: If capacity check fails
         """
-        if not isinstance(new_items_count, int):
-            raise TypeError("new_items_count must be an integer")
-
-        # If no capacity is set, consider it unlimited
-        if self.capacity is None:
-            return True
-
-        # Dynamically count current items across all relationships
         try:
-            current_count = (
-                    self.leathers.count() +
-                    # self.hardwares.count() +  # Commented out to match the relationship comment
-                    # self.materials.count() +  # Commented out to match the relationship comment
-                    self.products.count() +
-                    self.parts.count()
-            )
+            # Validate input
+            if not isinstance(new_items_count, int):
+                raise ModelValidationError("new_items_count must be an integer")
 
+            # If no capacity is set, consider it unlimited
+            if self.capacity is None:
+                return True
+
+            # Count current items across relationships - modified to safely check collections
+            current_count = 0
+
+            # Safely count leathers if available
+            if hasattr(self, 'leathers') and callable(getattr(self.leathers, 'count', None)):
+                current_count += self.leathers.count()
+
+            # Safely count products if available
+            if hasattr(self, 'products') and callable(getattr(self.products, 'count', None)):
+                current_count += self.products.count()
+
+            # Safely count parts if available
+            if hasattr(self, 'parts') and callable(getattr(self.parts, 'count', None)):
+                current_count += self.parts.count()
+
+            # Check if new items would exceed capacity
             return (current_count + new_items_count) <= self.capacity
-        except SQLAlchemyError as e:
-            print(f"Error checking storage capacity: {e}")
-            return False
+
+        except Exception as e:
+            logger.error(f"Capacity check failed: {e}")
+            raise ModelValidationError(f"Cannot check storage capacity: {str(e)}")
+
+    def generate_storage_code(self) -> str:
+        """
+        Generate a unique storage location code.
+
+        Returns:
+            str: Generated storage code
+        """
+        try:
+            # Take first 3 letters of location type (uppercase)
+            type_part = ''.join(c for c in self.location_type.name if c.isalnum())[:3].upper()
+
+            # Take first 3 letters of name (uppercase)
+            name_part = ''.join(c for c in self.name if c.isalnum())[:3].upper()
+
+            # Append additional location details
+            location_parts = [
+                self.section or 'N',
+                self.row or 'N',
+                self.shelf or 'N',
+                self.bin or 'N'
+            ]
+            location_code = '-'.join(location_parts)
+
+            # Append last 4 digits of ID
+            id_part = str(self.id).zfill(4)[-4:]
+
+            return f"{type_part}-{name_part}-{location_code}-{id_part}"
+        except Exception as e:
+            logger.error(f"Storage code generation failed: {e}")
+            raise ModelValidationError(f"Cannot generate storage code: {str(e)}")
 
     def __repr__(self) -> str:
         """
-        Detailed string representation of the storage location.
+        Provide a comprehensive string representation of the storage location.
 
         Returns:
-            str: Comprehensive string representation
+            str: Detailed storage representation
         """
+        # Modified to safely check related collections
+        item_count = 0
+        if hasattr(self, 'leathers') and callable(getattr(self.leathers, 'count', None)):
+            item_count += self.leathers.count()
+        if hasattr(self, 'products') and callable(getattr(self.products, 'count', None)):
+            item_count += self.products.count()
+        if hasattr(self, 'parts') and callable(getattr(self.parts, 'count', None)):
+            item_count += self.parts.count()
+
         return (
-            f"<Storage(id={self.id}, name='{self.name}', "
+            f"<Storage(id={self.id}, "
+            f"name='{self.name}', "
             f"type={self.location_type}, "
             f"capacity={self.capacity or 'Unlimited'}, "
-            f"is_full={self.is_full})>"
+            f"is_full={self.is_full}, "
+            f"items={item_count})>"
         )
+
+
+# Register this class for lazy imports by others
+register_lazy_import('Storage', 'database.models.storage')

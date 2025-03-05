@@ -11,6 +11,7 @@ from sqlalchemy import Column, DateTime, Float, String
 from sqlalchemy.orm import declared_attr
 from sqlalchemy.sql import func
 from sqlalchemy.dialects.sqlite import TEXT  # For SQLite compatibility
+import uuid
 
 class TimestampMixin:
     """
@@ -69,15 +70,7 @@ class TrackingMixin:
     """
     Mixin to provide tracking capabilities for model instances.
     """
-    @declared_attr
-    def tracking_id(cls):
-        """
-        Generate a tracking ID column.
-
-        Returns:
-            Column: A unique tracking identifier column
-        """
-        return Column(String(255), unique=True, nullable=True)  # Specify the type and max length
+    tracking_id = Column(String(255), unique=True, nullable=True)
 
     def generate_tracking_id(self) -> Optional[str]:
         """
@@ -86,9 +79,14 @@ class TrackingMixin:
         Returns:
             Optional[str]: A unique tracking identifier
         """
-        # Placeholder implementation
-        # Should be implemented with proper logic in specific models
-        return None
+        # Use uuid to generate a unique tracking ID
+        return str(uuid.uuid4())
+
+    def update_tracking_id(self) -> None:
+        """
+        Update the tracking ID to a new unique value.
+        """
+        self.tracking_id = self.generate_tracking_id()
 
 def comparison_func(x: Any, y: Any) -> bool:
     """

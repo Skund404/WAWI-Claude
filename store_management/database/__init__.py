@@ -7,19 +7,6 @@ from utils.circular_import_resolver import CircularImportResolver, register_lazy
 
 logger = logging.getLogger(__name__)
 
-# Register transaction classes for lazy imports
-register_lazy_import("database.models.transaction.HardwareTransaction",
-                     lambda: __import__("database.models.transaction",
-                                        fromlist=["HardwareTransaction"]).HardwareTransaction)
-register_lazy_import("database.models.transaction.LeatherTransaction",
-                     lambda: __import__("database.models.transaction",
-                                        fromlist=["LeatherTransaction"]).LeatherTransaction)
-register_lazy_import("database.models.transaction.MaterialTransaction",
-                     lambda: __import__("database.models.transaction",
-                                        fromlist=["MaterialTransaction"]).MaterialTransaction)
-register_lazy_import("database.models.transaction.BaseTransaction",
-                     lambda: __import__("database.models.transaction", fromlist=["BaseTransaction"]).BaseTransaction)
-
 # First, import Base from models.base
 from database.models.base import Base
 
@@ -29,16 +16,20 @@ BaseModel = Base
 from database.initialize import initialize_database
 
 try:
-    # First import transaction models
-    from database.models.transaction import BaseTransaction, HardwareTransaction, LeatherTransaction, \
+    # Import transaction models directly from the main transaction module
+    from database.models.transaction import (
+        BaseTransaction,
+        HardwareTransaction,
+        LeatherTransaction,
         MaterialTransaction
+    )
 
     # Then import the rest of the models
     from database.models.components import Component, PatternComponent, ProjectComponent
     from database.models.enums import LeatherType, MaterialType, OrderStatus, ProjectStatus
     from database.models.hardware import Hardware
     from database.models.leather import Leather
-    from database.models.material import Material, MaterialTransaction
+    from database.models.material import Material
     from database.models.order import Order, OrderItem
     from database.models.part import Part
     from database.models.pattern import Pattern
@@ -47,6 +38,21 @@ try:
     from database.models.shopping_list import ShoppingList, ShoppingListItem
     from database.models.storage import Storage
     from database.models.supplier import Supplier
+
 except ImportError as e:
-    # Use the correct method for circular import resolution
-    CircularImportResolver.register_lazy_import(__name__, e)
+    # Log the import error and continue
+    logger.error(f"Import error in database module: {e}")
+
+# Register lazy imports for transaction models
+register_lazy_import("database.models.transaction.HardwareTransaction", "database.models.transaction")
+register_lazy_import("database.models.transaction.LeatherTransaction", "database.models.transaction")
+register_lazy_import("database.models.transaction.MaterialTransaction", "database.models.transaction")
+register_lazy_import("database.models.transaction.BaseTransaction", "database.models.transaction")
+
+# Optional: Register lazy imports for other models if needed
+register_lazy_import("database.models.hardware.Hardware", "database.models.hardware")
+register_lazy_import("database.models.leather.Leather", "database.models.leather")
+register_lazy_import("database.models.material.Material", "database.models.material")
+
+# Add logging to help debug import issues
+logger.debug("database package initialization complete")

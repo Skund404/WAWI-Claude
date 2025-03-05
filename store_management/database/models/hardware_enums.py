@@ -74,3 +74,11 @@ class HardwareFinish(Enum):
     GALVANIZED = "galvanized"
     ANODIZED = "anodized"
     OTHER = "other"
+
+
+class EdgeFinishType:
+    pass
+
+
+class StitchType:
+    pass

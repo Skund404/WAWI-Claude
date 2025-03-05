@@ -62,7 +62,7 @@ from utils.validators import DataSanitizer
 from utils.notifications import StatusNotification
 from utils.exporters import OrderExporter
 from utils.performance_tracker import PERFORMANCE_TRACKER
-from database.models.project import ProjectComponent
+from database.models.components import ProjectComponent
 
 # Configuration import
 from config.pattern_config import PATTERN_CONFIG

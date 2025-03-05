@@ -1,185 +1,228 @@
 # database/models/pattern.py
+"""
+Enhanced Pattern Model with Standard SQLAlchemy Relationship Approach
+
+This module defines the Pattern model with comprehensive validation,
+relationship management, and circular import resolution.
+"""
+
 import logging
 from datetime import datetime
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Union
 
-from sqlalchemy import Column, Enum, String, Text, Float, Boolean, JSON, DateTime, Integer
-from sqlalchemy.orm import relationship, validates
+from sqlalchemy import Column, String, Text, Float, Integer, Boolean, JSON, DateTime
+from sqlalchemy import Enum, ForeignKey
+from sqlalchemy.orm import relationship
 from sqlalchemy.exc import SQLAlchemyError
 
-from database.models.base import Base
+from database.models.base import Base, ModelValidationError
 from database.models.enums import SkillLevel
-from utils.circular_import_resolver import lazy_import, register_lazy_import
+from utils.circular_import_resolver import (
+    lazy_import,
+    register_lazy_import
+)
+from utils.enhanced_model_validator import (
+    ValidationError,
+    validate_not_empty,
+    validate_positive_number
+)
+
+# Register lazy imports to resolve potential circular dependencies
+register_lazy_import('Product', 'database.models.product')
+register_lazy_import('Project', 'database.models.project')
+register_lazy_import('PatternComponent', 'database.models.components')
 
 # Setup logger
 logger = logging.getLogger(__name__)
 
-# Lazy import to prevent circular dependencies
-Project = lazy_import("database.models.project", "Project")
-PatternComponent = lazy_import("database.models.components", "PatternComponent")
-
 
 class Pattern(Base):
     """
-    Model representing leatherworking patterns with comprehensive
-    validation and relationship management.
+    Enhanced Pattern model with comprehensive validation and relationship management.
+
+    Represents leatherworking patterns with advanced tracking
+    and relationship configuration.
     """
     __tablename__ = 'patterns'
 
-    # Pattern specific fields
+    # Core pattern attributes
     name = Column(String(255), nullable=False, index=True)
     description = Column(Text, nullable=True)
+    version = Column(String(50), nullable=True)
 
-    skill_level = Column(Enum(SkillLevel), nullable=False, default=SkillLevel.BEGINNER)
-    version = Column(String(20), nullable=True)
+    # Skill and complexity
+    skill_level = Column(Enum(SkillLevel), nullable=True)
 
-    width_mm = Column(Float, nullable=True)
-    height_mm = Column(Float, nullable=True)
+    # Dimensional and design details
+    width = Column(Float, nullable=True)
+    height = Column(Float, nullable=True)
+    depth = Column(Float, nullable=True)
 
-    estimated_time_hours = Column(Float, nullable=True)
-    estimated_leather_sqft = Column(Float, nullable=True)
-
-    instructions = Column(Text, nullable=True)
-    tools_required = Column(Text, nullable=True)
-    materials_required = Column(Text, nullable=True)
-
-    is_published = Column(Boolean, default=False, nullable=False)
-    publication_date = Column(DateTime, nullable=True)
-
-    file_path = Column(String(255), nullable=True)
+    # Metadata and additional information
+    design_notes = Column(Text, nullable=True)
     pattern_metadata = Column(JSON, nullable=True)
 
-    # Relationships with explicit configuration
-    components = relationship(
-        "PatternComponent",
-        back_populates="pattern",
-        cascade="all, delete-orphan",
-        lazy="select"
-    )
+    # Status tracking
+    is_active = Column(Boolean, default=True, nullable=False)
+    is_published = Column(Boolean, default=False, nullable=False)
 
-    # Add the missing projects relationship to match Project.pattern
-    projects = relationship(
-        "Project",
-        back_populates="pattern",
-        lazy="select",
-        cascade="save-update, merge"
-    )
+    # Timestamp tracking
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
-    # Products relationship (if needed)
-    products = relationship(
-        "Product",
-        back_populates="pattern",
-        lazy="select",
-        cascade="save-update, merge"
-    )
+    # Relationships using standard SQLAlchemy approach
+    products = relationship("Product", back_populates="pattern", lazy="lazy")
+    projects = relationship("Project", back_populates="pattern", lazy="lazy")
+    components = relationship("PatternComponent", back_populates="pattern",
+                              cascade="all, delete-orphan", lazy="selectin")
 
-    @validates('name')
-    def validate_name(self, key, name):
-        """Validate pattern name."""
-        if not name or len(name) > 255:
-            raise ValueError("Pattern name must be between 1 and 255 characters")
-        return name
-
-    def __init__(self, **kwargs):
+    def update_version(self, new_version: str) -> None:
         """
-        Initialize a Pattern instance with comprehensive validation.
+        Update the pattern version with validation.
 
         Args:
-            **kwargs: Keyword arguments with pattern attributes
+            new_version (str): New version identifier
 
         Raises:
-            ValueError: If validation fails for any field
-            TypeError: If invalid data types are provided
+            ModelValidationError: If version update fails
         """
         try:
-            # Remove any keys not in the model to prevent unexpected attribute errors
-            filtered_kwargs = {k: v for k, v in kwargs.items() if hasattr(self.__class__, k)}
+            # Validate new version
+            if not new_version or len(new_version.strip()) == 0:
+                raise ValidationError("Version cannot be empty", "version")
 
-            super().__init__(**filtered_kwargs)
-        except (ValueError, TypeError, SQLAlchemyError) as e:
-            self._handle_initialization_error(e, kwargs)
+            # Prevent redundant version updates
+            if self.version == new_version:
+                logger.info(f"Pattern {self.id} version already set to {new_version}")
+                return
 
-    def _handle_initialization_error(self, error: Exception, data: Dict[str, Any]) -> None:
-        """
-        Handle initialization errors with detailed logging.
+            # Update version and timestamp
+            old_version = self.version
+            self.version = new_version
+            self.updated_at = datetime.utcnow()
 
-        Args:
-            error (Exception): The caught exception
-            data (dict): The input data that caused the error
+            logger.info(
+                f"Pattern {self.id} version updated from "
+                f"{old_version or 'None'} to {new_version}"
+            )
 
-        Raises:
-            ValueError: Re-raises the original error with additional context
-        """
-        error_context = {
-            'input_data': data,
-            'error_type': type(error).__name__,
-            'error_message': str(error)
-        }
-
-        # Log the error
-        logger.error(f"Pattern Initialization Error: {error_context}")
-
-        # Re-raise with more context
-        raise ValueError(f"Failed to create Pattern: {str(error)}") from error
-
-    def publish(self) -> None:
-        """
-        Mark the pattern as published and set publication date.
-
-        Raises:
-            RuntimeError: If publication fails
-        """
-        try:
-            self.is_published = True
-            self.publication_date = datetime.utcnow()
-            logger.info(f"Pattern {self.id} published")
         except Exception as e:
-            logger.error(f"Error publishing pattern: {e}")
-            raise RuntimeError(f"Failed to publish pattern: {str(e)}") from e
+            logger.error(f"Version update failed: {e}")
+            raise ModelValidationError(f"Cannot update pattern version: {str(e)}")
 
-    def calculate_leather_requirement(self) -> float:
+    def calculate_complexity(self) -> float:
         """
-        Calculate total leather requirement based on components.
+        Calculate pattern complexity based on components and skill level.
 
         Returns:
-            float: Total estimated leather requirement in square feet
-
-        Raises:
-            RuntimeError: If calculation fails
+            float: Complexity score
         """
         try:
-            total = self.estimated_leather_sqft or 0.0
+            # Base complexity from skill level
+            skill_complexity_map = {
+                SkillLevel.BEGINNER: 1.0,
+                SkillLevel.INTERMEDIATE: 2.0,
+                SkillLevel.ADVANCED: 3.0,
+                SkillLevel.EXPERT: 4.0
+            }
 
-            # If component relationships are loaded, add their requirements
-            if self.components:
-                for component in self.components:
-                    try:
-                        component_area = getattr(component, 'area_sqft', 0) or 0
-                        total += component_area
-                    except Exception as component_error:
-                        logger.warning(f"Error calculating component area: {component_error}")
+            # Base complexity from skill level
+            base_complexity = skill_complexity_map.get(
+                self.skill_level,
+                1.0  # Default to beginner if not set
+            )
 
-            logger.debug(f"Calculated leather requirement for Pattern {self.id}: {total} sq ft")
-            return total
+            # Add complexity from number of components
+            component_complexity = len(self.components or []) * 0.5
+
+            # Consider dimensional complexity
+            dimension_complexity = 0
+            if self.width and self.height and self.depth:
+                dimension_complexity = (
+                                               (self.width + self.height + self.depth) / 3
+                                       ) * 0.1
+
+            # Calculate total complexity
+            total_complexity = base_complexity + component_complexity + dimension_complexity
+
+            return round(total_complexity, 2)
+
         except Exception as e:
-            logger.error(f"Error calculating leather requirement: {e}")
-            raise RuntimeError(f"Failed to calculate leather requirement: {str(e)}") from e
+            logger.error(f"Complexity calculation failed: {e}")
+            raise ModelValidationError(f"Cannot calculate pattern complexity: {str(e)}")
+
+    def archive(self) -> None:
+        """
+        Archive the pattern by marking it as inactive.
+
+        Raises:
+            ModelValidationError: If archiving fails
+        """
+        try:
+            # Prevent re-archiving
+            if not self.is_active:
+                logger.info(f"Pattern {self.id} is already archived")
+                return
+
+            # Disable active status
+            self.is_active = False
+            self.is_published = False
+
+            # Update timestamp
+            self.updated_at = datetime.utcnow()
+
+            logger.info(f"Pattern {self.id} archived successfully")
+
+        except Exception as e:
+            logger.error(f"Pattern archiving failed: {e}")
+            raise ModelValidationError(f"Cannot archive pattern: {str(e)}")
+
+    def restore(self) -> None:
+        """
+        Restore an archived pattern.
+
+        Raises:
+            ModelValidationError: If restoration fails
+        """
+        try:
+            # Prevent re-restoring
+            if self.is_active:
+                logger.info(f"Pattern {self.id} is already active")
+                return
+
+            # Require at least one component to restore
+            if not self.components or len(self.components) == 0:
+                raise ValidationError(
+                    "Cannot restore pattern without components",
+                    "components"
+                )
+
+            # Reactivate pattern
+            self.is_active = True
+            self.updated_at = datetime.utcnow()
+
+            logger.info(f"Pattern {self.id} restored successfully")
+
+        except Exception as e:
+            logger.error(f"Pattern restoration failed: {e}")
+            raise ModelValidationError(f"Cannot restore pattern: {str(e)}")
 
     def __repr__(self) -> str:
         """
-        Detailed string representation of the pattern.
+        Provide a comprehensive string representation of the pattern.
 
         Returns:
-            str: Comprehensive string representation
+            str: Detailed pattern representation
         """
         return (
             f"<Pattern(id={self.id}, name='{self.name}', "
+            f"version='{self.version or 'None'}', "
             f"skill_level={self.skill_level}, "
+            f"active={self.is_active}, "
             f"published={self.is_published}, "
-            f"version='{self.version or 'N/A'}')>"
+            f"components={len(self.components or [])})"
         )
 
 
-# Explicitly register lazy imports to ensure proper configuration
-register_lazy_import('database.models.pattern.Pattern', 'database.models.pattern')
-register_lazy_import('database.models.pattern.Pattern.projects', 'database.models.project.Project')
+# Register this class for lazy imports by others
+register_lazy_import('Pattern', 'database.models.pattern')

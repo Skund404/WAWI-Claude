@@ -1,3 +1,4 @@
+from database import BaseModel
 from di.core import inject
 from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
 from enum import Enum

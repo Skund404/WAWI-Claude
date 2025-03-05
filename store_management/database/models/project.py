@@ -1,116 +1,98 @@
 # database/models/project.py
+"""
+Enhanced Project Model with Standard SQLAlchemy Relationship Approach
+
+This module defines the Project model with comprehensive validation,
+relationship management, and circular import resolution.
+"""
+
 import logging
 from datetime import datetime
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Union
 
 from sqlalchemy import Column, DateTime, Enum, Float, ForeignKey, Integer, JSON, String, Text, Boolean
-from sqlalchemy.orm import relationship, validates
+from sqlalchemy.orm import relationship
 from sqlalchemy.exc import SQLAlchemyError
 
-from database.models.base import Base
+from database.models.base import Base, ModelValidationError
 from database.models.enums import ProjectStatus, ProjectType, SkillLevel
-from utils.circular_import_resolver import lazy_import, register_lazy_import
+from utils.circular_import_resolver import (
+    lazy_import,
+    register_lazy_import
+)
+from utils.enhanced_model_validator import (
+    ModelValidator,
+    ValidationError,
+    validate_not_empty,
+    validate_positive_number
+)
+
+# Register lazy imports to resolve potential circular dependencies
+register_lazy_import('ProjectComponent', 'database.models.components')
+register_lazy_import('Pattern', 'database.models.pattern')
+register_lazy_import('Production', 'database.models.production')
+register_lazy_import('LeatherTransaction', 'database.models.transaction')
+register_lazy_import('HardwareTransaction', 'database.models.transaction')
 
 # Setup logger
 logger = logging.getLogger(__name__)
 
-# Explicit lazy imports to resolve circular dependencies
-register_lazy_import('database.models.components.ProjectComponent', 'database.models.components')
-register_lazy_import('database.models.pattern.Pattern', 'database.models.pattern')
-
-# Lazy load model classes to prevent circular imports
-ProjectComponent = lazy_import("database.models.components", "ProjectComponent")
-Pattern = lazy_import("database.models.pattern", "Pattern")
-
 
 class Project(Base):
     """
-    Model representing a leatherworking project with comprehensive
-    lifecycle and relationship management.
+    Enhanced Project model with comprehensive validation and relationship management.
+
+    Represents a leatherworking project with advanced lifecycle tracking,
+    relationship configuration, and validation strategies.
     """
     __tablename__ = 'projects'
 
-    # Project specific fields
+    # Core project attributes
     name = Column(String(255), nullable=False, index=True)
     description = Column(Text, nullable=True)
 
+    # Enum and status tracking
     project_type = Column(Enum(ProjectType), nullable=False)
     skill_level = Column(Enum(SkillLevel), nullable=True)
-    status = Column(Enum(ProjectStatus), default=ProjectStatus.NEW, nullable=False)
+    # Changed from NEW to INITIAL_CONSULTATION which exists in the enum
+    status = Column(Enum(ProjectStatus), default=ProjectStatus.INITIAL_CONSULTATION, nullable=False)
 
+    # Temporal tracking
     start_date = Column(DateTime, nullable=True)
     due_date = Column(DateTime, nullable=True)
     completion_date = Column(DateTime, nullable=True)
 
+    # Cost and time tracking
     estimated_hours = Column(Float, nullable=True)
     actual_hours = Column(Float, nullable=True)
 
+    # Financial tracking
     material_cost = Column(Float, default=0.0)
     labor_cost = Column(Float, default=0.0)
     overhead_cost = Column(Float, default=0.0)
     total_cost = Column(Float, default=0.0)
 
+    # Additional metadata
     notes = Column(Text, nullable=True)
     project_metadata = Column(JSON, nullable=True)
 
-    # Foreign keys
+    # Foreign keys with lazy import support
     pattern_id = Column(Integer, ForeignKey("patterns.id"), nullable=True)
 
-    # Validate key attributes
-    @validates('name')
-    def validate_name(self, key, name):
-        """Validate project name."""
-        if not name or len(name) > 255:
-            raise ValueError("Project name must be between 1 and 255 characters")
-        return name
+    # Relationships using standard SQLAlchemy approach
+    pattern = relationship("Pattern", back_populates="projects", lazy="lazy")
 
-    @validates('due_date', 'start_date')
-    def validate_dates(self, key, date):
-        """Validate project dates."""
-        if date and self.start_date and self.due_date:
-            if key == 'due_date' and date < self.start_date:
-                raise ValueError("Due date cannot be earlier than start date")
-            if key == 'start_date' and date > self.due_date:
-                raise ValueError("Start date cannot be later than due date")
-        return date
+    components = relationship("ProjectComponent", back_populates="project",
+                              cascade="all, delete-orphan", lazy="selectin")
 
-    # Relationships with explicit configuration
-    components = relationship(
-        "ProjectComponent",
-        back_populates="project",
-        cascade="all, delete-orphan",
-        lazy="select"
-    )
+    production_records = relationship("Production", back_populates="project", lazy="lazy")
 
-    pattern = relationship(
-        "Pattern",
-        back_populates="projects",
-        lazy="select",
-        cascade="save-update, merge"
-    )
+    # View-only relationships with transactions
+    leather_transactions = relationship("LeatherTransaction", back_populates="project",
+                                        lazy="lazy")
 
-    # Add the missing production_records relationship
-    production_records = relationship(
-        "Production",
-        back_populates="project",
-        lazy="select",
-        cascade="save-update, merge"
-    )
-
-    # Relationships that view existing transactions
-    leather_transactions = relationship(
-        "LeatherTransaction",
-        back_populates="project",
-        viewonly=True,
-        lazy="select"
-    )
-
-    hardware_transactions = relationship(
-        "HardwareTransaction",
-        back_populates="project",
-        viewonly=True,
-        lazy="select"
-    )
+    hardware_transactions = relationship("HardwareTransaction", back_populates="project",
+                                         lazy="lazy")
 
     def __init__(self, **kwargs):
         """
@@ -120,132 +102,245 @@ class Project(Base):
             **kwargs: Keyword arguments for project attributes
 
         Raises:
-            ValueError: If validation fails
-            TypeError: If invalid data types are provided
+            ModelValidationError: If validation fails
         """
         try:
-            # Remove any keys not in the model to prevent unexpected attribute errors
-            filtered_kwargs = {k: v for k, v in kwargs.items() if hasattr(self.__class__, k)}
+            # Validate and filter input data
+            self._validate_creation(kwargs)
 
-            super().__init__(**filtered_kwargs)
+            # Initialize base model
+            super().__init__(**kwargs)
 
-            # Set start date if not provided and project is active
-            if 'start_date' not in kwargs and self.status not in [ProjectStatus.NEW, ProjectStatus.PLANNING]:
-                self.start_date = datetime.utcnow()
+            # Set start date for active projects
+            self._initialize_project_dates(kwargs)
 
-        except (ValueError, TypeError, SQLAlchemyError) as e:
-            self._handle_initialization_error(e, kwargs)
+        except (ValidationError, SQLAlchemyError) as e:
+            logger.error(f"Project initialization failed: {e}")
+            raise ModelValidationError(f"Failed to create Project: {str(e)}") from e
 
-    def _handle_initialization_error(self, error: Exception, data: Dict[str, Any]) -> None:
+    @classmethod
+    def _validate_creation(cls, data: Dict[str, Any]) -> None:
         """
-        Handle initialization errors with detailed logging.
+        Validate project creation data with comprehensive checks.
 
         Args:
-            error (Exception): The caught exception
-            data (dict): The input data that caused the error
+            data (Dict[str, Any]): Project creation data to validate
 
         Raises:
-            ValueError: Re-raises the original error with additional context
+            ValidationError: If validation fails
         """
-        error_context = {
-            'input_data': data,
-            'error_type': type(error).__name__,
-            'error_message': str(error)
-        }
+        # Validate core required fields
+        validate_not_empty(data, 'name', 'Project name is required')
+        validate_not_empty(data, 'project_type', 'Project type is required')
 
-        # Log the error
-        logger.error(f"Project Initialization Error: {error_context}")
+        # Validate project type
+        if 'project_type' in data:
+            ModelValidator.validate_enum(
+                data['project_type'],
+                ProjectType,
+                'project_type'
+            )
 
-        # Re-raise with more context
-        raise ValueError(f"Failed to create Project: {str(error)}") from error
+        # Validate optional numeric fields
+        optional_numeric_fields = [
+            'estimated_hours', 'actual_hours',
+            'material_cost', 'labor_cost',
+            'overhead_cost', 'total_cost'
+        ]
+
+        for field in optional_numeric_fields:
+            if field in data:
+                validate_positive_number(
+                    data,
+                    field,
+                    allow_zero=True,
+                    message=f"{field.replace('_', ' ').title()} must be a non-negative number"
+                )
+
+        # Validate dates
+        cls._validate_project_dates(data)
+
+    def _validate_instance(self) -> None:
+        """
+        Perform additional validation after instance creation.
+
+        Raises:
+            ValidationError: If instance validation fails
+        """
+        # Validate relationships
+        if self.pattern and not hasattr(self.pattern, 'id'):
+            raise ValidationError("Invalid pattern reference", "pattern")
+
+        # Validate cost calculations
+        self._validate_cost_calculation()
+
+    @classmethod
+    def _validate_project_dates(cls, data: Dict[str, Any]) -> None:
+        """
+        Validate project dates to ensure logical consistency.
+
+        Args:
+            data (Dict[str, Any]): Project data containing date information
+
+        Raises:
+            ValidationError: If date validation fails
+        """
+        start_date = data.get('start_date')
+        due_date = data.get('due_date')
+        completion_date = data.get('completion_date')
+
+        # Check date consistency
+        if start_date and due_date and start_date > due_date:
+            raise ValidationError(
+                "Start date cannot be later than due date",
+                "start_date",
+                "date_order_error"
+            )
+
+        if completion_date:
+            if start_date and completion_date < start_date:
+                raise ValidationError(
+                    "Completion date cannot be earlier than start date",
+                    "completion_date",
+                    "date_order_error"
+                )
+
+            if due_date and completion_date > due_date:
+                raise ValidationError(
+                    "Completion date cannot be later than due date",
+                    "completion_date",
+                    "date_order_error"
+                )
+
+    def _validate_cost_calculation(self) -> None:
+        """
+        Validate project cost calculations.
+
+        Raises:
+            ValidationError: If cost calculation is inconsistent
+        """
+        # Total cost should match sum of individual costs
+        calculated_total = (
+                self.material_cost +
+                self.labor_cost +
+                self.overhead_cost
+        )
+
+        # Allow small floating-point discrepancies
+        if abs(calculated_total - self.total_cost) > 0.01:
+            logger.warning(
+                f"Cost calculation mismatch. "
+                f"Calculated: {calculated_total}, Stored: {self.total_cost}"
+            )
+            self.total_cost = calculated_total
+
+    def _initialize_project_dates(self, kwargs: Dict[str, Any]) -> None:
+        """
+        Initialize project dates based on status and input.
+
+        Args:
+            kwargs (Dict[str, Any]): Initialization arguments
+        """
+        # Set start date for active projects if not provided
+        if (not self.start_date and
+                self.status not in [ProjectStatus.INITIAL_CONSULTATION, ProjectStatus.DESIGN_PHASE]):
+            self.start_date = datetime.utcnow()
+
+        # Update completion date for completed projects
+        if (self.status == ProjectStatus.COMPLETED and
+                not self.completion_date):
+            self.completion_date = datetime.utcnow()
+
+    def calculate_total_cost(self) -> float:
+        """
+        Calculate and update the total project cost.
+
+        Returns:
+            float: Calculated total cost
+        """
+        try:
+            self.total_cost = (
+                    self.material_cost +
+                    self.labor_cost +
+                    self.overhead_cost
+            )
+            return self.total_cost
+        except Exception as e:
+            logger.error(f"Error calculating project total cost: {e}")
+            raise ModelValidationError(f"Cost calculation failed: {e}")
 
     def complete(self) -> None:
         """
         Mark the project as completed with comprehensive validation.
 
         Raises:
-            ValueError: If the project cannot be completed
-            RuntimeError: If completion process fails
+            ModelValidationError: If project cannot be completed
         """
         try:
-            # Validate project completion
+            # Validate project completion prerequisites
             self._validate_project_completion()
 
-            # Update status
+            # Update project status
             self.status = ProjectStatus.COMPLETED
             self.completion_date = datetime.utcnow()
 
-            # Calculate final costs
+            # Finalize costs
             self.calculate_total_cost()
 
             logger.info(f"Project {self.id} successfully completed")
 
         except Exception as e:
-            logger.error(f"Error completing project: {e}")
-            raise RuntimeError(f"Failed to complete project: {str(e)}") from e
+            logger.error(f"Project completion failed: {e}")
+            raise ModelValidationError(f"Cannot complete project: {str(e)}")
 
     def _validate_project_completion(self) -> None:
         """
         Validate project completion prerequisites.
 
         Raises:
-            ValueError: If project cannot be considered complete
+            ModelValidationError: If project cannot be completed
         """
-        # Ensure all critical components are complete
-        if self.components and not all(
-                getattr(component, 'is_complete', False)
-                for component in self.components
-        ):
-            raise ValueError("Not all project components are complete")
+        # Validate component completion
+        if self.components:
+            incomplete_components = [
+                comp for comp in self.components
+                if not getattr(comp, 'is_complete', False)
+            ]
+            if incomplete_components:
+                raise ModelValidationError(
+                    f"{len(incomplete_components)} project components are not complete"
+                )
 
-        # Validate transactions
-        if (
-                not all(getattr(txn, 'is_processed', False)
-                        for txn in (self.leather_transactions or []))
-                or not all(getattr(txn, 'is_processed', False)
-                           for txn in (self.hardware_transactions or []))
-        ):
-            raise ValueError("Some project transactions are not processed")
+        # Validate transaction processing
+        unprocessed_leather_txns = [
+            txn for txn in self.leather_transactions
+            if not getattr(txn, 'is_processed', False)
+        ]
+        unprocessed_hardware_txns = [
+            txn for txn in self.hardware_transactions
+            if not getattr(txn, 'is_processed', False)
+        ]
 
-    def calculate_total_cost(self) -> float:
-        """
-        Calculate and update the total cost of the project.
-
-        Returns:
-            float: The calculated total cost
-
-        Raises:
-            RuntimeError: If cost calculation fails
-        """
-        try:
-            # Recalculate total cost with error handling
-            self.total_cost = (
-                    self.material_cost +
-                    self.labor_cost +
-                    self.overhead_cost
+        if unprocessed_leather_txns or unprocessed_hardware_txns:
+            raise ModelValidationError(
+                "Some project transactions are not processed"
             )
-
-            logger.debug(f"Project {self.id} total cost calculated: {self.total_cost}")
-            return self.total_cost
-
-        except Exception as e:
-            logger.error(f"Error calculating project total cost: {e}")
-            raise RuntimeError(f"Failed to calculate total cost: {str(e)}") from e
 
     def __repr__(self) -> str:
         """
-        Detailed string representation of the project.
+        Provide a comprehensive string representation of the project.
 
         Returns:
-            str: Comprehensive string representation
+            str: Detailed project representation
         """
         return (
             f"<Project(id={self.id}, name='{self.name}', "
             f"type={self.project_type}, "
-            f"status={self.status.name if self.status else 'None'}, "
-            f"pattern_id={self.pattern_id})>"
+            f"status={self.status}, "
+            f"components={len(self.components)}, "
+            f"total_cost={self.total_cost})>"
         )
 
 
-# Explicitly register lazy imports to ensure proper configuration
-register_lazy_import('database.models.project.Project', 'database.models.project')
+# Register this class for lazy imports by others
+register_lazy_import('Project', 'database.models.project')
