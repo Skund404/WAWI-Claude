@@ -1,11 +1,28 @@
-# Add these to your initialization code, perhaps in __init__.py
+# gui/leatherworking/__init__.py
+"""
+Initialization for leatherworking module with lazy import support.
+"""
+
 from utils.circular_import_resolver import register_lazy_import
 
-register_lazy_import("database.models.transaction.InventoryTransaction",
-                    lambda: __import__("database.models.transaction", fromlist=["InventoryTransaction"]).InventoryTransaction)
-register_lazy_import("database.models.transaction.HardwareTransaction",
-                    lambda: __import__("database.models.transaction", fromlist=["HardwareTransaction"]).HardwareTransaction)
-register_lazy_import("database.models.transaction.LeatherTransaction",
-                    lambda: __import__("database.models.transaction", fromlist=["LeatherTransaction"]).LeatherTransaction)
-register_lazy_import("database.models.transaction.MaterialTransaction",
-                    lambda: __import__("database.models.transaction", fromlist=["MaterialTransaction"]).MaterialTransaction)
+# Lazy import for transactions and other potential circular dependencies
+register_lazy_import(
+    'InventoryTransaction',
+    'database.models.transaction',
+    'InventoryTransaction'
+)
+
+# You can add more lazy imports as needed
+register_lazy_import(
+    'MaterialTransaction',
+    'database.models.transaction',
+    'MaterialTransaction'
+)
+
+register_lazy_import(
+    'LeatherTransaction',
+    'database.models.transaction',
+    'LeatherTransaction'
+)
+
+# Additional lazy import registrations can be added here

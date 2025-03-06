@@ -7,7 +7,8 @@ from utils.circular_import_resolver import CircularImportResolver
 from services.interfaces.pattern_service import IPatternService, PatternStatus
 
 # Use lazy imports to avoid circular imports
-Pattern = CircularImportResolver.lazy_import("database.models.pattern", "Pattern")
+from utils.circular_import_resolver import lazy_import
+Pattern = lazy_import("database.models.pattern", "Pattern")
 
 
 class PatternService(IPatternService):

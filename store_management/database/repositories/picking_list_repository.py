@@ -31,7 +31,7 @@ class PickingListRepository(BaseRepository):
             List[PickingList]: List of all picking lists
         """
         try:
-            return self.session.query(PickingList).order_by(PickingList.created_at.desc()).all()
+            return self.session.query(PickingList).order_by(PickingList.creation_date.desc()).all()
         except SQLAlchemyError as e:
             self.logger.error(f"Error retrieving all picking lists: {e}")
             raise
@@ -101,7 +101,7 @@ class PickingListRepository(BaseRepository):
             if 'status' in list_data:
                 picking_list.status = list_data['status']
 
-            picking_list.updated_at = datetime.now()
+            picking_list.last_updated = datetime.now()
             self.session.flush()
 
             return picking_list
@@ -267,7 +267,7 @@ class PickingListRepository(BaseRepository):
         try:
             return self.session.query(PickingList).filter(
                 PickingList.status == status
-            ).order_by(PickingList.created_at.desc()).all()
+            ).order_by(PickingList.creation_date.desc()).all()
         except SQLAlchemyError as e:
             self.logger.error(f"Error filtering picking lists by status {status}: {e}")
             raise
@@ -289,7 +289,7 @@ class PickingListRepository(BaseRepository):
                     PickingList.name.ilike(search_pattern),
                     PickingList.description.ilike(search_pattern)
                 )
-            ).order_by(PickingList.created_at.desc()).all()
+            ).order_by(PickingList.creation_date.desc()).all()
         except SQLAlchemyError as e:
             self.logger.error(f"Error searching picking lists with term '{search_term}': {e}")
             raise
@@ -304,7 +304,7 @@ class PickingListRepository(BaseRepository):
         try:
             return self.session.query(PickingList).options(
                 joinedload(PickingList.items)
-            ).order_by(PickingList.created_at.desc()).all()
+            ).order_by(PickingList.creation_date.desc()).all()
         except SQLAlchemyError as e:
             self.logger.error(f"Error retrieving picking lists with items: {e}")
             raise

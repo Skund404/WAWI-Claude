@@ -10,6 +10,7 @@ import os
 import sys
 import logging
 import traceback
+import time
 
 # Circular import resolution
 from utils.circular_import_resolver import register_lazy_import
@@ -18,14 +19,9 @@ from utils.circular_import_resolver import register_lazy_import
 # Lazy import registration for complex models
 def _register_lazy_component_imports():
     """Register lazy imports for component models to resolve circular dependencies."""
-    register_lazy_import("database.models.components.Component",
-                         lambda: __import__("database.models.components", fromlist=["Component"]).Component)
-    register_lazy_import("database.models.components.PatternComponent",
-                         lambda: __import__("database.models.components",
-                                            fromlist=["PatternComponent"]).PatternComponent)
-    register_lazy_import("database.models.components.ProjectComponent",
-                         lambda: __import__("database.models.components",
-                                            fromlist=["ProjectComponent"]).ProjectComponent)
+    register_lazy_import("database.models.components", "Component", "Component")
+    register_lazy_import("database.models.components", "PatternComponent", "PatternComponent")
+    register_lazy_import("database.models.components", "ProjectComponent", "ProjectComponent")
 
 
 # Ensure the project root is in the Python path
@@ -93,8 +89,15 @@ def setup_application_context() -> tk.Tk:
         logger = logging.getLogger(__name__)
 
         # Log database configuration
+        logger.info("Starting application diagnostic process")
+        logger.info(f"Python Version: {sys.version}")
+        logger.info(f"Python Executable: {sys.executable}")
+        logger.info(f"Current Working Directory: {os.getcwd()}")
+        logger.info(f"Python Path: {sys.path}")
+
+        # Log database configuration
         db_path = get_database_path()
-        logger.info(f"Initializing database at: {db_path}")
+        logger.info(f"Database Path: {db_path}")
 
         # Initialize database
         try:
@@ -107,12 +110,19 @@ def setup_application_context() -> tk.Tk:
         # Reset and setup dependency injection
         container = DependencyContainer()
         container.clear_cache()  # Ensure clean slate
-        setup_dependency_injection()
-        logger.info("Dependency injection setup completed")
+
+        try:
+            setup_dependency_injection()
+            logger.info("Dependency injection setup completed")
+        except Exception as di_error:
+            logger.error(f"Dependency injection setup failed: {di_error}")
+            raise
 
         # Create root Tkinter window
+        logger.info("Creating root Tkinter window")
         root = tk.Tk()
-        root.withdraw()  # Hide initially
+
+        root.title("Leatherworking Store Management")
 
         return root
 
@@ -127,17 +137,31 @@ def main():
     Main application entry point with comprehensive error handling.
     Manages the entire application lifecycle from startup to shutdown.
     """
+    start_time = time.time()
+    logger = logging.getLogger(__name__)
+
     try:
+        logger.info("Starting Leatherworking Store Management Application")
+
         # Set up application context
         root = setup_application_context()
 
         try:
+            # Log MainWindow creation
+            logger.info("Creating MainWindow")
+
             # Create and launch main window
             main_window = MainWindow(root, DependencyContainer())
+
+            # Final startup diagnostic
+            startup_time = time.time() - start_time
+            logger.info(f"Application startup completed in {startup_time:.2f} seconds")
+
+            # Launch main event loop
             main_window.mainloop()
 
         except Exception as window_error:
-            logging.error(f"Main window initialization failed: {window_error}")
+            logger.error(f"Main window initialization failed: {window_error}")
             messagebox.showerror(
                 "Window Initialization Error",
                 f"Could not create main application window:\n{window_error}\n\n"
@@ -147,8 +171,8 @@ def main():
 
     except Exception as critical_error:
         # Last resort error handling for unrecoverable errors
-        logging.critical(f"Unrecoverable application startup error: {critical_error}")
-        logging.critical(traceback.format_exc())
+        logger.critical(f"Unrecoverable application startup error: {critical_error}")
+        logger.critical(traceback.format_exc())
 
         # Show comprehensive error message
         messagebox.showerror(

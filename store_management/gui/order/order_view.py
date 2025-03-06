@@ -401,15 +401,25 @@ class OrderView(BaseView):
 
             # Populate treeview
             for order in orders:
+                # Ensure order is dict-like
+                order_dict = order
+                if not hasattr(order, 'get'):
+                    # Try to convert to dict if it's an object
+                    if hasattr(order, '__dict__'):
+                        order_dict = {k: v for k, v in order.__dict__.items() if not k.startswith('_')}
+                    else:
+                        # Default empty dict
+                        order_dict = {}
+
                 self.orders_tree.insert(
                     "",
                     "end",
                     values=(
-                        order.get("id", ""),
-                        order.get("reference_number", ""),
-                        order.get("order_date", ""),
-                        order.get("status", ""),
-                        f"${order.get('total_amount', 0):.2f}"
+                        order_dict.get("id", ""),
+                        order_dict.get("reference_number", ""),
+                        order_dict.get("order_date", ""),
+                        order_dict.get("status", ""),
+                        f"${order_dict.get('total_amount', 0):.2f}"
                     )
                 )
         except Exception as e:

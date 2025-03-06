@@ -1,18 +1,23 @@
 # database/models/order.py
 from typing import List, Optional, Dict, Any
 from datetime import datetime
+import logging
 
 from sqlalchemy import ForeignKey, DateTime, Float, Enum, String, Text
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 
 from database.models.base import Base, ModelValidationError
 from database.models.enums import OrderStatus, PaymentStatus
-from utils import register_lazy_import
-import logging
+from utils.circular_import_resolver import register_lazy_import, lazy_import
+
+# Logger setup
+logger = logging.getLogger(__name__)
 
 # Forward declarations for circular imports
 OrderItem = None
 Customer = None
+Supplier = None
+Sales = None
 
 class Order(Base):
     """Represents a customer order with comprehensive tracking and validation."""
@@ -27,7 +32,6 @@ class Order(Base):
     customer_email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     customer_phone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
 
-    register_lazy_import('Sales', 'database.models.sales', 'Sales')
     # Relationship with Customer model
     customer: Mapped[Optional['Customer']] = relationship(
         'Customer',
@@ -35,6 +39,7 @@ class Order(Base):
         lazy='selectin'
     )
 
+    # Sales relationship
     sales: Mapped[List["Sales"]] = relationship(
         "Sales",
         back_populates="order",
@@ -126,43 +131,53 @@ class Order(Base):
             # Recalculate totals
             self.calculate_total()
 
-
-# Set up relationship later to avoid circular imports
 def setup_relationships():
-    global OrderItem, Customer
+    """
+    Set up relationships to avoid circular imports.
+    This function is called after all models are imported.
+    """
+    global OrderItem, Customer, Supplier, Sales
 
-    # Set up OrderItem relationship
-    if OrderItem is None:
-        try:
-            from database.models.order_item import OrderItem as OI
-            OrderItem = OI
-
-            # Set up relationship if not already set
-            if not hasattr(Order, 'items'):
-                Order.items = relationship(
-                    'OrderItem',
-                    back_populates='order',
-                    cascade='all, delete-orphan',
-                    lazy='selectin'
-                )
-        except ImportError:
-            logger.warning("Could not import OrderItem")
-
-    # Set up Customer relationship
-    if Customer is None:
-        try:
-            from database.models.customer import Customer as C
-            Customer = C
-            # Relationship is already defined in class attribute
-        except ImportError:
-            logger.warning("Could not import Customer")
-
-    # Try to import Supplier 
+    # Lazy import OrderItem
     try:
-        from database.models.supplier import Supplier
-        # Relationship is already defined in class attribute
+        from database.models.order_item import OrderItem as OI
+        OrderItem = OI
+
+        # Set up items relationship if not already set
+        if not hasattr(Order, 'items'):
+            Order.items = relationship(
+                'OrderItem',
+                back_populates='order',
+                cascade='all, delete-orphan',
+                lazy='selectin'
+            )
+    except ImportError:
+        logger.warning("Could not import OrderItem")
+
+    # Lazy import Customer
+    try:
+        from database.models.customer import Customer as C
+        Customer = C
+    except ImportError:
+        logger.warning("Could not import Customer")
+
+    # Lazy import Supplier
+    try:
+        from database.models.supplier import Supplier as S
+        Supplier = S
     except ImportError:
         logger.warning("Could not import Supplier")
 
-# Try to setup relationships immediately
-setup_relationships()
+    # Lazy import Sales
+    try:
+        from database.models.sales import Sales as SL
+        Sales = SL
+    except ImportError:
+        logger.warning("Could not import Sales")
+
+# Register lazy import for Order model
+register_lazy_import(
+    target_name='Order',
+    module_path='database.models.order',
+    class_name='Order'
+)

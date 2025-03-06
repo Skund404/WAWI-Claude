@@ -5,6 +5,7 @@ Centralized logging configuration for the leatherworking store management applic
 
 import logging
 import os
+import sys
 from logging.handlers import RotatingFileHandler
 from datetime import datetime
 
@@ -38,19 +39,20 @@ def setup_logging(log_dir: str = None, log_level: int = logging.INFO) -> None:
         handlers=[]  # Clear any existing handlers
     )
 
-    # Create a rotating file handler
+    # Create a rotating file handler with UTF-8 encoding
     file_handler = RotatingFileHandler(
         log_path,
         maxBytes=10 * 1024 * 1024,  # 10 MB
-        backupCount=5
+        backupCount=5,
+        encoding='utf-8'  # Explicitly set UTF-8 encoding
     )
     file_handler.setLevel(log_level)
     file_handler.setFormatter(logging.Formatter(
         '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     ))
 
-    # Create a console handler
-    console_handler = logging.StreamHandler()
+    # Create a console handler with UTF-8 support
+    console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(log_level)
     console_handler.setFormatter(logging.Formatter(
         '%(name)s - %(levelname)s - %(message)s'
@@ -90,13 +92,19 @@ def main():
     """
     setup_logging()
 
-    # Test different logging levels
+    # Test different logging levels and Unicode support
     logger = get_logger(__name__)
     logger.debug("This is a debug message")
     logger.info("This is an info message")
     logger.warning("This is a warning message")
     logger.error("This is an error message")
     logger.critical("This is a critical message")
+
+    # Test Unicode support
+    try:
+        logger.info("Testing Unicode: こんにちは (Hello) - 🚀 Rocket emoji")
+    except Exception as e:
+        print(f"Unicode logging test failed: {e}")
 
 
 if __name__ == '__main__':

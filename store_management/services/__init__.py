@@ -9,46 +9,36 @@ from utils.circular_import_resolver import CircularImportResolver
 
 # Lazy import registration for service interfaces
 CircularImportResolver.register_lazy_import(
-    'IMaterialService',
-    lambda: CircularImportResolver.lazy_import(
-        'services.interfaces.material_service',
-        'IMaterialService'
-    )
+    'IMaterialService',  # target_name
+    'services.interfaces.material_service',  # module_path
+    'IMaterialService'  # class_name
 )
 
 CircularImportResolver.register_lazy_import(
     'IOrderService',
-    lambda: CircularImportResolver.lazy_import(
-        'services.interfaces.order_service',
-        'IOrderService'
-    )
+    'services.interfaces.order_service',
+    'IOrderService'
 )
 
 CircularImportResolver.register_lazy_import(
     'IProjectService',
-    lambda: CircularImportResolver.lazy_import(
-        'services.interfaces.project_service',
-        'IProjectService'
-    )
+    'services.interfaces.project_service',
+    'IProjectService'
 )
 
 CircularImportResolver.register_lazy_import(
     'IInventoryService',
-    lambda: CircularImportResolver.lazy_import(
-        'services.interfaces.inventory_service',
-        'IInventoryService'
-    )
+    'services.interfaces.inventory_service',
+    'IInventoryService'
 )
 
 CircularImportResolver.register_lazy_import(
     'IStorageService',
-    lambda: CircularImportResolver.lazy_import(
-        'services.interfaces.storage_service',
-        'IStorageService'
-    )
+    'services.interfaces.storage_service',
+    'IStorageService'
 )
 
-# Define lazily loaded exports
+# Define lazily loaded service implementations
 MaterialService = lambda: CircularImportResolver.lazy_import(
     'services.implementations.material_service',
     'MaterialService'
@@ -68,3 +58,15 @@ OrderService = lambda: CircularImportResolver.lazy_import(
     'services.implementations.order_service',
     'OrderService'
 )
+
+StorageService = lambda: CircularImportResolver.lazy_import(
+    'services.implementations.storage_service',
+    'StorageService'
+)
+
+HardwareService = lambda: CircularImportResolver.lazy_import(
+    'services.implementations.hardware_service',
+    'HardwareService'
+)
+
+# Add any additional service imports or configurations as needed

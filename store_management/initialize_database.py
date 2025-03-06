@@ -3,11 +3,10 @@ import logging
 import os
 import sys
 from datetime import datetime
-from typing import Optional  # Added this import
-
-import sqlalchemy
-from sqlalchemy import create_engine
+from typing import Optional, List
+from sqlalchemy import inspect, text, create_engine, Column, Integer, ForeignKey
 from sqlalchemy.orm import Session, sessionmaker
+from pathlib import Path
 
 # Configure logging
 logging.basicConfig(
@@ -19,19 +18,18 @@ logger = logging.getLogger(__name__)
 
 
 # Utility function to get database path
-def get_database_path():
+def get_database_path(self=None):
     """
     Determine the path for the SQLite database.
 
     Returns:
         str: Absolute path to the database file
     """
-    try:
-        from config.paths import get_database_path
-        return get_database_path()
-    except ImportError:
-        logger.warning("Could not import get_database_path from config.paths. Using default.")
-        return os.path.abspath("store_management.db")
+    # Simple implementation to avoid circular imports
+    base_dir = Path(__file__).resolve().parent.parent
+    data_dir = base_dir / 'data'
+    os.makedirs(data_dir, exist_ok=True)
+    return str(data_dir / 'database.db')
 
 
 def import_all_models():
@@ -44,26 +42,120 @@ def import_all_models():
     from database.models import (
         base, customer, components, hardware,
         inventory, leather, material, order,
-        order_item, pattern, product,
-        project, sales, shopping_list,
+        order_item, pattern, picking_list,
+        product, project, sales, shopping_list,
         storage, supplier, transaction
     )
     logger.info("All models imported successfully")
 
 
-def initialize_database():
+def check_table_structures(engine):
+    """
+    Verify and fix database table structures to match model definitions.
+
+    Args:
+        engine: SQLAlchemy engine instance
+    """
+    inspector = inspect(engine)
+
+    # Column checks
+    column_checks = [
+        {
+            'table': 'materials',
+            'column': 'storage_id',
+            'definition': 'INTEGER REFERENCES storages(id)',
+            'added': False
+        },
+        {
+            'table': 'materials',
+            'column': 'is_deleted',
+            'definition': 'BOOLEAN DEFAULT 0',
+            'added': False
+        },
+        {
+            'table': 'materials',
+            'column': 'deleted_at',
+            'definition': 'DATETIME',
+            'added': False
+        },
+        {
+            'table': 'materials',
+            'column': 'uuid',
+            'definition': 'VARCHAR(36)',
+            'added': False
+        }
+    ]
+
+    # Check and add missing columns
+    with engine.begin() as conn:
+        for check in column_checks:
+            if check['table'] in inspector.get_table_names():
+                columns = [col['name'] for col in inspector.get_columns(check['table'])]
+                if check['column'] not in columns:
+                    try:
+                        sql = f"ALTER TABLE {check['table']} ADD COLUMN {check['column']} {check['definition']}"
+                        conn.execute(text(sql))
+                        logger.info(f"Added {check['column']} to {check['table']}")
+                        check['added'] = True
+                    except Exception as e:
+                        logger.error(f"Error adding {check['column']} to {check['table']}: {e}")
+
+    # Check if picking_lists table exists
+    if 'picking_lists' not in inspector.get_table_names():
+        logger.warning("picking_lists table not found in database")
+        try:
+            from database.models.picking_list import PickingList
+            from database.models.base import Base
+            # Create just the picking_lists table
+            PickingList.__table__.create(engine)
+            logger.info("Created picking_lists table")
+        except Exception as e:
+            logger.error(f"Error creating picking_lists table: {e}")
+
+
+def initialize_database(recreate: bool = False):
+    """
+    Initialize the database, optionally recreating it from scratch.
+
+    Args:
+        recreate: If True, drop all tables and recreate them
+
+    Returns:
+        The SQLAlchemy engine
+    """
     try:
         import_all_models()
         from database.models.base import Base
 
         db_path = get_database_path()
-        engine = create_engine(f"sqlite:///{db_path}", echo=True)  # Set echo to True to see SQL
+        logger.info(f"Using database path: {db_path}")
 
-        # Drop all tables first
-        Base.metadata.drop_all(engine)
+        # Ensure the directory exists
+        os.makedirs(os.path.dirname(db_path), exist_ok=True)
 
-        # Recreate all tables
-        Base.metadata.create_all(engine)
+        engine = create_engine(f"sqlite:///{db_path}",
+                               echo=False,
+                               connect_args={'check_same_thread': False})
+
+        if recreate:
+            logger.info("Recreating database from scratch")
+            # Drop all tables first
+            Base.metadata.drop_all(engine)
+            # Recreate all tables
+            Base.metadata.create_all(engine)
+            logger.info("Database tables dropped and recreated")
+        else:
+            # Check if tables exist first and create them if they don't
+            inspector = inspect(engine)
+            existing_tables = inspector.get_table_names()
+            logger.info(f"Existing tables: {existing_tables}")
+
+            # Create tables that don't exist yet
+            Base.metadata.create_all(engine)
+            logger.info("Created missing tables")
+
+            # Check and fix table structures
+            check_table_structures(engine)
 
         return engine
     except Exception as e:
@@ -208,14 +300,18 @@ def main():
     """
     Main function to initialize database and optionally seed with sample data.
     """
-    # Initialize database
-    initialize_database()
+    # Get environment variables
+    recreate_db = os.environ.get("RECREATE_DB", "false").lower() == "true"
+    seed_db = os.environ.get("SEED_DB", "false").lower() == "true"
+    fix_columns = os.environ.get("FIX_COLUMNS", "true").lower() == "true"
 
-    # Add sample data if the SEED_DB environment variable is set
-    if os.environ.get("SEED_DB") == "true":
+    # Initialize database
+    engine = initialize_database(recreate=recreate_db)
+
+    # Add sample data if requested
+    if seed_db:
         logger.info("Seeding database with sample data...")
         # Create a new session for adding sample data
-        engine = create_engine(f"sqlite:///{get_database_path()}", echo=False)
         SessionLocal = sessionmaker(bind=engine)
         session = SessionLocal()
 

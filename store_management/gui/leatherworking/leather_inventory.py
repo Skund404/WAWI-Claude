@@ -50,13 +50,21 @@ from gui.leatherworking.leather_dialog import LeatherDetailsDialog
 from utils.circular_import_resolver import register_lazy_import
 
 # Register the transaction classes for lazy imports
-register_lazy_import("database.models.transaction.HardwareTransaction",
-                    lambda: __import__("database.models.transaction", fromlist=["HardwareTransaction"]).HardwareTransaction)
-register_lazy_import("database.models.transaction.LeatherTransaction",
-                    lambda: __import__("database.models.transaction", fromlist=["LeatherTransaction"]).LeatherTransaction)
-register_lazy_import("database.models.transaction.MaterialTransaction",
-                    lambda: __import__("database.models.transaction", fromlist=["MaterialTransaction"]).MaterialTransaction)
-
+register_lazy_import(
+    "HardwareTransaction",
+    "database.models.transaction",
+    "HardwareTransaction"
+)
+register_lazy_import(
+    "LeatherTransaction",
+    "database.models.transaction",
+    "LeatherTransaction"
+)
+register_lazy_import(
+    "MaterialTransaction",
+    "database.models.transaction",
+    "MaterialTransaction"
+)
 # Utility imports
 from utils.validators import DataSanitizer
 from utils.notifications import StatusNotification
@@ -125,6 +133,7 @@ class LeatherInventoryView(BaseView):
 
         # Log initialization
         self._logger.info("Leather Inventory View initialized")
+
 
     def track_performance(func):
         """Decorator to track method performance with automatic logging."""

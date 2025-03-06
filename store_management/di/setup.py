@@ -90,7 +90,7 @@ def create_mock_service(interface_path):
     """
     interface_name = interface_path.split('.')[-1]
 
-    # Define a basic mock class
+    # Define a comprehensive mock class
     class MockService:
         def __init__(self):
             logger.info(f"Created mock implementation of {interface_name}")
@@ -105,6 +105,47 @@ def create_mock_service(interface_path):
 
         def get_all_projects(self):
             logger.info("Mock: get_all_projects called")
+            return []
+
+        # Implement methods for MaterialService
+        def create(self, data):
+            logger.info("Mock: create called")
+            return None
+
+        def get_by_id(self, material_id):
+            logger.info(f"Mock: get_by_id called for {material_id}")
+            return None
+
+        def update(self, material_id, updates):
+            logger.info(f"Mock: update called for {material_id}")
+            return None
+
+        def delete(self, material_id):
+            logger.info(f"Mock: delete called for {material_id}")
+            return False
+
+        def get_materials(self, material_type=None, **kwargs):
+            logger.info(f"Mock: get_materials called with type {material_type}")
+            return []
+
+        def search_materials(self, search_text, material_type=None, **kwargs):
+            logger.info(f"Mock: search_materials called with text '{search_text}'")
+            return []
+
+        def record_material_transaction(self, transaction_data):
+            logger.info("Mock: record_material_transaction called")
+            return {}
+
+        def get_material_transactions(self, material_id=None, transaction_type=None):
+            logger.info("Mock: get_material_transactions called")
+            return []
+
+        def calculate_material_cost(self, material_id, quantity):
+            logger.info(f"Mock: calculate_material_cost called for {material_id}")
+            return 0.0
+
+        def get_material_types(self):
+            logger.info("Mock: get_material_types called")
             return []
 
     return MockService
@@ -198,6 +239,7 @@ def create_lazy_registration(interface, implementation):
     return lazy_loader
 
 
+# Rest of the file remains the same as in the original implementation
 def setup_project_dependencies(container):
     """
     Set up dependency injection for project-related services and repositories.
@@ -277,16 +319,6 @@ def setup_dependency_injection():
             except Exception as service_reg_error:
                 logger.error(f"Failed to register {interface_path}: {service_reg_error}")
                 logger.error(traceback.format_exc())
-
-        # Register mock direct supplier service as a fallback
-        try:
-            logger.info("Adding mock Supplier Service registration as fallback")
-            mock_supplier_service = create_mock_service("services.interfaces.supplier_service.ISupplierService")()
-            container.register("ISupplierService", mock_supplier_service)
-            logger.info("Successfully registered mock SupplierService")
-        except Exception as e:
-            logger.error(f"Failed to register mock SupplierService: {e}")
-            logger.error(traceback.format_exc())
 
         # Setup project-specific dependencies (integrating project_service_setup.py)
         setup_project_dependencies(container)
@@ -413,48 +445,6 @@ def main():
                 logger.info(f"Successfully retrieved pattern service: {pattern_service.__class__.__name__}")
         except Exception as e:
             logger.error(f"Error testing Pattern Service: {e}")
-            logger.error(traceback.format_exc())
-
-        # Attempt to retrieve and test the Supplier Service
-        try:
-            # Try using different ways to access the service
-            logger.info("Testing supplier service resolution...")
-
-            # Method 1: By interface path
-            try:
-                supplier_service = container.get("services.interfaces.supplier_service.ISupplierService")
-                suppliers = supplier_service.get_all_suppliers()
-                logger.info(f"Method 1: Retrieved {len(suppliers)} suppliers")
-            except Exception as e:
-                logger.error(f"Method 1 failed: {e}")
-
-            # Method 2: By interface class
-            try:
-                from services.interfaces.supplier_service import ISupplierService
-                supplier_service = container.get(ISupplierService)
-                suppliers = supplier_service.get_all_suppliers()
-                logger.info(f"Method 2: Retrieved {len(suppliers)} suppliers")
-            except Exception as e:
-                logger.error(f"Method 2 failed: {e}")
-
-            # Method 3: By interface name
-            try:
-                supplier_service = container.get("ISupplierService")
-                suppliers = supplier_service.get_all_suppliers()
-                logger.info(f"Method 3: Retrieved {len(suppliers)} suppliers")
-            except Exception as e:
-                logger.error(f"Method 3 failed: {e}")
-
-            # Method 4: Direct instantiation with mock
-            try:
-                mock_supplier = create_mock_service("services.interfaces.supplier_service.ISupplierService")()
-                suppliers = mock_supplier.get_all_suppliers()
-                logger.info(f"Method 4: Retrieved {len(suppliers)} suppliers from mock instantiation")
-            except Exception as e:
-                logger.error(f"Method 4 failed: {e}")
-
-        except Exception as service_test_error:
-            logger.error(f"Error testing Supplier Service: {service_test_error}")
             logger.error(traceback.format_exc())
 
         logger.info("Dependency injection testing completed")

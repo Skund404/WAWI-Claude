@@ -222,7 +222,9 @@ class MainWindow:
         menu_bar.add_cascade(label="Help", menu=help_menu)
         help_menu.add_command(label="About", command=self._show_about)
 
-
+    def get(self, service_type):
+        """Alias for get_service to maintain compatibility."""
+        return self.get_service(service_type)
 
     def get_service(self, service_type: Type[Any]) -> Any:
         """

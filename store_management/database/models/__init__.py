@@ -10,10 +10,11 @@ import logging
 from utils.circular_import_resolver import (
     CircularImportResolver,
     register_lazy_import,
-    lazy_import
+    lazy_import,
+    resolve_lazy_relationships
 )
-from .customer import Customer
 
+# Setup logger
 logger = logging.getLogger(__name__)
 
 # Only directly import the base components that don't have dependencies
@@ -23,12 +24,6 @@ from .enums import (
     PaymentStatus, ComponentType
 )
 
-# Register lazy imports for potentially circular dependencies
-register_lazy_import("database.models.transaction.BaseTransaction", "database.models.transaction", "BaseTransaction")
-register_lazy_import("database.models.transaction.MaterialTransaction", "database.models.transaction", "MaterialTransaction")
-register_lazy_import("database.models.transaction.LeatherTransaction", "database.models.transaction", "LeatherTransaction")
-register_lazy_import("database.models.transaction.HardwareTransaction", "database.models.transaction", "HardwareTransaction")
-
 # Define initial exports for backward compatibility
 __all__ = [
     'Base', 'ModelValidationError',
@@ -36,7 +31,13 @@ __all__ = [
     'PaymentStatus', 'ComponentType'
 ]
 
-# Import new customer-related models and enums
+# Register lazy imports for potentially circular dependencies
+register_lazy_import("Transaction", "database.models.transaction", "BaseTransaction")
+register_lazy_import("MaterialTransaction", "database.models.transaction", "MaterialTransaction")
+register_lazy_import("LeatherTransaction", "database.models.transaction", "LeatherTransaction")
+register_lazy_import("HardwareTransaction", "database.models.transaction", "HardwareTransaction")
+
+# Import customer-related models and enums
 from .customer import Customer
 from .enums import (
     CustomerStatus,
@@ -44,14 +45,22 @@ from .enums import (
     CustomerSource
 )
 
-# Import all models after dependencies are registered
+# Extend initial exports
+__all__.extend([
+    'Customer',
+    'CustomerStatus',
+    'CustomerTier',
+    'CustomerSource'
+])
+
+# Import models after dependencies are registered
 from .components import Component, PatternComponent, ProjectComponent
 from .hardware import Hardware
 from .inventory import Inventory
 from .leather import Leather
 from .material import Material
-from .transaction import MaterialTransaction
-from .order import Order, OrderItem
+from .order import Order, setup_relationships as setup_order_relationships
+from .order_item import OrderItem, setup_relationships as setup_order_item_relationships
 from .part import Part
 from .pattern import Pattern
 from .product import Product
@@ -64,17 +73,30 @@ from .supplier import Supplier
 
 # Extend __all__ with additional imports
 __all__.extend([
-    'Customer',
-    'CustomerStatus',
-    'CustomerTier',
-    'CustomerSource',
     'Component', 'PatternComponent', 'ProjectComponent',
     'Hardware', 'Inventory', 'Leather', 'Material',
-    'MaterialTransaction', 'Order', 'OrderItem',
-    'Part', 'Pattern', 'Product', 'Production',
-    'Project', 'Sales', 'ShoppingList', 'ShoppingListItem',
-    'Storage', 'Supplier'
+    'Order', 'OrderItem', 'Part', 'Pattern', 'Product',
+    'Production', 'Project', 'Sales', 'ShoppingList',
+    'ShoppingListItem', 'Storage', 'Supplier'
 ])
+
+
+def initialize_models():
+    """
+    Initialize model relationships and perform any necessary setup.
+    """
+    logger.info("Initializing model relationships")
+
+    # Call setup relationships for order and order_item
+    setup_order_relationships()
+    setup_order_item_relationships()
+
+    # Resolve any lazy relationships
+    resolve_lazy_relationships()
+
+
+# Initialize models when the module is imported
+initialize_models()
 
 # Add logging to help debug import issues
 logger.debug("database.models package initialization complete")

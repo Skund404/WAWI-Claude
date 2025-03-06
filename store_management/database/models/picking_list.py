@@ -31,14 +31,14 @@ from utils.enhanced_model_validator import (
 register_class_alias('database.models.project', 'ProjectComponent', 'database.models.components', 'ProjectComponent')
 
 # Register lazy imports to resolve circular dependencies
-register_lazy_import('database.models.order', 'Order')
-register_lazy_import('database.models.product', 'Product')
-register_lazy_import('database.models.project', 'Project')
-register_lazy_import('database.models.material', 'Material')
-register_lazy_import('database.models.leather', 'Leather')
-register_lazy_import('database.models.hardware', 'Hardware')
-register_lazy_import('database.models.storage', 'Storage')
-register_lazy_import('database.models.user', 'User')
+register_lazy_import('database.models.order', 'Order', 'Order')
+register_lazy_import('database.models.product', 'Product', 'Product')
+register_lazy_import('database.models.project', 'Project', 'Project')
+register_lazy_import('database.models.material', 'Material', 'Material')
+register_lazy_import('database.models.leather', 'Leather', 'Leather')
+register_lazy_import('database.models.hardware', 'Hardware', 'Hardware')
+register_lazy_import('database.models.storage', 'Storage', 'Storage')
+# register_lazy_import('database.models.user', 'User', 'User')
 
 # Set up logger
 logger = logging.getLogger(__name__)
@@ -70,13 +70,13 @@ class PickingList(Base):
     # Foreign keys
     order_id = Column(Integer, ForeignKey("orders.id"), nullable=True)
     project_id = Column(Integer, ForeignKey("projects.id"), nullable=True)
-    assigned_to_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    # assigned_to_id = Column(Integer, ForeignKey("users.id"), nullable=True)
 
     # Relationships
     # Using simple string-based relationships to avoid circular import issues
     order = relationship("Order", backref="picking_lists")
     project = relationship("Project", backref="picking_lists")
-    assigned_to = relationship("User", backref="assigned_picking_lists")
+    # assigned_to = relationship("User", backref="assigned_picking_lists")
 
     # One-to-many relationship with items
     items = relationship(
@@ -157,6 +157,26 @@ class PickingList(Base):
         except Exception as e:
             logger.error(f"Error marking picking list as in progress: {e}")
             raise ModelValidationError(f"Cannot update picking list status: {str(e)}")
+
+    @property
+    def created_at(self):
+        """
+        Property alias for creation_date to maintain backward compatibility.
+
+        Returns:
+            datetime: The creation date of the picking list
+        """
+        return self.creation_date
+
+    @created_at.setter
+    def created_at(self, value):
+        """
+        Setter alias for creation_date to maintain backward compatibility.
+
+        Args:
+            value: datetime value to set
+        """
+        self.creation_date = value
 
     def cancel(self) -> None:
         """
@@ -258,8 +278,8 @@ class PickingListItem(Base):
     product_id = Column(Integer, ForeignKey("products.id"), nullable=True)
     material_id = Column(Integer, ForeignKey("materials.id"), nullable=True)
     leather_id = Column(Integer, ForeignKey("leathers.id"), nullable=True)
-    hardware_id = Column(Integer, ForeignKey("hardware.id"), nullable=True)
-    storage_id = Column(Integer, ForeignKey("storage.id"), nullable=True)
+    hardware_id = Column(Integer, ForeignKey("hardwares.id"), nullable=True)
+    storage_id = Column(Integer, ForeignKey("storages.id"), nullable=True)
 
     # Relationships
     # Many-to-one relationship with picking list

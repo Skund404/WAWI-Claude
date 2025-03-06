@@ -8,11 +8,10 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 from typing import Any, Dict, List, Optional, Tuple
 
-from utils.circular_import_resolver import CircularImportResolver
-
+from utils.circular_import_resolver import lazy_import, register_lazy_import
 # Use the circular import resolver to avoid import errors
-Project = CircularImportResolver.lazy_import("database.models.project", "Project")
-ProjectComponent = CircularImportResolver.lazy_import("database.models.project", "ProjectComponent")
+Project = lazy_import("database.models.project", "Project")
+ProjectComponent = lazy_import("database.models.project", "ProjectComponent")
 
 # Import services through the container/app
 from services.interfaces.project_service import IProjectService, ProjectType, SkillLevel

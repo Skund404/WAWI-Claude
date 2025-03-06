@@ -13,6 +13,8 @@ import logging
 from pathlib import Path
 from typing import Optional, Union, Dict, Any
 
+from config import ConfigurationManager
+
 # Configure basic logging
 logging.basicConfig(
     level=logging.INFO,
@@ -47,21 +49,56 @@ def _find_project_root() -> Path:
     return Path(os.path.dirname(os.path.abspath(__file__))).parent
 
 
-def get_database_path() -> str:
+def get_base_directory():
     """
-    Get the path to the SQLite database file.
+    Get the base directory for the project.
 
     Returns:
-        str: Absolute path to the database file
+        str: Absolute path to the project's base directory
     """
-    root_dir = _find_project_root()
-    db_dir = root_dir / 'data'
+    return str(_find_project_root())
 
-    # Ensure the data directory exists
-    if not db_dir.exists():
-        os.makedirs(db_dir, exist_ok=True)
 
-    return str(db_dir / 'store_management.db')
+def get_database_directory():
+    """
+    Get the directory for storing database files.
+
+    Returns:
+        str: Absolute path to the database directory
+    """
+    base_dir = _find_project_root()
+    database_dir = base_dir / 'data'
+
+    # Create the directory if it doesn't exist
+    os.makedirs(database_dir, exist_ok=True)
+
+    return str(database_dir)
+
+
+def get_database_path(self) -> str:
+    """
+    Get the full path to the database file.
+
+    Returns:
+        str: Path to the database file
+    """
+    return str(Path(self._config['data_dir']) / 'database.db')
+
+
+def get_log_directory():
+    """
+    Get the directory for storing log files.
+
+    Returns:
+        str: Absolute path to the logs directory
+    """
+    base_dir = _find_project_root()
+    log_dir = base_dir / 'logs'
+
+    # Create the directory if it doesn't exist
+    os.makedirs(log_dir, exist_ok=True)
+
+    return str(log_dir)
 
 
 def get_log_path() -> str:
@@ -71,49 +108,30 @@ def get_log_path() -> str:
     Returns:
         str: Absolute path to the log directory
     """
-    root_dir = _find_project_root()
-    log_dir = root_dir / 'logs'
-
-    # Ensure the log directory exists
-    if not log_dir.exists():
-        os.makedirs(log_dir, exist_ok=True)
-
-    return str(log_dir)
+    return get_log_directory()
 
 
-def get_backup_path() -> str:
+def get_backup_path(self) -> str:
     """
-    Get the path to the backup directory.
+    Get the full path to the backups directory.
 
     Returns:
-        str: Absolute path to the backup directory
+        str: Path to the backups directory
     """
-    root_dir = _find_project_root()
-    backup_dir = root_dir / 'backups'
-
-    # Ensure the backup directory exists
-    if not backup_dir.exists():
-        os.makedirs(backup_dir, exist_ok=True)
-
-    return str(backup_dir)
+    return self._config['backups_dir']
 
 
-# For backward compatibility
-get_backup_dir = get_backup_path
-
-
-def get_config_path() -> str:
+def get_config_path(self) -> str:
     """
-    Get the path to the configuration file.
+    Get the full path to the config directory.
 
     Returns:
-        str: Absolute path to the configuration file directory
+        str: Path to the config directory
     """
-    root_dir = _find_project_root()
-    config_dir = root_dir / 'config'
+    return str(Path(__file__).parent)
 
-    # Ensure the config directory exists
-    if not config_dir.exists():
-        os.makedirs(config_dir, exist_ok=True)
+# Standalone path functions for backward compatibility
 
-    return str(config_dir)
+
+
+
