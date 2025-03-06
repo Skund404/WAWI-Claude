@@ -34,6 +34,7 @@ from utils.enhanced_model_validator import (
 # Setup logger
 logger = logging.getLogger(__name__)
 
+
 class Customer(Base):
     """
     Comprehensive Customer model with advanced tracking and validation.
@@ -68,14 +69,16 @@ class Customer(Base):
     preferred_contact_method: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
 
     # Relationships with lazy imports and loading
-    sales: Mapped[List["Sales"]] = relationship(
-        "Sales",
+    sales: Mapped[List["Sale"]] = relationship(
+        "Sale",
         back_populates="customer",
         lazy="selectin",
         cascade="save-update, merge"
     )
-    orders: Mapped[List["Order"]] = relationship(
-        "Order",
+
+    # Relationship with Sales model (previously named Order)
+    sales_records: Mapped[List["Sales"]] = relationship(
+        "Sales",
         back_populates="customer",
         lazy="selectin",
         cascade="save-update, merge"
@@ -218,6 +221,7 @@ class Customer(Base):
             f"email='{self.email or 'N/A'}', "
             f"status={self.status})>"
         )
+
 
 # Explicitly return the Customer class for import
 __all__ = ['Customer']

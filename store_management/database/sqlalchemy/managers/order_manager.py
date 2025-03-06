@@ -1,6 +1,6 @@
 # database/sqlalchemy/managers/order_manager.py
 """
-Enhanced order manager implementing specialized order operations
+Enhanced sale manager implementing specialized sale operations
 while leveraging base manager functionality.
 """
 
@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 
 class OrderManager(BaseManager[Order]):
     """
-    Enhanced order manager implementing specialized order operations
+    Enhanced sale manager implementing specialized sale operations
     while leveraging base manager functionality.
     """
 
@@ -50,11 +50,11 @@ class OrderManager(BaseManager[Order]):
             items: List[Dict[str, Any]]
     ) -> Order:
         """
-        Create a new order with items.
+        Create a new sale with items.
 
         Args:
-            order_data (Dict[str, Any]): Dictionary containing order data
-            items (List[Dict[str, Any]]): List of dictionaries containing order item data
+            order_data (Dict[str, Any]): Dictionary containing sale data
+            items (List[Dict[str, Any]]): List of dictionaries containing sale item data
 
         Returns:
             Order: Created Order instance
@@ -63,28 +63,28 @@ class OrderManager(BaseManager[Order]):
             DatabaseError: If validation fails or database operation fails
         """
         try:
-            # Validate required order fields
+            # Validate required sale fields
             required_fields = ['supplier_id', 'order_date', 'status']
             missing_fields = [field for field in required_fields if field not in order_data]
 
             if missing_fields:
                 raise DatabaseError(
-                    f"Missing required order fields: {', '.join(missing_fields)}"
+                    f"Missing required sale fields: {', '.join(missing_fields)}"
                 )
 
             with self.session_scope() as session:
-                # Create order
+                # Create sale
                 order = Order(**order_data)
                 session.add(order)
                 session.flush()
 
-                # Add order items
+                # Add sale items
                 for item_data in items:
                     # Validate item data
                     if not all(k in item_data for k in ['item_type', 'item_id', 'quantity']):
-                        raise DatabaseError('Invalid order item data')
+                        raise DatabaseError('Invalid sale item data')
 
-                    # Create order item
+                    # Create sale item
                     order_item = OrderItem(
                         order_id=order.id,
                         **item_data
@@ -94,13 +94,13 @@ class OrderManager(BaseManager[Order]):
                 return order
 
         except Exception as e:
-            logger.error(f'Failed to create order: {str(e)}')
-            raise DatabaseError(f'Failed to create order: {str(e)}') from e
+            logger.error(f'Failed to create sale: {str(e)}')
+            raise DatabaseError(f'Failed to create sale: {str(e)}') from e
 
     @inject(MaterialService)
     def get_order_with_items(self, order_id: int) -> Optional[Order]:
         """
-        Get order with all its items.
+        Get sale with all its items.
 
         Args:
             order_id (int): Order ID
@@ -115,7 +115,7 @@ class OrderManager(BaseManager[Order]):
     @inject(MaterialService)
     def update_order_status(self, order_id: int, status: str) -> Optional[Order]:
         """
-        Update order status with proper validation.
+        Update sale status with proper validation.
 
         Args:
             order_id (int): Order ID
@@ -136,7 +136,7 @@ class OrderManager(BaseManager[Order]):
                 f"Invalid status. Must be one of: {', '.join(valid_statuses)}"
             )
 
-        # Update order with new status
+        # Update sale with new status
         return self.update(order_id, {'status': status, 'modified_at': datetime.utcnow()})
 
     @inject(MaterialService)
@@ -146,7 +146,7 @@ class OrderManager(BaseManager[Order]):
             items: List[Dict[str, Any]]
     ) -> Order:
         """
-        Add items to an existing order.
+        Add items to an existing sale.
 
         Args:
             order_id (int): Order ID
@@ -156,10 +156,10 @@ class OrderManager(BaseManager[Order]):
             Order: Updated Order instance
 
         Raises:
-            DatabaseError: If order not found or validation fails
+            DatabaseError: If sale not found or validation fails
         """
         with self.session_scope() as session:
-            # Retrieve order
+            # Retrieve sale
             order = session.get(Order, order_id)
 
             if not order:
@@ -169,9 +169,9 @@ class OrderManager(BaseManager[Order]):
             for item_data in items:
                 # Validate item data
                 if not all(k in item_data for k in ['item_type', 'item_id', 'quantity']):
-                    raise DatabaseError('Invalid order item data')
+                    raise DatabaseError('Invalid sale item data')
 
-                # Create order item
+                # Create sale item
                 order_item = OrderItem(
                     order_id=order_id,
                     **item_data
@@ -186,7 +186,7 @@ class OrderManager(BaseManager[Order]):
     @inject(MaterialService)
     def remove_order_item(self, order_id: int, item_id: int) -> bool:
         """
-        Remove an item from an order.
+        Remove an item from an sale.
 
         Args:
             order_id (int): Order ID
@@ -196,9 +196,9 @@ class OrderManager(BaseManager[Order]):
             bool: True if item was removed, False otherwise
         """
         with self.session_scope() as session:
-            # Find the specific order item
+            # Find the specific sale item
             item = (session.query(OrderItem)
-                    .filter(and_(OrderItem.order_id == order_id, OrderItem.id == item_id))
+                    .filter(and_(OrderItem.sale_id == order_id, OrderItem.id == item_id))
                     .first()
                     )
 
@@ -249,10 +249,10 @@ class OrderManager(BaseManager[Order]):
         query = (
             select(Order)
             .filter(and_(
-                Order.order_date >= start_date,
-                Order.order_date <= end_date
+                Order.sale_date >= start_date,
+                Order.sale_date <= end_date
             ))
-            .order_by(Order.order_date.desc())
+            .order_by(Order.sale_date.desc())
         )
 
         with self.session_scope() as session:
@@ -277,19 +277,19 @@ class OrderManager(BaseManager[Order]):
     @inject(MaterialService)
     def calculate_order_total(self, order_id: int) -> float:
         """
-        Calculate total value of an order.
+        Calculate total value of an sale.
 
         Args:
             order_id (int): Order ID
 
         Returns:
-            float: Total order value
+            float: Total sale value
 
         Raises:
-            DatabaseError: If order not found
+            DatabaseError: If sale not found
         """
         with self.session_scope() as session:
-            # Retrieve order
+            # Retrieve sale
             order = session.get(Order, order_id)
 
             if not order:

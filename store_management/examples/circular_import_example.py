@@ -55,7 +55,7 @@ class OrderItem(Base):
     product_id = Column(Integer, ForeignKey('products.id'), nullable=True)
     quantity = Column(Integer, default=1)
 
-    # The order relationship will be added later
+    # The sale relationship will be added later
     # The product relationship will be added later
 
 
@@ -80,19 +80,19 @@ def main():
     print("Registering relationships...")
     # Register relationships using lazy_relationship
     register_relationship(
-        Order,
+        Sale,
         'items',
-        lazy_relationship('OrderItem', back_populates='order', lazy='selectin', cascade='all, delete-orphan')
+        lazy_relationship('OrderItem', back_populates='sale', lazy='selectin', cascade='all, delete-orphan')
     )
 
     register_relationship(
-        OrderItem,
-        'order',
+        SaleItem,
+        'sale',
         lazy_relationship('Order', back_populates='items', lazy='selectin')
     )
 
     register_relationship(
-        OrderItem,
+        SaleItem,
         'product',
         lazy_relationship('Product', back_populates='order_items', lazy='selectin')
     )
@@ -108,9 +108,9 @@ def main():
     resolve_lazy_relationships()
 
     # Verify relationships were set correctly
-    print(f"Order.items relationship: {getattr(Order, 'items', None)}")
-    print(f"OrderItem.order relationship: {getattr(OrderItem, 'order', None)}")
-    print(f"OrderItem.product relationship: {getattr(OrderItem, 'product', None)}")
+    print(f"Order.items relationship: {getattr(Sale, 'items', None)}")
+    print(f"OrderItem.sale relationship: {getattr(SaleItem, 'sale', None)}")
+    print(f"OrderItem.product relationship: {getattr(SaleItem, 'product', None)}")
     print(f"Product.order_items relationship: {getattr(Product, 'order_items', None)}")
 
     # Create a simple in-memory database
@@ -125,13 +125,13 @@ def main():
         product = Product(name="Leather Wallet")
         session.add(product)
 
-        # Create an order
-        order = Order(customer_name="John Doe")
+        # Create an sale
+        order = Sale(customer_name="John Doe")
         session.add(order)
 
-        # Create an order item linking the order and product
-        order_item = OrderItem(quantity=2)
-        order_item.order = order
+        # Create an sale item linking the sale and product
+        order_item = SaleItem(quantity=2)
+        order_item.sale = order
         order_item.product = product
         session.add(order_item)
 
@@ -139,14 +139,14 @@ def main():
         session.commit()
 
         # Retrieve and verify
-        retrieved_order = session.query(Order).first()
-        print(f"Retrieved order: {retrieved_order.customer_name}")
+        retrieved_order = session.query(Sale).first()
+        print(f"Retrieved sale: {retrieved_order.customer_name}")
         print(f"Order has {len(retrieved_order.items)} items")
         print(f"First item is for product: {retrieved_order.items[0].product.name}")
 
         retrieved_product = session.query(Product).first()
         print(f"Retrieved product: {retrieved_product.name}")
-        print(f"Product appears in {len(retrieved_product.order_items)} order items")
+        print(f"Product appears in {len(retrieved_product.order_items)} sale items")
 
     print("Example completed successfully!")
 

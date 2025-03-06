@@ -271,7 +271,7 @@ class SupplierRepository:
             # Total suppliers
             total_suppliers = self.session.query(Supplier).count()
 
-            # Supplier order performance
+            # Supplier sale performance
             supplier_order_performance = (
                 self.session.query(
                     Supplier.id,

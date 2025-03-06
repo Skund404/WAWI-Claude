@@ -29,14 +29,14 @@ from di.setup import setup_dependency_injection
 # Core Models and Enums
 from database.models.material import Material
 from database.models.project import Project
-from database.models.order import Order, OrderItem
+from database.models.sale import Sale, SaleItem
 from database.models.supplier import Supplier
 from database.models.storage import Storage
 from database.models.enums import (
     MaterialType,
     ProjectType,
     SkillLevel,
-    OrderStatus,
+    SaleStatus,
     PaymentStatus,
     SupplierStatus,
     StorageLocationType
@@ -220,7 +220,7 @@ class TestUltimateIntegration:
         return {
             'material_service': dependency_container.get('IMaterialService'),
             'project_service': dependency_container.get('IProjectService'),
-            'order_service': dependency_container.get('IOrderService'),
+            'order_service': dependency_container.get('ISaleService'),
             'supplier_service': dependency_container.get('ISupplierService'),
             'storage_service': dependency_container.get('IStorageService')
         }
@@ -415,7 +415,7 @@ class TestUltimateIntegration:
         assert material.id in [m.id for m in
                                retrieved_project.materials], "Material not correctly associated with project"
         assert any(item.material_id == material.id for item in
-                   retrieved_order.order_items), "Material not correctly associated with order"
+                   retrieved_order.order_items), "Material not correctly associated with sale"
 
         # Quantity consistency checks
         assert retrieved_material.quantity >= 50.0, "Material quantity not correctly tracked"

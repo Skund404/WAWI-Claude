@@ -4,6 +4,9 @@ Enhanced Component Models with Advanced Relationship and Validation Strategies
 
 This module defines the component-related models with comprehensive validation,
 relationship management, and circular import resolution.
+
+These models implement the Component, ProjectComponent, and PatternComponent
+entities from the ER diagram.
 """
 
 import logging
@@ -37,11 +40,17 @@ logger = logging.getLogger(__name__)
 register_lazy_import('database.models.project.Project', 'database.models.project', 'Project')
 register_lazy_import('database.models.leather.Leather', 'database.models.leather', 'Leather')
 register_lazy_import('database.models.pattern.Pattern', 'database.models.pattern', 'Pattern')
+register_lazy_import('database.models.material.Material', 'database.models.material', 'Material')
+register_lazy_import('database.models.hardware.Hardware', 'database.models.hardware', 'Hardware')
+register_lazy_import('database.models.picking_list_item.PickingListItem', 'database.models.picking_list_item',
+                     'PickingListItem')
 
 
 class Component(Base):
     """
     Base Component model with core attributes and validation.
+
+    This corresponds to the Component entity in the ER diagram.
     """
     __tablename__ = 'components'
 
@@ -55,6 +64,12 @@ class Component(Base):
     dimensions = Column(String(100), nullable=True)
 
     type = Column(String(50))  # Discriminator column for inheritance
+
+    # New relationships from ER diagram
+    component_materials = relationship("ComponentMaterial", back_populates="component")
+    component_leathers = relationship("ComponentLeather", back_populates="component")
+    component_hardwares = relationship("ComponentHardware", back_populates="component")
+    component_tools = relationship("ComponentTool", back_populates="component")
 
     __mapper_args__ = {
         'polymorphic_identity': 'component',
@@ -118,6 +133,9 @@ class Component(Base):
 class ProjectComponent(Component):
     """
     Project-specific component with additional attributes and relationships.
+
+    This corresponds to the ProjectComponent entity in the ER diagram, which
+    connects Project and Component.
     """
     __tablename__ = 'project_components'
 
@@ -128,6 +146,9 @@ class ProjectComponent(Component):
     project_id = Column(Integer, ForeignKey('projects.id'), nullable=False)
     pattern_id = Column(Integer, ForeignKey('patterns.id'), nullable=True)
     leather_id = Column(Integer, ForeignKey('leathers.id'), nullable=True)
+
+    # Added to match ER diagram
+    picking_list_item_id = Column(Integer, ForeignKey('picking_list_items.id'), nullable=True)
 
     # Edge finish specifics
     edge_finish_type = Column(Enum(EdgeFinishType), nullable=True)
@@ -164,7 +185,7 @@ class ProjectComponent(Component):
     leather = relationship(
         "Leather",
         back_populates="project_components",
-        foreign_keys=[leather_id],  # Explicitly specify which column is the foreign key
+        foreign_keys=[leather_id],
         lazy='select'
     )
 
@@ -179,6 +200,13 @@ class ProjectComponent(Component):
         "Product",
         back_populates="components",
         foreign_keys=[product_id],
+        lazy='select'
+    )
+
+    # New relationship for ER diagram compliance
+    picking_list_item = relationship(
+        "PickingListItem",
+        back_populates="project_component",
         lazy='select'
     )
 
@@ -351,7 +379,157 @@ class PatternComponent(Component):
         )
 
 
+# New junction tables from ER diagram
+class ComponentMaterial(Base):
+    """
+    Junction table linking Component to Material with quantity.
+    This corresponds to the ComponentMaterial entity in the ER diagram.
+    """
+    __tablename__ = 'component_materials'
+
+    component_id = Column(Integer, ForeignKey('components.id'), primary_key=True)
+    material_id = Column(Integer, ForeignKey('materials.id'), primary_key=True)
+    quantity = Column(Float, nullable=False, default=1.0)
+
+    # Relationships
+    component = relationship("Component", back_populates="component_materials")
+    material = relationship("Material", back_populates="component_materials")
+
+    def __init__(self, component_id: int, material_id: int, quantity: float, **kwargs):
+        """
+        Initialize a ComponentMaterial instance.
+
+        Args:
+            component_id: ID of the component
+            material_id: ID of the material
+            quantity: Amount of material needed
+            **kwargs: Additional attributes
+        """
+        try:
+            kwargs.update({
+                'component_id': component_id,
+                'material_id': material_id,
+                'quantity': quantity
+            })
+            super().__init__(**kwargs)
+        except Exception as e:
+            logger.error(f"Error initializing ComponentMaterial: {e}")
+            raise ValueError(f"Failed to initialize component material: {str(e)}") from e
+
+
+class ComponentLeather(Base):
+    """
+    Junction table linking Component to Leather with quantity.
+    This corresponds to the ComponentLeather entity in the ER diagram.
+    """
+    __tablename__ = 'component_leathers'
+
+    component_id = Column(Integer, ForeignKey('components.id'), primary_key=True)
+    leather_id = Column(Integer, ForeignKey('leathers.id'), primary_key=True)
+    quantity = Column(Float, nullable=False, default=1.0)
+
+    # Relationships
+    component = relationship("Component", back_populates="component_leathers")
+    leather = relationship("Leather", back_populates="component_leathers")
+
+    def __init__(self, component_id: int, leather_id: int, quantity: float, **kwargs):
+        """
+        Initialize a ComponentLeather instance.
+
+        Args:
+            component_id: ID of the component
+            leather_id: ID of the leather
+            quantity: Amount of leather needed
+            **kwargs: Additional attributes
+        """
+        try:
+            kwargs.update({
+                'component_id': component_id,
+                'leather_id': leather_id,
+                'quantity': quantity
+            })
+            super().__init__(**kwargs)
+        except Exception as e:
+            logger.error(f"Error initializing ComponentLeather: {e}")
+            raise ValueError(f"Failed to initialize component leather: {str(e)}") from e
+
+
+class ComponentHardware(Base):
+    """
+    Junction table linking Component to Hardware with quantity.
+    This corresponds to the ComponentHardware entity in the ER diagram.
+    """
+    __tablename__ = 'component_hardwares'
+
+    component_id = Column(Integer, ForeignKey('components.id'), primary_key=True)
+    hardware_id = Column(Integer, ForeignKey('hardwares.id'), primary_key=True)
+    quantity = Column(Integer, nullable=False, default=1)
+
+    # Relationships
+    component = relationship("Component", back_populates="component_hardwares")
+    hardware = relationship("Hardware", back_populates="component_hardwares")
+
+    def __init__(self, component_id: int, hardware_id: int, quantity: int, **kwargs):
+        """
+        Initialize a ComponentHardware instance.
+
+        Args:
+            component_id: ID of the component
+            hardware_id: ID of the hardware
+            quantity: Number of hardware items needed
+            **kwargs: Additional attributes
+        """
+        try:
+            kwargs.update({
+                'component_id': component_id,
+                'hardware_id': hardware_id,
+                'quantity': quantity
+            })
+            super().__init__(**kwargs)
+        except Exception as e:
+            logger.error(f"Error initializing ComponentHardware: {e}")
+            raise ValueError(f"Failed to initialize component hardware: {str(e)}") from e
+
+
+class ComponentTool(Base):
+    """
+    Junction table linking Component to Tool.
+    This corresponds to the ComponentTool entity in the ER diagram.
+    """
+    __tablename__ = 'component_tools'
+
+    component_id = Column(Integer, ForeignKey('components.id'), primary_key=True)
+    tool_id = Column(Integer, ForeignKey('tools.id'), primary_key=True)
+
+    # Relationships
+    component = relationship("Component", back_populates="component_tools")
+    tool = relationship("Tool", back_populates="component_tools")
+
+    def __init__(self, component_id: int, tool_id: int, **kwargs):
+        """
+        Initialize a ComponentTool instance.
+
+        Args:
+            component_id: ID of the component
+            tool_id: ID of the tool
+            **kwargs: Additional attributes
+        """
+        try:
+            kwargs.update({
+                'component_id': component_id,
+                'tool_id': tool_id
+            })
+            super().__init__(**kwargs)
+        except Exception as e:
+            logger.error(f"Error initializing ComponentTool: {e}")
+            raise ValueError(f"Failed to initialize component tool: {str(e)}") from e
+
+
 # Final registration for lazy imports
 register_lazy_import('database.models.components.Component', 'database.models.components', 'Component')
 register_lazy_import('database.models.components.ProjectComponent', 'database.models.components', 'ProjectComponent')
 register_lazy_import('database.models.components.PatternComponent', 'database.models.components', 'PatternComponent')
+register_lazy_import('database.models.components.ComponentMaterial', 'database.models.components', 'ComponentMaterial')
+register_lazy_import('database.models.components.ComponentLeather', 'database.models.components', 'ComponentLeather')
+register_lazy_import('database.models.components.ComponentHardware', 'database.models.components', 'ComponentHardware')
+register_lazy_import('database.models.components.ComponentTool', 'database.models.components', 'ComponentTool')

@@ -59,7 +59,7 @@ class ProductionOrderManager(BaseManager[ProductionOrder]):
             notes: Optional[str] = None
     ) -> ProductionOrder:
         """
-        Create a new production order with pattern validation.
+        Create a new production sale with pattern validation.
 
         Args:
             pattern_id (int): Project ID to produce
@@ -88,7 +88,7 @@ class ProductionOrderManager(BaseManager[ProductionOrder]):
                         f'Active pattern with ID {pattern_id} not found'
                     )
 
-                # Create production order
+                # Create production sale
                 production_order = ProductionOrder(
                     pattern_id=pattern_id,
                     quantity=quantity,
@@ -104,8 +104,8 @@ class ProductionOrderManager(BaseManager[ProductionOrder]):
                 return production_order
 
         except SQLAlchemyError as e:
-            logger.error(f'Failed to create production order: {str(e)}')
-            raise DatabaseError(f'Failed to create production order: {str(e)}') from e
+            logger.error(f'Failed to create production sale: {str(e)}')
+            raise DatabaseError(f'Failed to create production sale: {str(e)}') from e
 
     @inject(MaterialService)
     def start_production(
@@ -114,21 +114,21 @@ class ProductionOrderManager(BaseManager[ProductionOrder]):
             operator_notes: Optional[str] = None
     ) -> ProductionOrder:
         """
-        Start a production order and reserve materials.
+        Start a production sale and reserve materials.
 
         Args:
-            order_id (int): Production order ID
+            order_id (int): Production sale ID
             operator_notes (Optional[str], optional): Optional notes from operator
 
         Returns:
             ProductionOrder: Updated ProductionOrder instance
 
         Raises:
-            DatabaseError: If order not found or cannot be started
+            DatabaseError: If sale not found or cannot be started
         """
         try:
             with self.session_scope() as session:
-                # Retrieve production order with related data
+                # Retrieve production sale with related data
                 order = (session.query(ProductionOrder)
                          .options(
                     joinedload(ProductionOrder.pattern)
@@ -140,10 +140,10 @@ class ProductionOrderManager(BaseManager[ProductionOrder]):
 
                 if not order:
                     raise DatabaseError(
-                        f'Production order {order_id} not found'
+                        f'Production sale {order_id} not found'
                     )
 
-                # Check order status
+                # Check sale status
                 if order.status != ProductionStatus.PLANNED:
                     raise DatabaseError(
                         f'Order must be in PLANNED status to start production'
@@ -152,7 +152,7 @@ class ProductionOrderManager(BaseManager[ProductionOrder]):
                 # Reserve materials
                 self._reserve_materials(session, order)
 
-                # Update order status and details
+                # Update sale status and details
                 order.status = ProductionStatus.IN_PROGRESS
                 order.start_date = datetime.now()
 
@@ -191,7 +191,7 @@ class ProductionOrderManager(BaseManager[ProductionOrder]):
                     production_order_id=order.id,
                     transaction_type=TransactionType.RESERVE,
                     quantity=-(recipe_item.quantity * order.quantity),
-                    notes=f'Reserved for production order {order.id}',
+                    notes=f'Reserved for production sale {order.id}',
                     created_at=datetime.now()
                 )
                 session.add(transaction)
@@ -203,7 +203,7 @@ class ProductionOrderManager(BaseManager[ProductionOrder]):
                     production_order_id=order.id,
                     transaction_type=TransactionType.RESERVE,
                     area_change=-(recipe_item.quantity * order.quantity),
-                    notes=f'Reserved for production order {order.id}',
+                    notes=f'Reserved for production sale {order.id}',
                     created_at=datetime.now()
                 )
                 session.add(transaction)
@@ -220,7 +220,7 @@ class ProductionOrderManager(BaseManager[ProductionOrder]):
         Record completion of a single produced item.
 
         Args:
-            order_id (int): Production order ID
+            order_id (int): Production sale ID
             serial_number (str): Unique serial number for item
             quality_check_passed (bool): Whether item passed quality check
             notes (Optional[str], optional): Optional production notes
@@ -229,19 +229,19 @@ class ProductionOrderManager(BaseManager[ProductionOrder]):
             ProducedItem: Created ProducedItem instance
 
         Raises:
-            DatabaseError: If order not found or cannot complete items
+            DatabaseError: If sale not found or cannot complete items
         """
         try:
             with self.session_scope() as session:
-                # Retrieve production order
+                # Retrieve production sale
                 order = session.get(ProductionOrder, order_id)
 
                 if not order:
                     raise DatabaseError(
-                        f'Production order {order_id} not found'
+                        f'Production sale {order_id} not found'
                     )
 
-                # Check order status
+                # Check sale status
                 if order.status != ProductionStatus.IN_PROGRESS:
                     raise DatabaseError(
                         'Order must be in progress to complete items'
@@ -259,7 +259,7 @@ class ProductionOrderManager(BaseManager[ProductionOrder]):
                 )
                 session.add(produced_item)
 
-                # Check if order is complete
+                # Check if sale is complete
                 completed_count = session.query(func.count(ProducedItem.id)).filter(
                     ProducedItem.production_order_id == order_id
                 ).scalar()
@@ -281,17 +281,17 @@ class ProductionOrderManager(BaseManager[ProductionOrder]):
         Get detailed production status including material usage.
 
         Args:
-            order_id (int): Production order ID
+            order_id (int): Production sale ID
 
         Returns:
             Dict[str, Any]: Dictionary containing status details and metrics
 
         Raises:
-            DatabaseError: If order not found
+            DatabaseError: If sale not found
         """
         try:
             with self.session_scope() as session:
-                # Retrieve production order with related data
+                # Retrieve production sale with related data
                 order = (session.query(ProductionOrder)
                          .options(
                     joinedload(ProductionOrder.produced_items),
@@ -304,7 +304,7 @@ class ProductionOrderManager(BaseManager[ProductionOrder]):
 
                 if not order:
                     raise DatabaseError(
-                        f'Production order {order_id} not found'
+                        f'Production sale {order_id} not found'
                     )
 
                 # Calculate production metrics

@@ -393,7 +393,7 @@ class InventoryManager:
 
                 transactions.extend(session.execute(query).scalars())
 
-            # Sort transactions by timestamp in descending order
+            # Sort transactions by timestamp in descending sale
             return sorted(transactions, key=lambda x: x.timestamp, reverse=True)
 
     @inject(MaterialService)

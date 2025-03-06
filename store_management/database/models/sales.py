@@ -1,100 +1,60 @@
 # database/models/sales.py
 """
-Enhanced Sales Model with Robust Relationship Configuration
+Model for sales in the leatherworking application.
 
-This module defines the Sales model with comprehensive validation,
-relationship management, and circular import resolution.
+This module defines the Sales model, which represents customer sales transactions
+in the application. Sales can include multiple sale items linked to products.
 """
 
 import logging
-from datetime import date, datetime
-from typing import Dict, Any, Optional
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Union
 
-from sqlalchemy import Date, Float, Boolean, Integer, ForeignKey, String, Text
-from sqlalchemy.orm import relationship, Mapped, mapped_column
+from sqlalchemy import DateTime, Enum, Float, ForeignKey, Integer, String, Text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.exc import SQLAlchemyError
 
 from database.models.base import Base, ModelValidationError
-from database.models.customer import Customer
-from utils.circular_import_resolver import (
-    lazy_import,
-    register_lazy_import
-)
-from utils.enhanced_model_validator import (
-    ValidationError,
-    validate_positive_number
-)
+from database.models.enums import SaleStatus, PaymentStatus
+from utils.circular_import_resolver import lazy_import, register_lazy_import
 
 # Setup logger
 logger = logging.getLogger(__name__)
 
-# Register lazy imports to resolve potential circular dependencies
-register_lazy_import('Order', 'database.models.order', 'Order')
-register_lazy_import('Product', 'database.models.product', 'Product')
+# Register lazy imports to avoid circular dependencies
+register_lazy_import('SalesItem', 'database.models.sales_item', 'SalesItem')
+register_lazy_import('Customer', 'database.models.customer', 'Customer')
+register_lazy_import('PickingList', 'database.models.picking_list', 'PickingList')
+register_lazy_import('Project', 'database.models.project', 'Project')
+
 
 class Sales(Base):
-    """
-    Enhanced Sales model with comprehensive validation and relationship management.
+    """Model representing a sales transaction in the application."""
 
-    Represents sales transactions with advanced tracking
-    and relationship configuration.
-    """
     __tablename__ = 'sales'
 
+    # Primary key
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+
+    # Foreign keys
+    customer_id: Mapped[int] = mapped_column(Integer, ForeignKey('customer.id'), nullable=False)
+
     # Sale details
-    sale_date: Mapped[date] = mapped_column(Date, default=date.today, nullable=False)
-    amount: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    total_amount: Mapped[float] = mapped_column(Float, default=0.0)
+    status: Mapped[SaleStatus] = mapped_column(Enum(SaleStatus), default=SaleStatus.QUOTE_REQUEST)
+    payment_status: Mapped[PaymentStatus] = mapped_column(Enum(PaymentStatus), default=PaymentStatus.PENDING)
 
-    # Status and payment tracking
-    is_paid: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    payment_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
-
-    # Additional sale information
+    # Additional fields
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    reference_number: Mapped[Optional[str]] = mapped_column(String(50), unique=True, nullable=True)
 
-    # Foreign keys with explicitly configured relationships
-    order_id: Mapped[Optional[int]] = mapped_column(
-        Integer,
-        ForeignKey("orders.id", ondelete="SET NULL"),
-        nullable=True
-    )
-    product_id: Mapped[Optional[int]] = mapped_column(
-        Integer,
-        ForeignKey("products.id", ondelete="SET NULL"),
-        nullable=True
-    )
-    customer_id: Mapped[Optional[int]] = mapped_column(
-        Integer,
-        ForeignKey("customers.id", ondelete="SET NULL"),
-        nullable=True
-    )
+    # Relationships will be set up by initialize_relationships
+    # These are just placeholders that will be properly defined later
+    # Don't initialize relationship objects here to avoid circular imports
 
-    # Relationships with careful configuration
-    order: Mapped[Optional["Order"]] = relationship(
-        "Order",
-        back_populates="sales",
-        lazy="selectin",
-        foreign_keys=[order_id]
-    )
-
-    product: Mapped[Optional["Product"]] = relationship(
-        "Product",
-        back_populates="sales",
-        lazy="selectin",
-        foreign_keys=[product_id]
-    )
-
-    customer: Mapped[Optional[Customer]] = relationship(
-        Customer,
-        back_populates="sales",
-        lazy="selectin",
-        foreign_keys=[customer_id]
-    )
-
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         """
-        Initialize a Sales instance with comprehensive validation.
+        Initialize the Sales instance.
 
         Args:
             **kwargs: Keyword arguments for sales attributes
@@ -103,175 +63,152 @@ class Sales(Base):
             ModelValidationError: If validation fails
         """
         try:
-            # Pre-validate input data
-            self._validate_creation(kwargs)
+            # Validate required fields
+            required_fields = ['customer_id']
+            for field in required_fields:
+                if field not in kwargs or kwargs[field] is None:
+                    raise ModelValidationError(f"Field '{field}' is required for Sales")
 
-            # Initialize base model
+            # Ensure status and payment_status are valid enum values
+            if 'status' in kwargs and isinstance(kwargs['status'], str):
+                try:
+                    kwargs['status'] = SaleStatus[kwargs['status']]
+                except KeyError:
+                    valid_statuses = ", ".join([status.name for status in SaleStatus])
+                    raise ModelValidationError(
+                        f"Invalid sale status: {kwargs['status']}. "
+                        f"Valid values are: {valid_statuses}"
+                    )
+
+            if 'payment_status' in kwargs and isinstance(kwargs['payment_status'], str):
+                try:
+                    kwargs['payment_status'] = PaymentStatus[kwargs['payment_status']]
+                except KeyError:
+                    valid_statuses = ", ".join([status.name for status in PaymentStatus])
+                    raise ModelValidationError(
+                        f"Invalid payment status: {kwargs['payment_status']}. "
+                        f"Valid values are: {valid_statuses}"
+                    )
+
+            # Call parent constructor
             super().__init__(**kwargs)
-
-            # Post-initialization validation
-            self._validate_instance()
-
-        except (ValidationError, SQLAlchemyError) as e:
-            logger.error(f"Sales initialization failed: {e}")
-            raise ModelValidationError(f"Failed to create Sales: {str(e)}") from e
-
-    @classmethod
-    def _validate_creation(cls, data: Dict[str, Any]) -> None:
-        """
-        Validate sales creation data.
-
-        Args:
-            data (Dict[str, Any]): Sales creation data to validate
-
-        Raises:
-            ValidationError: If validation fails
-        """
-        # Validate amount
-        if 'amount' in data:
-            validate_positive_number(
-                data,
-                'amount',
-                message="Sale amount must be a non-negative number"
-            )
-
-    def _validate_instance(self) -> None:
-        """
-        Perform additional validation after instance creation.
-
-        Raises:
-            ValidationError: If instance validation fails
-        """
-        # Validate payment date consistency
-        if self.is_paid and not self.payment_date:
-            raise ValidationError(
-                "Payment date is required when sale is marked as paid",
-                "payment_date"
-            )
-
-        if self.payment_date:
-            if self.payment_date < self.sale_date:
-                raise ValidationError(
-                    "Payment date cannot be earlier than sale date",
-                    "payment_date"
-                )
-
-            if self.payment_date > date.today():
-                raise ValidationError(
-                    "Payment date cannot be in the future",
-                    "payment_date"
-                )
-
-    def mark_as_paid(self, payment_date: Optional[date] = None) -> None:
-        """
-        Mark the sale as paid.
-
-        Args:
-            payment_date (Optional[date]): Date of payment. Defaults to today if not provided.
-
-        Raises:
-            ModelValidationError: If payment marking fails
-        """
-        try:
-            # Use today's date if no payment date provided
-            if payment_date is None:
-                payment_date = date.today()
-
-            # Validate payment date
-            if payment_date < self.sale_date:
-                raise ValidationError(
-                    "Payment date cannot be earlier than sale date",
-                    "payment_date"
-                )
-
-            # Update payment status
-            self.is_paid = True
-            self.payment_date = payment_date
-
-            logger.info(
-                f"Sale {self.id} marked as paid. "
-                f"Payment date: {payment_date}"
-            )
-
+            logger.debug(
+                f"Sales created: ID={self.id}, customer_id={self.customer_id}, total_amount={self.total_amount}")
         except Exception as e:
-            logger.error(f"Payment marking failed: {e}")
-            raise ModelValidationError(f"Cannot mark sale as paid: {str(e)}")
+            if not isinstance(e, ModelValidationError):
+                logger.error(f"Error creating Sales: {str(e)}")
+                raise ModelValidationError(f"Failed to create Sales: {str(e)}")
+            raise
 
-        def calculate_tax(self, tax_rate: float = 0.08) -> float:
-            """
-            Calculate tax for the sale.
+    def calculate_total(self) -> float:
+        """
+        Calculate the total sale amount based on items.
 
-            Args:
-                tax_rate (float): Tax rate as a decimal (default 8%)
+        Returns:
+            float: The total sale amount
+        """
+        # Use lazy import to avoid circular imports
+        SalesItem = lazy_import('database.models.sales_item', 'SalesItem')
 
-            Returns:
-                float: Calculated tax amount
-            """
-            try:
-                # Validate tax rate
-                validate_positive_number(
-                    {'tax_rate': tax_rate},
-                    'tax_rate',
-                    message="Tax rate must be a non-negative number"
-                )
+        if hasattr(self, 'items'):
+            total = sum(item.price * item.quantity for item in self.items)
+            self.total_amount = total
+            logger.debug(f"Calculated total for sale ID {self.id}: {self.total_amount}")
+            return total
+        return 0.0
 
-                # Calculate tax
-                tax_amount = self.amount * tax_rate
-                return round(tax_amount, 2)
+    def add_item(self, sales_item: Any) -> None:
+        """
+        Add an item to the sale and update total.
 
-            except Exception as e:
-                logger.error(f"Tax calculation failed: {e}")
-                raise ModelValidationError(f"Cannot calculate tax: {str(e)}")
+        Args:
+            sales_item: The SalesItem to add
+        """
+        if not hasattr(self, 'items'):
+            # Initialize items list if not already done
+            self.items = []
 
-        def generate_reference_number(self) -> str:
-            """
-            Generate a unique reference number for the sale.
+        if sales_item not in self.items:
+            self.items.append(sales_item)
+            self.calculate_total()
+            logger.debug(f"Added item to sale ID {self.id}: {sales_item}")
 
-            Returns:
-                str: Generated reference number
-            """
-            try:
-                # Use sale date and order of creation
-                date_part = self.sale_date.strftime("%Y%m%d")
-                id_part = str(self.id).zfill(6)
+    def remove_item(self, sales_item: Any) -> bool:
+        """
+        Remove an item from the sale and update total.
 
-                return f"SALE-{date_part}-{id_part}"
-            except Exception as e:
-                logger.error(f"Reference number generation failed: {e}")
-                raise ModelValidationError(f"Cannot generate reference number: {str(e)}")
+        Args:
+            sales_item: The SalesItem to remove
 
-        def calculate_total_with_tax(self, tax_rate: float = 0.08) -> float:
-            """
-            Calculate the total sale amount including tax.
+        Returns:
+            bool: True if item was removed, False if not found
+        """
+        if hasattr(self, 'items') and sales_item in self.items:
+            self.items.remove(sales_item)
+            self.calculate_total()
+            logger.debug(f"Removed item from sale ID {self.id}: {sales_item}")
+            return True
+        return False
 
-            Args:
-                tax_rate (float): Tax rate as a decimal (default 8%)
+    def create_picking_list(self) -> Any:
+        """
+        Create a picking list for this sale.
 
-            Returns:
-                float: Total sale amount including tax
-            """
-            try:
-                tax_amount = self.calculate_tax(tax_rate)
-                total_with_tax = self.amount + tax_amount
-                return round(total_with_tax, 2)
-            except Exception as e:
-                logger.error(f"Total with tax calculation failed: {e}")
-                raise ModelValidationError(f"Cannot calculate total with tax: {str(e)}")
+        Returns:
+            PickingList: The created picking list
+        """
+        # Import here to avoid circular imports
+        PickingList = lazy_import('database.models.picking_list', 'PickingList')
 
-        def __repr__(self) -> str:
-            """
-            Provide a comprehensive string representation of the sale.
+        if hasattr(self, 'picking_list') and self.picking_list:
+            logger.debug(f"Picking list already exists for sale ID {self.id}")
+            return self.picking_list
 
-            Returns:
-                str: Detailed sale representation
-            """
-            return (
-                f"<Sales(id={self.id}, "
-                f"amount=${self.amount}, "
-                f"sale_date={self.sale_date}, "
-                f"paid={self.is_paid}, "
-                f"customer='{self.customer.full_name() if self.customer else 'None'}')>"
-            )
+        picking_list = PickingList(sales_id=self.id)
+        if not hasattr(self, 'picking_list'):
+            self.picking_list = None
+        self.picking_list = picking_list
+        logger.debug(f"Created picking list for sale ID {self.id}")
+        return picking_list
 
-    # Register this class for lazy imports by others
-    register_lazy_import('Sales', 'database.models.sales', 'Sales')
+    def __repr__(self) -> str:
+        """String representation of the Sales."""
+        return f"Sales(id={self.id}, customer_id={self.customer_id}, total_amount={self.total_amount}, status={self.status.name})"
+
+
+def initialize_relationships() -> None:
+    """
+    Set up relationships to avoid circular imports.
+    This function is called after all models are imported.
+    """
+    logger.debug("Initializing Sales relationships")
+    try:
+        # Import models - using lazy_import to avoid issues
+        SalesItem = lazy_import('database.models.sales_item', 'SalesItem')
+        Customer = lazy_import('database.models.customer', 'Customer')
+        PickingList = lazy_import('database.models.picking_list', 'PickingList')
+        Project = lazy_import('database.models.project', 'Project')
+
+        # Set up relationships if not already done
+        if not hasattr(Sales, 'items') or Sales.items is None:
+            Sales.items = relationship("SalesItem", back_populates="sale", cascade="all, delete-orphan")
+            logger.debug("Set up Sales.items relationship")
+
+        if not hasattr(Sales, 'customer') or Sales.customer is None:
+            Sales.customer = relationship("Customer", back_populates="sales")
+            logger.debug("Set up Sales.customer relationship")
+
+        if not hasattr(Sales, 'picking_list') or Sales.picking_list is None:
+            Sales.picking_list = relationship("PickingList", back_populates="sale", uselist=False,
+                                              cascade="all, delete-orphan")
+            logger.debug("Set up Sales.picking_list relationship")
+
+        if not hasattr(Sales, 'project') or Sales.project is None:
+            Sales.project = relationship("Project", back_populates="sale", uselist=False)
+            logger.debug("Set up Sales.project relationship")
+
+        logger.info("Sales relationships initialized successfully")
+    except Exception as e:
+        logger.error(f"Error setting up Sales relationships: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())

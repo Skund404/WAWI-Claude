@@ -11,7 +11,7 @@ to prevent circular import issues.
 """
 if TYPE_CHECKING:
     from .supplier import Supplier
-    from .order_item import OrderItem
+    from .sale_item import SaleItem
 from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Enum as SQLAEnum
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from enum import Enum
@@ -33,7 +33,7 @@ class PaymentStatus(Enum):
 
 class OrderModelResolver:
     """
-    A resolver class to handle lazy loading of order-related models.
+    A resolver class to handle lazy loading of sale-related models.
     """
     _supplier_model: Optional[Any] = None
     _order_item_model: Optional[Any] = None
@@ -59,11 +59,11 @@ class OrderModelResolver:
 
     @classmethod
     def get_order_items_relationship(cls):
-        """Get the order items relationship with lazy loading."""
+        """Get the sale items relationship with lazy loading."""
         if cls._order_item_model is None:
-            from .order_item import OrderItem
-            cls._order_item_model = OrderItem
-        return relationship(cls._order_item_model, back_populates='order',
+            from .sale_item import SaleItem
+            cls._order_item_model = SaleItem
+        return relationship(cls._order_item_model, back_populates='sale',
                             cascade='all, delete-orphan', lazy='subquery')
 
 
@@ -80,7 +80,7 @@ def create_order_model(base_classes):
 
     class Order(*base_classes):
         """
-        Represents a customer order in the system.
+        Represents a customer sale in the system.
         """
         __tablename__ = 'orders'
         id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -108,7 +108,7 @@ def create_order_model(base_classes):
             Initialize an Order instance.
 
             Args:
-                order_number (str): Unique order identifier.
+                order_number (str): Unique sale identifier.
                 customer_name (Optional[str], optional): Name of the customer.
             """
             self.order_number = order_number
@@ -121,35 +121,35 @@ def create_order_model(base_classes):
         @inject(MaterialService)
         def add_item(self, order_item) -> None:
             """
-            Add an item to the order.
+            Add an item to the sale.
 
             Args:
                 order_item: OrderItem to be added.
             """
-            order_item.order = self
+            order_item.sale = self
             self.items.append(order_item)
             self.calculate_total_amount()
 
         @inject(MaterialService)
         def remove_item(self, order_item) -> None:
             """
-            Remove an item from the order.
+            Remove an item from the sale.
 
             Args:
                 order_item: OrderItem to be removed.
             """
             if order_item in self.items:
                 self.items.remove(order_item)
-                order_item.order = None
+                order_item.sale = None
                 self.calculate_total_amount()
 
         @inject(MaterialService)
         def calculate_total_amount(self) -> float:
             """
-            Calculate the total amount of the order.
+            Calculate the total amount of the sale.
 
             Returns:
-                float: Total order amount.
+                float: Total sale amount.
             """
             self.total_amount = sum(item.calculate_total_price() for item in
                                      self.items)
@@ -158,7 +158,7 @@ def create_order_model(base_classes):
         @inject(MaterialService)
         def update_status(self, new_status: OrderStatus) -> None:
             """
-            Update the order status.
+            Update the sale status.
 
             Args:
                 new_status (OrderStatus): New status to set.
@@ -169,7 +169,7 @@ def create_order_model(base_classes):
         def update_payment_status(self, new_payment_status: PaymentStatus
                                  ) -> None:
             """
-            Update the payment status of the order.
+            Update the payment status of the sale.
 
             Args:
                 new_payment_status (PaymentStatus): New payment status.
@@ -187,10 +187,10 @@ def create_order_model(base_classes):
                 include_relationships (bool, optional): Whether to include related entities.
 
             Returns:
-                Dict[str, Any]: Dictionary of order attributes.
+                Dict[str, Any]: Dictionary of sale attributes.
             """
             exclude_fields = exclude_fields or []
-            order_dict = {'id': self.id, 'order_number': self.order_number,
+            order_dict = {'id': self.id, 'sale_number': self.order_number,
                           'customer_name': self.customer_name, 'status': self.status.
                           value, 'payment_status': self.payment_status.value,
                           'total_amount': self.total_amount, 'created_at': self.
@@ -208,4 +208,4 @@ def create_order_model(base_classes):
     return Order
 
 
-Order = create_order_model((BaseModel, TimestampMixin, ValidationMixin))
+Sale = create_order_model((BaseModel, TimestampMixin, ValidationMixin))

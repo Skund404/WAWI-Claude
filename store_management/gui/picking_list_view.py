@@ -1,7 +1,7 @@
 
 
 
-# gui/order/picking_list_view.py
+# gui/sale/picking_list_view.py
 import logging
 import tkinter as tk
 from datetime import datetime
@@ -21,7 +21,7 @@ from gui.base_view import BaseView
 from services.interfaces.picking_list_service import IPickingListService
 from database.models.picking_list import PickingListStatus
 from services.interfaces.project_service import IProjectService
-from services.interfaces.order_service import IOrderService
+from services.interfaces.sale_service import ISaleService
 
 from utils.error_handler import ApplicationError, NotFoundError, ValidationError
 
@@ -45,7 +45,7 @@ class PickingListView(BaseView):
         # Services
         self.picking_list_service: Optional[IPickingListService] = None
         self.project_service: Optional[IProjectService] = None
-        self.order_service: Optional[IOrderService] = None
+        self.order_service: Optional[ISaleService] = None
 
         # UI Components
         self.lists_tree: Optional[ttk.Treeview] = None
@@ -538,7 +538,7 @@ class PickingListView(BaseView):
                 self.project_service = self.app.get_service(IProjectService)
 
             if not self.order_service:
-                self.order_service = self.app.get_service(IOrderService)
+                self.order_service = self.app.get_service(ISaleService)
 
             # Create dialog
             dialog = tk.Toplevel(self)
@@ -621,7 +621,7 @@ class PickingListView(BaseView):
             # Get orders
             orders = []
             try:
-                orders = self.order_service.get_all_orders()
+                orders = self.order_service.get_all_sales()
             except Exception as e:
                 self.logger.error(f"Error loading orders: {str(e)}")
 
@@ -693,26 +693,26 @@ class PickingListView(BaseView):
                     messagebox.showerror("Error", f"Failed to generate picking list: {str(e)}")
 
             def create_from_order():
-                """Create picking list from order."""
+                """Create picking list from sale."""
                 try:
-                    # Check if order selected
+                    # Check if sale selected
                     order_str = order_var.get()
                     if not order_str:
-                        messagebox.showerror("Error", "Please select an order")
+                        messagebox.showerror("Error", "Please select an sale")
                         return
 
-                    # Extract order ID
+                    # Extract sale ID
                     order_id = int(order_str.split(':')[0])
 
                     # Generate picking list
                     result = self.picking_list_service.generate_picking_list_from_order(order_id)
                     if result:
-                        messagebox.showinfo("Success", "Picking list generated from order successfully")
+                        messagebox.showinfo("Success", "Picking list generated from sale successfully")
                         dialog.destroy()
                         self.on_refresh()
 
                 except Exception as e:
-                    self.logger.error(f"Error generating picking list from order: {str(e)}")
+                    self.logger.error(f"Error generating picking list from sale: {str(e)}")
                     messagebox.showerror("Error", f"Failed to generate picking list: {str(e)}")
 
             # Create the buttons that were missing in the original implementation

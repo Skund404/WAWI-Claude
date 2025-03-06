@@ -1,432 +1,267 @@
+# database/models/picking_list.py
 """
-database/models/picking_list.py - SQLAlchemy model for picking lists and picking list items.
+Picking List Models
 
-This module defines the PickingList and PickingListItem models with comprehensive
-validation, relationship management, and circular import resolution.
+This module defines the PickingList and PickingListItem models which implement
+the PickingList and PickingListItem entities from the ER diagram.
 """
 
 import logging
 from datetime import datetime
-from typing import Dict, Any, Optional, List, Union
+from typing import Dict, Any, Optional, List
 
-from sqlalchemy import Column, Enum, String, Text, Boolean, Float, Integer, ForeignKey, DateTime
-from sqlalchemy.orm import relationship
+from sqlalchemy import Column, Enum, Float, ForeignKey, Integer, String, Text, DateTime
+from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.exc import SQLAlchemyError
 
 from database.models.base import Base, ModelValidationError
 from database.models.enums import PickingListStatus
-from utils.circular_import_resolver import (
-    lazy_import,
-    register_lazy_import,
-    register_relationship,
-    register_class_alias
-)
-from utils.enhanced_model_validator import (
-    ValidationError,
-    validate_not_empty,
-    validate_positive_number
-)
+from utils.circular_import_resolver import lazy_import, register_lazy_import
+from utils.enhanced_model_validator import validate_not_empty, validate_positive_number, ValidationError
 
-# Register class aliases to handle cross-module references
-register_class_alias('database.models.project', 'ProjectComponent', 'database.models.components', 'ProjectComponent')
-
-# Register lazy imports to resolve circular dependencies
-register_lazy_import('database.models.order', 'Order', 'Order')
-register_lazy_import('database.models.product', 'Product', 'Product')
-register_lazy_import('database.models.project', 'Project', 'Project')
-register_lazy_import('database.models.material', 'Material', 'Material')
-register_lazy_import('database.models.leather', 'Leather', 'Leather')
-register_lazy_import('database.models.hardware', 'Hardware', 'Hardware')
-register_lazy_import('database.models.storage', 'Storage', 'Storage')
-# register_lazy_import('database.models.user', 'User', 'User')
-
-# Set up logger
+# Setup logger
 logger = logging.getLogger(__name__)
+
+# Lazy imports
+Sales = lazy_import('database.models.sales', 'Sales')
+Component = lazy_import('database.models.components', 'Component')
+Material = lazy_import('database.models.material', 'Material')
+Leather = lazy_import('database.models.leather', 'Leather')
+Hardware = lazy_import('database.models.hardware', 'Hardware')
+ProjectComponent = lazy_import('database.models.components', 'ProjectComponent')
+
+# Register lazy imports
+register_lazy_import('database.models.sales.Sales', 'database.models.sales', 'Sales')
+register_lazy_import('database.models.components.Component', 'database.models.components', 'Component')
+register_lazy_import('database.models.material.Material', 'database.models.material', 'Material')
+register_lazy_import('database.models.leather.Leather', 'database.models.leather', 'Leather')
+register_lazy_import('database.models.hardware.Hardware', 'database.models.hardware', 'Hardware')
+register_lazy_import('database.models.components.ProjectComponent', 'database.models.components', 'ProjectComponent')
 
 
 class PickingList(Base):
     """
-    Enhanced PickingList model with comprehensive validation and relationship management.
-
-    Represents a picking list for order fulfillment with advanced tracking capabilities.
+    PickingList model representing material and hardware picking lists for sales.
+    This corresponds to the PickingList entity in the ER diagram.
     """
     __tablename__ = 'picking_lists'
 
-    # Primary key
     id = Column(Integer, primary_key=True)
-
-    # Basic information
-    name = Column(String(255), nullable=False, index=True)
-    description = Column(Text, nullable=True)
-    status = Column(Enum(PickingListStatus), default=PickingListStatus.DRAFT, nullable=False)
-    priority = Column(Integer, default=0, nullable=False)
-    notes = Column(Text, nullable=True)
-
-    # Timestamps
-    creation_date = Column(DateTime, default=datetime.utcnow, nullable=False)
-    completion_date = Column(DateTime, nullable=True)
-    last_updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
-
-    # Foreign keys
-    order_id = Column(Integer, ForeignKey("orders.id"), nullable=True)
-    project_id = Column(Integer, ForeignKey("projects.id"), nullable=True)
-    # assigned_to_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    sales_id = Column(Integer, ForeignKey('sales.id'), nullable=False)
+    status = Column(Enum(PickingListStatus), nullable=False, default=PickingListStatus.DRAFT)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    completed_at = Column(DateTime, nullable=True)
 
     # Relationships
-    # Using simple string-based relationships to avoid circular import issues
-    order = relationship("Order", backref="picking_lists")
-    project = relationship("Project", backref="picking_lists")
-    # assigned_to = relationship("User", backref="assigned_picking_lists")
+    sales = relationship("Sales", back_populates="picking_list")
+    items = relationship("PickingListItem", back_populates="picking_list", cascade="all, delete-orphan")
 
-    # One-to-many relationship with items
-    items = relationship(
-        "PickingListItem",
-        back_populates="picking_list",
-        cascade="all, delete-orphan",
-        lazy="selectin"
-    )
-
-    def __init__(self, **kwargs):
+    def __init__(self, sales_id: int, status: PickingListStatus = PickingListStatus.DRAFT, **kwargs):
         """
-        Initialize a PickingList instance with comprehensive validation.
+        Initialize a PickingList instance.
 
         Args:
-            **kwargs: Keyword arguments for picking list attributes
-
-        Raises:
-            ModelValidationError: If validation fails
+            sales_id: ID of the sales record
+            status: Picking list status
+            **kwargs: Additional attributes
         """
         try:
-            # Validate required fields
-            if 'name' not in kwargs or not kwargs['name']:
-                raise ValidationError("Picking list name is required", "name")
+            # Prepare data
+            kwargs.update({
+                'sales_id': sales_id,
+                'status': status,
+                'created_at': datetime.utcnow()
+            })
 
-            # Validate status if provided
-            if 'status' in kwargs and kwargs['status'] is not None:
-                if not isinstance(kwargs['status'], PickingListStatus):
-                    if isinstance(kwargs['status'], str):
-                        try:
-                            kwargs['status'] = PickingListStatus[kwargs['status']]
-                        except KeyError:
-                            raise ValidationError(f"Invalid status value: {kwargs['status']}", "status")
-                    else:
-                        raise ValidationError(f"Invalid status type: {type(kwargs['status'])}", "status")
+            # Validate
+            self._validate_creation(kwargs)
 
-            # Initialize base model
+            # Initialize
             super().__init__(**kwargs)
-
-            logger.debug(f"Created PickingList: {self.name} with ID {self.id}")
 
         except (ValidationError, SQLAlchemyError) as e:
             logger.error(f"PickingList initialization failed: {e}")
-            raise ModelValidationError(f"Failed to create PickingList: {str(e)}") from e
+            raise ModelValidationError(f"Failed to create picking list: {str(e)}") from e
+
+    @classmethod
+    def _validate_creation(cls, data: Dict[str, Any]) -> None:
+        """
+        Validate picking list creation data.
+
+        Args:
+            data: Data to validate
+
+        Raises:
+            ValidationError: If validation fails
+        """
+        # Validate required fields
+        validate_not_empty(data, 'sales_id', 'Sales ID is required')
 
     def mark_as_completed(self) -> None:
         """
-        Mark the picking list as completed with validation.
-
-        Sets the status to COMPLETED and records the completion date.
-
-        Raises:
-            ModelValidationError: If all items are not picked
+        Mark the picking list as completed.
         """
         try:
-            # Validate all items are picked
-            if not self.all_items_picked():
-                raise ModelValidationError("Cannot complete picking list with unpicked items")
-
-            # Update status and completion date
             self.status = PickingListStatus.COMPLETED
-            self.completion_date = datetime.utcnow()
-
+            self.completed_at = datetime.utcnow()
             logger.info(f"PickingList {self.id} marked as completed")
-
         except Exception as e:
             logger.error(f"Error marking picking list as completed: {e}")
-            raise ModelValidationError(f"Cannot complete picking list: {str(e)}")
-
-    def mark_as_in_progress(self) -> None:
-        """
-        Mark the picking list as in progress.
-
-        Updates the status to IN_PROGRESS.
-        """
-        try:
-            self.status = PickingListStatus.IN_PROGRESS
-            logger.info(f"PickingList {self.id} marked as in progress")
-        except Exception as e:
-            logger.error(f"Error marking picking list as in progress: {e}")
-            raise ModelValidationError(f"Cannot update picking list status: {str(e)}")
-
-    @property
-    def created_at(self):
-        """
-        Property alias for creation_date to maintain backward compatibility.
-
-        Returns:
-            datetime: The creation date of the picking list
-        """
-        return self.creation_date
-
-    @created_at.setter
-    def created_at(self, value):
-        """
-        Setter alias for creation_date to maintain backward compatibility.
-
-        Args:
-            value: datetime value to set
-        """
-        self.creation_date = value
-
-    def cancel(self) -> None:
-        """
-        Cancel the picking list.
-
-        Updates the status to CANCELLED.
-        """
-        try:
-            self.status = PickingListStatus.CANCELLED
-            logger.info(f"PickingList {self.id} cancelled")
-        except Exception as e:
-            logger.error(f"Error cancelling picking list: {e}")
-            raise ModelValidationError(f"Cannot cancel picking list: {str(e)}")
-
-    def all_items_picked(self) -> bool:
-        """
-        Check if all items in the picking list have been picked.
-
-        Returns:
-            bool: True if all items are picked, False otherwise
-        """
-        if not self.items:
-            return False
-
-        return all(item.picked for item in self.items)
-
-    def get_completion_percentage(self) -> float:
-        """
-        Calculate the completion percentage of the picking list.
-
-        Returns:
-            float: Percentage of items picked (0-100)
-        """
-        if not self.items:
-            return 0.0
-
-        total_items = len(self.items)
-        picked_items = sum(1 for item in self.items if item.picked)
-
-        return (picked_items / total_items) * 100.0
-
-    def generate_picking_code(self) -> str:
-        """
-        Generate a unique picking list code.
-
-        Returns:
-            str: Generated picking list code
-        """
-        # Use creation date and ID to create unique code
-        date_part = self.creation_date.strftime('%Y%m%d')
-
-        # Take first 3 letters of name (uppercase)
-        name_part = ''.join(c for c in self.name if c.isalnum())[:3].upper()
-
-        # Format ID with leading zeros
-        id_part = str(self.id).zfill(4)
-
-        return f"PL-{name_part}-{date_part}-{id_part}"
+            raise ModelValidationError(f"Failed to update picking list status: {str(e)}") from e
 
     def __repr__(self) -> str:
-        """
-        String representation of the picking list.
-
-        Returns:
-            str: Descriptive string of the picking list
-        """
-        return (
-            f"<PickingList(id={self.id}, "
-            f"name='{self.name}', "
-            f"status={self.status.name if self.status else 'None'}, "
-            f"items={len(self.items) if self.items else 0})>"
-        )
+        """String representation of the picking list."""
+        return f"<PickingList(id={self.id}, sales_id={self.sales_id}, status={self.status})>"
 
 
 class PickingListItem(Base):
     """
-    Enhanced PickingListItem model with comprehensive validation and relationship management.
-
-    Represents an individual item in a picking list with detailed tracking.
+    PickingListItem model representing an item in a picking list.
+    This corresponds to the PickingListItem entity in the ER diagram.
     """
     __tablename__ = 'picking_list_items'
 
-    # Primary key
     id = Column(Integer, primary_key=True)
+    picking_list_id = Column(Integer, ForeignKey('picking_lists.id'), nullable=False)
 
-    # Basic information
-    quantity = Column(Float, default=1.0, nullable=False)
-    picked = Column(Boolean, default=False, nullable=False)
-    picked_date = Column(DateTime, nullable=True)
-    notes = Column(Text, nullable=True)
-    location_info = Column(String(255), nullable=True)
+    # References to different item types - only one should be set
+    component_id = Column(Integer, ForeignKey('components.id'), nullable=True)
+    material_id = Column(Integer, ForeignKey('materials.id'), nullable=True)
+    leather_id = Column(Integer, ForeignKey('leathers.id'), nullable=True)
+    hardware_id = Column(Integer, ForeignKey('hardwares.id'), nullable=True)
 
-    # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
-
-    # Foreign keys
-    picking_list_id = Column(Integer, ForeignKey("picking_lists.id"), nullable=False)
-    product_id = Column(Integer, ForeignKey("products.id"), nullable=True)
-    material_id = Column(Integer, ForeignKey("materials.id"), nullable=True)
-    leather_id = Column(Integer, ForeignKey("leathers.id"), nullable=True)
-    hardware_id = Column(Integer, ForeignKey("hardwares.id"), nullable=True)
-    storage_id = Column(Integer, ForeignKey("storages.id"), nullable=True)
+    # Quantities
+    quantity_ordered = Column(Integer, nullable=False, default=0)
+    quantity_picked = Column(Integer, nullable=False, default=0)
 
     # Relationships
-    # Many-to-one relationship with picking list
     picking_list = relationship("PickingList", back_populates="items")
+    component = relationship("Component", foreign_keys=[component_id])
+    material = relationship("Material", foreign_keys=[material_id])
+    leather = relationship("Leather", foreign_keys=[leather_id])
+    hardware = relationship("Hardware", foreign_keys=[hardware_id])
+    project_component = relationship("ProjectComponent", back_populates="picking_list_item")
 
-    # Using simple string-based relationships to avoid circular import issues
-    product = relationship("Product")
-    material = relationship("Material")
-    leather = relationship("Leather")
-    hardware = relationship("Hardware")
-    storage = relationship("Storage")
-
-    def __init__(self, **kwargs):
+    def __init__(self, picking_list_id: int, quantity_ordered: int,
+                 component_id: Optional[int] = None, material_id: Optional[int] = None,
+                 leather_id: Optional[int] = None, hardware_id: Optional[int] = None, **kwargs):
         """
-        Initialize a PickingListItem instance with comprehensive validation.
+        Initialize a PickingListItem instance.
 
         Args:
-            **kwargs: Keyword arguments for picking list item attributes
-
-        Raises:
-            ModelValidationError: If validation fails
+            picking_list_id: ID of the picking list
+            quantity_ordered: Quantity to pick
+            component_id: Optional ID of the component
+            material_id: Optional ID of the material
+            leather_id: Optional ID of the leather
+            hardware_id: Optional ID of the hardware
+            **kwargs: Additional attributes
         """
         try:
-            # Validate required fields
-            if 'picking_list_id' not in kwargs:
-                raise ValidationError("Picking list ID is required", "picking_list_id")
+            # Prepare data
+            kwargs.update({
+                'picking_list_id': picking_list_id,
+                'quantity_ordered': quantity_ordered,
+                'quantity_picked': 0,  # Initially nothing is picked
+                'component_id': component_id,
+                'material_id': material_id,
+                'leather_id': leather_id,
+                'hardware_id': hardware_id
+            })
 
-            # Validate quantity
-            if 'quantity' in kwargs and kwargs['quantity'] is not None:
-                if float(kwargs['quantity']) <= 0:
-                    raise ValidationError("Quantity must be positive", "quantity")
+            # Validate
+            self._validate_creation(kwargs)
 
-            # Ensure at least one item reference is provided
-            if not any(key in kwargs for key in ['product_id', 'material_id', 'leather_id', 'hardware_id']):
-                raise ValidationError(
-                    "At least one of product_id, material_id, leather_id, or hardware_id must be specified",
-                    "item_reference"
-                )
-
-            # Initialize base model
+            # Initialize
             super().__init__(**kwargs)
-
-            logger.debug(f"Created PickingListItem for list ID {self.picking_list_id}")
 
         except (ValidationError, SQLAlchemyError) as e:
             logger.error(f"PickingListItem initialization failed: {e}")
-            raise ModelValidationError(f"Failed to create PickingListItem: {str(e)}") from e
+            raise ModelValidationError(f"Failed to create picking list item: {str(e)}") from e
 
-    def mark_as_picked(self):
+    @classmethod
+    def _validate_creation(cls, data: Dict[str, Any]) -> None:
         """
-        Mark the item as picked.
+        Validate picking list item creation data.
 
-        Sets the picked flag to True and records the picked date.
+        Args:
+            data: Data to validate
+
+        Raises:
+            ValidationError: If validation fails
+        """
+        # Validate required fields
+        validate_not_empty(data, 'picking_list_id', 'Picking list ID is required')
+        validate_not_empty(data, 'quantity_ordered', 'Quantity ordered is required')
+
+        # Validate quantity
+        validate_positive_number(data, 'quantity_ordered', allow_zero=False,
+                                 message="Quantity ordered must be positive")
+
+        # Validate that at least one item type is specified
+        if not any([data.get('component_id'), data.get('material_id'),
+                    data.get('leather_id'), data.get('hardware_id')]):
+            raise ValidationError(
+                "At least one item type (component, material, leather, or hardware) must be specified")
+
+    def update_picked_quantity(self, quantity: int) -> None:
+        """
+        Update the quantity picked.
+
+        Args:
+            quantity: New picked quantity
+
+        Raises:
+            ModelValidationError: If quantity is invalid
         """
         try:
-            self.picked = True
-            self.picked_date = datetime.utcnow()
-            logger.info(f"PickingListItem {self.id} marked as picked")
+            # Validate
+            if quantity < 0:
+                raise ValidationError("Picked quantity cannot be negative")
+
+            if quantity > self.quantity_ordered:
+                raise ValidationError("Picked quantity cannot exceed ordered quantity")
+
+            # Update
+            self.quantity_picked = quantity
+
+            logger.info(f"PickingListItem {self.id} picked quantity updated to {self.quantity_picked}")
+
         except Exception as e:
-            logger.error(f"Error marking item as picked: {e}")
-            raise ModelValidationError(f"Cannot mark item as picked: {str(e)}")
+            logger.error(f"Error updating picked quantity: {e}")
+            raise ModelValidationError(f"Failed to update picked quantity: {str(e)}") from e
 
-    def reset_picked_status(self):
+    def is_fully_picked(self) -> bool:
         """
-        Reset the picked status of the item.
-
-        Clears the picked flag and picked date.
-        """
-        try:
-            self.picked = False
-            self.picked_date = None
-            logger.info(f"PickingListItem {self.id} picking status reset")
-        except Exception as e:
-            logger.error(f"Error resetting picked status: {e}")
-            raise ModelValidationError(f"Cannot reset picked status: {str(e)}")
-
-    def get_item_name(self) -> str:
-        """
-        Get the name of the item based on its reference type.
+        Check if the item is fully picked.
 
         Returns:
-            str: Name of the referenced item or 'Unknown'
+            bool: True if quantity_picked equals quantity_ordered
         """
-        if self.product_id and hasattr(self, 'product') and self.product:
-            return f"Product: {self.product.name}"
-        elif self.material_id and hasattr(self, 'material') and self.material:
-            return f"Material: {self.material.name}"
-        elif self.leather_id and hasattr(self, 'leather') and self.leather:
-            return f"Leather: {self.leather.name}"
-        elif self.hardware_id and hasattr(self, 'hardware') and self.hardware:
-            return f"Hardware: {self.hardware.name}"
-        return "Unknown Item"
-
-    def get_item_code(self) -> str:
-        """
-        Generate a unique item code for the picking list item.
-
-        Returns:
-            str: Generated item code
-        """
-        # Determine item type
-        item_type = "ITEM"
-        item_id = "0000"
-
-        if self.product_id:
-            item_type = "PROD"
-            item_id = str(self.product_id).zfill(4)
-        elif self.material_id:
-            item_type = "MATL"
-            item_id = str(self.material_id).zfill(4)
-        elif self.leather_id:
-            item_type = "LTHR"
-            item_id = str(self.leather_id).zfill(4)
-        elif self.hardware_id:
-            item_type = "HDWR"
-            item_id = str(self.hardware_id).zfill(4)
-
-        # Format item code with picking list ID and item ID
-        return f"{item_type}-{self.picking_list_id:04d}-{item_id}-{self.id:04d}"
+        return self.quantity_picked >= self.quantity_ordered
 
     def __repr__(self) -> str:
-        """
-        String representation of the picking list item.
+        """String representation of the picking list item."""
+        return f"<PickingListItem(id={self.id}, picking_list_id={self.picking_list_id}, ordered={self.quantity_ordered}, picked={self.quantity_picked})>"
 
-        Returns:
-            str: Descriptive string of the picking list item
-        """
-        item_type = "Unknown"
-        item_id = None
 
-        if self.product_id:
-            item_type = "Product"
-            item_id = self.product_id
-        elif self.material_id:
-            item_type = "Material"
-            item_id = self.material_id
-        elif self.leather_id:
-            item_type = "Leather"
-            item_id = self.leather_id
-        elif self.hardware_id:
-            item_type = "Hardware"
-            item_id = self.hardware_id
+# Initialize relationships function
+def initialize_relationships():
+    """
+    Initialize relationships after all models are loaded.
+    """
+    try:
+        logger.info("Initializing PickingList model relationships")
 
-        return (
-            f"<PickingListItem(id={self.id}, "
-            f"type={item_type}, "
-            f"item_id={item_id}, "
-            f"picked={self.picked}, "
-            f"quantity={self.quantity})>"
-        )
+        # Import necessary models directly to avoid circular import issues
+        from database.models.sales import Sales
+        from database.models.components import Component, ProjectComponent
+
+        logger.info("PickingList relationships initialized successfully")
+    except Exception as e:
+        logger.error(f"Error initializing picking list relationships: {e}")
+
+
+# Final registration
+register_lazy_import('database.models.picking_list.PickingList', 'database.models.picking_list', 'PickingList')
+register_lazy_import('database.models.picking_list.PickingListItem', 'database.models.picking_list', 'PickingListItem')

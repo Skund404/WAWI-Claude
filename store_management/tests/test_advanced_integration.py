@@ -110,7 +110,7 @@ class TestAdvancedLeatherworkingIntegration:
         """
         Retrieve Order Service for testing
         """
-        return dependency_container.get('IOrderService')
+        return dependency_container.get('ISaleService')
 
     @pytest.fixture(scope='function')
     def supplier_service(self, dependency_container):
@@ -343,7 +343,7 @@ class TestAdvancedLeatherworkingIntegration:
 
         # 6. Workflow Progression Tracking
         for order in orders:
-            # Simulate order progression
+            # Simulate sale progression
             order_service.update_status(
                 order.id,
                 random.choice(['PROCESSING', 'SHIPPED', 'DELIVERED'])

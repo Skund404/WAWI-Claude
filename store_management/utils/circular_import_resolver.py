@@ -8,26 +8,118 @@ for SQLAlchemy models with complex relationships.
 """
 
 import logging
-import functools
 import importlib
 import inspect
+import sys
 from types import ModuleType
-from typing import Any, Callable, Dict, List, Optional, Type, TypeVar, Union, cast, get_type_hints
+from typing import Any, Callable, Dict, List, Optional, Type, TypeVar, Union, cast
+
+# Setup logger
+logger = logging.getLogger(__name__)
 
 # Type definition for relationship configuration
 T = TypeVar('T')
 RelationshipCallback = Callable[[], Any]
 
-# Setup logger
-logger = logging.getLogger(__name__)
-
 # Global registries
 _lazy_imports: Dict[str, Dict[str, str]] = {}
-_relationship_registry: Dict[str, Dict[str, RelationshipCallback]] = {}
 _resolved_imports: Dict[str, Any] = {}
+_relationship_registry: Dict[str, Dict[str, RelationshipCallback]] = {}
 _module_aliases: Dict[str, str] = {}
 _class_aliases: Dict[str, Dict[str, tuple]] = {}
 _registered_paths: set = set()
+
+# First, try to import from SQLAlchemy directly
+try:
+    from sqlalchemy import Boolean, Column, DateTime, Enum, Float, ForeignKey, Integer, String, Text, MetaData
+    from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+
+    HAS_SQLALCHEMY = True
+except ImportError:
+    # Create dummy types if SQLAlchemy is not available
+    HAS_SQLALCHEMY = False
+
+
+    # These types will be used if SQLAlchemy isn't installed
+    class DummyType:
+        def __init__(self, *args, **kwargs):
+            pass
+
+
+    Boolean = DummyType
+    Column = DummyType
+    DateTime = DummyType
+    Enum = DummyType
+    Float = DummyType
+    ForeignKey = DummyType
+    Integer = DummyType
+    String = DummyType
+    Text = DummyType
+    MetaData = DummyType
+
+
+    class DeclarativeBase:
+        pass
+
+
+    class Mapped:
+        pass
+
+
+    def mapped_column(*args, **kwargs):
+        pass
+
+
+    def relationship(*args, **kwargs):
+        pass
+
+# Make these available to sys.modules to help with imports
+sys.modules['sqlalchemy.Integer'] = Integer
+sys.modules['sqlalchemy.String'] = String
+sys.modules['sqlalchemy.Boolean'] = Boolean
+sys.modules['sqlalchemy.Float'] = Float
+sys.modules['sqlalchemy.DateTime'] = DateTime
+sys.modules['sqlalchemy.ForeignKey'] = ForeignKey
+sys.modules['sqlalchemy.Column'] = Column
+sys.modules['sqlalchemy.Text'] = Text
+sys.modules['sqlalchemy.Enum'] = Enum
+sys.modules['sqlalchemy.MetaData'] = MetaData
+sys.modules['sqlalchemy.orm.DeclarativeBase'] = DeclarativeBase
+sys.modules['sqlalchemy.orm.Mapped'] = Mapped
+sys.modules['sqlalchemy.orm.mapped_column'] = mapped_column
+sys.modules['sqlalchemy.orm.relationship'] = relationship
+
+# Export all SQLAlchemy types at module level
+__all__ = [
+    'Boolean', 'Column', 'DateTime', 'Enum', 'Float', 'ForeignKey',
+    'Integer', 'MetaData', 'String', 'Text', 'DeclarativeBase',
+    'Mapped', 'mapped_column', 'relationship', 'HAS_SQLALCHEMY',
+    'register_module_alias', 'register_class_alias', 'register_lazy_import',
+    'resolve_lazy_import', 'lazy_import', 'register_relationship',
+    'resolve_relationship', 'resolve_lazy_relationships', 'CircularImportResolver',
+    'sql_types'
+]
+
+# Create a centralized dictionary for SQL types for easy reference
+sql_types = {
+    'Integer': Integer,
+    'String': String,
+    'Boolean': Boolean,
+    'Float': Float,
+    'DateTime': DateTime,
+    'ForeignKey': ForeignKey,
+    'MetaData': MetaData,
+    'Column': Column,
+    'Text': Text,
+    'Enum': Enum,
+    'DeclarativeBase': DeclarativeBase,
+    'Mapped': Mapped,
+    'mapped_column': mapped_column,
+    'relationship': relationship
+}
+
+# Make all types available at the global level for direct imports from models
+globals().update(sql_types)
 
 
 def register_module_alias(alias_path: str, actual_path: str) -> None:
@@ -135,7 +227,14 @@ def get_class(module_path: str, class_name: str) -> Type:
     Raises:
         ImportError: If module or class cannot be imported
     """
-    global _class_aliases
+    global _class_aliases, sql_types
+
+    # Direct SQLAlchemy type handling - check current module globals first
+    if module_path == 'sqlalchemy' and class_name in sql_types:
+        return sql_types[class_name]
+
+    if module_path == 'sqlalchemy.orm' and class_name in ['DeclarativeBase', 'Mapped', 'mapped_column', 'relationship']:
+        return sql_types[class_name]
 
     try:
         # Check for class alias
@@ -151,13 +250,13 @@ def get_class(module_path: str, class_name: str) -> Type:
                 logger.error(f"Failed to import aliased class {actual_module_path}.{actual_class_name}: {e}")
                 # Continue with standard import attempt
 
-        # Special case handling for OrderItem
-        if class_name == "OrderItem" and module_path == "database.models.order":
+        # Special case handling for SaleItem
+        if class_name == "SaleItem" and module_path == "database.models.sale":
             try:
-                # First try to import from dedicated order_item module
-                order_item_module = get_module("database.models.order_item")
-                if hasattr(order_item_module, "OrderItem"):
-                    return getattr(order_item_module, "OrderItem")
+                # First try to import from dedicated sale_item module
+                sale_item_module = get_module("database.models.sales_item")
+                if hasattr(sale_item_module, "SalesItem"):
+                    return getattr(sale_item_module, "SalesItem")
             except ImportError:
                 pass
 
@@ -196,7 +295,11 @@ def resolve_lazy_import(target_name: str) -> Any:
     Raises:
         ImportError: If the lazy import cannot be resolved
     """
-    global _lazy_imports, _resolved_imports
+    global _lazy_imports, _resolved_imports, sql_types
+
+    # Special case for SQLAlchemy types - check first in this module
+    if target_name in sql_types:
+        return sql_types[target_name]
 
     if target_name in _resolved_imports:
         return _resolved_imports[target_name]
@@ -209,6 +312,18 @@ def resolve_lazy_import(target_name: str) -> Any:
         import_info = _lazy_imports[target_name]
         module_path = import_info['module_path']
         class_name = import_info['class_name']
+
+        # Special handling for SQLAlchemy imports
+        if module_path == 'sqlalchemy' and class_name in sql_types:
+            resolved = sql_types[class_name]
+            _resolved_imports[target_name] = resolved
+            return resolved
+
+        if module_path == 'sqlalchemy.orm' and class_name in ['DeclarativeBase', 'Mapped', 'mapped_column',
+                                                              'relationship']:
+            resolved = sql_types[class_name]
+            _resolved_imports[target_name] = resolved
+            return resolved
 
         # Import the module
         module = importlib.import_module(module_path)
@@ -239,6 +354,30 @@ def lazy_import(module_path: str, class_name: Optional[str] = None) -> Any:
         The imported module or class
     """
     try:
+        # Handle SQLAlchemy types directly from this module
+        if module_path == 'sqlalchemy':
+            if not class_name:
+                # Return a mock SQLAlchemy module with our types
+                mock_sqlalchemy = type('MockSQLAlchemy', (), {})()
+                for name, value in sql_types.items():
+                    setattr(mock_sqlalchemy, name, value)
+                return mock_sqlalchemy
+
+            if class_name in sql_types:
+                return sql_types[class_name]
+
+        elif module_path == 'sqlalchemy.orm':
+            if not class_name:
+                # Return a mock SQLAlchemy.orm module with our types
+                mock_orm = type('MockORMModule', (), {})()
+                for name, value in sql_types.items():
+                    if name in ['DeclarativeBase', 'Mapped', 'mapped_column', 'relationship']:
+                        setattr(mock_orm, name, value)
+                return mock_orm
+
+            if class_name in ['DeclarativeBase', 'Mapped', 'mapped_column', 'relationship']:
+                return sql_types[class_name]
+
         # Import the module
         module = get_module(module_path)
 
@@ -251,11 +390,11 @@ def lazy_import(module_path: str, class_name: Optional[str] = None) -> Any:
             return getattr(module, class_name)
 
         # Special case handling
-        if class_name == "OrderItem" and module_path == "database.models.order":
+        if class_name == "SaleItem" and module_path == "database.models.sale":
             try:
-                order_item_module = get_module("database.models.order_item")
-                if hasattr(order_item_module, "OrderItem"):
-                    return getattr(order_item_module, "OrderItem")
+                sale_item_module = get_module("database.models.sale_item")
+                if hasattr(sale_item_module, "SaleItem"):
+                    return getattr(sale_item_module, "SaleItem")
             except ImportError:
                 pass
 
@@ -335,8 +474,6 @@ def resolve_lazy_relationships() -> None:
     """
     global _relationship_registry
 
-    from sqlalchemy.orm import relationship
-
     resolved_count = 0
     failed_count = 0
 
@@ -370,7 +507,7 @@ def resolve_lazy_relationships() -> None:
                     failed_count += 1
                     logger.error(f"Failed to resolve lazy relationship {owner_key}.{rel_name}: {e}")
         except Exception as e:
-            logger.error(f"Error resolving lazy import {owner_key}.None: {e}")
+            logger.error(f"Error resolving lazy import {owner_key}: {e}")
             failed_count += len(relationships)
 
     logger.info(f"Resolved {resolved_count} lazy relationships, {failed_count} failed")
@@ -390,8 +527,8 @@ def lazy_relationship(model_path: str, **kwargs) -> RelationshipCallback:
     """
 
     def callback():
-        from sqlalchemy.orm import relationship
         target = lazy_import(model_path)
+        # Use the relationship function imported at module level
         return relationship(target, **kwargs)
 
     return callback
@@ -399,6 +536,9 @@ def lazy_relationship(model_path: str, **kwargs) -> RelationshipCallback:
 
 class CircularImportResolver:
     """Class-based interface for resolving circular imports."""
+
+    # SQLAlchemy types dict for convenient access
+    sqlalchemy_types = sql_types
 
     @staticmethod
     def reset() -> None:
@@ -485,12 +625,19 @@ class CircularImportResolver:
         """Get a class from a module, handling special cases."""
         return get_class(module_path, class_name)
 
+    @staticmethod
+    def get_sqlalchemy_type(type_name: str) -> Any:
+        """Get a SQLAlchemy type by name."""
+        if type_name in CircularImportResolver.sqlalchemy_types:
+            return CircularImportResolver.sqlalchemy_types[type_name]
+        raise ValueError(f"Unknown SQLAlchemy type: {type_name}")
+
 
 # Register common aliases to handle model hierarchies
-register_module_alias('database.models.order.Order', 'database.models.order')
-register_module_alias('database.models.order.OrderItem', 'database.models.order_item')
-register_module_alias('database.models.order_item.Order', 'database.models.order')
-register_module_alias('database.models.order_item.OrderItem', 'database.models.order_item')
+register_module_alias('database.models.sale.Sales', 'database.models.sales')
+register_module_alias('database.models.sale.SalesItem', 'database.models.sales_item')
+register_module_alias('database.models.sales_item.Sales', 'database.models.sales')
+register_module_alias('database.models.sales_item.SalesItem', 'database.models.sales_item')
 
 # Register special case for ProjectComponent being in the components module, not project module
 register_class_alias('database.models.project', 'ProjectComponent', 'database.models.components', 'ProjectComponent')

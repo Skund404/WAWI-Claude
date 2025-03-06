@@ -607,7 +607,7 @@ class LeatherInventoryView(BaseView):
 
         Args:
             col (str): Column to sort
-            reverse (bool): Reverse sorting order
+            reverse (bool): Reverse sorting sale
         """
         # Get all items
         data = []

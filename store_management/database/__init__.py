@@ -13,7 +13,7 @@ from database.models.base import Base
 # Define BaseModel as an alias for Base
 BaseModel = Base
 
-from database.initialize import initialize_database
+from initialize_database import initialize_database  # Corrected import
 
 try:
     # Import transaction models directly from the main transaction module
@@ -26,11 +26,12 @@ try:
 
     # Then import the rest of the models
     from database.models.components import Component, PatternComponent, ProjectComponent
-    from database.models.enums import LeatherType, MaterialType, OrderStatus, ProjectStatus
+    from database.models.enums import LeatherType, MaterialType, SaleStatus, ProjectStatus, PaymentStatus, CustomerStatus, CustomerTier, CustomerSource, Priority
+    from database.models.customer import Customer
     from database.models.hardware import Hardware
     from database.models.leather import Leather
     from database.models.material import Material
-    from database.models.order import Order, OrderItem
+    from database.models.sale import Sale, SaleItem
     from database.models.part import Part
     from database.models.pattern import Pattern
     from database.models.product import Product
@@ -38,21 +39,27 @@ try:
     from database.models.shopping_list import ShoppingList, ShoppingListItem
     from database.models.storage import Storage
     from database.models.supplier import Supplier
+    from database.models.picking_list import PickingList  # Import PickingList
 
 except ImportError as e:
     # Log the import error and continue
     logger.error(f"Import error in database module: {e}")
 
 # Register lazy imports for transaction models
-register_lazy_import("database.models.transaction.HardwareTransaction", "database.models.transaction", "HardwareTransaction")
-register_lazy_import("database.models.transaction.LeatherTransaction", "database.models.transaction", "LeatherTransaction")
-register_lazy_import("database.models.transaction.MaterialTransaction", "database.models.transaction", "MaterialTransaction")
-register_lazy_import("database.models.transaction.BaseTransaction", "database.models.transaction", "BaseTransaction")
+register_lazy_import("database.models.transaction.HardwareTransaction",
+                     "database.models.transaction", "HardwareTransaction")
+register_lazy_import("database.models.transaction.LeatherTransaction",
+                     "database.models.transaction", "LeatherTransaction")
+register_lazy_import("database.models.transaction.MaterialTransaction",
+                     "database.models.transaction", "MaterialTransaction")
+register_lazy_import("database.models.transaction.BaseTransaction",
+                     "database.models.transaction", "BaseTransaction")
 
 # Optional: Register lazy imports for other models if needed
 register_lazy_import("database.models.hardware.Hardware", "database.models.hardware", "Hardware")
 register_lazy_import("database.models.leather.Leather", "database.models.leather", "Leather")
 register_lazy_import("database.models.material.Material", "database.models.material", "Material")
+register_lazy_import("database.models.customer.Customer", "database.models.customer", "Customer")
 
 # Add logging to help debug import issues
 logger.debug("database package initialization complete")

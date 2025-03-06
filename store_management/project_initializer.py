@@ -89,18 +89,18 @@ def configure_circular_imports():
         from utils.circular_import_resolver import register_lazy_import, register_module_alias, register_class_alias
 
         # Register Order and OrderItem
-        register_lazy_import('Order', 'database.models.order')
+        register_lazy_import('Order', 'database.models.sale')
         register_lazy_import('OrderItem', 'database.models.order_item')
-        register_lazy_import('database.models.order.Order', 'database.models.order')
+        register_lazy_import('database.models.sale.Order', 'database.models.sale')
         register_lazy_import('database.models.order_item.OrderItem', 'database.models.order_item')
 
         # Register module aliases
-        register_module_alias('database.models.order.OrderItem', 'database.models.order_item')
-        register_module_alias('database.models.order_item.Order', 'database.models.order')
+        register_module_alias('database.models.sale.OrderItem', 'database.models.order_item')
+        register_module_alias('database.models.order_item.Order', 'database.models.sale')
 
         # Register class aliases
-        register_class_alias('database.models.order', 'OrderItem', 'database.models.order_item')
-        register_class_alias('database.models.order_item', 'Order', 'database.models.order')
+        register_class_alias('database.models.sale', 'OrderItem', 'database.models.order_item')
+        register_class_alias('database.models.order_item', 'Order', 'database.models.sale')
 
         logger.info("Circular import resolver configured successfully")
         return True
@@ -195,25 +195,25 @@ def fix_order_models():
         # Import Order and OrderItem
         logger.info("Importing Order and OrderItem models...")
         try:
-            from database.models.order import Order
-            from database.models.order_item import OrderItem
+            from database.models.sale import Sale
+            from database.models.sale_item import SaleItem
 
             # Configure relationships
             from sqlalchemy.orm import relationship
 
             # Check if relationships already exist
-            if not hasattr(Order, 'items'):
+            if not hasattr(Sale, 'items'):
                 logger.info("Adding items relationship to Order")
-                Order.items = relationship(
+                Sale.items = relationship(
                     'OrderItem',
-                    back_populates='order',
+                    back_populates='sale',
                     cascade='all, delete-orphan',
                     lazy='selectin'
                 )
 
-            if not hasattr(OrderItem, 'order'):
-                logger.info("Adding order relationship to OrderItem")
-                OrderItem.order = relationship(
+            if not hasattr(SaleItem, 'sale'):
+                logger.info("Adding sale relationship to OrderItem")
+                SaleItem.order = relationship(
                     'Order',
                     back_populates='items',
                     lazy='selectin'
@@ -246,10 +246,10 @@ def verify_database():
         from database.models.base import Base
         logger.info("Base model imported successfully")
 
-        from database.models.order import Order
+        from database.models.sale import Sale
         logger.info("Order model imported successfully")
 
-        from database.models.order_item import OrderItem
+        from database.models.sale_item import SaleItem
         logger.info("OrderItem model imported successfully")
 
         # Verify database connection
@@ -308,7 +308,7 @@ def main():
     parser = argparse.ArgumentParser(description="Initialize the project and database")
     parser.add_argument("--recreate", action="store_true", help="Recreate the database")
     parser.add_argument("--verify", action="store_true", help="Verify database setup")
-    parser.add_argument("--fix-order", action="store_true", help="Fix Order model circular imports")
+    parser.add_argument("--fix-sale", action="store_true", help="Fix Order model circular imports")
     parser.add_argument("--verbose", action="store_true", help="Show verbose output")
     args = parser.parse_args()
 

@@ -76,7 +76,7 @@ def display_table_details():
             'database.models.transaction',
             'database.models.supplier',
             'database.models.sales',
-            'database.models.order',
+            'database.models.sale',
             'database.models.part',
             'database.models.pattern',
             'database.models.product',

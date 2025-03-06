@@ -1,310 +1,367 @@
+# database/repositories/picking_list_repository.py
 """
-database/repositories/picking_list_repository.py - Repository for picking list data access
+Repository for managing PickingList entities.
+
+This repository handles database operations for the PickingList and PickingListItem
+models, including creation, retrieval, update, and deletion of picking lists.
 """
+
 import logging
 from datetime import datetime
-from sqlalchemy import and_, func, or_
-from sqlalchemy.exc import SQLAlchemyError
+from typing import Any, Dict, List, Optional, Union, Tuple
+
+from sqlalchemy import and_, or_, func
 from sqlalchemy.orm import Session, joinedload
-from typing import Any, Dict, List, Optional, Tuple
+from sqlalchemy.exc import SQLAlchemyError
 
-from database.models.picking_list import PickingList, PickingListItem, PickingListStatus
+from database.models.picking_list import PickingList, PickingListItem
+from database.models.enums import PickingListStatus
 from database.repositories.base_repository import BaseRepository
+from database.exceptions import DatabaseError, ModelNotFoundError
 
-class PickingListRepository(BaseRepository):
-    """Repository for handling picking list data access operations."""
+# Setup logger
+logger = logging.getLogger(__name__)
 
-    def __init__(self, session: Session):
-        """Initialize the PickingList Repository.
+class PickingListRepository(BaseRepository[PickingList]):
+    """Repository for managing PickingList entities."""
+    
+    def __init__(self, session: Session) -> None:
+        """
+        Initialize the PickingList Repository.
 
         Args:
             session (Session): SQLAlchemy database session
         """
         super().__init__(session, PickingList)
-        self.logger = logging.getLogger(__name__)
-
-    def get_all(self) -> List[PickingList]:
+        logger.debug("PickingListRepository initialized")
+    
+    def get_by_sales_id(self, sales_id: int) -> Optional[PickingList]:
         """
-        Get all picking lists.
-
-        Returns:
-            List[PickingList]: List of all picking lists
-        """
-        try:
-            return self.session.query(PickingList).order_by(PickingList.creation_date.desc()).all()
-        except SQLAlchemyError as e:
-            self.logger.error(f"Error retrieving all picking lists: {e}")
-            raise
-
-    def get_by_id(self, list_id: int) -> Optional[PickingList]:
-        """
-        Get a picking list by ID.
+        Get the picking list for a specific sale.
 
         Args:
-            list_id: ID of the picking list to retrieve
+            sales_id: The sale ID to query
 
         Returns:
-            Optional[PickingList]: The picking list if found, otherwise None
+            Optional[PickingList]: The picking list if found, None otherwise
         """
         try:
-            return self.session.query(PickingList).filter(PickingList.id == list_id).first()
+            query = self.session.query(PickingList).filter(
+                PickingList.sales_id == sales_id
+            )
+            
+            picking_list = query.first()
+            if picking_list:
+                logger.debug(f"Retrieved picking list for sale ID {sales_id}")
+            else:
+                logger.debug(f"No picking list found for sale ID {sales_id}")
+                
+            return picking_list
         except SQLAlchemyError as e:
-            self.logger.error(f"Error retrieving picking list by ID {list_id}: {e}")
-            raise
-
-    def create(self, list_data: Dict[str, Any]) -> PickingList:
+            error_msg = f"Error retrieving picking list for sale ID {sales_id}: {str(e)}"
+            logger.error(error_msg)
+            raise DatabaseError(error_msg)
+    
+    def get_with_items(self, picking_list_id: int) -> Optional[PickingList]:
         """
-        Create a new picking list.
+        Get a picking list with its items eagerly loaded.
 
         Args:
-            list_data: Dictionary containing picking list data
+            picking_list_id: The picking list ID to retrieve
+
+        Returns:
+            Optional[PickingList]: The picking list with items if found, None otherwise
+        """
+        try:
+            query = self.session.query(PickingList).filter(
+                PickingList.id == picking_list_id
+            ).options(
+                joinedload(PickingList.items)
+            )
+            
+            picking_list = query.first()
+            if not picking_list:
+                logger.debug(f"No picking list found with ID {picking_list_id}")
+                return None
+            
+            logger.debug(f"Retrieved picking list ID {picking_list_id} with {len(picking_list.items)} items")
+            return picking_list
+        except SQLAlchemyError as e:
+            error_msg = f"Error retrieving picking list ID {picking_list_id} with items: {str(e)}"
+            logger.error(error_msg)
+            raise DatabaseError(error_msg)
+    
+    def get_by_status(self, status: PickingListStatus) -> List[PickingList]:
+        """
+        Get all picking lists with a specific status.
+
+        Args:
+            status: The status to filter by
+
+        Returns:
+            List[PickingList]: List of picking lists matching the status
+        """
+        try:
+            query = self.session.query(PickingList).filter(
+                PickingList.status == status
+            ).order_by(PickingList.created_at.desc())
+            
+            picking_lists = query.all()
+            logger.debug(f"Retrieved {len(picking_lists)} picking lists with status {status.name}")
+            return picking_lists
+        except SQLAlchemyError as e:
+            error_msg = f"Error retrieving picking lists with status {status.name}: {str(e)}"
+            logger.error(error_msg)
+            raise DatabaseError(error_msg)
+    
+    def create_for_sale(self, sales_id: int) -> PickingList:
+        """
+        Create a new picking list for a sale.
+
+        Args:
+            sales_id: The sale ID to create a picking list for
 
         Returns:
             PickingList: The created picking list
+
+        Raises:
+            DatabaseError: If there's an error creating the picking list
         """
         try:
+            # Check if picking list already exists
+            existing = self.get_by_sales_id(sales_id)
+            if existing:
+                logger.debug(f"Picking list already exists for sale ID {sales_id}")
+                return existing
+            
+            # Create new picking list
             picking_list = PickingList(
-                name=list_data['name'],
-                description=list_data.get('description'),
-                status=list_data.get('status', PickingListStatus.DRAFT)
+                sales_id=sales_id,
+                status=PickingListStatus.DRAFT,
+                created_at=datetime.utcnow()
             )
-
+            
             self.session.add(picking_list)
-            self.session.flush()
-
+            self.session.commit()
+            
+            logger.debug(f"Created picking list for sale ID {sales_id}")
             return picking_list
-        except SQLAlchemyError as e:
-            self.logger.error(f"Error creating picking list: {e}")
+        except Exception as e:
             self.session.rollback()
-            raise
-
-    def update(self, list_id: int, list_data: Dict[str, Any]) -> Optional[PickingList]:
+            error_msg = f"Error creating picking list for sale ID {sales_id}: {str(e)}"
+            logger.error(error_msg)
+            raise DatabaseError(error_msg)
+    
+    def update_status(self, picking_list_id: int, status: PickingListStatus) -> PickingList:
         """
-        Update an existing picking list.
+        Update the status of a picking list.
 
         Args:
-            list_id: ID of the picking list to update
-            list_data: Dictionary containing updated picking list data
+            picking_list_id: The picking list ID
+            status: The new status
 
         Returns:
-            Optional[PickingList]: The updated picking list if found, otherwise None
+            PickingList: The updated picking list
+
+        Raises:
+            ModelNotFoundError: If the picking list doesn't exist
+            DatabaseError: For other database errors
         """
         try:
-            picking_list = self.get_by_id(list_id)
+            # Get the picking list
+            picking_list = self.get_by_id(picking_list_id)
             if not picking_list:
-                return None
-
-            if 'name' in list_data:
-                picking_list.name = list_data['name']
-            if 'description' in list_data:
-                picking_list.description = list_data['description']
-            if 'status' in list_data:
-                picking_list.status = list_data['status']
-
-            picking_list.last_updated = datetime.now()
-            self.session.flush()
-
+                error_msg = f"No picking list found with ID {picking_list_id}"
+                logger.error(error_msg)
+                raise ModelNotFoundError(error_msg)
+            
+            # Update the status
+            picking_list.status = status
+            
+            # If marking as completed, set the completion date
+            if status == PickingListStatus.COMPLETED and not picking_list.completed_at:
+                picking_list.completed_at = datetime.utcnow()
+            
+            # If moving back from completed, clear the completion date
+            if status != PickingListStatus.COMPLETED:
+                picking_list.completed_at = None
+            
+            self.session.commit()
+            
+            logger.debug(f"Updated status of picking list ID {picking_list_id} to {status.name}")
             return picking_list
-        except SQLAlchemyError as e:
-            self.logger.error(f"Error updating picking list {list_id}: {e}")
+        except ModelNotFoundError:
+            raise
+        except Exception as e:
             self.session.rollback()
-            raise
-
-    def delete(self, list_id: int) -> bool:
-        """
-        Delete a picking list.
-
-        Args:
-            list_id: ID of the picking list to delete
-
-        Returns:
-            bool: True if successfully deleted, False if not found
-        """
-        try:
-            picking_list = self.get_by_id(list_id)
-            if not picking_list:
-                return False
-
-            self.session.delete(picking_list)
-            self.session.flush()
-
-            return True
-        except SQLAlchemyError as e:
-            self.logger.error(f"Error deleting picking list {list_id}: {e}")
-            self.session.rollback()
-            raise
-
-    def get_items(self, list_id: int) -> List[PickingListItem]:
-        """
-        Get all items for a specific picking list.
-
-        Args:
-            list_id: ID of the picking list
-
-        Returns:
-            List[PickingListItem]: List of items in the picking list
-        """
-        try:
-            return self.session.query(PickingListItem).filter(
-                PickingListItem.list_id == list_id
-            ).order_by(PickingListItem.id).all()
-        except SQLAlchemyError as e:
-            self.logger.error(f"Error retrieving items for picking list {list_id}: {e}")
-            raise
-
-    def get_item_by_id(self, item_id: int) -> Optional[PickingListItem]:
-        """
-        Get a picking list item by ID.
-
-        Args:
-            item_id: ID of the item to retrieve
-
-        Returns:
-            Optional[PickingListItem]: The item if found, otherwise None
-        """
-        try:
-            return self.session.query(PickingListItem).filter(
-                PickingListItem.id == item_id
-            ).first()
-        except SQLAlchemyError as e:
-            self.logger.error(f"Error retrieving picking list item {item_id}: {e}")
-            raise
-
-    def add_item(self, item_data: Dict[str, Any]) -> PickingListItem:
+            error_msg = f"Error updating status of picking list ID {picking_list_id}: {str(e)}"
+            logger.error(error_msg)
+            raise DatabaseError(error_msg)
+    
+    def add_item(self, 
+                picking_list_id: int, 
+                quantity_ordered: int,
+                component_id: Optional[int] = None,
+                material_id: Optional[int] = None,
+                leather_id: Optional[int] = None,
+                hardware_id: Optional[int] = None) -> PickingListItem:
         """
         Add an item to a picking list.
 
         Args:
-            item_data: Dictionary containing item data
+            picking_list_id: The picking list ID
+            quantity_ordered: The quantity to order
+            component_id: Optional component ID
+            material_id: Optional material ID
+            leather_id: Optional leather ID
+            hardware_id: Optional hardware ID
 
         Returns:
-            PickingListItem: The created item
+            PickingListItem: The created picking list item
+
+        Raises:
+            ModelNotFoundError: If the picking list doesn't exist
+            ValueError: If no item reference is provided
+            DatabaseError: For other database errors
         """
         try:
+            # Get the picking list
+            picking_list = self.get_by_id(picking_list_id)
+            if not picking_list:
+                error_msg = f"No picking list found with ID {picking_list_id}"
+                logger.error(error_msg)
+                raise ModelNotFoundError(error_msg)
+            
+            # Ensure at least one item reference is provided
+            if not any([component_id, material_id, leather_id, hardware_id]):
+                error_msg = "At least one of component_id, material_id, leather_id, or hardware_id must be provided"
+                logger.error(error_msg)
+                raise ValueError(error_msg)
+            
+            # Create the picking list item
             item = PickingListItem(
-                list_id=item_data['list_id'],
-                material_id=item_data['material_id'],
-                required_quantity=item_data['required_quantity'],
-                picked_quantity=item_data.get('picked_quantity', 0.0),
-                unit=item_data.get('unit', 'pcs'),
-                storage_location=item_data.get('storage_location'),
-                notes=item_data.get('notes'),
-                is_picked=item_data.get('is_picked', False)
+                picking_list_id=picking_list_id,
+                component_id=component_id,
+                material_id=material_id,
+                leather_id=leather_id,
+                hardware_id=hardware_id,
+                quantity_ordered=quantity_ordered,
+                quantity_picked=0,
+                picked=False
             )
-
+            
             self.session.add(item)
-            self.session.flush()
-
+            self.session.commit()
+            
+            logger.debug(f"Added item to picking list ID {picking_list_id}")
             return item
-        except SQLAlchemyError as e:
-            self.logger.error(f"Error adding item to picking list: {e}")
-            self.session.rollback()
+        except ModelNotFoundError:
             raise
-
-    def update_item(self, item_id: int, item_data: Dict[str, Any]) -> Optional[PickingListItem]:
+        except ValueError:
+            raise
+        except Exception as e:
+            self.session.rollback()
+            error_msg = f"Error adding item to picking list ID {picking_list_id}: {str(e)}"
+            logger.error(error_msg)
+            raise DatabaseError(error_msg)
+    
+    def mark_item_as_picked(self, item_id: int, quantity: Optional[int] = None) -> PickingListItem:
         """
-        Update a picking list item.
+        Mark a picking list item as picked.
 
         Args:
-            item_id: ID of the item to update
-            item_data: Dictionary containing updated item data
+            item_id: The item ID to mark
+            quantity: Optional quantity picked (defaults to ordered quantity)
 
         Returns:
-            Optional[PickingListItem]: The updated item if found, otherwise None
+            PickingListItem: The updated picking list item
+
+        Raises:
+            ModelNotFoundError: If the item doesn't exist
+            ValueError: If the quantity is invalid
+            DatabaseError: For other database errors
         """
         try:
-            item = self.get_item_by_id(item_id)
+            # Get the item
+            item = self.session.query(PickingListItem).filter(
+                PickingListItem.id == item_id
+            ).first()
+            
             if not item:
-                return None
-
-            # Update properties if provided
-            for key, value in item_data.items():
-                if hasattr(item, key):
-                    setattr(item, key, value)
-
-            self.session.flush()
-
+                error_msg = f"No picking list item found with ID {item_id}"
+                logger.error(error_msg)
+                raise ModelNotFoundError(error_msg)
+            
+            # If quantity is specified, set it, otherwise pick all
+            if quantity is not None:
+                item.update_picked_quantity(quantity)
+            else:
+                item.mark_as_picked()
+            
+            self.session.commit()
+            
+            # Check if all items in the picking list are picked
+            picking_list = self.get_with_items(item.picking_list_id)
+            if picking_list and picking_list.is_complete():
+                picking_list.mark_as_completed()
+                self.session.commit()
+                logger.debug(f"All items picked, marked picking list ID {item.picking_list_id} as completed")
+            
+            logger.debug(f"Marked picking list item ID {item_id} as picked")
             return item
-        except SQLAlchemyError as e:
-            self.logger.error(f"Error updating picking list item {item_id}: {e}")
-            self.session.rollback()
+        except ModelNotFoundError:
             raise
-
-    def remove_item(self, item_id: int) -> bool:
+        except ValueError as e:
+            error_msg = str(e)
+            logger.error(f"Validation error marking picking list item ID {item_id} as picked: {error_msg}")
+            raise
+        except Exception as e:
+            self.session.rollback()
+            error_msg = f"Error marking picking list item ID {item_id} as picked: {str(e)}"
+            logger.error(error_msg)
+            raise DatabaseError(error_msg)
+    
+    def reset_item_picking_status(self, item_id: int) -> PickingListItem:
         """
-        Remove an item from a picking list.
+        Reset the picking status of an item.
 
         Args:
-            item_id: ID of the item to remove
+            item_id: The item ID to reset
 
         Returns:
-            bool: True if successfully removed, False if not found
+            PickingListItem: The updated picking list item
+
+        Raises:
+            ModelNotFoundError: If the item doesn't exist
+            DatabaseError: For other database errors
         """
         try:
-            item = self.get_item_by_id(item_id)
+            # Get the item
+            item = self.session.query(PickingListItem).filter(
+                PickingListItem.id == item_id
+            ).first()
+            
             if not item:
-                return False
-
-            self.session.delete(item)
-            self.session.flush()
-
-            return True
-        except SQLAlchemyError as e:
-            self.logger.error(f"Error removing picking list item {item_id}: {e}")
+                error_msg = f"No picking list item found with ID {item_id}"
+                logger.error(error_msg)
+                raise ModelNotFoundError(error_msg)
+            
+            # Reset the picking status
+            item.reset_picked_status()
+            
+            # If the picking list was completed, reset its status
+            picking_list = self.get_by_id(item.picking_list_id)
+            if picking_list and picking_list.status == PickingListStatus.COMPLETED:
+                picking_list.reset_to_in_progress()
+            
+            self.session.commit()
+            
+            logger.debug(f"Reset picking status of picking list item ID {item_id}")
+            return item
+        except ModelNotFoundError:
+            raise
+        except Exception as e:
             self.session.rollback()
-            raise
-
-    def filter_by_status(self, status: PickingListStatus) -> List[PickingList]:
-        """
-        Filter picking lists by status.
-
-        Args:
-            status: Status to filter by
-
-        Returns:
-            List[PickingList]: Filtered picking lists
-        """
-        try:
-            return self.session.query(PickingList).filter(
-                PickingList.status == status
-            ).order_by(PickingList.creation_date.desc()).all()
-        except SQLAlchemyError as e:
-            self.logger.error(f"Error filtering picking lists by status {status}: {e}")
-            raise
-
-    def search(self, search_term: str) -> List[PickingList]:
-        """
-        Search picking lists by name or description.
-
-        Args:
-            search_term: Term to search for
-
-        Returns:
-            List[PickingList]: Matching picking lists
-        """
-        try:
-            search_pattern = f"%{search_term}%"
-            return self.session.query(PickingList).filter(
-                or_(
-                    PickingList.name.ilike(search_pattern),
-                    PickingList.description.ilike(search_pattern)
-                )
-            ).order_by(PickingList.creation_date.desc()).all()
-        except SQLAlchemyError as e:
-            self.logger.error(f"Error searching picking lists with term '{search_term}': {e}")
-            raise
-
-    def get_picking_lists_with_items(self) -> List[PickingList]:
-        """
-        Get all picking lists with their items loaded.
-
-        Returns:
-            List[PickingList]: List of picking lists with items eager loaded
-        """
-        try:
-            return self.session.query(PickingList).options(
-                joinedload(PickingList.items)
-            ).order_by(PickingList.creation_date.desc()).all()
-        except SQLAlchemyError as e:
-            self.logger.error(f"Error retrieving picking lists with items: {e}")
-            raise
+            error_msg = f"Error resetting picking status of picking list item ID {item_id}: {str(e)}"
+            logger.error(error_msg)
+            raise DatabaseError(error_msg)

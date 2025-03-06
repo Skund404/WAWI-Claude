@@ -1,351 +1,211 @@
 # database/models/product.py
 """
-Enhanced Product Model with SQLAlchemy 2.0 Relationship Approach
+Product Model
 
-This module defines the Product model with comprehensive validation,
-relationship management, and circular import resolution.
+This module defines the Product model which implements
+the Product entity from the ER diagram.
 """
 
 import logging
 import uuid
-from datetime import datetime
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Union
 
-from sqlalchemy import String, Text, Float, Boolean, Integer, ForeignKey, JSON, Enum
+from sqlalchemy import Column, Float, Integer, String, Text, Boolean, ForeignKey, JSON
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.exc import SQLAlchemyError
 
 from database.models.base import Base, ModelValidationError
 from database.models.enums import MaterialType  # Assuming you have an enum for material types
-from utils.circular_import_resolver import (
-    lazy_import,
-    register_lazy_import
-)
-from utils.enhanced_model_validator import (
-    ValidationError,
-    validate_not_empty,
-    validate_positive_number
-)
-
-# Register lazy imports to resolve potential circular dependencies
-register_lazy_import('Pattern', 'database.models.pattern', 'Pattern')  # This one is already correct
-register_lazy_import('Supplier', 'database.models.supplier', 'Supplier')
-register_lazy_import('Storage', 'database.models.storage', 'Storage')
-register_lazy_import('OrderItem', 'database.models.order', 'OrderItem')
-register_lazy_import('Part', 'database.models.part', 'Part')
-register_lazy_import('Production', 'database.models.production', 'Production')
-register_lazy_import('Sales', 'database.models.sales', 'Sales')
-register_lazy_import('Component', 'database.models.components', 'Component')
+from utils.circular_import_resolver import lazy_import, register_lazy_import
+from utils.enhanced_model_validator import validate_not_empty, validate_positive_number, ValidationError
 
 # Setup logger
 logger = logging.getLogger(__name__)
 
+# Register lazy imports to resolve potential circular dependencies
+register_lazy_import('database.models.product_pattern.ProductPattern',
+                     'database.models.product_pattern',
+                     'ProductPattern')
+register_lazy_import('database.models.product_inventory.ProductInventory',
+                     'database.models.product_inventory',
+                     'ProductInventory')
+register_lazy_import('database.models.sales_item.SalesItem',
+                     'database.models.sales_item',
+                     'SalesItem')
+register_lazy_import('database.models.components.ProjectComponent',
+                     'database.models.components',
+                     'ProjectComponent')
+register_lazy_import('database.models.supplier.Supplier',
+                     'database.models.supplier',
+                     'Supplier')
+
 
 class Product(Base):
     """
-    Enhanced Product model with comprehensive validation and relationship management.
-
-    Represents products sold in the leatherworking business with advanced
-    tracking and relationship configuration.
+    Product model representing items that can be sold.
+    This corresponds to the Product entity in the ER diagram.
     """
     __tablename__ = 'products'
 
-    # Core product attributes
-    name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    sku: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, unique=True)
+    id = Column(Integer, primary_key=True)
+    name = Column(String(255), nullable=False, index=True)
+    description = Column(Text, nullable=True)
+    price = Column(Float, nullable=False, default=0.0)
 
-    # Categorization and metadata
-    category: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    tags: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)  # Comma-separated tags
+    # SKU and tracking
+    sku = Column(String(50), nullable=True, unique=True)
+    barcode = Column(String(50), nullable=True, unique=True)
 
-    # Product type
-    material_type: Mapped[Optional[MaterialType]] = mapped_column(
-        Enum(MaterialType),
-        nullable=True
-    )
+    # Visibility and availability
+    is_active = Column(Boolean, default=True, nullable=False)
+    is_featured = Column(Boolean, default=False, nullable=False)
 
-    # Financial tracking
-    price: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
-    cost: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    # Additional attributes
+    weight = Column(Float, nullable=True)
+    dimensions = Column(String(100), nullable=True)  # Format: LxWxH
 
-    # Inventory management
-    stock_quantity: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    min_stock_quantity: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    # Renamed from 'metadata' to 'extra_metadata' to avoid conflict with SQLAlchemy's internal attribute.
+    extra_metadata = Column(JSON, nullable=True)
 
-    # Physical characteristics
-    weight: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    dimensions: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)  # Format: "LxWxH"
+    # Foreign keys
+    supplier_id = Column(Integer, ForeignKey('suppliers.id'), nullable=True)
 
-    # Status flags
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    is_featured: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # Relationships
+    patterns = relationship("ProductPattern", back_populates="product", cascade="all, delete-orphan")
+    inventories = relationship("ProductInventory", back_populates="product", cascade="all, delete-orphan")
+    sales_items = relationship("SalesItem", back_populates="product")
+    components = relationship("ProjectComponent", back_populates="product", foreign_keys="ProjectComponent.product_id")
+    supplier = relationship("Supplier", back_populates="products")
 
-    # Additional metadata
-    product_metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
-
-    # Foreign keys with explicitly configured relationships
-    pattern_id: Mapped[Optional[int]] = mapped_column(
-        Integer,
-        ForeignKey("patterns.id", ondelete="SET NULL"),
-        nullable=True
-    )
-    supplier_id: Mapped[Optional[int]] = mapped_column(
-        Integer,
-        ForeignKey("suppliers.id", ondelete="SET NULL"),
-        nullable=True
-    )
-    storage_id: Mapped[Optional[int]] = mapped_column(
-        Integer,
-        ForeignKey("storages.id", ondelete="SET NULL"),
-        nullable=True
-    )
-
-    # Relationships with careful configuration
-    pattern: Mapped[Optional["Pattern"]] = relationship(
-        "Pattern",
-        back_populates="products",
-        lazy="selectin",
-        foreign_keys=[pattern_id]
-    )
-    supplier: Mapped[Optional["Supplier"]] = relationship(
-        "Supplier",
-        back_populates="products",
-        lazy="selectin",
-        foreign_keys=[supplier_id]
-    )
-    storage: Mapped[Optional["Storage"]] = relationship(
-        "Storage",
-        back_populates="products",
-        lazy="selectin",
-        foreign_keys=[storage_id]
-    )
-    order_items: Mapped[List["OrderItem"]] = relationship(
-        "OrderItem",
-        back_populates="product",
-        lazy="selectin"
-    )
-    parts: Mapped[List["Part"]] = relationship(
-        "Part",
-        back_populates="product",
-        lazy="selectin"
-    )
-    production_records: Mapped[List["Production"]] = relationship(
-        "Production",
-        back_populates="product",
-        lazy="selectin"
-    )
-    sales: Mapped[List["Sales"]] = relationship(
-        "Sales",
-        back_populates="product",
-        lazy="selectin"
-    )
-    components: Mapped[List["Component"]] = relationship(
-        "ProjectComponent",
-        back_populates="product",
-        lazy="selectin",
-        cascade="all, delete-orphan"
-    )
-
-    def __init__(self, **kwargs):
+    def __init__(self,
+                 name: str,
+                 price: float,
+                 description: Optional[str] = None,
+                 sku: Optional[str] = None,
+                 is_active: bool = True,
+                 is_featured: bool = False,
+                 supplier_id: Optional[int] = None,
+                 weight: Optional[float] = None,
+                 dimensions: Optional[str] = None,
+                 extra_metadata: Optional[Dict[str, Any]] = None,
+                 **kwargs):
         """
-        Initialize a Product instance with comprehensive validation.
+        Initialize a Product instance.
 
         Args:
-            **kwargs: Keyword arguments for product attributes
-
-        Raises:
-            ModelValidationError: If validation fails
+            name: Product name
+            price: Product price
+            description: Optional product description
+            sku: Optional Stock Keeping Unit
+            is_active: Whether the product is active
+            is_featured: Whether the product is featured
+            supplier_id: Optional supplier ID
+            weight: Optional product weight
+            dimensions: Optional product dimensions
+            extra_metadata: Optional additional dynamic attributes
+            **kwargs: Additional attributes
         """
         try:
             # Generate SKU if not provided
-            if 'sku' not in kwargs and 'name' in kwargs:
-                kwargs['sku'] = self._generate_sku(kwargs['name'])
+            if not sku:
+                sku = f"PROD-{uuid.uuid4().hex[:8].upper()}"
 
-            # Validate and filter input data
+            # Prepare data
+            kwargs.update({
+                'name': name,
+                'price': price,
+                'description': description,
+                'sku': sku,
+                'is_active': is_active,
+                'is_featured': is_featured,
+                'supplier_id': supplier_id,
+                'weight': weight,
+                'dimensions': dimensions,
+                'extra_metadata': extra_metadata
+            })
+
+            # Validate creation data
             self._validate_creation(kwargs)
 
-            # Initialize base model
+            # Initialize the base class
             super().__init__(**kwargs)
-
-            # Post-initialization validation
-            self._validate_instance()
 
         except (ValidationError, SQLAlchemyError) as e:
             logger.error(f"Product initialization failed: {e}")
-            raise ModelValidationError(f"Failed to create Product: {str(e)}") from e
+            raise ModelValidationError(f"Failed to create product: {str(e)}") from e
 
     @classmethod
     def _validate_creation(cls, data: Dict[str, Any]) -> None:
         """
-        Validate product creation data with comprehensive checks.
+        Validate product creation data.
 
         Args:
-            data (Dict[str, Any]): Product creation data to validate
+            data: Data to validate
 
         Raises:
             ValidationError: If validation fails
         """
-        # Validate core required fields
+        # Validate required fields
         validate_not_empty(data, 'name', 'Product name is required')
 
-        # Validate numeric fields
-        numeric_fields = [
-            'price', 'cost',
-            'stock_quantity', 'min_stock_quantity',
-            'weight'
-        ]
+        # Validate price
+        validate_positive_number(data, 'price', allow_zero=False, message="Price must be positive")
 
-        for field in numeric_fields:
-            if field in data:
-                validate_positive_number(
-                    data,
-                    field,
-                    allow_zero=True,
-                    message=f"{field.replace('_', ' ').title()} must be a non-negative number"
-                )
+        # Validate weight if provided
+        if data.get('weight') is not None:
+            validate_positive_number(data, 'weight', allow_zero=False, message="Weight must be positive")
 
-        # Validate SKU if provided
-        if 'sku' in data and data['sku']:
-            cls._validate_sku(data['sku'])
-
-    def _validate_instance(self) -> None:
-        """
-        Perform additional validation after instance creation.
-
-        Raises:
-            ValidationError: If instance validation fails
-        """
-        # Validate relationships
-        if self.pattern and not hasattr(self.pattern, 'id'):
-            raise ValidationError("Invalid pattern reference", "pattern")
-
-        if self.supplier and not hasattr(self.supplier, 'id'):
-            raise ValidationError("Invalid supplier reference", "supplier")
-
-        # Validate stock levels
-        if self.stock_quantity < 0:
-            raise ValidationError(
-                "Stock quantity cannot be negative",
-                "stock_quantity"
-            )
-
-    @classmethod
-    def _validate_sku(cls, sku: str) -> None:
-        """
-        Validate SKU format.
-
-        Args:
-            sku (str): SKU to validate
-
-        Raises:
-            ValidationError: If SKU is invalid
-        """
-        # Example SKU validation (adjust as needed)
-        if not sku or len(sku) < 3 or len(sku) > 50:
-            raise ValidationError(
-                "SKU must be between 3 and 50 characters",
-                "sku",
-                "invalid_sku_length"
-            )
-
-    def _generate_sku(self, name: str) -> str:
-        """
-        Generate a SKU for the product based on name.
-
-        Args:
-            name (str): Product name
-
-        Returns:
-            str: Generated SKU
-        """
-        # Take first 3 letters of name (uppercase) + 8 chars of a UUID
-        name_part = ''.join(c for c in name if c.isalnum())[:3].upper()
-        uuid_part = str(uuid.uuid4()).replace('-', '')[:8].upper()
-        return f"{name_part}-{uuid_part}"
-
-    def adjust_stock(self, quantity_change: int) -> None:
-        """
-        Adjust the stock quantity with validation.
-
-        Args:
-            quantity_change (int): The quantity to add (positive) or remove (negative)
-
-        Raises:
-            ModelValidationError: If stock adjustment is invalid
-        """
-        try:
-            new_quantity = self.stock_quantity + quantity_change
-
-            if new_quantity < 0:
-                raise ModelValidationError(
-                    f"Cannot adjust stock to {new_quantity}. Current stock is {self.stock_quantity}."
-                )
-
-            self.stock_quantity = new_quantity
-
-            # Update status based on stock levels
-            if self.stock_quantity == 0:
-                self.is_active = False
-            elif self.stock_quantity < self.min_stock_quantity:
-                logger.warning(f"Product {self.id} is below minimum stock quantity")
-
-        except Exception as e:
-            logger.error(f"Stock adjustment failed: {e}")
-            raise ModelValidationError(f"Stock adjustment failed: {str(e)}")
-
-    def calculate_profit_margin(self) -> Optional[float]:
-        """
-        Calculate the product's profit margin.
-
-        Returns:
-            float: Profit margin as a percentage, or None if price is zero
-        """
-        try:
-            if self.price > 0:
-                return ((self.price - self.cost) / self.price) * 100
-            return None
-        except Exception as e:
-            logger.error(f"Profit margin calculation failed: {e}")
-            raise ModelValidationError(f"Profit margin calculation failed: {str(e)}")
-
-    def needs_restock(self) -> bool:
-        """
-        Check if the product needs to be restocked.
-
-        Returns:
-            bool: True if the stock quantity is below the minimum stock quantity
-        """
-        return self.stock_quantity <= self.min_stock_quantity
-
-    def soft_delete(self) -> None:
-        """
-        Soft delete the product by marking it as inactive.
-        """
+    def deactivate(self) -> None:
+        """Deactivate the product."""
         self.is_active = False
-        logger.info(f"Product {self.id} marked as inactive")
+        logger.info(f"Product {self.id} deactivated")
 
-    def restore(self) -> None:
-        """
-        Restore a soft-deleted product.
-        """
+    def activate(self) -> None:
+        """Activate the product."""
         self.is_active = True
-        logger.info(f"Product {self.id} restored to active status")
+        logger.info(f"Product {self.id} activated")
+
+    def update_price(self, new_price: float) -> None:
+        """
+        Update the product price.
+
+        Args:
+            new_price: New product price
+
+        Raises:
+            ValidationError: If price is invalid
+        """
+        if new_price <= 0:
+            raise ValidationError("Price must be positive")
+
+        self.price = new_price
+        logger.info(f"Product {self.id} price updated to {new_price}")
 
     def __repr__(self) -> str:
-        """
-        String representation of the product.
-
-        Returns:
-            str: Descriptive string of the product
-        """
+        """String representation of the product."""
         return (
             f"<Product(id={self.id}, name='{self.name}', "
-            f"sku='{self.sku}', "
-            f"stock={self.stock_quantity}, "
-            f"active={self.is_active})>"
+            f"price={self.price}, active={self.is_active})>"
         )
 
 
-# Register this class for lazy imports by others
-register_lazy_import('Product', 'database.models.product', 'Product')
+# Initialize relationships
+def initialize_relationships():
+    """
+    Initialize relationships after all models are loaded.
+    """
+    try:
+        logger.info("Initializing Product model relationships")
+
+        # Import necessary models directly to avoid circular import issues
+        from database.models.product_pattern import ProductPattern
+        from database.models.product_inventory import ProductInventory
+        from database.models.sales_item import SalesItem
+
+        logger.info("Product relationships initialized successfully")
+    except Exception as e:
+        logger.error(f"Error initializing product relationships: {e}")
+
+
+# Final registration
+register_lazy_import('database.models.product.Product', 'database.models.product', 'Product')

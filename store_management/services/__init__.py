@@ -15,9 +15,9 @@ CircularImportResolver.register_lazy_import(
 )
 
 CircularImportResolver.register_lazy_import(
-    'IOrderService',
+    'ISaleService',
     'services.interfaces.order_service',
-    'IOrderService'
+    'ISaleService'
 )
 
 CircularImportResolver.register_lazy_import(
@@ -56,7 +56,7 @@ InventoryService = lambda: CircularImportResolver.lazy_import(
 
 OrderService = lambda: CircularImportResolver.lazy_import(
     'services.implementations.order_service',
-    'OrderService'
+    'SaleService'
 )
 
 StorageService = lambda: CircularImportResolver.lazy_import(

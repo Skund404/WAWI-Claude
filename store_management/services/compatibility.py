@@ -20,7 +20,7 @@ try:
     from .interfaces.hardware_service import IHardwareService as HardwareService
     from .interfaces.inventory_service import IInventoryService as InventoryService
     from .interfaces.material_service import IMaterialService as MaterialService
-    from .interfaces.order_service import IOrderService as OrderService
+    from .interfaces.sale_service import ISaleService as OrderService
     from .interfaces.pattern_service import IPatternService as PatternService
     from .interfaces.project_service import IProjectService as ProjectService
     from .interfaces.shopping_list_service import IShoppingListService as ShoppingListService
@@ -29,7 +29,7 @@ try:
 
     # Import type definitions for backward compatibility
     from .interfaces.material_service import MaterialType
-    from .interfaces.order_service import OrderStatus, PaymentStatus
+    from .interfaces.sale_service import SaleStatus, PaymentStatus
     from .interfaces.pattern_service import PatternStatus
     from .interfaces.project_service import ProjectType, SkillLevel
     from .interfaces.shopping_list_service import ShoppingListStatus

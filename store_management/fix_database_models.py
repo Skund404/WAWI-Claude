@@ -44,11 +44,11 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 # Paths to Order and OrderItem modules
-ORDER_MODULE_PATH = PROJECT_ROOT / "database" / "models" / "order.py"
-ORDER_ITEM_MODULE_PATH = PROJECT_ROOT / "database" / "models" / "order_item.py"
+ORDER_MODULE_PATH = PROJECT_ROOT / "database" / "models" / "sale.py"
+ORDER_ITEM_MODULE_PATH = PROJECT_ROOT / "database" / "models" / "sale_item.py"
 
 # Order module content with correct enum values and customer relationship
-ORDER_MODULE_CONTENT = '''# database/models/order.py
+ORDER_MODULE_CONTENT = '''# database/models/sale.py
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 
@@ -56,14 +56,14 @@ from sqlalchemy import ForeignKey, DateTime, Float, Enum, String, Text
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 
 from database.models.base import Base, ModelValidationError
-from database.models.enums import OrderStatus, PaymentStatus
+from database.models.enums import SaleStatus, PaymentStatus
 
 # Forward declarations for circular imports
 OrderItem = None
 Customer = None
 
 class Order(Base):
-    """Represents a customer order with comprehensive tracking and validation."""
+    """Represents a customer sale with comprehensive tracking and validation."""
     __tablename__ = 'orders'
 
     # Customer fields
@@ -102,9 +102,9 @@ class Order(Base):
     tracking_number: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
 
     # Status tracking
-    status: Mapped[OrderStatus] = mapped_column(
-        Enum(OrderStatus),
-        default=OrderStatus.QUOTE_REQUEST,
+    status: Mapped[SaleStatus] = mapped_column(
+        Enum(SaleStatus),
+        default=SaleStatus.QUOTE_REQUEST,
         nullable=False
     )
     payment_status: Mapped[PaymentStatus] = mapped_column(
@@ -138,7 +138,7 @@ class Order(Base):
         self.calculate_total()
 
     def calculate_total(self):
-        """Calculate the total order amount."""
+        """Calculate the total sale amount."""
         if hasattr(self, 'items'):
             # Calculate subtotal from items
             items_subtotal = sum(getattr(item, 'subtotal', 0) for item in self.items)
@@ -148,19 +148,19 @@ class Order(Base):
         return self.total
 
     def add_item(self, order_item):
-        """Add an item to the order and update total."""
+        """Add an item to the sale and update total."""
         if not hasattr(self, 'items'):
             self.items = []
 
-        # Set the order reference
-        order_item.order = self
+        # Set the sale reference
+        order_item.sale = self
         self.items.append(order_item)
 
         # Recalculate totals
         self.calculate_total()
 
     def remove_item(self, order_item):
-        """Remove an item from the order and update total."""
+        """Remove an item from the sale and update total."""
         if hasattr(self, 'items') and order_item in self.items:
             self.items.remove(order_item)
             # Recalculate totals
@@ -181,7 +181,7 @@ def setup_relationships():
             if not hasattr(Order, 'items'):
                 Order.items = relationship(
                     'OrderItem',
-                    back_populates='order',
+                    back_populates='sale',
                     cascade='all, delete-orphan',
                     lazy='selectin'
                 )
@@ -209,7 +209,7 @@ setup_relationships()
 '''
 
 # OrderItem module content unchanged
-ORDER_ITEM_MODULE_CONTENT = '''# database/models/order_item.py
+ORDER_ITEM_MODULE_CONTENT = '''# database/models/sale_item.py
 from typing import Optional
 from sqlalchemy import Float, ForeignKey, String
 from sqlalchemy.orm import relationship, Mapped, mapped_column
@@ -221,11 +221,11 @@ Order = None
 Product = None
 
 class OrderItem(Base):
-    """Represents an individual item within an order."""
+    """Represents an individual item within an sale."""
     __tablename__ = 'order_items'
 
     # Foreign key relationships
-    order_id: Mapped[int] = mapped_column(ForeignKey('orders.id'), nullable=False)
+    sale_id: Mapped[int] = mapped_column(ForeignKey('orders.id'), nullable=False)
     product_id: Mapped[Optional[int]] = mapped_column(ForeignKey('products.id'), nullable=True)
 
     # Item details
@@ -262,7 +262,7 @@ class OrderItem(Base):
 
     @property
     def subtotal(self) -> float:
-        """Calculate the subtotal for this order item."""
+        """Calculate the subtotal for this sale item."""
         return self.total_price + self.discount
 
     @property
@@ -278,12 +278,12 @@ def setup_relationships():
     # Set up Order relationship
     if Order is None:
         try:
-            from database.models.order import Order as O
+            from database.models.sale import Order as O
             Order = O
 
             # Set up relationship if not already set
-            if not hasattr(OrderItem, 'order'):
-                OrderItem.order = relationship(
+            if not hasattr(OrderItem, 'sale'):
+                OrderItem.sale = relationship(
                     'Order',
                     back_populates='items',
                     lazy='selectin'
@@ -317,7 +317,7 @@ def init_order_relationships():
     """Initialize relationships between Order and OrderItem."""
     try:
         # Import models
-        from database.models.order import Order, setup_relationships as setup_order
+        from database.models.sale import Order, setup_relationships as setup_order
         from database.models.order_item import OrderItem, setup_relationships as setup_item
 
         # Try to import related models
@@ -345,14 +345,14 @@ def init_order_relationships():
             from sqlalchemy.orm import relationship
             Order.items = relationship(
                 'OrderItem',
-                back_populates='order',
+                back_populates='sale',
                 cascade='all, delete-orphan',
                 lazy='selectin'
             )
 
-        if not hasattr(OrderItem, 'order'):
+        if not hasattr(OrderItem, 'sale'):
             from sqlalchemy.orm import relationship
-            OrderItem.order = relationship(
+            OrderItem.sale = relationship(
                 'Order',
                 back_populates='items',
                 lazy='selectin'
@@ -425,12 +425,12 @@ def main():
             import importlib
 
             # Clear any existing imports
-            for module in ['database.models.order', 'database.models.order_item', 'database.models.init_relationships']:
+            for module in ['database.models.sale', 'database.models.order_item', 'database.models.init_relationships']:
                 if module in sys.modules:
                     del sys.modules[module]
 
             # Import modules
-            order_module = importlib.import_module('database.models.order')
+            order_module = importlib.import_module('database.models.sale')
             order_item_module = importlib.import_module('database.models.order_item')
             init_module = importlib.import_module('database.models.init_relationships')
 
@@ -440,11 +440,11 @@ def main():
 
             # Check if relationships are set up
             has_items = hasattr(Order, 'items')
-            has_order = hasattr(OrderItem, 'order')
+            has_order = hasattr(OrderItem, 'sale')
             has_customer = hasattr(Order, 'customer')
 
             logger.info(
-                f"Import test results: Order.items exists: {has_items}, OrderItem.order exists: {has_order}, Order.customer exists: {has_customer}")
+                f"Import test results: Order.items exists: {has_items}, OrderItem.sale exists: {has_order}, Order.customer exists: {has_customer}")
 
             if not has_items or not has_order:
                 # Try initializing relationships
@@ -452,11 +452,11 @@ def main():
 
                 # Check again
                 has_items = hasattr(Order, 'items')
-                has_order = hasattr(OrderItem, 'order')
+                has_order = hasattr(OrderItem, 'sale')
                 has_customer = hasattr(Order, 'customer')
 
                 logger.info(
-                    f"After initialization: Order.items exists: {has_items}, OrderItem.order exists: {has_order}, Order.customer exists: {has_customer}")
+                    f"After initialization: Order.items exists: {has_items}, OrderItem.sale exists: {has_order}, Order.customer exists: {has_customer}")
 
             # Test creating objects - now using different constructor args to avoid customer error
             # Instead of customer_name, use order_date which we know exists
@@ -473,11 +473,11 @@ def main():
                 unit_price=10
             )
 
-            # Test adding item to order
+            # Test adding item to sale
             order.add_item(order_item)
 
             # Check relationships
-            if order_item.order is order and order_item in order.items:
+            if order_item.sale is order and order_item in order.items:
                 logger.info("Relationship test passed: Order and OrderItem are correctly linked")
             else:
                 logger.warning("Relationship test failed: Order and OrderItem are not correctly linked")

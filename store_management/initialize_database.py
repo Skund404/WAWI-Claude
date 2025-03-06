@@ -41,9 +41,9 @@ def import_all_models():
     """
     from database.models import (
         base, customer, components, hardware,
-        inventory, leather, material, order,
-        order_item, pattern, picking_list,
-        product, project, sales, shopping_list,
+        inventory, leather, material, sale,
+        sale_item, pattern, picking_list,
+        product, project, shopping_list,
         storage, supplier, transaction
     )
     logger.info("All models imported successfully")
@@ -173,8 +173,8 @@ def add_sample_data(session: Optional[Session] = None):
     # Ensure models are imported
     from database.models import (
         supplier, leather, hardware,
-        storage, project, order,
-        shopping_list, enums
+        storage, project, sale,
+        shopping_list, enums, customer
     )
 
     # Create session if not provided
@@ -206,6 +206,27 @@ def add_sample_data(session: Optional[Session] = None):
             notes="Hardware supplier"
         )
         session.add_all([supplier1, supplier2])
+        session.commit()
+
+        # Create sample customers
+        logger.info("Adding Sample Customers")
+        customer1 = customer.Customer(
+            first_name="Alice",
+            last_name="Johnson",
+            email="alice.johnson@example.com",
+            phone="555-111-2222",
+            address="789 Oak St",
+            notes="Frequent customer"
+        )
+        customer2 = customer.Customer(
+            first_name="Bob",
+            last_name="Williams",
+            email="bob.williams@example.com",
+            phone="555-333-4444",
+            address="101 Pine St",
+            notes="New customer"
+        )
+        session.add_all([customer1, customer2])
         session.commit()
 
         # Create Sample Materials
@@ -265,15 +286,21 @@ def add_sample_data(session: Optional[Session] = None):
         session.add_all([project1, project2])
         session.commit()
 
-        # Create sample orders
-        logger.info("Adding Sample Orders")
-        order1 = order.Order(
-            customer_id=1,
-            order_date=datetime.now(),
-            status=enums.OrderStatus.PENDING,
-            payment_status=enums.PaymentStatus.PENDING
+        # Create sample sales
+        logger.info("Adding Sample Sales")
+        sale1 = sale.Sale(
+            customer_id=customer1.id,
+            sale_date=datetime.now(),
+            status=enums.SaleStatus.PENDING,
+            payment_status=enums.PaymentStatus.UNPAID,
+            total=100.00,
+            sale_number="SALE-001",
+            customer_name=f"{customer1.first_name} {customer1.last_name}",
+            customer_email=customer1.email,
+            shipping_address=customer1.address,
+            notes="Sample sale"
         )
-        session.add(order1)
+        session.add(sale1)
         session.commit()
 
         # Add sample shopping lists

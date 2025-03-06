@@ -11,8 +11,8 @@ from enum import Enum, auto
 from typing import Dict, Any, List
 
 # Order and Project Status Enums
-class OrderStatus(enum.Enum):
-    """Detailed enumeration of order statuses for custom leatherwork."""
+class SaleStatus(enum.Enum):
+    """Detailed enumeration of sale statuses for custom leatherwork."""
     QUOTE_REQUEST = "quote_request"
     DESIGN_CONSULTATION = "design_consultation"
     DESIGN_APPROVAL = "design_approval"
@@ -209,6 +209,7 @@ class TransactionType(enum.Enum):
     RETURN = "return"
     WASTE = "waste"
     TRANSFER = "transfer"
+    REVERSAL = "reversal"
 
 class QualityCheckStatus(enum.Enum):
     """Enumeration of quality check status values."""
@@ -381,6 +382,20 @@ class EdgeFinishType(str, Enum):
     WAXED = "waxed"
     GLOSSY = "glossy"
     MATTE = "matte"
+
+class PurchaseStatus(enum.Enum):
+    """Status values for purchase orders from suppliers."""
+    PENDING = "pending"
+    PROCESSING = "processing"
+    SHIPPED = "shipped"
+    DELIVERED = "delivered"
+    CANCELLED = "cancelled"
+
+class ToolListStatus(enum.Enum):
+    """Status values for tool lists used in projects."""
+    ACTIVE = "active"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
 
     def __len__(self):
         return len(self.value)

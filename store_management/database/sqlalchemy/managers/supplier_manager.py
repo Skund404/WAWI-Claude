@@ -173,7 +173,7 @@ class SupplierManager:
 
     def get_supplier_with_orders(self, supplier_id: int) -> Optional[Supplier]:
         """
-        Retrieve supplier with their order history.
+        Retrieve supplier with their sale history.
 
         Args:
             supplier_id (int): Supplier ID

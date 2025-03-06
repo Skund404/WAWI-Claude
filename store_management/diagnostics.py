@@ -9,7 +9,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from database.models.base import Base
 from database.models import (
     Leather, Material, Hardware, Product, Project,
-    Order, Pattern, Customer, Supplier, ShoppingList
+    Sale, Pattern, Customer, Supplier, ShoppingList
 )
 from database.sqlalchemy.session import get_db_session
 
@@ -58,7 +58,7 @@ class DatabaseDiagnostics:
         """
         models_to_count = [
             Leather, Material, Hardware, Product,
-            Project, Order, Pattern, Customer,
+            Project, Sale, Pattern, Customer,
             Supplier, ShoppingList
         ]
 
@@ -102,7 +102,7 @@ class DatabaseDiagnostics:
 
         models_to_validate = [
             Leather, Material, Hardware, Product,
-            Project, Order, Pattern, Customer,
+            Project, Sale, Pattern, Customer,
             Supplier, ShoppingList
         ]
 

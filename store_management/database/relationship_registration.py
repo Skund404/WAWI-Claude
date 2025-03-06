@@ -47,15 +47,15 @@ def register_all_model_relationships():
                          'database.models.product.Product')
 
     register_lazy_import('database.models.product.Product.order_items',
-                         'database.models.order.OrderItem')
-    register_lazy_import('database.models.order.OrderItem.product',
+                         'database.models.sale.OrderItem')
+    register_lazy_import('database.models.sale.OrderItem.product',
                          'database.models.product.Product')
 
     # Other important relationships
-    register_lazy_import('database.models.order.Order.items',
-                         'database.models.order.OrderItem')
-    register_lazy_import('database.models.order.OrderItem.order',
-                         'database.models.order.Order')
+    register_lazy_import('database.models.sale.Order.items',
+                         'database.models.sale.OrderItem')
+    register_lazy_import('database.models.sale.OrderItem.sale',
+                         'database.models.sale.Order')
 
     # Transaction relationships
     register_lazy_import('database.models.material.Material.transactions',

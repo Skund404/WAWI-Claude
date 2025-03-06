@@ -1,6 +1,6 @@
-# gui/order/order_view.py
+# gui/sale/sale_view.py
 """
-Order view implementation for managing orders.
+Sale view implementation for managing sales.
 """
 import logging
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
@@ -10,11 +10,11 @@ import tkinter.messagebox
 from tkinter import ttk
 
 from gui.base_view import BaseView
-from services.interfaces.order_service import IOrderService, OrderStatus
+from services.interfaces.sale_service import ISaleService, SaleStatus, PaymentStatus  # Import PaymentStatus
 
 
 class SearchDialog(tk.Toplevel):
-    """Dialog for searching orders."""
+    """Dialog for searching sales."""
 
     def __init__(self, parent: tk.Widget, columns: List[str], search_callback: Callable):
         """Initialize the search dialog.
@@ -25,7 +25,7 @@ class SearchDialog(tk.Toplevel):
             search_callback: Function to call with search parameters
         """
         super().__init__(parent)
-        self.title("Search Orders")
+        self.title("Search Sales")  # Changed title
         self.geometry("400x200")
         self.resizable(False, False)
         self.transient(parent)
@@ -124,24 +124,24 @@ class SearchDialog(tk.Toplevel):
         self.destroy()
 
 
-class OrderView(BaseView):
-    """View for managing orders."""
+class SaleView(BaseView):
+    """View for managing sales."""
 
     def __init__(self, parent: tk.Widget, app: Any):
-        """Initialize the order view.
+        """Initialize the sale view.
 
         Args:
             parent: Parent widget
             app: Application instance
         """
         super().__init__(parent, app)
-        self.logger = logging.getLogger("gui.order.order_view")
-        self.logger.info("Initializing Order View")
+        self.logger = logging.getLogger("gui.sale.sale_view")
+        self.logger.info("Initializing Sale View")
 
-        self._selected_order_id = None
+        self._selected_sale_id = None  # Changed _selected_order_id to _selected_sale_id
 
         self._setup_ui()
-        self._load_orders()
+        self._load_sales()  # Changed _load_orders to _load_sales
 
     def _setup_ui(self):
         """Set up the user interface components."""
@@ -159,67 +159,67 @@ class OrderView(BaseView):
         content = ttk.PanedWindow(self, orient=tk.HORIZONTAL)
         content.grid(row=1, column=0, sticky="nsew", padx=5, pady=5)
 
-        # Order list frame
-        orders_frame = ttk.Frame(content, padding=5)
-        content.add(orders_frame, weight=1)
+        # Sale list frame
+        sales_frame = ttk.Frame(content, padding=5)  # Changed orders_frame to sales_frame
+        content.add(sales_frame, weight=1)
 
-        # Order details frame
+        # Sale details frame
         details_frame = ttk.Frame(content, padding=5)
         content.add(details_frame, weight=1)
 
-        # Setup order list treeview
-        orders_frame.columnconfigure(0, weight=1)
-        orders_frame.rowconfigure(0, weight=0)  # Label
-        orders_frame.rowconfigure(1, weight=1)  # Treeview
+        # Setup sale list treeview
+        sales_frame.columnconfigure(0, weight=1)  # Changed orders_frame to sales_frame
+        sales_frame.rowconfigure(0, weight=0)  # Label
+        sales_frame.rowconfigure(1, weight=1)  # Treeview
 
-        ttk.Label(orders_frame, text="Orders", font=("TkDefaultFont", 12, "bold")).grid(
+        ttk.Label(sales_frame, text="Sales", font=("TkDefaultFont", 12, "bold")).grid(  # Changed orders_frame to sales_frame
             row=0, column=0, sticky="w", padx=5, pady=(0, 5)
         )
 
-        # Create orders treeview
-        self.orders_tree = ttk.Treeview(
-            orders_frame,
+        # Create sales treeview
+        self.sales_tree = ttk.Treeview(  # Changed orders_tree to sales_tree
+            sales_frame,  # Changed orders_frame to sales_frame
             columns=("id", "reference", "date", "status", "amount"),
             show="headings",
             selectmode="browse"
         )
-        self.orders_tree.grid(row=1, column=0, sticky="nsew")
+        self.sales_tree.grid(row=1, column=0, sticky="nsew")  # Changed orders_tree to sales_tree
 
         # Configure treeview columns
-        self.orders_tree.heading("id", text="ID")
-        self.orders_tree.heading("reference", text="Reference")
-        self.orders_tree.heading("date", text="Date")
-        self.orders_tree.heading("status", text="Status")
-        self.orders_tree.heading("amount", text="Amount")
+        self.sales_tree.heading("id", text="ID")  # Changed orders_tree to sales_tree
+        self.sales_tree.heading("reference", text="Reference")  # Changed orders_tree to sales_tree
+        self.sales_tree.heading("date", text="Date")  # Changed orders_tree to sales_tree
+        self.sales_tree.heading("status", text="Status")  # Changed orders_tree to sales_tree
+        self.sales_tree.heading("amount", text="Amount")  # Changed orders_tree to sales_tree
 
-        self.orders_tree.column("id", width=50, anchor="center")
-        self.orders_tree.column("reference", width=100)
-        self.orders_tree.column("date", width=100, anchor="center")
-        self.orders_tree.column("status", width=100, anchor="center")
-        self.orders_tree.column("amount", width=100, anchor="e")
+        self.sales_tree.column("id", width=50, anchor="center")  # Changed orders_tree to sales_tree
+        self.sales_tree.column("reference", width=100)  # Changed orders_tree to sales_tree
+        self.sales_tree.column("date", width=100, anchor="center")  # Changed orders_tree to sales_tree
+        self.sales_tree.column("status", width=100, anchor="center")  # Changed orders_tree to sales_tree
+        self.sales_tree.column("amount", width=100, anchor="e")  # Changed orders_tree to sales_tree
 
         # Add scrollbar to treeview
-        orders_scrollbar = ttk.Scrollbar(
-            orders_frame,
+        sales_scrollbar = ttk.Scrollbar(  # Changed orders_scrollbar to sales_scrollbar
+            sales_frame,  # Changed orders_frame to sales_frame
             orient=tk.VERTICAL,
-            command=self.orders_tree.yview
+            command=self.sales_tree.yview  # Changed orders_tree to sales_tree
         )
-        orders_scrollbar.grid(row=1, column=1, sticky="ns")
-        self.orders_tree.configure(yscrollcommand=orders_scrollbar.set)
+        sales_scrollbar.grid(row=1, column=1, sticky="ns")  # Changed orders_scrollbar to sales_scrollbar
+        self.sales_tree.configure(yscrollcommand=sales_scrollbar.set)  # Changed orders_tree to sales_tree
 
         # Bind selection event
-        self.orders_tree.bind("<<TreeviewSelect>>", self._on_order_select)
-        self.orders_tree.bind("<Double-1>", self._on_order_double_click)
+        self.sales_tree.bind("<<TreeviewSelect>>", self._on_sale_select)  # Changed orders_tree to sales_tree, _on_order_select to _on_sale_select
+        self.sales_tree.bind("<Double-1>", self._on_sale_double_click)  # Changed orders_tree to sales_tree, _on_order_double_click to _on_sale_double_click
 
         # Setup filter combobox
-        filter_frame = ttk.Frame(orders_frame)
+        filter_frame = ttk.Frame(sales_frame)  # Changed orders_frame to sales_frame
         filter_frame.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(5, 0))
 
         ttk.Label(filter_frame, text="Filter by status:").pack(side=tk.LEFT, padx=(0, 5))
 
         self.status_filter = ttk.Combobox(
             filter_frame,
-            values=["All"] + [s.name for s in OrderStatus],
+            values=["All"] + [s.name for s in SaleStatus],
             state="readonly",
             width=15
         )
@@ -227,12 +227,12 @@ class OrderView(BaseView):
         self.status_filter.pack(side=tk.LEFT)
         self.status_filter.bind("<<ComboboxSelected>>", self._on_status_filter)
 
-        # Setup order details frame
+        # Setup sale details frame
         details_frame.columnconfigure(0, weight=1)
         details_frame.rowconfigure(0, weight=0)  # Label
         details_frame.rowconfigure(1, weight=1)  # Notebook
 
-        ttk.Label(details_frame, text="Order Details", font=("TkDefaultFont", 12, "bold")).grid(
+        ttk.Label(details_frame, text="Sale Details", font=("TkDefaultFont", 12, "bold")).grid(
             row=0, column=0, sticky="w", padx=5, pady=(0, 5)
         )
 
@@ -252,7 +252,7 @@ class OrderView(BaseView):
         general_tab.columnconfigure(1, weight=1)
 
         row = 0
-        for label_text in ["Order ID:", "Reference:", "Customer:", "Date:", "Status:", "Payment Status:",
+        for label_text in ["Sale ID:", "Reference:", "Customer:", "Date:", "Status:", "Payment Status:",
                            "Total Amount:"]:
             ttk.Label(general_tab, text=label_text).grid(
                 row=row, column=0, sticky="w", padx=(0, 10), pady=5
@@ -344,27 +344,27 @@ class OrderView(BaseView):
         Args:
             parent: Parent widget for the toolbar
         """
-        # New order button
+        # New sale button
         new_button = ttk.Button(
             parent,
-            text="New Order",
-            command=self._on_new_order
+            text="New Sale",  # Changed text
+            command=self._on_new_sale  # Changed command
         )
         new_button.pack(side=tk.LEFT, padx=(0, 5))
 
-        # Edit order button
+        # Edit sale button
         edit_button = ttk.Button(
             parent,
-            text="Edit Order",
-            command=self._on_edit_order
+            text="Edit Sale",  # Changed text
+            command=self._on_edit_sale  # Changed command
         )
         edit_button.pack(side=tk.LEFT, padx=5)
 
-        # Delete order button
+        # Delete sale button
         delete_button = ttk.Button(
             parent,
-            text="Delete Order",
-            command=self._on_delete_order
+            text="Delete Sale",  # Changed text
+            command=self._on_delete_sale  # Changed command
         )
         delete_button.pack(side=tk.LEFT, padx=5)
 
@@ -389,161 +389,164 @@ class OrderView(BaseView):
         )
         reset_button.pack(side=tk.LEFT, padx=5)
 
-    def _load_orders(self):
-        """Load orders from the database."""
+    def _load_sales(self):  # Changed _load_orders to _load_sales
+        """Load sales from the database."""
         try:
-            order_service = self.get_service(IOrderService)
-            orders = order_service.get_all_orders()
+            sale_service = self.get_service(ISaleService)
+            sales = sale_service.get_all_sales()  # Changed order_service to sale_service
 
             # Clear treeview
-            for item in self.orders_tree.get_children():
-                self.orders_tree.delete(item)
+            for item in self.sales_tree.get_children():  # Changed orders_tree to sales_tree
+                self.sales_tree.delete(item)  # Changed orders_tree to sales_tree
 
             # Populate treeview
-            for order in orders:
-                # Ensure order is dict-like
-                order_dict = order
-                if not hasattr(order, 'get'):
+            for sale in sales:
+                # Ensure sale is dict-like
+                sale_dict = sale
+                if not hasattr(sale, 'get'):
                     # Try to convert to dict if it's an object
-                    if hasattr(order, '__dict__'):
-                        order_dict = {k: v for k, v in order.__dict__.items() if not k.startswith('_')}
+                    if hasattr(sale, '__dict__'):
+                        sale_dict = {k: v for k, v in sale.__dict__.items() if not k.startswith('_')}
                     else:
                         # Default empty dict
-                        order_dict = {}
+                        sale_dict = {}
 
-                self.orders_tree.insert(
+                self.sales_tree.insert(  # Changed orders_tree to sales_tree
                     "",
                     "end",
                     values=(
-                        order_dict.get("id", ""),
-                        order_dict.get("reference_number", ""),
-                        order_dict.get("order_date", ""),
-                        order_dict.get("status", ""),
-                        f"${order_dict.get('total_amount', 0):.2f}"
+                        sale_dict.get("id", ""),
+                        sale_dict.get("reference_number", ""),
+                        sale_dict.get("sale_date", ""),  # Changed order_date to sale_date
+                        sale_dict.get("status", ""),
+                        f"${sale_dict.get('total_amount', 0):.2f}"
                     )
                 )
         except Exception as e:
-            self.logger.error(f"Error loading orders: {str(e)}")
-            self.show_error("Load Error", f"Failed to load orders: {str(e)}")
+            self.logger.error(f"Error loading sales: {str(e)}")  # Changed orders to sales
+            self.show_error("Load Error", f"Failed to load sales: {str(e)}")  # Changed orders to sales
 
-    def _load_order_details(self, order_id: int):
-        """Load details for the selected order.
+    def _load_sale_details(self, sale_id: int):  # Changed _load_order_details to _load_sale_details
+        """Load details for the selected sale.
 
         Args:
-            order_id: ID of the order to load details for
+            sale_id: ID of the sale to load details for
         """
         try:
-            order_service = self.get_service(IOrderService)
-            order = order_service.get_order_by_id(order_id)
+            sale_service = self.get_service(ISaleService)
+            sale = sale_service.get_sale_by_id(sale_id)  # Changed order_service to sale_service
 
-            if not order:
+            if not sale:
                 return
 
             # Update general tab labels
-            self._order_id_label.config(text=str(order.get("id", "")))
-            self._reference_label.config(text=order.get("reference_number", ""))
-            self._customer_label.config(text=order.get("customer_name", ""))
-            self._date_label.config(text=order.get("order_date", ""))
-            self._status_label.config(text=order.get("status", ""))
-            self._payment_status_label.config(text=order.get("payment_status", ""))
-            self._total_amount_label.config(text=f"${order.get('total_amount', 0):.2f}")
+            self._sale_id_label.config(text=str(sale.get("id", "")))  # Changed order_id to sale_id
+            self._reference_label.config(text=sale.get("reference_number", ""))
+            self._customer_label.config(text=sale.get("customer_name", ""))
+            self._date_label.config(text=sale.get("sale_date", ""))  # Changed order_date to sale_date
+            self._status_label.config(text=sale.get("status", ""))
+            self._payment_status_label.config(text=sale.get("payment_status", ""))
+            self._total_amount_label.config(text=f"${sale.get('total_amount', 0):.2f}")
 
             # Update notes
             self._notes_text.delete(1.0, tk.END)
-            self._notes_text.insert(tk.END, order.get("notes", ""))
+            self._notes_text.insert(tk.END, sale.get("notes", ""))
 
-            # Load order items
-            self._load_order_items(order_id)
+            # Load sale items
+            self._load_sale_items(sale_id)  # Changed load_order_items to load_sale_items
         except Exception as e:
-            self.logger.error(f"Error loading order details: {str(e)}")
-            self.show_error("Load Error", f"Failed to load order details: {str(e)}")
+            self.logger.error(f"Error loading sale details: {str(e)}")  # Changed order to sale
+            self.show_error("Load Error", f"Failed to load sale details: {str(e)}")  # Changed order to sale
 
-    def _load_order_items(self, order_id: int):
-        """Load items for the selected order.
+    def _load_sale_items(self, sale_id: int):  # Changed _load_order_items to _load_sale_items
+        """Load items for the selected sale.
 
         Args:
-            order_id: ID of the order to load items for
+            sale_id: ID of the sale to load items for
         """
         try:
-            order_service = self.get_service(IOrderService)
-            items = order_service.get_order_items(order_id)
+            sale_service = self.get_service(ISaleService)
+            #items = sale_service.get_sale_items(sale_id)  # Assuming you have a get_sale_items function
+            sale = sale_service.get_sale_by_id(sale_id, include_items=True)
 
             # Clear treeview
             for item in self.items_tree.get_children():
                 self.items_tree.delete(item)
 
-            # Populate treeview
-            for item in items:
-                self.items_tree.insert(
-                    "",
-                    "end",
-                    values=(
-                        item.get("id", ""),
-                        item.get("product_name", ""),
-                        item.get("quantity", 0),
-                        f"${item.get('unit_price', 0):.2f}",
-                        f"${item.get('total_price', 0):.2f}"
+            if sale and 'items' in sale:
+                items = sale['items']
+                # Populate treeview
+                for item in items:
+                    self.items_tree.insert(
+                        "",
+                        "end",
+                        values=(
+                            item.get("id", ""),
+                            item.get("product_name", ""),
+                            item.get("quantity", 0),
+                            f"${item.get('unit_price', 0):.2f}",
+                            f"${item.get('quantity', 0) * item.get('unit_price', 0):.2f}"
+                        )
                     )
-                )
         except Exception as e:
-            self.logger.error(f"Error loading order items: {str(e)}")
-            self.show_error("Load Error", f"Failed to load order items: {str(e)}")
+            self.logger.error(f"Error loading sale items: {str(e)}")  # Changed order to sale
+            self.show_error("Load Error", f"Failed to load sale items: {str(e)}")  # Changed order to sale
 
-    def _on_order_select(self, event=None):
-        """Handle order selection in treeview."""
-        selection = self.orders_tree.selection()
+    def _on_sale_select(self, event=None):  # Changed _on_order_select to _on_sale_select
+        """Handle sale selection in treeview."""
+        selection = self.sales_tree.selection()  # Changed orders_tree to sales_tree
         if not selection:
             return
 
         item = selection[0]
-        values = self.orders_tree.item(item, "values")
+        values = self.sales_tree.item(item, "values")  # Changed orders_tree to sales_tree
         if not values:
             return
 
-        order_id = int(values[0])
-        self._selected_order_id = order_id
-        self._load_order_details(order_id)
+        sale_id = int(values[0])  # Changed order_id to sale_id
+        self._selected_sale_id = sale_id  # Changed _selected_order_id to _selected_sale_id
+        self._load_sale_details(sale_id)  # Changed _load_order_details to _load_sale_details
 
-    def _on_order_double_click(self, event=None):
-        """Handle double-click on an order to edit it."""
-        self._on_edit_order()
+    def _on_sale_double_click(self, event=None):  # Changed _on_order_double_click to _on_sale_double_click
+        """Handle double-click on an sale to edit it."""
+        self._on_edit_sale()  # Changed _on_edit_order to _on_edit_sale
 
-    def _on_new_order(self):
-        """Handle new order button click."""
-        # Open new order dialog
+    def _on_new_sale(self):  # Changed _on_new_order to _on_new_sale
+        """Handle new sale button click."""
+        # Open new sale dialog
         pass
 
-    def _on_edit_order(self):
-        """Handle edit order button click."""
-        if not self._selected_order_id:
-            self.show_info("No Selection", "Please select an order to edit.")
+    def _on_edit_sale(self):  # Changed _on_edit_order to _on_edit_sale
+        """Handle edit sale button click."""
+        if not self._selected_sale_id:  # Changed _selected_order_id to _selected_sale_id
+            self.show_info("No Selection", "Please select an sale to edit.")
             return
 
-        # Open edit order dialog
+        # Open edit sale dialog
         pass
 
-    def _on_delete_order(self):
-        """Handle delete order button click."""
-        if not self._selected_order_id:
-            self.show_info("No Selection", "Please select an order to delete.")
+    def _on_delete_sale(self):  # Changed _on_delete_order to _on_delete_sale
+        """Handle delete sale button click."""
+        if not self._selected_sale_id:  # Changed _selected_order_id to _selected_sale_id
+            self.show_info("No Selection", "Please select an sale to delete.")
             return
 
-        if not self.confirm("Confirm Delete", "Are you sure you want to delete this order?"):
+        if not self.confirm("Confirm Delete", "Are you sure you want to delete this sale?"):
             return
 
         try:
-            order_service = self.get_service(IOrderService)
-            success = order_service.delete_order(self._selected_order_id)
+            sale_service = self.get_service(ISaleService)
+            success = sale_service.delete_sale(self._selected_sale_id)  # Changed order_service to sale_service, _selected_order_id to _selected_sale_id
 
             if success:
-                self.show_info("Success", "Order deleted successfully.")
-                self._selected_order_id = None
-                self._load_orders()
+                self.show_info("Success", "Sale deleted successfully.")  # Changed order to sale
+                self._selected_sale_id = None  # Changed _selected_order_id to _selected_sale_id
+                self._load_sales()  # Changed _load_orders to _load_sales
             else:
-                self.show_error("Delete Error", "Failed to delete order.")
+                self.show_error("Delete Error", "Failed to delete sale.")  # Changed order to sale
         except Exception as e:
-            self.logger.error(f"Error deleting order: {str(e)}")
-            self.show_error("Delete Error", f"Failed to delete order: {str(e)}")
+            self.logger.error(f"Error deleting sale: {str(e)}")  # Changed order to sale
+            self.show_error("Delete Error", f"Failed to delete sale: {str(e)}")  # Changed order to sale
 
     def _on_search(self):
         """Handle search button click."""
@@ -559,72 +562,78 @@ class OrderView(BaseView):
             exact_match: Whether to perform exact matching
         """
         try:
-            order_service = self.get_service(IOrderService)
-            orders = order_service.search_orders(field, search_text, exact_match)
+            sale_service = self.get_service(ISaleService) # Change order_service to sale_service
+            sales = sale_service.search_sales(search_text) # Remove field parameter.
 
             # Clear treeview
-            for item in self.orders_tree.get_children():
-                self.orders_tree.delete(item)
+            for item in self.sales_tree.get_children():
+                self.sales_tree.delete(item)
 
             # Populate treeview
-            for order in orders:
-                self.orders_tree.insert(
+            for sale in sales:
+                self.sales_tree.insert(
                     "",
                     "end",
                     values=(
-                        order.get("id", ""),
-                        order.get("reference_number", ""),
-                        order.get("order_date", ""),
-                        order.get("status", ""),
-                        f"${order.get('total_amount', 0):.2f}"
+                        sale.get("id", ""),
+                        sale.get("reference_number", ""),
+                        sale.get("sale_date", ""),
+                        sale.get("status", ""),
+                        f"${sale.get('total_amount', 0):.2f}"
                     )
                 )
         except Exception as e:
-            self.logger.error(f"Error searching orders: {str(e)}")
-            self.show_error("Search Error", f"Failed to search orders: {str(e)}")
+            self.logger.error(f"Error searching sales: {str(e)}")
+            self.show_error("Search Error", f"Failed to search sales: {str(e)}")
 
     def _on_status_filter(self, event=None):
         """Handle status filter selection."""
         status = self.status_filter.get()
 
         try:
-            order_service = self.get_service(IOrderService)
+            sale_service = self.get_service(ISaleService)
 
             if status == "All":
-                orders = order_service.get_all_orders()
+                sales, _ = sale_service.get_all_sales()
             else:
-                orders = order_service.get_orders_by_status(status)
+                # Convert string status to enum
+                try:
+                    status_enum = SaleStatus[status]
+                except KeyError:
+                    self.show_error("Filter Error", f"Invalid status: {status}")
+                    return
+                sales, _ = sale_service.get_all_sales(status=status_enum)  # Pass SaleStatus enum
 
             # Clear treeview
-            for item in self.orders_tree.get_children():
-                self.orders_tree.delete(item)
+            for item in self.sales_tree.get_children():
+                self.sales_tree.delete(item)
 
             # Populate treeview
-            for order in orders:
-                self.orders_tree.insert(
+            for sale in sales:
+                self.sales_tree.insert(
                     "",
                     "end",
                     values=(
-                        order.get("id", ""),
-                        order.get("reference_number", ""),
-                        order.get("order_date", ""),
-                        order.get("status", ""),
-                        f"${order.get('total_amount', 0):.2f}"
+                        sale.get("id", ""),
+                        sale.get("reference_number", ""),
+                        sale.get("sale_date", ""),
+                        sale.get("status", ""),
+                        f"${sale.get('total_amount', 0):.2f}"
                     )
                 )
         except Exception as e:
-            self.logger.error(f"Error filtering orders: {str(e)}")
-            self.show_error("Filter Error", f"Failed to filter orders: {str(e)}")
+            self.logger.error(f"Error filtering sales: {str(e)}")
+            self.show_error("Filter Error", f"Failed to filter sales: {str(e)}")
 
     def _on_reset(self):
-        """Handle reset button click to clear all filters and reload orders."""
+        """Handle reset button click to clear all filters and reload sales."""
         self.status_filter.set("All")
-        self._load_orders()
+        self._load_sales()
 
     def _on_add_item(self):
         """Handle add item button click."""
-        if not self._selected_order_id:
-            self.show_info("No Order Selected", "Please select an order first.")
+        if not self._selected_sale_id:
+            self.show_info("No Sale Selected", "Please select a sale first.")
             return
 
         # Open add item dialog
@@ -658,24 +667,24 @@ class OrderView(BaseView):
             return
 
         try:
-            order_service = self.get_service(IOrderService)
-            success = order_service.remove_order_item(self._selected_order_id, item_id)
+            sale_service = self.get_service(ISaleService)
+            success = sale_service.remove_sale_item(self._selected_sale_id, item_id)  # Changed order to sale, _selected_order_id to _selected_sale_id
 
             if success:
                 self.show_info("Success", "Item removed successfully.")
-                self._load_order_items(self._selected_order_id)
-                # Reload order to update totals
-                self._load_order_details(self._selected_order_id)
+                self._load_sale_items(self._selected_sale_id)  # Changed _load_order_items to _load_sale_items, _selected_order_id to _selected_sale_id
+                # Reload sale to update totals
+                self._load_sale_details(self._selected_sale_id)  # Changed _load_order_details to _load_sale_details, _selected_order_id to _selected_sale_id
             else:
                 self.show_error("Remove Error", "Failed to remove item.")
         except Exception as e:
             self.logger.error(f"Error removing item: {str(e)}")
             self.show_error("Remove Error", f"Failed to remove item: {str(e)}")
 
-    def order_service(self, service: IOrderService):
-        """Set the order service.
+    def sale_service(self, service: ISaleService):  # Changed order_service to sale_service
+        """Set the sale service.
 
         Args:
-            service (IOrderService): The order service instance
+            service (ISaleService): The sale service instance
         """
-        self._order_service = service
+        self._sale_service = service  # Changed _order_service to _sale_service

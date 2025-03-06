@@ -102,13 +102,13 @@ def add_sample_data(session=None) -> None:
         from database.models.leather import Leather
         from database.models.product import Product
         from database.models.project import Project, ProjectComponent
-        from database.models.order import Order, OrderItem
+        from database.models.sale import Sale, SaleItem
         from database.models.shopping_list import ShoppingList, ShoppingListItem
         from database.models.pattern import Pattern
         from database.models.enums import (
             MaterialType, MaterialQualityGrade, InventoryStatus,
             LeatherType, StorageLocationType, ProjectType, ProjectStatus,
-            SkillLevel, SupplierStatus, OrderStatus, PaymentStatus, Priority
+            SkillLevel, SupplierStatus, SaleStatus, PaymentStatus, Priority
         )
 
         # Check if data already exists
@@ -887,14 +887,14 @@ def add_sample_data(session=None) -> None:
         # 10. Create orders
         # Sample customer orders
         customer_orders = [
-            Order(
+            Sale(
                 order_date=datetime.now() - timedelta(days=60),
                 customer_name="Alice Johnson",
                 customer_email="alice.j@example.com",
                 customer_phone="555-123-4567",
                 shipping_address="123 Main St, Anytown, USA 12345",
                 billing_address="123 Main St, Anytown, USA 12345",
-                status=OrderStatus.DELIVERED,
+                status=SaleStatus.DELIVERED,
                 payment_status=PaymentStatus.PAID,
                 shipping_cost=5.99,
                 tax_amount=8.75,
@@ -903,14 +903,14 @@ def add_sample_data(session=None) -> None:
                 notes="Gift wrapped as requested",
                 delivery_date=datetime.now() - timedelta(days=55)
             ),
-            Order(
+            Sale(
                 order_date=datetime.now() - timedelta(days=30),
                 customer_name="Bob Smith",
                 customer_email="bob.smith@example.com",
                 customer_phone="555-987-6543",
                 shipping_address="456 Oak Ave, Somewhere, USA 67890",
                 billing_address="456 Oak Ave, Somewhere, USA 67890",
-                status=OrderStatus.SHIPPED,
+                status=SaleStatus.SHIPPED,
                 payment_status=PaymentStatus.PAID,
                 shipping_cost=7.99,
                 tax_amount=12.50,
@@ -919,14 +919,14 @@ def add_sample_data(session=None) -> None:
                 notes="Customer requested expedited shipping",
                 delivery_date=None
             ),
-            Order(
+            Sale(
                 order_date=datetime.now() - timedelta(days=10),
                 customer_name="Carol Martinez",
                 customer_email="carol.m@example.com",
                 customer_phone="555-456-7890",
                 shipping_address="789 Pine Ln, Elsewhere, USA 54321",
                 billing_address="789 Pine Ln, Elsewhere, USA 54321",
-                status=OrderStatus.PROCESSING,
+                status=SaleStatus.PROCESSING,
                 payment_status=PaymentStatus.PAID,
                 shipping_cost=5.99,
                 tax_amount=5.60,
@@ -935,14 +935,14 @@ def add_sample_data(session=None) -> None:
                 notes="Include care instructions",
                 delivery_date=None
             ),
-            Order(
+            Sale(
                 order_date=datetime.now() - timedelta(days=3),
                 customer_name="David Wilson",
                 customer_email="david.w@example.com",
                 customer_phone="555-234-5678",
                 shipping_address="321 Cedar Rd, Nowhere, USA 13579",
                 billing_address="321 Cedar Rd, Nowhere, USA 13579",
-                status=OrderStatus.PENDING,
+                status=SaleStatus.PENDING,
                 payment_status=PaymentStatus.PENDING,
                 shipping_cost=9.99,
                 tax_amount=22.40,
@@ -955,10 +955,10 @@ def add_sample_data(session=None) -> None:
 
         # Sample supplier orders
         supplier_orders = [
-            Order(
+            Sale(
                 order_date=datetime.now() - timedelta(days=45),
                 supplier_id=suppliers[0].id,
-                status=OrderStatus.DELIVERED,
+                status=SaleStatus.DELIVERED,
                 payment_status=PaymentStatus.PAID,
                 shipping_cost=15.00,
                 tax_amount=30.40,
@@ -967,10 +967,10 @@ def add_sample_data(session=None) -> None:
                 notes="Regular leather restock",
                 delivery_date=datetime.now() - timedelta(days=38)
             ),
-            Order(
+            Sale(
                 order_date=datetime.now() - timedelta(days=20),
                 supplier_id=suppliers[1].id,
-                status=OrderStatus.SHIPPED,
+                status=SaleStatus.SHIPPED,
                 payment_status=PaymentStatus.PAID,
                 shipping_cost=9.50,
                 tax_amount=12.75,
@@ -979,16 +979,16 @@ def add_sample_data(session=None) -> None:
                 notes="Hardware restock",
                 delivery_date=None
             ),
-            Order(
+            Sale(
                 order_date=datetime.now() - timedelta(days=2),
                 supplier_id=suppliers[4].id,
-                status=OrderStatus.PENDING,
+                status=SaleStatus.PENDING,
                 payment_status=PaymentStatus.PENDING,
                 shipping_cost=25.00,
                 tax_amount=45.60,
                 total_amount=546.60,
                 tracking_number=None,
-                notes="Special order exotic leathers",
+                notes="Special sale exotic leathers",
                 delivery_date=None
             )
         ]
@@ -999,13 +999,13 @@ def add_sample_data(session=None) -> None:
         session.flush()
         logger.info(f"Added {len(orders)} orders")
 
-        # 11. Create order items
+        # 11. Create sale items
         order_items = []
 
         # Add items to customer orders
         order_items.extend([
-            # Items for first customer order
-            OrderItem(
+            # Items for first customer sale
+            SaleItem(
                 order_id=customer_orders[0].id,
                 product_id=products[0].id,
                 quantity=1,
@@ -1015,8 +1015,8 @@ def add_sample_data(session=None) -> None:
                 notes="Standard bifold wallet"
             ),
 
-            # Items for second customer order
-            OrderItem(
+            # Items for second customer sale
+            SaleItem(
                 order_id=customer_orders[1].id,
                 product_id=products[2].id,
                 quantity=1,
@@ -1025,7 +1025,7 @@ def add_sample_data(session=None) -> None:
                 total_price=224.99,
                 notes="Messenger bag with custom strap length"
             ),
-            OrderItem(
+            SaleItem(
                 order_id=customer_orders[1].id,
                 product_id=products[4].id,
                 quantity=1,
@@ -1035,8 +1035,8 @@ def add_sample_data(session=None) -> None:
                 notes="Watch strap to match bag"
             ),
 
-            # Items for third customer order
-            OrderItem(
+            # Items for third customer sale
+            SaleItem(
                 order_id=customer_orders[2].id,
                 product_id=products[1].id,
                 quantity=1,
@@ -1045,7 +1045,7 @@ def add_sample_data(session=None) -> None:
                 total_price=39.99,
                 notes="Card holder with monogram"
             ),
-            OrderItem(
+            SaleItem(
                 order_id=customer_orders[2].id,
                 product_id=products[4].id,
                 quantity=1,
@@ -1055,8 +1055,8 @@ def add_sample_data(session=None) -> None:
                 notes="Matching watch strap"
             ),
 
-            # Items for fourth customer order
-            OrderItem(
+            # Items for fourth customer sale
+            SaleItem(
                 order_id=customer_orders[3].id,
                 product_id=products[2].id,
                 quantity=1,
@@ -1069,8 +1069,8 @@ def add_sample_data(session=None) -> None:
 
         # Add items to supplier orders
         order_items.extend([
-            # Items for first supplier order (leather restock)
-            OrderItem(
+            # Items for first supplier sale (leather restock)
+            SaleItem(
                 order_id=supplier_orders[0].id,
                 product_id=None,
                 quantity=20.0,  # square feet
@@ -1079,7 +1079,7 @@ def add_sample_data(session=None) -> None:
                 total_price=259.80,
                 notes="Vintage Brown Full Grain Leather"
             ),
-            OrderItem(
+            SaleItem(
                 order_id=supplier_orders[0].id,
                 product_id=None,
                 quantity=10.0,  # square feet
@@ -1089,8 +1089,8 @@ def add_sample_data(session=None) -> None:
                 notes="Black Chromexcel Leather"
             ),
 
-            # Items for second supplier order (hardware restock)
-            OrderItem(
+            # Items for second supplier sale (hardware restock)
+            SaleItem(
                 order_id=supplier_orders[1].id,
                 product_id=None,
                 quantity=100,
@@ -1099,7 +1099,7 @@ def add_sample_data(session=None) -> None:
                 total_price=75.00,
                 notes="Antique Brass Snap Buttons"
             ),
-            OrderItem(
+            SaleItem(
                 order_id=supplier_orders[1].id,
                 product_id=None,
                 quantity=50,
@@ -1109,8 +1109,8 @@ def add_sample_data(session=None) -> None:
                 notes="Black D-Rings 3/4\""
             ),
 
-            # Items for third supplier order (exotic leather)
-            OrderItem(
+            # Items for third supplier sale (exotic leather)
+            SaleItem(
                 order_id=supplier_orders[2].id,
                 product_id=None,
                 quantity=10.0,  # square feet
@@ -1119,7 +1119,7 @@ def add_sample_data(session=None) -> None:
                 total_price=285.00,
                 notes="Ostrich Leather, Cognac"
             ),
-            OrderItem(
+            SaleItem(
                 order_id=supplier_orders[2].id,
                 product_id=None,
                 quantity=10.0,  # square feet
@@ -1132,7 +1132,7 @@ def add_sample_data(session=None) -> None:
 
         session.add_all(order_items)
         session.flush()
-        logger.info(f"Added {len(order_items)} order items")
+        logger.info(f"Added {len(order_items)} sale items")
 
         # 12. Create shopping lists
         shopping_lists = [

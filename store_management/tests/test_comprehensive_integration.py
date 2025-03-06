@@ -23,16 +23,16 @@ from datetime import datetime, timedelta
 # Import core models and exceptions
 from database.models.material import Material
 from database.models.project import Project
-from database.models.order import Order, OrderItem
+from database.models.sale import Sale, SaleItem
 from database.models.supplier import Supplier
 from database.models.hardware import Hardware
 from database.models.storage import Storage
-from database.models.enums import MaterialType, ProjectType, SkillLevel, OrderStatus, PaymentStatus, SupplierStatus
+from database.models.enums import MaterialType, ProjectType, SkillLevel, SaleStatus, PaymentStatus, SupplierStatus
 
 # Import services and interfaces
 from services.interfaces.material_service import IMaterialService
 from services.interfaces.project_service import IProjectService
-from services.interfaces.order_service import IOrderService
+from services.interfaces.sale_service import ISaleService
 from services.interfaces.supplier_service import ISupplierService
 from services.interfaces.storage_service import IStorageService
 
@@ -77,7 +77,7 @@ class TestEnhancedLeatherworkingIntegration:
         """
         Retrieve Order Service for testing
         """
-        return dependency_container.get(IOrderService)
+        return dependency_container.get(ISaleService)
 
     @pytest.fixture(scope='function')
     def supplier_service(self, dependency_container):
@@ -133,16 +133,16 @@ class TestEnhancedLeatherworkingIntegration:
 
     def test_order_error_scenarios(self, order_service, material_service):
         """
-        Test various error scenarios in order management
+        Test various error scenarios in sale management
         """
-        # Create a material for order
+        # Create a material for sale
         material = material_service.create({
             'name': 'Order Test Material',
             'material_type': MaterialType.LEATHER,
             'quantity': 10.0
         })
 
-        # Test order with invalid status
+        # Test sale with invalid status
         with pytest.raises(ValidationError):
             order_service.create({
                 'customer_name': 'Test Customer',
@@ -156,11 +156,11 @@ class TestEnhancedLeatherworkingIntegration:
                 ]
             })
 
-        # Test order with insufficient material quantity
+        # Test sale with insufficient material quantity
         with pytest.raises(ApplicationError):
             order_service.create({
                 'customer_name': 'Test Customer',
-                'status': OrderStatus.PENDING,
+                'status': SaleStatus.PENDING,
                 'order_items': [
                     {
                         'material_id': material.id,
@@ -267,7 +267,7 @@ class TestEnhancedLeatherworkingIntegration:
             order = order_service.create({
                 'customer_name': f'Stress Test Customer {i}',
                 'supplier_id': supplier.id,
-                'status': OrderStatus.PENDING,
+                'status': SaleStatus.PENDING,
                 'order_items': [
                     {
                         'material_id': m.id,
@@ -307,10 +307,10 @@ class TestEnhancedLeatherworkingIntegration:
             'materials': [material.id]
         })
 
-        # Create order using the material
+        # Create sale using the material
         order = order_service.create({
             'customer_name': 'Integrity Test Customer',
-            'status': OrderStatus.PENDING,
+            'status': SaleStatus.PENDING,
             'order_items': [
                 {
                     'material_id': material.id,

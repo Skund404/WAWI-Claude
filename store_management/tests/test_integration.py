@@ -11,8 +11,8 @@ from database.models import (
     MaterialTransaction,
     Project,
     ProjectComponent,
-    Order,
-    OrderItem,
+    Sale,
+    SaleItem,
     Product,
     Storage,
     Supplier
@@ -77,7 +77,7 @@ def test_create_project(app, db: Session):
 
 
 def test_create_order(app, db: Session):
-    """Test creating a new order."""
+    """Test creating a new sale."""
     order_data = {
         "customer_name": "John Doe",
         "status": "PENDING",
@@ -85,16 +85,16 @@ def test_create_order(app, db: Session):
             {"product_id": 1, "quantity": 2},
             {"product_id": 2, "quantity": 1},
         ],
-        # Add more order fields...
+        # Add more sale fields...
     }
     response = app.test_client().post("/orders", json=order_data)
     assert response.status_code == 201
     order_id = response.json["id"]
 
-    order = db.query(Order).filter(Order.id == order_id).first()
+    order = db.query(Sale).filter(Sale.id == order_id).first()
     assert order is not None
     assert order.customer_name == "John Doe"
-    # Assert other order properties and relationships...
+    # Assert other sale properties and relationships...
 
 
 def test_material_transaction(app, db: Session):
@@ -169,8 +169,8 @@ def test_add_project_component(app, db: Session):
     # Assert other component properties...
 
 def test_update_order_status(app, db: Session):
-    """Test updating an order's status."""
-    order = db.query(Order).first()
+    """Test updating an sale's status."""
+    order = db.query(Sale).first()
     assert order is not None
 
     update_data = {
@@ -179,7 +179,7 @@ def test_update_order_status(app, db: Session):
     response = app.test_client().put(f"/orders/{order.id}", json=update_data)
     assert response.status_code == 200
 
-    updated_order = db.query(Order).filter(Order.id == order.id).first()
+    updated_order = db.query(Sale).filter(Sale.id == order.id).first()
     assert updated_order.status == "PROCESSING"
 
 def test_get_material_transactions(app, db: Session):
@@ -206,14 +206,14 @@ def test_get_project_by_id(app, db: Session):
     # Assert other project properties...
 
 def test_delete_order(app, db: Session):
-    """Test deleting an order."""
-    order = db.query(Order).first()
+    """Test deleting an sale."""
+    order = db.query(Sale).first()
     assert order is not None
 
     response = app.test_client().delete(f"/orders/{order.id}")
     assert response.status_code == 204
 
-    deleted_order = db.query(Order).filter(Order.id == order.id).first()
+    deleted_order = db.query(Sale).filter(Sale.id == order.id).first()
     assert deleted_order is None
 
 def test_get_storage_locations(app, db: Session):

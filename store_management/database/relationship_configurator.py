@@ -53,7 +53,7 @@ def import_all_models():
         logger.info("Imported model: Product")
 
         logger.info("Importing model: Order")
-        from database.models.order import Order, OrderItem
+        from database.models.sale import Sale, SaleItem
         logger.info("Imported model: Order")
         logger.info("Imported model: OrderItem")
 

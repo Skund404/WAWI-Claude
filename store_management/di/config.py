@@ -95,7 +95,7 @@ def get_service_container() -> ServiceContainer:
         'MaterialService': 'services.implementations.material_service.MaterialService',
         'ProjectService': 'services.implementations.project_service.ProjectService',
         'InventoryService': 'services.implementations.inventory_service.InventoryService',
-        'OrderService': 'services.implementations.order_service.OrderService',
+        'SaleService': 'services.implementations.order_service.SaleService',
     }
 
     for service_name, import_path in services_to_register.items():

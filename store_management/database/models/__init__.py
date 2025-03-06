@@ -1,102 +1,129 @@
 # database/models/__init__.py
 """
-Initialization and import management for database models.
+Database models package initialization.
 
-This module ensures all models are imported and registered correctly,
-resolving potential circular import issues.
+This module imports and registers all model classes and manages their initialization.
 """
 
 import logging
-from utils.circular_import_resolver import (
-    CircularImportResolver,
-    register_lazy_import,
-    lazy_import,
-    resolve_lazy_relationships
-)
+import importlib
 
 # Setup logger
 logger = logging.getLogger(__name__)
 
-# Only directly import the base components that don't have dependencies
-from .base import Base, ModelValidationError
-from .enums import (
-    LeatherType, MaterialType, OrderStatus, ProjectStatus,
-    PaymentStatus, ComponentType
+# Base model classes
+from database.models.base import Base, ModelValidationError
+
+# Import utility for circular imports
+from utils.circular_import_resolver import CircularImportResolver
+
+# Import enums first as they don't have dependencies
+from database.models.enums import (
+    SaleStatus, PaymentStatus, CustomerStatus, CustomerTier, CustomerSource,
+    HardwareType, HardwareMaterial, HardwareFinish, PickingListStatus,
+    MaterialQualityGrade, InventoryStatus, ShoppingListStatus, SupplierStatus,
+    StorageLocationType, MeasurementUnit, Priority, TransactionType,
+    QualityCheckStatus, ComponentType, ProjectType, LeatherType, LeatherFinish,
+    ProjectStatus, ToolCategory, MaterialType, SkillLevel, QualityGrade, EdgeFinishType,
+    PurchaseStatus, ToolListStatus
 )
 
-# Define initial exports for backward compatibility
-__all__ = [
-    'Base', 'ModelValidationError',
-    'LeatherType', 'MaterialType', 'OrderStatus', 'ProjectStatus',
-    'PaymentStatus', 'ComponentType'
-]
+# Entity models - order matters to reduce circular imports
+# First import models with fewer dependencies
+from database.models.customer import Customer
+from database.models.supplier import Supplier
+from database.models.material import Material
+from database.models.leather import Leather
+from database.models.hardware import Hardware
+from database.models.tool import Tool
 
-# Register lazy imports for potentially circular dependencies
-register_lazy_import("Transaction", "database.models.transaction", "BaseTransaction")
-register_lazy_import("MaterialTransaction", "database.models.transaction", "MaterialTransaction")
-register_lazy_import("LeatherTransaction", "database.models.transaction", "LeatherTransaction")
-register_lazy_import("HardwareTransaction", "database.models.transaction", "HardwareTransaction")
+# Then import inventory models
+from database.models.material_inventory import MaterialInventory
+from database.models.leather_inventory import LeatherInventory
+from database.models.hardware_inventory import HardwareInventory
+from database.models.tool_inventory import ToolInventory
 
-# Import customer-related models and enums
-from .customer import Customer
-from .enums import (
-    CustomerStatus,
-    CustomerTier,
-    CustomerSource
+# Component and pattern models
+from database.models.pattern import Pattern
+from database.models.components import (
+    Component, PatternComponent, ProjectComponent,
+    ComponentMaterial, ComponentLeather, ComponentHardware, ComponentTool
 )
 
-# Extend initial exports
-__all__.extend([
-    'Customer',
-    'CustomerStatus',
-    'CustomerTier',
-    'CustomerSource'
-])
+# Product models
+from database.models.product import Product
+from database.models.product_inventory import ProductInventory
+from database.models.product_pattern import ProductPattern
 
-# Import models after dependencies are registered
-from .components import Component, PatternComponent, ProjectComponent
-from .hardware import Hardware
-from .inventory import Inventory
-from .leather import Leather
-from .material import Material
-from .order import Order, setup_relationships as setup_order_relationships
-from .order_item import OrderItem, setup_relationships as setup_order_item_relationships
-from .part import Part
-from .pattern import Pattern
-from .product import Product
-from .production import Production
-from .project import Project
-from .sales import Sales
-from .shopping_list import ShoppingList, ShoppingListItem
-from .storage import Storage
-from .supplier import Supplier
+# Project and list models
+from database.models.project import Project
+from database.models.shopping_list import ShoppingList, ShoppingListItem
+from database.models.tool_list import ToolList, ToolListItem
+from database.models.storage import Storage
+from database.models.purchase import Purchase
+from database.models.purchase_item import PurchaseItem
 
-# Extend __all__ with additional imports
-__all__.extend([
-    'Component', 'PatternComponent', 'ProjectComponent',
-    'Hardware', 'Inventory', 'Leather', 'Material',
-    'Order', 'OrderItem', 'Part', 'Pattern', 'Product',
-    'Production', 'Project', 'Sales', 'ShoppingList',
-    'ShoppingListItem', 'Storage', 'Supplier'
-])
+# Transaction models
+from database.models.transaction import (
+    BaseTransaction, MaterialTransaction, LeatherTransaction, HardwareTransaction
+)
 
+# Import picking list models - these may depend on sales
+from database.models.picking_list import PickingList, PickingListItem
 
-def initialize_models():
-    """
-    Initialize model relationships and perform any necessary setup.
-    """
-    logger.info("Initializing model relationships")
+# Sales models - import with special handling to avoid circular imports
+try:
+    # Use importlib to avoid direct import issues
+    sales_module = importlib.import_module('database.models.sales')
+    Sales = sales_module.Sales
+    logger.debug("Successfully imported Sales model")
+except ImportError as e:
+    logger.error(f"Error importing Sales model: {e}")
+    Sales = None
 
-    # Call setup relationships for order and order_item
-    setup_order_relationships()
-    setup_order_item_relationships()
+try:
+    # Use importlib to avoid direct import issues
+    sales_item_module = importlib.import_module('database.models.sales_item')
+    SalesItem = sales_item_module.SalesItem
+    logger.debug("Successfully imported SalesItem model")
+except ImportError as e:
+    logger.error(f"Error importing SalesItem model: {e}")
+    SalesItem = None
 
-    # Resolve any lazy relationships
-    resolve_lazy_relationships()
+# Initialize relationships for models with circular dependencies
+def initialize_all_relationships():
+    """Initialize all relationships for models with circular dependencies."""
+    try:
+        logger.info("Initializing all model relationships")
 
+        # List of modules with relationship initialization
+        modules_to_initialize = [
+            'database.models.sales',
+            'database.models.sales_item',
+            'database.models.product',
+            'database.models.pattern',
+            'database.models.product_pattern',
+            'database.models.picking_list',
+            'database.models.transaction',
+        ]
 
-# Initialize models when the module is imported
-initialize_models()
+        # Initialize relationships for each module
+        for module_path in modules_to_initialize:
+            try:
+                module = importlib.import_module(module_path)
+                if hasattr(module, 'initialize_relationships'):
+                    logger.debug(f"Initializing relationships for {module_path}")
+                    module.initialize_relationships()
+            except Exception as e:
+                logger.error(f"Error initializing relationships for {module_path}: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
 
-# Add logging to help debug import issues
-logger.debug("database.models package initialization complete")
+        logger.info("All model relationships initialized successfully")
+    except Exception as e:
+        logger.error(f"Error during relationship initialization: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+
+# Initialize relationships
+initialize_all_relationships()

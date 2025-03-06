@@ -1,6 +1,6 @@
 # utils/validators/order_validator.py
 """
-Validators for order-related data.
+Validators for sale-related data.
 """
 import json
 import logging
@@ -14,19 +14,19 @@ from .data_sanitizer import DataSanitizer
 
 class OrderValidator:
     """
-    Utility class for validating and processing order-related data.
+    Utility class for validating and processing sale-related data.
     """
 
     @classmethod
     def validate_order_data(cls, order_data: Dict[str, Any]) -> bool:
         """
-        Validate order data against a set of predefined rules.
+        Validate sale data against a set of predefined rules.
 
         Args:
             order_data (Dict[str, Any]): Order data to validate
 
         Returns:
-            bool: True if order data is valid, False otherwise
+            bool: True if sale data is valid, False otherwise
         """
         # Sanitize input data first
         sanitized_data = DataSanitizer.sanitize_dict(order_data)
@@ -75,11 +75,11 @@ class OrderValidator:
             for _, row in df.iterrows():
                 order_data = row.to_dict()
 
-                # Sanitize and validate each order
+                # Sanitize and validate each sale
                 if cls.validate_order_data(order_data):
                     valid_orders.append(order_data)
                 else:
-                    logging.warning(f"Skipping invalid order: {order_data}")
+                    logging.warning(f"Skipping invalid sale: {order_data}")
 
             return valid_orders
 
@@ -100,7 +100,7 @@ class OrderValidator:
             bool: True if export was successful, False otherwise
         """
         try:
-            # Validate each order before export
+            # Validate each sale before export
             valid_orders = [
                 order for order in orders
                 if cls.validate_order_data(order)

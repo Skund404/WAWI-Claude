@@ -9,7 +9,7 @@ to prevent circular import issues.
 """
 if TYPE_CHECKING:
     from .product import Product
-    from .order import Order
+    from .sale import Sale
 
 
 class SupplierModelResolver:
@@ -65,8 +65,8 @@ class SupplierModelResolver:
             Mapped[List[Any]]: Relationship to Order models.
         """
         if cls._order_model is None:
-            from .order import Order
-            cls._order_model = Order
+            from .sale import Sale
+            cls._order_model = Sale
         return relationship(cls._order_model, back_populates='supplier',
                             lazy='subquery')
 

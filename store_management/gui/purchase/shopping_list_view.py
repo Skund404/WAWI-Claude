@@ -1,4 +1,4 @@
-# Path: gui/order/shopping_list_view.py
+# Path: gui/sale/shopping_list_view.py
 import logging
 from datetime import datetime
 import tkinter as tk

@@ -385,7 +385,7 @@ class DatabaseUtilities:
                 supplier,
                 date_of_order,
                 status,
-                order_number,
+                sale_number,
                 payed
             FROM orders
             WHERE date_of_order >= date('now', '-30 days')
@@ -398,7 +398,7 @@ class DatabaseUtilities:
             SELECT 
                 supplier,
                 date_of_order,
-                order_number
+                sale_number
             FROM orders
             WHERE payed = 'no'
             ORDER BY date_of_order
@@ -437,7 +437,7 @@ class DatabaseUtilities:
         cursor.execute("""
             SELECT 
                 s.company_name,
-                COUNT(o.order_number) as order_count,
+                COUNT(o.sale_number) as order_count,
                 MAX(o.date_of_order) as last_order
             FROM supplier s
             LEFT JOIN orders o ON s.company_name = o.supplier

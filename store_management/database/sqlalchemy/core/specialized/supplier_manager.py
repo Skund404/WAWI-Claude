@@ -35,7 +35,7 @@ class SupplierManager(BaseManager[Supplier]):
     @inject(MaterialService)
     def get_supplier_with_orders(self, supplier_id: int) -> Optional[Supplier]:
         """
-        Get supplier with their order history.
+        Get supplier with their sale history.
 
         Args:
             supplier_id (int): Supplier ID
@@ -96,7 +96,7 @@ class SupplierManager(BaseManager[Supplier]):
             end_date: Optional[datetime] = None
     ) -> List[Order]:
         """
-        Get supplier's order history with optional date range.
+        Get supplier's sale history with optional date range.
 
         Args:
             supplier_id (int): Supplier ID
@@ -115,18 +115,18 @@ class SupplierManager(BaseManager[Supplier]):
 
                 # Add date filtering if dates are provided
                 if start_date:
-                    query = query.where(Order.order_date >= start_date)
+                    query = query.where(Order.sale_date >= start_date)
                 if end_date:
-                    query = query.where(Order.order_date <= end_date)
+                    query = query.where(Order.sale_date <= end_date)
 
                 # Order by most recent first
-                query = query.order_by(Order.order_date.desc())
+                query = query.order_by(Order.sale_date.desc())
 
                 result = session.execute(query)
                 return list(result.scalars().all())
         except Exception as e:
-            self._logger.error(f'Failed to get supplier order history: {e}')
-            raise DatabaseError(f'Failed to get supplier order history', str(e))
+            self._logger.error(f'Failed to get supplier sale history: {e}')
+            raise DatabaseError(f'Failed to get supplier sale history', str(e))
 
     @inject(MaterialService)
     def update_supplier_rating(
@@ -249,15 +249,15 @@ class SupplierManager(BaseManager[Supplier]):
                 total_orders_query = select(func.count(Order.id)).where(Order.supplier_id == supplier_id)
                 total_orders = session.execute(total_orders_query).scalar_one()
 
-                # Total order value
+                # Total sale value
                 total_value_query = select(func.sum(Order.total_amount)).where(Order.supplier_id == supplier_id)
                 total_value = session.execute(total_value_query).scalar_one() or 0
 
-                # Average order value
+                # Average sale value
                 avg_order_value = total_value / total_orders if total_orders > 0 else 0
 
-                # Get last order date
-                last_order_query = select(func.max(Order.order_date)).where(Order.supplier_id == supplier_id)
+                # Get last sale date
+                last_order_query = select(func.max(Order.sale_date)).where(Order.supplier_id == supplier_id)
                 last_order_date = session.execute(last_order_query).scalar_one()
 
                 return {

@@ -202,7 +202,7 @@ class PaginationMixin(BaseMixin[T]):
         Args:
             page: Page number (1-based)
             page_size: Number of records per page
-            order_by: Optional column to order by
+            order_by: Optional column to sale by
             filters: Optional filtering criteria
 
         Returns:

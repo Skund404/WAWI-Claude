@@ -10,7 +10,7 @@ from .base_service import IBaseService
 from .hardware_service import IHardwareService, HardwareType, HardwareMaterial
 from .inventory_service import IInventoryService
 from .material_service import IMaterialService, MaterialType
-from .order_service import IOrderService, OrderStatus, PaymentStatus
+from .sale_service import ISaleService, SaleStatus, PaymentStatus
 from .pattern_service import IPatternService, PatternStatus
 from .project_service import IProjectService, ProjectType, SkillLevel
 from .shopping_list_service import IShoppingListService, ShoppingListStatus
@@ -21,7 +21,7 @@ from .supplier_service import ISupplierService, SupplierStatus
 HardwareService = IHardwareService
 InventoryService = IInventoryService
 MaterialService = IMaterialService
-OrderService = IOrderService
+OrderService = ISaleService
 PatternService = IPatternService
 ProjectService = IProjectService
 ShoppingListService = IShoppingListService
@@ -34,7 +34,7 @@ __all__ = [
     'HardwareService', 'HardwareType', 'HardwareMaterial',
     'InventoryService',
     'MaterialService', 'MaterialType',
-    'OrderService', 'OrderStatus', 'PaymentStatus',
+    'OrderService', 'SaleStatus', 'PaymentStatus',
     'PatternService', 'PatternStatus',
     'ProjectService', 'ProjectType', 'SkillLevel',
     'ShoppingListService', 'ShoppingListStatus',

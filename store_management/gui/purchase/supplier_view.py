@@ -1,4 +1,4 @@
-# relative path: store_management/gui/order/supplier_view.py
+# relative path: store_management/gui/sale/supplier_view.py
 """
 Supplier View module for managing supplier information in a tkinter-based GUI application.
 

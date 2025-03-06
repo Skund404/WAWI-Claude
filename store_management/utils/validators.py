@@ -5,22 +5,22 @@ from typing import Dict, Any, Tuple, Optional
 
 
 class OrderValidator:
-    """Validator for order-related data"""
+    """Validator for sale-related data"""
 
     @staticmethod
     def validate_order(data: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
         """
-        Validate order data
+        Validate sale data
 
         Args:
-            data: Dictionary containing order data
+            data: Dictionary containing sale data
 
         Returns:
             Tuple containing:
                 - Boolean indicating if validation passed
                 - Optional error message string
         """
-        required_fields = ['supplier', 'order_number', 'date_of_order', 'status']
+        required_fields = ['supplier', 'sale_number', 'date_of_order', 'status']
 
         for field in required_fields:
             if not data.get(field):
@@ -45,10 +45,10 @@ class OrderValidator:
     @staticmethod
     def validate_order_details(data: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
         """
-        Validate order details data
+        Validate sale details data
 
         Args:
-            data: Dictionary containing order details
+            data: Dictionary containing sale details
 
         Returns:
             Tuple containing:
@@ -123,10 +123,10 @@ class DataSanitizer:
     @staticmethod
     def sanitize_order_data(data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Sanitize order data
+        Sanitize sale data
 
         Args:
-            data: Dictionary containing order data
+            data: Dictionary containing sale data
 
         Returns:
             Dictionary with sanitized data

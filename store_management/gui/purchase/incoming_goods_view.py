@@ -132,7 +132,7 @@ class IncomingGoodsView(BaseView):
     def _load_initial_data(self):
         """Load initial orders data"""
         try:
-            orders = self.order_manager.get_all_orders()
+            orders = self.order_manager.get_all_sales()
             self._populate_orders_tree(orders)
         except Exception as e:
             messagebox.showerror('Load Error', str(e))
@@ -162,27 +162,27 @@ class IncomingGoodsView(BaseView):
 
     @inject(MaterialService)
     def _on_order_select(self, event):
-        """Handle order selection in treeview"""
+        """Handle sale selection in treeview"""
         selection = self.orders_tree.selection()
         if not selection:
             return
 
         try:
             order_id = int(self.orders_tree.item(selection[0])['tags'][0])
-            self.current_order = self.order_manager.get_order_by_id(order_id)
+            self.current_order = self.order_manager.get_sale_by_id(order_id)
             if self.current_order:
                 self._load_order_details(self.current_order.id)
         except Exception as e:
             messagebox.showerror('Selection Error', str(e))
-            logger.error(f"Error selecting order: {e}")
+            logger.error(f"Error selecting sale: {e}")
 
     @inject(MaterialService)
     def _load_order_details(self, order_id: int):
         """
-        Load details for a specific order
+        Load details for a specific sale
 
         Args:
-            order_id: ID of the order to load details for
+            order_id: ID of the sale to load details for
         """
         try:
             for item in self.details_tree.get_children():
@@ -201,7 +201,7 @@ class IncomingGoodsView(BaseView):
                 self.details_tree.insert('', 'end', values=values, tags=(str(detail.id),))
         except Exception as e:
             messagebox.showerror('Details Load Error', str(e))
-            logger.error(f"Failed to load order details: {e}")
+            logger.error(f"Failed to load sale details: {e}")
 
     @inject(MaterialService)
     def cleanup(self):
@@ -220,7 +220,7 @@ class IncomingGoodsView(BaseView):
                 self.session.close()
 
     def show_add_order_dialog(self):
-        """Show dialog for adding a new order"""
+        """Show dialog for adding a new sale"""
         # Implement this method
         pass
 
@@ -235,7 +235,7 @@ class IncomingGoodsView(BaseView):
         pass
 
     def finish_order(self):
-        """Mark selected order as finished"""
+        """Mark selected sale as finished"""
         # Implement this method
         pass
 
@@ -270,6 +270,6 @@ class IncomingGoodsView(BaseView):
         pass
 
     def show_add_item_dialog(self):
-        """Show dialog for adding an item to the current order"""
+        """Show dialog for adding an item to the current sale"""
         # Implement this method
         pass

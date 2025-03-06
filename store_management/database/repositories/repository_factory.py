@@ -1,180 +1,95 @@
-# store_management/database/repositories/repository_factory.py
+# database/repositories/repository_factory.py
 """
 Factory for creating repository instances.
 
-Provides a centralized mechanism for creating and managing 
-repository instances with caching and dynamic registration capabilities.
+This module provides a centralized factory for creating repository instances,
+ensuring consistent repository creation and configuration throughout the application.
 """
 
-from typing import Dict, Type, Optional
-from sqlalchemy.orm import Session
 import logging
+from typing import Dict, Optional, Type
 
-# Import specific repository classes
+from sqlalchemy.orm import Session
+
+from .base_repository import BaseRepository
+from .hardware_repository import HardwareRepository
 from .product_repository import ProductRepository
-from .order_repository import OrderRepository
-from .supplier_repository import SupplierRepository
-from .storage_repository import StorageRepository
-from .part_repository import PartRepository
 from .project_repository import ProjectRepository
 from .shopping_list_repository import ShoppingListRepository
-from .hardware_repository import HardwareRepository
+from .storage_repository import StorageRepository
+from .supplier_repository import SupplierRepository
+from .pattern_repository import PatternRepository
+from .product_pattern_repository import ProductPatternRepository
+from .product_inventory_repository import ProductInventoryRepository
+from .sales_repository import SalesRepository
+from .sales_item_repository import SalesItemRepository
+from .picking_list_repository import PickingListRepository
 
-# Base repository type hint
-from .base_repository import BaseRepository
-
-# Configure logging
+# Setup logger
 logger = logging.getLogger(__name__)
 
 
 class RepositoryFactory:
-    """
-    A factory class for creating and managing repository instances.
+    """Factory for creating repository instances."""
 
-    Provides methods for registering, retrieving, and caching 
-    repository instances with dynamic model support.
-
-    Attributes:
-        _repository_classes (Dict[str, Type[BaseRepository]]): 
-            Registered repository classes
-        _repositories (Dict[str, BaseRepository]): 
-            Cached repository instances
-    """
-
-    # Default repository mappings
-    _repository_classes: Dict[str, Type[BaseRepository]] = {
-        'Supplier': SupplierRepository,
-        'Storage': StorageRepository,
-        'Product': ProductRepository,
-        'Order': OrderRepository,
-        'Part': PartRepository,
-        'Project': ProjectRepository,
-        'ShoppingList': ShoppingListRepository,
-        'Hardware': HardwareRepository
+    # Mapping of repository types to their classes
+    _repository_types: Dict[str, Type[BaseRepository]] = {
+        'hardware': HardwareRepository,
+        'product': ProductRepository,
+        'project': ProjectRepository,
+        'shopping_list': ShoppingListRepository,
+        'storage': StorageRepository,
+        'supplier': SupplierRepository,
+        'pattern': PatternRepository,
+        'product_pattern': ProductPatternRepository,
+        'product_inventory': ProductInventoryRepository,
+        'sales': SalesRepository,
+        'sales_item': SalesItemRepository,
+        'picking_list': PickingListRepository,
     }
 
-    # Instance cache
-    _repositories: Dict[str, BaseRepository] = {}
-
     @classmethod
-    def register_repository(
-            cls,
-            model_name: str,
-            repository_class: Type[BaseRepository]
-    ) -> None:
+    def create(cls, repo_type: str, session: Session) -> BaseRepository:
         """
-        Register a custom repository class for a specific model.
+        Create a repository of the specified type.
 
         Args:
-            model_name (str): The name of the model
-            repository_class (Type[BaseRepository]): The repository class to register
-
-        Example:
-            RepositoryFactory.register_repository('CustomModel', CustomModelRepository)
-        """
-        try:
-            cls._repository_classes[model_name] = repository_class
-            logger.debug(
-                f'Registered repository for {model_name}: {repository_class.__name__}'
-            )
-        except Exception as e:
-            logger.error(f'Error registering repository for {model_name}: {e}')
-            raise
-
-    @classmethod
-    def get_repository(
-            cls,
-            model_name: str,
-            session: Session
-    ) -> BaseRepository:
-        """
-        Retrieve a repository instance for a specific model.
-
-        Args:
-            model_name (str): The name of the model
-            session (Session): SQLAlchemy database session
+            repo_type: Type of repository to create
+            session: SQLAlchemy database session
 
         Returns:
-            BaseRepository: A repository instance for the specified model
+            BaseRepository: The created repository
 
         Raises:
-            ValueError: If no repository is registered for the model
+            ValueError: If the repository type is not supported
         """
-        try:
-            # Create a unique key for the repository instance
-            key = f'{model_name}_{id(session)}'
+        if repo_type not in cls._repository_types:
+            valid_types = ", ".join(cls._repository_types.keys())
+            error_msg = f"Unsupported repository type '{repo_type}'. Valid types: {valid_types}"
+            logger.error(error_msg)
+            raise ValueError(error_msg)
 
-            # Return cached repository if exists
-            if key in cls._repositories:
-                return cls._repositories[key]
-
-            # Check if repository is registered
-            if model_name not in cls._repository_classes:
-                raise ValueError(f'No repository registered for model: {model_name}')
-
-            # Create new repository instance
-            repository_class = cls._repository_classes[model_name]
-            repository = repository_class(session)
-
-            # Cache the repository instance
-            cls._repositories[key] = repository
-
-            return repository
-        except Exception as e:
-            logger.error(f'Error getting repository for {model_name}: {e}')
-            raise
+        repo_class = cls._repository_types[repo_type]
+        repository = repo_class(session)
+        logger.debug(f"Created repository of type '{repo_type}'")
+        return repository
 
     @classmethod
-    def clear_cache(cls) -> None:
+    def register_repository_type(cls, name: str, repo_class: Type[BaseRepository]) -> None:
         """
-        Clear the repository instance cache.
-
-        Useful for cleaning up resources or resetting the factory 
-        between test cases or long-running processes.
-        """
-        try:
-            cls._repositories.clear()
-            logger.info('Repository cache cleared')
-        except Exception as e:
-            logger.error(f'Error clearing repository cache: {e}')
-            raise
-
-    @classmethod
-    def get_all_repositories(cls) -> Dict[str, Type[BaseRepository]]:
-        """
-        Retrieve all registered repository classes.
-
-        Returns:
-            Dict[str, Type[BaseRepository]]: Mapping of model names to repository classes
-        """
-        return cls._repository_classes.copy()
-
-    @classmethod
-    def unregister_repository(cls, model_name: str) -> None:
-        """
-        Unregister a repository for a specific model.
+        Register a new repository type.
 
         Args:
-            model_name (str): The name of the model to unregister
+            name: Name to register the repository type under
+            repo_class: The repository class
 
         Raises:
-            KeyError: If the model name is not registered
+            ValueError: If the name is already registered
         """
-        try:
-            # Remove repository class
-            del cls._repository_classes[model_name]
+        if name in cls._repository_types:
+            error_msg = f"Repository type '{name}' is already registered"
+            logger.error(error_msg)
+            raise ValueError(error_msg)
 
-            # Remove any cached instances
-            keys_to_remove = [
-                key for key in cls._repositories
-                if key.startswith(f'{model_name}_')
-            ]
-            for key in keys_to_remove:
-                del cls._repositories[key]
-
-            logger.debug(f'Unregistered repository for {model_name}')
-        except KeyError:
-            logger.warning(f'Cannot unregister non-existent repository: {model_name}')
-        except Exception as e:
-            logger.error(f'Error unregistering repository for {model_name}: {e}')
-            raise
+        cls._repository_types[name] = repo_class
+        logger.debug(f"Registered repository type '{name}'")

@@ -597,20 +597,20 @@ class PickingListService(BaseService, IPickingListService):
 
     def generate_picking_list_from_order(self, order_id: int) -> Dict[str, Any]:
         """
-        Generate a picking list from an order.
+        Generate a picking list from an sale.
 
         Args:
-            order_id: ID of the order to generate from
+            order_id: ID of the sale to generate from
 
         Returns:
             Dict[str, Any]: Created picking list
 
         Raises:
-            NotFoundError: If order not found
+            NotFoundError: If sale not found
         """
         # This is a placeholder implementation
         # In a real app, you would:
-        # 1. Get the order details
+        # 1. Get the sale details
         # 2. Extract materials needed
         # 3. Create a picking list with those materials
 
@@ -624,7 +624,7 @@ class PickingListService(BaseService, IPickingListService):
 
             picking_list = self.create_list(list_data)
 
-            # Dummy item data - in a real app, this would come from the order
+            # Dummy item data - in a real app, this would come from the sale
             item_data = {
                 'material_id': 1,
                 'required_quantity': 5,
@@ -636,5 +636,5 @@ class PickingListService(BaseService, IPickingListService):
             return self.get_list_by_id(picking_list['id'])
 
         except Exception as e:
-            self.logger.error(f"Error generating picking list from order {order_id}: {e}")
+            self.logger.error(f"Error generating picking list from sale {order_id}: {e}")
             raise

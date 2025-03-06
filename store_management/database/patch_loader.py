@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 def load_and_apply_patches():
     """
-    Load and apply all model patches in the correct order.
+    Load and apply all model patches in the correct sale.
     This should be called early in the application startup process.
 
     Returns:

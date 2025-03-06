@@ -2,8 +2,10 @@
 """
 Transaction models for tracking inventory movements and changes.
 
-This module defines various transaction types for different materials
-and implements proper relationship handling to avoid circular imports.
+This module defines transaction models that support the inventory management
+aspect of the application by tracking all changes to inventory quantities.
+While not explicitly in the ER diagram, these models provide the backbone
+for maintaining accurate inventory records.
 """
 
 import logging
@@ -23,26 +25,35 @@ from utils.circular_import_resolver import lazy_import, register_lazy_import
 # Setup logger
 logger = logging.getLogger(__name__)
 
-# Lazy import helpers
+# Lazy import helpers - updated for new inventory models
 Material = lazy_import('database.models.material', 'Material')
 Leather = lazy_import('database.models.leather', 'Leather')
 Hardware = lazy_import('database.models.hardware', 'Hardware')
 Project = lazy_import('database.models.project', 'Project')
+MaterialInventory = lazy_import('database.models.material_inventory', 'MaterialInventory')
+LeatherInventory = lazy_import('database.models.leather_inventory', 'LeatherInventory')
+HardwareInventory = lazy_import('database.models.hardware_inventory', 'HardwareInventory')
 
 # Register lazy imports
 register_lazy_import('database.models.material.Material', 'database.models.material', 'Material')
 register_lazy_import('database.models.leather.Leather', 'database.models.leather', 'Leather')
 register_lazy_import('database.models.hardware.Hardware', 'database.models.hardware', 'Hardware')
 register_lazy_import('database.models.project.Project', 'database.models.project', 'Project')
-
-# We'll define the relationships directly in the classes instead of using register_relationship
-# Since register_relationship expects class objects, not strings
+register_lazy_import('database.models.material_inventory.MaterialInventory', 'database.models.material_inventory',
+                     'MaterialInventory')
+register_lazy_import('database.models.leather_inventory.LeatherInventory', 'database.models.leather_inventory',
+                     'LeatherInventory')
+register_lazy_import('database.models.hardware_inventory.HardwareInventory', 'database.models.hardware_inventory',
+                     'HardwareInventory')
 
 
 class BaseTransaction(Base):
     """
     Base model for all transaction types.
     Implements single-table inheritance for different transaction types.
+
+    While not in the ER diagram, this model supports inventory tracking and
+    provides historical records of all inventory changes.
     """
     __tablename__ = 'base_transactions'
 
@@ -183,15 +194,23 @@ class BaseTransaction(Base):
 class MaterialTransaction(BaseTransaction):
     """
     Model for transactions involving generic materials.
+    Supports the MaterialInventory entity in the ER diagram.
     """
     __table_args__ = {'extend_existing': True}
 
     # Foreign keys
     material_id = Column(Integer, ForeignKey("materials.id"), nullable=True)
+    material_inventory_id = Column(Integer, ForeignKey("material_inventories.id"), nullable=True)
 
     # Relationships - explicitly defining the join condition
     material = relationship(
         "Material",
+        back_populates="transactions",
+        lazy="select"
+    )
+
+    material_inventory = relationship(
+        "MaterialInventory",
         back_populates="transactions",
         lazy="select"
     )
@@ -241,6 +260,7 @@ class MaterialTransaction(BaseTransaction):
 class LeatherTransaction(BaseTransaction):
     """
     Model for transactions involving leather.
+    Supports the LeatherInventory entity in the ER diagram.
     """
     __table_args__ = {'extend_existing': True}
 
@@ -255,11 +275,26 @@ class LeatherTransaction(BaseTransaction):
         info={'constraint_name': 'fk_leather_transaction_leather'}
     )
 
+    leather_inventory_id = Column(
+        Integer,
+        ForeignKey("leather_inventories.id", name="fk_leather_transaction_inventory"),
+        nullable=True,
+        info={'constraint_name': 'fk_leather_transaction_inventory'}
+    )
+
     # Relationships with explicit join conditions
     leather = relationship(
         "Leather",
         primaryjoin="LeatherTransaction.leather_id == Leather.id",
         foreign_keys=[leather_id],
+        back_populates="transactions",
+        lazy="select"
+    )
+
+    leather_inventory = relationship(
+        "LeatherInventory",
+        primaryjoin="LeatherTransaction.leather_inventory_id == LeatherInventory.id",
+        foreign_keys=[leather_inventory_id],
         back_populates="transactions",
         lazy="select"
     )
@@ -276,56 +311,6 @@ class LeatherTransaction(BaseTransaction):
     __mapper_args__ = {
         'polymorphic_identity': 'leather_transaction'
     }
-
-    @classmethod
-    def debug_relationship(cls) -> Dict[str, Any]:
-        """
-        Provides detailed debugging information about the relationship configuration.
-
-        Returns:
-            Dict[str, Any]: Debug information about relationships
-        """
-        debug_info = {}
-        try:
-            logger.info(f"Debugging LeatherTransaction relationships")
-
-            # Get relationship information
-            debug_info["project_id_column"] = str(getattr(cls, "project_id", "Not found"))
-            debug_info["project_id_type"] = str(type(getattr(cls, "project_id", None)))
-            debug_info["project_relationship"] = str(getattr(cls, "project", "Not defined"))
-
-            # Log foreign key constraints
-            if hasattr(cls, '__table__'):
-                fk_constraints = [
-                    str(constraint) for constraint in cls.__table__.constraints
-                    if isinstance(constraint, ForeignKey)
-                ]
-                debug_info["foreign_key_constraints"] = fk_constraints
-
-            logger.info(f"LeatherTransaction relationship debug info: {debug_info}")
-            return debug_info
-        except Exception as e:
-            logger.error(f"Error during LeatherTransaction relationship debugging: {e}")
-            debug_info["error"] = str(e)
-            return debug_info
-
-    @classmethod
-    def __init_subclass__(cls, **kwargs):
-        """
-        Class method called when the class is subclassed.
-        Used to validate and debug relationship configuration during class definition.
-
-        Args:
-            **kwargs: Additional keyword arguments
-        """
-        try:
-            super().__init_subclass__(**kwargs)
-
-            # Call the debugging method
-            if hasattr(cls, 'debug_relationship'):
-                cls.debug_relationship()
-        except Exception as e:
-            logger.error(f"Error during relationship debugging for {cls.__name__}: {e}")
 
     def __init__(self, leather_id: int, **kwargs):
         """Initialize a leather transaction.
@@ -377,6 +362,7 @@ class LeatherTransaction(BaseTransaction):
 class HardwareTransaction(BaseTransaction):
     """
     Model for transactions involving hardware.
+    Supports the HardwareInventory entity in the ER diagram.
     """
     __table_args__ = {'extend_existing': True}
 
@@ -388,11 +374,26 @@ class HardwareTransaction(BaseTransaction):
         info={'constraint_name': 'fk_hardware_transaction_hardware'}
     )
 
+    hardware_inventory_id = Column(
+        Integer,
+        ForeignKey("hardware_inventories.id", name="fk_hardware_transaction_inventory"),
+        nullable=True,
+        info={'constraint_name': 'fk_hardware_transaction_inventory'}
+    )
+
     # Relationships with explicit join conditions
     hardware = relationship(
         "Hardware",
         primaryjoin="HardwareTransaction.hardware_id == Hardware.id",
         foreign_keys=[hardware_id],
+        lazy="select"
+    )
+
+    hardware_inventory = relationship(
+        "HardwareInventory",
+        primaryjoin="HardwareTransaction.hardware_inventory_id == HardwareInventory.id",
+        foreign_keys=[hardware_inventory_id],
+        back_populates="transactions",
         lazy="select"
     )
 
@@ -408,56 +409,6 @@ class HardwareTransaction(BaseTransaction):
     __mapper_args__ = {
         'polymorphic_identity': 'hardware_transaction'
     }
-
-    @classmethod
-    def debug_relationship(cls) -> Dict[str, Any]:
-        """
-        Provides detailed debugging information about the relationship configuration.
-
-        Returns:
-            Dict[str, Any]: Debug information about relationships
-        """
-        debug_info = {}
-        try:
-            logger.info(f"Debugging HardwareTransaction relationships")
-
-            # Get relationship information
-            debug_info["project_id_column"] = str(getattr(cls, "project_id", "Not found"))
-            debug_info["project_id_type"] = str(type(getattr(cls, "project_id", None)))
-            debug_info["project_relationship"] = str(getattr(cls, "project", "Not defined"))
-
-            # Log foreign key constraints
-            if hasattr(cls, '__table__'):
-                fk_constraints = [
-                    str(constraint) for constraint in cls.__table__.constraints
-                    if isinstance(constraint, ForeignKey)
-                ]
-                debug_info["foreign_key_constraints"] = fk_constraints
-
-            logger.info(f"HardwareTransaction relationship debug info: {debug_info}")
-            return debug_info
-        except Exception as e:
-            logger.error(f"Error during HardwareTransaction relationship debugging: {e}")
-            debug_info["error"] = str(e)
-            return debug_info
-
-    @classmethod
-    def __init_subclass__(cls, **kwargs):
-        """
-        Class method called when the class is subclassed.
-        Used to validate and debug relationship configuration during class definition.
-
-        Args:
-            **kwargs: Additional keyword arguments
-        """
-        try:
-            super().__init_subclass__(**kwargs)
-
-            # Call the debugging method
-            if hasattr(cls, 'debug_relationship'):
-                cls.debug_relationship()
-        except Exception as e:
-            logger.error(f"Error during relationship debugging for {cls.__name__}: {e}")
 
     def __init__(self, hardware_id: int, **kwargs):
         """Initialize a hardware transaction.
@@ -505,6 +456,7 @@ def create_transaction(
         transaction_type: TransactionType,
         is_addition: bool = True,
         project_id: Optional[int] = None,
+        inventory_id: Optional[int] = None,
         notes: Optional[str] = None
 ) -> BaseTransaction:
     """
@@ -516,6 +468,7 @@ def create_transaction(
         transaction_type: Type of transaction
         is_addition: Whether this is an addition or reduction
         project_id: Optional project ID to associate with the transaction
+        inventory_id: Optional inventory ID to associate with the transaction
         notes: Optional notes about the transaction
 
     Returns:
@@ -539,10 +492,19 @@ def create_transaction(
         # Dynamically create transaction based on item type
         if isinstance(item, Material) or (hasattr(item, '__class__') and item.__class__.__name__ == 'Material'):
             transaction = MaterialTransaction(material_id=item.id, **transaction_data)
+            if inventory_id:
+                transaction.material_inventory_id = inventory_id
+
         elif isinstance(item, Leather) or (hasattr(item, '__class__') and item.__class__.__name__ == 'Leather'):
             transaction = LeatherTransaction(leather_id=item.id, **transaction_data)
+            if inventory_id:
+                transaction.leather_inventory_id = inventory_id
+
         elif isinstance(item, Hardware) or (hasattr(item, '__class__') and item.__class__.__name__ == 'Hardware'):
             transaction = HardwareTransaction(hardware_id=item.id, **transaction_data)
+            if inventory_id:
+                transaction.hardware_inventory_id = inventory_id
+
         else:
             raise TypeError(f"Unsupported item type: {type(item)}")
 
@@ -608,10 +570,9 @@ def initialize_relationships():
         from database.models.material import Material
         from database.models.leather import Leather
         from database.models.hardware import Hardware
-
-        # Update the relationship definitions if needed
-        # This gives us a chance to make runtime adjustments to relationships
-        # that might be hard to define correctly at class definition time
+        from database.models.material_inventory import MaterialInventory
+        from database.models.leather_inventory import LeatherInventory
+        from database.models.hardware_inventory import HardwareInventory
 
         # Log successful initialization
         logger.info("Transaction relationships initialized successfully")

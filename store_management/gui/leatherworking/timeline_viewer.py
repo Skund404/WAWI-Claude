@@ -264,7 +264,7 @@ class TimelineViewer(BaseView):
             except ValueError as e:
                 raise ValueError(f"Invalid deadline: {e}")
 
-            # Validate date order
+            # Validate date sale
             if deadline < start_date:
                 raise ValueError("Deadline cannot be before start date")
 

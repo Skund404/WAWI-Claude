@@ -357,7 +357,7 @@ class LeatherRepository(BaseRepository[Leather]):
             limit (Optional[int]): Maximum number of transactions to return
 
         Returns:
-            List[LeatherTransaction]: List of transactions in chronological order
+            List[LeatherTransaction]: List of transactions in chronological sale
 
         Raises:
             RepositoryError: If a database error occurs

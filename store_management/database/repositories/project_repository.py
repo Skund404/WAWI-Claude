@@ -279,7 +279,7 @@ class ProjectRepository(BaseRepository):
                 if after_date:
                     query = query.filter(Project.deadline >= after_date)
 
-                # Paginate and order results
+                # Paginate and sale results
                 projects = (
                     query
                     .order_by(Project.deadline)

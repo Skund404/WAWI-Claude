@@ -1,301 +1,158 @@
-# store_management/database/repositories/pattern_repository.py
+# database/repositories/pattern_repository.py
 """
-Repository for managing project (pattern) related database operations.
+Repository for managing Pattern entities.
 
-Provides specialized methods for retrieving, creating, and managing
-leatherworking projects with advanced querying capabilities.
+This repository handles database operations for the Pattern model, including
+creation, retrieval, update, and deletion of patterns.
 """
 
-from typing import List, Optional, Dict, Any
-from sqlalchemy.orm import joinedload
-from sqlalchemy.exc import SQLAlchemyError
 import logging
+from typing import Any, Dict, List, Optional, Union, Tuple
 
-from di.core import inject
-from services.interfaces import ProjectService
-from models.project import Project, ProjectComponent, ProjectType, ProductionStatus
+from sqlalchemy import and_, or_, func
+from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.exc import SQLAlchemyError
 
-# Configure logging
+from database.models.pattern import Pattern
+from database.models.enums import SkillLevel
+from database.repositories.base_repository import BaseRepository
+from database.exceptions import DatabaseError, ModelNotFoundError
+
+# Setup logger
 logger = logging.getLogger(__name__)
 
 
-class ProjectRepository:
-    """
-    Advanced repository for managing project-related database operations.
+class PatternRepository(BaseRepository[Pattern]):
+    """Repository for managing Pattern entities."""
 
-    Provides methods to interact with projects, including 
-    retrieval, filtering, and advanced querying.
-    """
-
-    @inject(ProjectService)
-    def __init__(self, session):
+    def __init__(self, session: Session) -> None:
         """
-        Initialize the ProjectRepository with a database session.
+        Initialize the Pattern Repository.
 
         Args:
-            session: SQLAlchemy database session
+            session (Session): SQLAlchemy database session
         """
-        self.session = session
+        super().__init__(session, Pattern)
+        logger.debug("PatternRepository initialized")
 
-    def get_project_with_details(self, project_id: int) -> Optional[Project]:
+    def get_by_name(self, name: str) -> Optional[Pattern]:
         """
-        Retrieve a project with all its associated components and relationships.
+        Get a pattern by name.
 
         Args:
-            project_id (int): Unique identifier of the project
+            name (str): The pattern name to search for
 
         Returns:
-            Optional[Project]: Project instance with populated relationships
+            Optional[Pattern]: The pattern if found, None otherwise
         """
         try:
-            return (
-                self.session.query(Project)
-                .options(
-                    joinedload(Project.components)
-                    .joinedload(ProjectComponent.material),
-                    joinedload(Project.components)
-                    .joinedload(ProjectComponent.hardware)
-                )
-                .filter(Project.id == project_id)
-                .first()
-            )
+            pattern = self.session.query(Pattern).filter(Pattern.name == name).first()
+            return pattern
         except SQLAlchemyError as e:
-            logger.error(f'Error retrieving project details for ID {project_id}: {e}')
-            raise
+            error_msg = f"Error retrieving pattern by name '{name}': {str(e)}"
+            logger.error(error_msg)
+            raise DatabaseError(error_msg)
 
-    def search_projects(
-            self,
-            search_params: Optional[Dict[str, Any]] = None,
-            limit: int = 50
-    ) -> List[Project]:
+    def get_by_skill_level(self, skill_level: SkillLevel) -> List[Pattern]:
         """
-        Advanced search for projects with multiple filtering options.
+        Get patterns by skill level.
 
         Args:
-            search_params (Optional[Dict[str, Any]], optional): Search and filter criteria
-            limit (int, optional): Maximum number of results. Defaults to 50.
+            skill_level (SkillLevel): The skill level to filter by
 
         Returns:
-            List[Project]: List of Project instances matching the search criteria
+            List[Pattern]: List of patterns matching the skill level
+        """
+        try:
+            query = self.session.query(Pattern).filter(Pattern.skill_level == skill_level)
+            patterns = query.all()
+            logger.debug(f"Retrieved {len(patterns)} patterns with skill level {skill_level.name}")
+            return patterns
+        except SQLAlchemyError as e:
+            error_msg = f"Error retrieving patterns by skill level '{skill_level.name}': {str(e)}"
+            logger.error(error_msg)
+            raise DatabaseError(error_msg)
+
+    def search_patterns(self,
+                        search_term: Optional[str] = None,
+                        skill_level: Optional[SkillLevel] = None,
+                        is_active: bool = True,
+                        limit: int = 100,
+                        offset: int = 0) -> Tuple[List[Pattern], int]:
+        """
+        Search for patterns with filtering capabilities.
+
+        Args:
+            search_term (Optional[str]): Text to search in name and description
+            skill_level (Optional[SkillLevel]): Skill level to filter by
+            is_active (bool): Whether to include only active patterns
+            limit (int): Maximum number of patterns to return
+            offset (int): Number of patterns to skip for pagination
+
+        Returns:
+            Tuple[List[Pattern], int]: List of matching patterns and total count
         """
         try:
             # Start with base query
-            query = self.session.query(Project)
+            query = self.session.query(Pattern)
+            count_query = self.session.query(func.count(Pattern.id))
 
-            # Normalize search parameters
-            search_params = search_params or {}
-            conditions = []
-
-            # Name search (case-insensitive partial match)
-            if search_params.get('name'):
-                conditions.append(Project.name.ilike(f"%{search_params['name']}%"))
-
-            # Project type filtering
-            if search_params.get('project_type'):
-                try:
-                    project_type = ProjectType(search_params['project_type'])
-                    conditions.append(Project.project_type == project_type)
-                except ValueError:
-                    logger.warning(f"Invalid project type: {search_params['project_type']}")
-
-            # Skill level filtering
-            if search_params.get('skill_level'):
-                try:
-                    skill_level = SkillLevel(search_params['skill_level'])
-                    conditions.append(Project.skill_level == skill_level)
-                except ValueError:
-                    logger.warning(f"Invalid skill level: {search_params['skill_level']}")
-
-            # Status filtering
-            if search_params.get('status'):
-                try:
-                    status = ProductionStatus(search_params['status'])
-                    conditions.append(Project.status == status)
-                except ValueError:
-                    logger.warning(f"Invalid project status: {search_params['status']}")
-
-            # Date range filtering
-            if search_params.get('start_date') and search_params.get('end_date'):
-                conditions.append(
-                    Project.created_at.between(
-                        search_params['start_date'],
-                        search_params['end_date']
-                    )
+            # Apply filters
+            if search_term:
+                search_filter = or_(
+                    Pattern.name.ilike(f"%{search_term}%"),
+                    Pattern.description.ilike(f"%{search_term}%")
                 )
+                query = query.filter(search_filter)
+                count_query = count_query.filter(search_filter)
 
-            # Complexity filtering
-            if search_params.get('min_complexity'):
-                conditions.append(
-                    Project.complexity >= float(search_params['min_complexity'])
-                )
+            if skill_level:
+                query = query.filter(Pattern.skill_level == skill_level)
+                count_query = count_query.filter(Pattern.skill_level == skill_level)
 
-            # Apply conditions if any exist
-            if conditions:
-                query = query.filter(and_(*conditions))
+            query = query.filter(Pattern.is_active == is_active)
+            count_query = count_query.filter(Pattern.is_active == is_active)
 
-            # Optionally include components
-            if search_params.get('include_components', False):
-                query = query.options(
-                    joinedload(Project.components)
-                    .joinedload(ProjectComponent.material),
-                    joinedload(Project.components)
-                    .joinedload(ProjectComponent.hardware)
-                )
+            # Get total count
+            total_count = count_query.scalar()
 
-            # Order and limit results
-            query = query.order_by(Project.created_at.desc()).limit(limit)
+            # Apply pagination
+            query = query.order_by(Pattern.name)
+            query = query.limit(limit).offset(offset)
 
-            return query.all()
+            # Execute query
+            patterns = query.all()
+            logger.debug(f"Retrieved {len(patterns)} of {total_count} matching patterns")
+
+            return patterns, total_count
         except SQLAlchemyError as e:
-            logger.error(f'Error searching projects: {e}')
-            raise
+            error_msg = f"Error searching patterns: {str(e)}"
+            logger.error(error_msg)
+            raise DatabaseError(error_msg)
 
-    def get_project_material_usage(self, project_id: int) -> Dict[str, Any]:
+    def get_patterns_with_products(self, include_inactive: bool = False) -> List[Pattern]:
         """
-        Analyze material usage for a specific project.
+        Get all patterns with their associated products eagerly loaded.
 
         Args:
-            project_id (int): Unique identifier of the project
+            include_inactive (bool): Whether to include inactive patterns
 
         Returns:
-            Dict[str, Any]: Dictionary containing material usage metrics
+            List[Pattern]: List of patterns with products loaded
         """
         try:
-            # Aggregate material usage details
-            material_usage = (
-                self.session.query(
-                    ProjectComponent.material_id,
-                    Material.name.label('material_name'),
-                    func.sum(ProjectComponent.material_quantity).label('total_used'),
-                    func.avg(ProjectComponent.material_efficiency).label('avg_efficiency')
-                )
-                .join(Material, ProjectComponent.material_id == Material.id)
-                .filter(ProjectComponent.project_id == project_id)
-                .group_by(ProjectComponent.material_id, Material.name)
-                .all()
-            )
+            query = self.session.query(Pattern)
 
-            # Transform results into a more readable format
-            usage_details = [
-                {
-                    'material_id': usage.material_id,
-                    'material_name': usage.material_name,
-                    'total_used': float(usage.total_used),
-                    'avg_efficiency': float(usage.avg_efficiency)
-                }
-                for usage in material_usage
-            ]
+            if not include_inactive:
+                query = query.filter(Pattern.is_active == True)
 
-            return {
-                'project_id': project_id,
-                'material_usage': usage_details,
-                'total_materials_used': len(usage_details)
-            }
+            # Eager load product associations
+            query = query.options(joinedload(Pattern.products))
+
+            patterns = query.all()
+            logger.debug(f"Retrieved {len(patterns)} patterns with products")
+            return patterns
         except SQLAlchemyError as e:
-            logger.error(f'Error retrieving project material usage: {e}')
-            raise
-
-    def create(self, project_data: Dict[str, Any]) -> Project:
-        """
-        Create a new project with associated components.
-
-        Args:
-            project_data (Dict[str, Any]): Project creation data
-
-        Returns:
-            Project: Created Project instance
-
-        Raises:
-            ValueError: If project validation fails
-        """
-        try:
-            # Validate project components
-            if 'components' not in project_data or not project_data['components']:
-                raise ValueError('Project must have at least one component')
-
-            # Separate components from project data
-            components_data = project_data.pop('components', [])
-
-            # Create project instance
-            project = Project(**project_data)
-
-            # Calculate project complexity
-            project.calculate_complexity()
-
-            # Add project to session
-            self.session.add(project)
-
-            # Add project components
-            for component_data in components_data:
-                component = ProjectComponent(**component_data)
-                component.project = project
-                self.session.add(component)
-
-            # Commit transaction
-            self.session.commit()
-
-            return project
-        except SQLAlchemyError as e:
-            self.session.rollback()
-            logger.error(f'Error creating project: {e}')
-            raise
-        except ValueError as e:
-            logger.error(f'Validation error creating project: {e}')
-            raise
-
-    def update(self, project_id: int, project_data: Dict[str, Any]) -> Project:
-        """
-        Update an existing project with new information.
-
-        Args:
-            project_id (int): ID of the project to update
-            project_data (Dict[str, Any]): Updated project data
-
-        Returns:
-            Project: Updated Project instance
-
-        Raises:
-            ValueError: If project validation fails
-        """
-        try:
-            # Retrieve existing project
-            existing_project = self.get_project_with_details(project_id)
-
-            if not existing_project:
-                raise ValueError(f'Project with ID {project_id} not found')
-
-            # Validate project components
-            if 'components' not in project_data or not project_data['components']:
-                raise ValueError('Project must have at least one component')
-
-            # Separate components from project data
-            components_data = project_data.pop('components', [])
-
-            # Update project attributes
-            for key, value in project_data.items():
-                if hasattr(existing_project, key):
-                    setattr(existing_project, key, value)
-
-            # Recalculate project complexity
-            existing_project.calculate_complexity()
-
-            # Clear existing components
-            existing_project.components.clear()
-
-            # Add new components
-            for component_data in components_data:
-                component = ProjectComponent(**component_data)
-                component.project = existing_project
-                self.session.add(component)
-
-            # Commit transaction
-            self.session.commit()
-
-            return existing_project
-        except SQLAlchemyError as e:
-            self.session.rollback()
-            logger.error(f'Error updating project: {e}')
-            raise
-        except ValueError as e:
-            logger.error(f'Validation error updating project: {e}')
-            raise
+            error_msg = f"Error retrieving patterns with products: {str(e)}"
+            logger.error(error_msg)
+            raise DatabaseError(error_msg)

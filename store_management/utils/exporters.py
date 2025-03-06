@@ -20,7 +20,7 @@ except ImportError:
 
 class OrderExporter:
     """
-    Utility class for exporting order and inventory data.
+    Utility class for exporting sale and inventory data.
     """
 
     @classmethod

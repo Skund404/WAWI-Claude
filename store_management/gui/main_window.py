@@ -17,21 +17,19 @@ from gui.inventory.hardware_inventory import HardwareInventoryView
 from gui.inventory.product_inventory import ProductInventoryView
 from gui.leatherworking.leather_inventory import LeatherInventoryView
 from gui.leatherworking.pattern_library import PatternLibrary
-from gui.order.order_view import OrderView
-from gui.order.shopping_list_view import ShoppingListView
+from gui.sale.sale_view import SaleView
+from gui.purchase.shopping_list_view import ShoppingListView
 from gui.product.project_view import ProjectView
 from gui.storage.storage_view import StorageView
 from gui.leatherworking.project_dashboard import ProjectDashboard
 from gui.leatherworking.timeline_viewer import TimelineViewer
-from gui.order.supplier_view import SupplierView
-from gui.order.picking_list_view import PickingListView
-
-
+from gui.purchase.supplier_view import SupplierView
+from gui.picking_list_view import PickingListView
 
 
 # Import service interfaces
 from services.interfaces.material_service import IMaterialService
-from services.interfaces.order_service import IOrderService
+from services.interfaces.sale_service import ISaleService
 from services.interfaces.project_service import IProjectService
 from services.interfaces.shopping_list_service import IShoppingListService
 from services.interfaces.storage_service import IStorageService
@@ -91,7 +89,6 @@ class MainWindow:
         self.root.geometry("1200x800")
         self.root.protocol("WM_DELETE_WINDOW", self._on_closing)
 
-
     def _create_notebook(self):
         """
         Create a notebook with tabs for different application modules.
@@ -127,9 +124,9 @@ class MainWindow:
                 "service": IProjectService
             },
             {
-                "name": "Orders",
-                "view": OrderView,
-                "service": IOrderService
+                "name": "Sales",  # Changed "Orders" to "Sales"
+                "view": SaleView,
+                "service": ISaleService
             },
             {
                 "name": "Storage",
@@ -317,8 +314,6 @@ class MainWindow:
 
         layout_window.geometry("1000x700")
         layout_window.minsize(800, 600)
-
-
 
     def _create_tools_tab(self):
         """Create a notebook tab for project management tools."""

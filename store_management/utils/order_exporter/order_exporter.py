@@ -9,12 +9,12 @@ class OrderExporter:
     pass
 @staticmethod
 def export_to_excel(data: Dict[str, Any], filepath: Path) ->bool:
-"""Export order data to Excel"""
+"""Export sale data to Excel"""
 try:
     pass
 with pd.ExcelWriter(filepath) as writer:
     pass
-order_df = pd.DataFrame([data['order']])
+order_df = pd.DataFrame([data['sale']])
 order_df.to_excel(writer, sheet_name='Order', index=False)
 details_df = pd.DataFrame(data['details'])
 details_df.to_excel(writer, sheet_name='Details', index=False)
@@ -31,11 +31,11 @@ return False
 
 @staticmethod
 def export_to_csv(data: Dict[str, Any], filepath: Path) ->bool:
-"""Export order data to CSV"""
+"""Export sale data to CSV"""
 try:
     pass
-order_df = pd.DataFrame([data['order']])
-order_df.to_csv(filepath.with_suffix('.order.csv'), index=False)
+order_df = pd.DataFrame([data['sale']])
+order_df.to_csv(filepath.with_suffix('.sale.csv'), index=False)
 details_df = pd.DataFrame(data['details'])
 details_df.to_csv(filepath.with_suffix('.details.csv'), index=False
 )
@@ -46,7 +46,7 @@ return False
 
 @staticmethod
 def export_to_json(data: Dict[str, Any], filepath: Path) ->bool:
-"""Export order data to JSON"""
+"""Export sale data to JSON"""
 try:
     pass
 with open(filepath, 'w') as f:

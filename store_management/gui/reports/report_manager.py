@@ -134,7 +134,7 @@ class ReportDialog:
 
             elif report_type == 'Orders':
                 orders = self._session.execute(
-                    "SELECT * FROM 'order'"
+                    "SELECT * FROM 'sale'"
                 ).fetchall()
                 return [dict(row) for row in orders]
 

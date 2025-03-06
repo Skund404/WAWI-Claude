@@ -9,7 +9,7 @@ from typing import Any, Callable, Dict, List, Optional, Type, TypeVar, Union
 
 from services.interfaces.inventory_service import IInventoryService
 from services.interfaces.material_service import IMaterialService
-from services.interfaces.order_service import IOrderService
+from services.interfaces.sale_service import ISaleService
 from services.interfaces.pattern_service import IPatternService
 from services.interfaces.project_service import IProjectService
 from services.interfaces.storage_service import IStorageService
@@ -67,7 +67,7 @@ class BaseView(ttk.Frame, abc.ABC):
                 self.logger.debug(f"Inventory service not available: {str(e)}")
 
             try:
-                self._order_service = app.get_service(IOrderService)
+                self._order_service = app.get_service(ISaleService)
             except Exception as e:
                 self.logger.debug(f"Order service not available: {str(e)}")
 

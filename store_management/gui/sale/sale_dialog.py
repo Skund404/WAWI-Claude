@@ -1,4 +1,4 @@
-# order_dialog.py
+# sale_dialog.py
 import tkinter as tk
 from tkinter import ttk, messagebox
 from typing import Optional, List, Dict, Any, Callable
@@ -6,7 +6,7 @@ from datetime import datetime
 import logging
 
 from di.core import inject
-from services.interfaces import MaterialService, ProjectService, InventoryService, OrderService
+from services.interfaces import MaterialService, ProjectService, InventoryService, SaleService  # Changed OrderService to SaleService
 
 logger = logging.getLogger(__name__)
 
@@ -62,45 +62,46 @@ class BaseDialog(tk.Toplevel):
         return True
 
 
-class AddOrderDialog(BaseDialog):
+class AddSaleDialog(BaseDialog):
     """
-    Flexible dialog for creating and editing orders.
+    Flexible dialog for creating and editing sales.
 
     Supports:
     - Dynamic field generation
-    - Supplier selection
+    - Supplier selection (If needed - review code and adjust)
     - Validation
-    - Editing existing orders
+    - Editing existing sales
     """
 
     @inject(MaterialService)
     def __init__(self, parent: tk.Tk, save_callback: Callable[[Dict[str, Any]], None],
-                 fields: Optional[List[tuple]] = None, suppliers: Optional[List[Dict[str, Any]]] = None,
-                 existing_data: Optional[Dict[str, Any]] = None, title: str = 'Add Order'):
+                 fields: Optional[List[tuple]] = None, suppliers: Optional[List[Dict[str, Any]]] = None,  # Consider if suppliers are still needed
+                 existing_data: Optional[Dict[str, Any]] = None, title: str = 'Add Sale'):
         """
-        Initialize the order dialog.
+        Initialize the sale dialog.
 
         Args:
             parent: Parent window
-            save_callback: Function to call when saving order
+            save_callback: Function to call when saving sale
             fields: Optional list of field configurations
-            suppliers: List of available suppliers
-            existing_data: Existing order data for editing
+            suppliers: List of available suppliers (Review if needed)
+            existing_data: Existing sale data for editing
             title: Dialog title
         """
         if fields is None:
             fields = [
-                ('supplier_id', 'Supplier', True, 'supplier'),
-                ('order_date', 'Order Date', True, 'date'),
+                # ('supplier_id', 'Supplier', True, 'supplier'),  # Removed supplier, adapt if needed
+                ('sale_date', 'Sale Date', True, 'date'),
                 ('status', 'Status', True, 'status'),
                 ('total_amount', 'Total Amount', True, 'float'),
-                ('notes', 'Notes', False, 'text')
+                ('notes', 'Notes', False, 'text'),
+                ('customer_name', 'Customer Name', True, 'text')  #Example new field
             ]
 
         self._save_callback = save_callback
-        self._suppliers = suppliers or []
+        self._suppliers = suppliers or []  # Review if needed
         self._existing_data = existing_data or {}
-        self._order_items: List[Dict[str, Any]] = []
+        self._sale_items: List[Dict[str, Any]] = []  # Changed _order_items to _sale_items
         self._fields = fields
         self._entries: Dict[str, Any] = {}
 
@@ -109,24 +110,24 @@ class AddOrderDialog(BaseDialog):
     @inject(MaterialService)
     def _create_main_frame(self) -> None:
         """
-        Create dialog main frame with dynamic fields and order items section.
+        Create dialog main frame with dynamic fields and sale items section.
         """
         notebook = ttk.Notebook(self)
         notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
         details_frame = ttk.Frame(notebook)
-        notebook.add(details_frame, text='Order Details')
+        notebook.add(details_frame, text='Sale Details')
 
         items_frame = ttk.Frame(notebook)
-        notebook.add(items_frame, text='Order Items')
+        notebook.add(items_frame, text='Sale Items')
 
-        self._create_order_details_fields(details_frame)
-        self._create_order_items_section(items_frame)
+        self._create_sale_details_fields(details_frame) # Changed _create_order_details_fields to _create_sale_details_fields
+        self._create_sale_items_section(items_frame) # Changed _create_order_items_section to _create_sale_items_section
 
     @inject(MaterialService)
-    def _create_order_details_fields(self, parent: ttk.Frame) -> None:
+    def _create_sale_details_fields(self, parent: ttk.Frame) -> None: # Changed _create_order_details_fields to _create_sale_details_fields
         """
-        Create dynamic fields for order details.
+        Create dynamic fields for sale details.
 
         Args:
             parent: Parent frame to add fields to
@@ -137,7 +138,7 @@ class AddOrderDialog(BaseDialog):
             label = ttk.Label(parent, text=f'{display_name}:')
             label.grid(row=i, column=0, sticky=tk.W, padx=5, pady=5)
 
-            if field_type == 'supplier':
+            if field_type == 'supplier': # Review if needed
                 supplier_var = tk.StringVar()
                 supplier_dropdown = ttk.Combobox(
                     parent,
@@ -193,9 +194,9 @@ class AddOrderDialog(BaseDialog):
                     text_widget.insert(tk.END, str(self._existing_data[field_name]))
 
     @inject(MaterialService)
-    def _create_order_items_section(self, parent: ttk.Frame) -> None:
+    def _create_sale_items_section(self, parent: ttk.Frame) -> None:  # Changed _create_order_items_section to _create_sale_items_section
         """
-        Create section for managing order items.
+        Create section for managing sale items.
 
         Args:
             parent: Parent frame to add items section to
@@ -228,10 +229,10 @@ class AddOrderDialog(BaseDialog):
     @inject(MaterialService)
     def _show_add_item_dialog(self) -> None:
         """
-        Show dialog to add a new order item.
+        Show dialog to add a new sale item.
         """
         dialog = tk.Toplevel(self)
-        dialog.title('Add Order Item')
+        dialog.title('Add Sale Item')  # Changed title
         dialog.geometry('400x300')
 
         ttk.Label(dialog, text='Product:').pack()
@@ -263,7 +264,7 @@ class AddOrderDialog(BaseDialog):
                     item['unit_price'],
                     item['total']
                 ))
-                self._order_items.append(item)
+                self._sale_items.append(item)  # Changed _order_items to _sale_items
                 dialog.destroy()
             except ValueError:
                 messagebox.showerror('Invalid Input', 'Please enter valid numbers')
@@ -274,7 +275,7 @@ class AddOrderDialog(BaseDialog):
     @inject(MaterialService)
     def _remove_selected_item(self) -> None:
         """
-        Remove selected order item.
+        Remove selected sale item.
         """
         selected_item = self.items_tree.selection()
         if not selected_item:
@@ -286,13 +287,13 @@ class AddOrderDialog(BaseDialog):
 
         # Remove from UI and internal storage
         self.items_tree.delete(selected_item[0])
-        if 0 <= selection_id < len(self._order_items):
-            del self._order_items[selection_id]
+        if 0 <= selection_id < len(self._sale_items):  # Changed _order_items to _sale_items
+            del self._sale_items[selection_id]
 
     @inject(MaterialService)
     def ok(self, event=None) -> None:
         """
-        Save order data when OK is pressed.
+        Save sale data when OK is pressed.
 
         Args:
             event: Optional tkinter event
@@ -301,7 +302,7 @@ class AddOrderDialog(BaseDialog):
             if not self.validate():
                 return
 
-            order_data = {}
+            sale_data = {}  # Changed order_data to sale_data
             for field_name, entry in self._entries.items():
                 if isinstance(entry, tk.StringVar):
                     value = entry.get()
@@ -309,19 +310,19 @@ class AddOrderDialog(BaseDialog):
                     value = entry.get('1.0', tk.END).strip()
                 else:
                     value = entry
-                order_data[field_name] = value
+                sale_data[field_name] = value
 
-            order_data['items'] = self._order_items
-            self._save_callback(order_data)
+            sale_data['items'] = self._sale_items  # Changed _order_items to _sale_items
+            self._save_callback(sale_data) # Changed order_data to sale_data
             self.destroy()
         except Exception as e:
             messagebox.showerror('Save Error', str(e))
-            logger.error(f"Error saving order data: {e}")
+            logger.error(f"Error saving sale data: {e}")
 
     @inject(MaterialService)
     def validate(self) -> bool:
         """
-        Validate order data before saving.
+        Validate sale data before saving.
 
         Returns:
             True if validation passes, False otherwise
