@@ -1,265 +1,207 @@
 # services/interfaces/project_service.py
+"""
+Interface for Project Service in the leatherworking application.
+"""
+
 from abc import ABC, abstractmethod
-from enum import Enum, auto
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List, Optional
 from datetime import datetime
-
-
-class ProjectType(Enum):
-    """Defines the types of leatherworking projects."""
-    BAG = auto()
-    WALLET = auto()
-    BELT = auto()
-    CASE = auto()
-    HOLSTER = auto()
-    ACCESSORY = auto()
-    GARMENT = auto()
-    CUSTOM = auto()
-    OTHER = auto()
-
-
-class SkillLevel(Enum):
-    """Defines the skill levels required for projects."""
-    BEGINNER = auto()
-    INTERMEDIATE = auto()
-    ADVANCED = auto()
-    EXPERT = auto()
-
-
-class ProjectStatus(Enum):
-    """Defines the possible status of a project."""
-    PLANNING = auto()
-    IN_PROGRESS = auto()
-    REFINEMENT = auto()
-    COMPLETED = auto()
-    ON_HOLD = auto()
-    CANCELLED = auto()
+from database.models.enums import (
+    ProjectType,
+    ProjectStatus,
+    SkillLevel
+)
+from database.models.project import Project
+from database.models.sales import Sales
 
 
 class IProjectService(ABC):
-    """Abstract base class defining the interface for project-related operations."""
+    """
+    Abstract base class defining the interface for Project Service.
+    Handles operations related to leatherworking projects.
+    """
 
     @abstractmethod
-    def create_project(self, project_data: Dict[str, Any]) -> 'Project':
+    def create_project(
+        self,
+        name: str,
+        description: Optional[str] = None,
+        project_type: Optional[ProjectType] = None,
+        status: ProjectStatus = ProjectStatus.INITIAL_CONSULTATION,
+        start_date: Optional[datetime] = None,
+        sales_id: Optional[int] = None,
+        **kwargs
+    ) -> Project:
         """
         Create a new project.
 
         Args:
-            project_data (Dict[str, Any]): Project creation data
+            name (str): Name of the project
+            description (Optional[str]): Description of the project
+            project_type (Optional[ProjectType]): Type of the project
+            status (ProjectStatus): Initial status of the project
+            start_date (Optional[datetime]): Start date of the project
+            sales_id (Optional[int]): ID of associated sales order
+            **kwargs: Additional attributes for the project
 
         Returns:
-            Project: Created project instance
+            Project: The created project
         """
         pass
 
     @abstractmethod
-    def get_project(self, project_id: str) -> 'Project':
+    def get_project_by_id(self, project_id: int) -> Project:
         """
         Retrieve a project by its ID.
 
         Args:
-            project_id (str): Unique project identifier
+            project_id (int): ID of the project
 
         Returns:
-            Project: Retrieved project instance
+            Project: The retrieved project
         """
         pass
 
     @abstractmethod
-    def update_project(self, project_id: str, updates: Dict[str, Any]) -> 'Project':
+    def get_projects_by_status(self, status: ProjectStatus) -> List[Project]:
         """
-        Update an existing project.
+        Retrieve projects by their status.
 
         Args:
-            project_id (str): Unique project identifier
-            updates (Dict[str, Any]): Project update data
+            status (ProjectStatus): Status to filter projects
 
         Returns:
-            Project: Updated project instance
+            List[Project]: List of projects matching the status
         """
         pass
 
     @abstractmethod
-    def delete_project(self, project_id: str) -> bool:
+    def get_projects_by_type(self, project_type: ProjectType) -> List[Project]:
         """
-        Delete a project.
+        Retrieve projects by their type.
 
         Args:
-            project_id (str): Unique project identifier
+            project_type (ProjectType): Type to filter projects
 
         Returns:
-            bool: True if deletion was successful
+            List[Project]: List of projects matching the type
         """
         pass
 
     @abstractmethod
-    def add_component_to_project(self, project_id: str, component_data: Dict[str, Any]) -> 'Project':
+    def update_project(
+        self,
+        project_id: int,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        project_type: Optional[ProjectType] = None,
+        status: Optional[ProjectStatus] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        **kwargs
+    ) -> Project:
         """
-        Add a component to a project.
+        Update project information.
 
         Args:
-            project_id (str): Project identifier
-            component_data (Dict[str, Any]): Component details
+            project_id (int): ID of the project to update
+            name (Optional[str]): New name of the project
+            description (Optional[str]): New description
+            project_type (Optional[ProjectType]): New project type
+            status (Optional[ProjectStatus]): New project status
+            start_date (Optional[datetime]): New start date
+            end_date (Optional[datetime]): New end date
+            **kwargs: Additional attributes to update
 
         Returns:
-            Project: Updated project with new component
+            Project: The updated project
         """
         pass
 
     @abstractmethod
-    def remove_component_from_project(self, project_id: str, component_id: str) -> 'Project':
+    def update_project_status(
+        self,
+        project_id: int,
+        status: ProjectStatus
+    ) -> Project:
         """
-        Remove a component from a project.
+        Update the status of a project.
 
         Args:
-            project_id (str): Project identifier
-            component_id (str): Component identifier
+            project_id (int): ID of the project
+            status (ProjectStatus): New status for the project
 
         Returns:
-            Project: Updated project after component removal
+            Project: The updated project
         """
         pass
 
     @abstractmethod
-    def update_project_progress(self, project_id: str, progress: int) -> 'Project':
+    def link_sales_to_project(
+        self,
+        project_id: int,
+        sales_id: int
+    ) -> Project:
         """
-        Update project progress and adjust status accordingly.
+        Link a sales order to a project.
 
         Args:
-            project_id (str): Project identifier
-            progress (int): Progress percentage (0-100)
+            project_id (int): ID of the project
+            sales_id (int): ID of the sales order
 
         Returns:
-            Project: Updated project
+            Project: The updated project with sales link
         """
         pass
 
     @abstractmethod
-    def list_projects(
-            self,
-            project_type: Optional[ProjectType] = None,
-            skill_level: Optional[SkillLevel] = None,
-            status: Optional[ProjectStatus] = None
-    ) -> List['Project']:
+    def get_project_components(self, project_id: int) -> List[Any]:
         """
-        List projects with optional filtering.
+        Retrieve all components associated with a project.
 
         Args:
-            project_type: Optional filter by project type
-            skill_level: Optional filter by skill level
-            status: Optional filter by project status
+            project_id (int): ID of the project
 
         Returns:
-            List[Project]: Filtered list of projects
+            List[Any]: List of project components
         """
         pass
 
     @abstractmethod
-    def generate_project_complexity_report(self, project_id: str) -> Dict[str, Any]:
+    def create_project_tool_list(self, project_id: int) -> Any:
         """
-        Generate a comprehensive project complexity report.
+        Create a tool list for a specific project.
 
         Args:
-            project_id (str): Project identifier
+            project_id (int): ID of the project
 
         Returns:
-            Dict[str, Any]: Project complexity report
+            Any: The created tool list
         """
         pass
 
     @abstractmethod
-    def duplicate_project(self, project_id: str, new_name: Optional[str] = None) -> 'Project':
+    def complete_project(self, project_id: int) -> Project:
         """
-        Duplicate an existing project.
+        Mark a project as completed.
 
         Args:
-            project_id (str): Project identifier to duplicate
-            new_name (Optional[str]): Name for the duplicated project
+            project_id (int): ID of the project to complete
 
         Returns:
-            Project: Newly created duplicated project
+            Project: The completed project
         """
         pass
 
     @abstractmethod
-    def calculate_project_material_requirements(self, project_id: str) -> Dict[str, Any]:
+    def delete_project(self, project_id: int) -> bool:
         """
-        Calculate material requirements for a project.
+        Delete a project from the system.
 
         Args:
-            project_id (str): Project identifier
+            project_id (int): ID of the project to delete
 
         Returns:
-            Dict[str, Any]: Material requirements analysis
-        """
-        pass
-
-    @abstractmethod
-    def analyze_project_material_usage(self, project_id: str) -> Dict[str, Any]:
-        """
-        Analyze material usage and efficiency for a project.
-
-        Args:
-            project_id (str): Project identifier
-
-        Returns:
-            Dict[str, Any]: Material usage analysis
-        """
-        pass
-
-    @abstractmethod
-    def get_projects_by_deadline(
-            self,
-            before_date: Optional[datetime] = None,
-            after_date: Optional[datetime] = None
-    ) -> List['Project']:
-        """
-        Retrieve projects within a specific deadline range.
-
-        Args:
-            before_date (Optional[datetime]): Maximum deadline date
-        after_date (Optional[datetime]): Minimum deadline date
-
-        Returns:
-            List[Project]: Projects matching the deadline criteria
-        """
-        pass
-
-    @abstractmethod
-    def get_complex_projects(self, min_components: int = 5) -> List['Project']:
-        """
-        Retrieve projects with a high number of components.
-
-        Args:
-            min_components (int): Minimum number of components to consider a project complex
-
-        Returns:
-            List[Project]: Complex projects
-        """
-        pass
-
-    @abstractmethod
-    def get_projects_by_status(self, status: ProjectStatus) -> List['Project']:
-        """
-        Retrieve projects with a specific status.
-
-        Args:
-            status (ProjectStatus): Project status to filter by
-
-        Returns:
-            List[Project]: Projects with the specified status
-        """
-        pass
-
-    @abstractmethod
-    def search_projects(self, query: str) -> List['Project']:
-        """
-        Search for projects by name or description.
-
-        Args:
-            query (str): Search term
-
-        Returns:
-            List[Project]: Projects matching the search query
+            bool: True if deletion was successful, False otherwise
         """
         pass

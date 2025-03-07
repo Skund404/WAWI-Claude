@@ -8,8 +8,18 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from database.models.base import Base
 from database.models import (
-    Leather, Material, Hardware, Product, Project,
-    Sale, Pattern, Customer, Supplier, ShoppingList
+    Customer, Sales, SalesItem,
+    Product, ProductPattern, Pattern,
+    Purchase, PurchaseItem, Supplier,
+    ProductInventory, MaterialInventory,
+    LeatherInventory, HardwareInventory, ToolInventory,
+    Project, Component, Material,
+    Leather, Hardware, Tool,
+    PickingList, PickingListItem,
+    ToolList, ToolListItem,
+    ComponentMaterial, ComponentLeather,
+    ComponentHardware, ComponentTool,
+    ProjectComponent
 )
 from database.sqlalchemy.session import get_db_session
 
@@ -34,9 +44,31 @@ class DatabaseDiagnostics:
         """
         inspector = inspect(self.session.bind)
         tables_to_check = [
-            'leathers', 'materials', 'hardwares', 'products',
-            'projects', 'orders', 'patterns', 'customers',
-            'suppliers', 'shopping_lists'
+            # Customer and Sales Related
+            'customers', 'sales', 'sales_items',
+
+            # Product and Pattern Related
+            'products', 'product_patterns', 'patterns',
+
+            # Purchase and Supplier Related
+            'purchases', 'purchase_items', 'suppliers',
+
+            # Inventory Related
+            'product_inventories', 'material_inventories',
+            'leather_inventories', 'hardware_inventories', 'tool_inventories',
+
+            # Project and Component Related
+            'projects', 'components', 'materials',
+            'leathers', 'hardwares', 'tools',
+
+            # Picking and Tool Management
+            'picking_lists', 'picking_list_items',
+            'tool_lists', 'tool_list_items',
+
+            # Junction Tables
+            'component_materials', 'component_leathers',
+            'component_hardwares', 'component_tools',
+            'project_components'
         ]
 
         table_existence = {}
@@ -57,9 +89,31 @@ class DatabaseDiagnostics:
             Dict[str, int]: A dictionary of model names and their record counts
         """
         models_to_count = [
-            Leather, Material, Hardware, Product,
-            Project, Sale, Pattern, Customer,
-            Supplier, ShoppingList
+            # Customer and Sales Related
+            Customer, Sales, SalesItem,
+
+            # Product and Pattern Related
+            Product, ProductPattern, Pattern,
+
+            # Purchase and Supplier Related
+            Purchase, PurchaseItem, Supplier,
+
+            # Inventory Related
+            ProductInventory, MaterialInventory,
+            LeatherInventory, HardwareInventory, ToolInventory,
+
+            # Project and Component Related
+            Project, Component, Material,
+            Leather, Hardware, Tool,
+
+            # Picking and Tool Management
+            PickingList, PickingListItem,
+            ToolList, ToolListItem,
+
+            # Junction Tables
+            ComponentMaterial, ComponentLeather,
+            ComponentHardware, ComponentTool,
+            ProjectComponent
         ]
 
         record_counts = {}
@@ -101,9 +155,31 @@ class DatabaseDiagnostics:
             return relationships
 
         models_to_validate = [
-            Leather, Material, Hardware, Product,
-            Project, Sale, Pattern, Customer,
-            Supplier, ShoppingList
+            # Customer and Sales Related
+            Customer, Sales, SalesItem,
+
+            # Product and Pattern Related
+            Product, ProductPattern, Pattern,
+
+            # Purchase and Supplier Related
+            Purchase, PurchaseItem, Supplier,
+
+            # Inventory Related
+            ProductInventory, MaterialInventory,
+            LeatherInventory, HardwareInventory, ToolInventory,
+
+            # Project and Component Related
+            Project, Component, Material,
+            Leather, Hardware, Tool,
+
+            # Picking and Tool Management
+            PickingList, PickingListItem,
+            ToolList, ToolListItem,
+
+            # Junction Tables
+            ComponentMaterial, ComponentLeather,
+            ComponentHardware, ComponentTool,
+            ProjectComponent
         ]
 
         for model in models_to_validate:
@@ -137,7 +213,7 @@ class DatabaseDiagnostics:
         if diagnostics is None:
             diagnostics = self.run_full_database_diagnostics()
 
-        print("\n=== DATABASE DIAGNOSTICS REPORT ===")
+        print("\n=== COMPREHENSIVE DATABASE DIAGNOSTICS REPORT ===")
 
         # Table Existence
         print("\nTable Existence:")

@@ -1,127 +1,184 @@
 # services/interfaces/supplier_service.py
 """
-Interface for Supplier Service defining contract for supplier-related operations.
+Interface for Supplier Service in the leatherworking application.
 """
 
 from abc import ABC, abstractmethod
-from enum import Enum
 from typing import Any, Dict, List, Optional
+from database.models.enums import SupplierStatus
+from database.models.supplier import Supplier
 
-class SupplierStatus(Enum):
-    """
-    Enumeration of possible supplier statuses.
-    """
-    ACTIVE = 'active'
-    INACTIVE = 'inactive'
-    SUSPENDED = 'suspended'
-    BLACKLISTED = 'blacklisted'
 
 class ISupplierService(ABC):
     """
-    Abstract base class defining the contract for Supplier Service operations.
+    Abstract base class defining the interface for Supplier Service.
+    Handles operations related to suppliers in the leatherworking business.
     """
 
     @abstractmethod
-    def get_all_suppliers(self, status: Optional[SupplierStatus] = None) -> List[Dict[str, Any]]:
-        """
-        Retrieve all suppliers, optionally filtered by status.
-
-        Args:
-            status (Optional[SupplierStatus]): Optional status to filter suppliers
-
-        Returns:
-            List of supplier dictionaries
-        """
-        pass
-
-    @abstractmethod
-    def get_supplier_by_id(self, supplier_id: int) -> Dict[str, Any]:
-        """
-        Retrieve a supplier by their unique identifier.
-
-        Args:
-            supplier_id (int): Unique identifier of the supplier
-
-        Returns:
-            Supplier details dictionary
-
-        Raises:
-            NotFoundError: If supplier is not found
-        """
-        pass
-
-    @abstractmethod
-    def create_supplier(self, supplier_data: Dict[str, Any]) -> Dict[str, Any]:
+    def create_supplier(
+        self,
+        name: str,
+        contact_email: str,
+        status: SupplierStatus = SupplierStatus.ACTIVE,
+        **kwargs
+    ) -> Supplier:
         """
         Create a new supplier.
 
         Args:
-            supplier_data (Dict[str, Any]): Supplier details dictionary
+            name (str): Name of the supplier
+            contact_email (str): Contact email of the supplier
+            status (SupplierStatus): Initial status of the supplier
+            **kwargs: Additional attributes for the supplier
 
         Returns:
-            Created supplier details
-
-        Raises:
-            ValidationError: If supplier data is invalid
+            Supplier: The created supplier
         """
         pass
 
     @abstractmethod
-    def update_supplier(self, supplier_id: int, update_data: Dict[str, Any]) -> Dict[str, Any]:
+    def get_supplier_by_id(self, supplier_id: int) -> Supplier:
         """
-        Update an existing supplier.
+        Retrieve a supplier by their ID.
+
+        Args:
+            supplier_id (int): ID of the supplier
+
+        Returns:
+            Supplier: The retrieved supplier
+        """
+        pass
+
+    @abstractmethod
+    def get_suppliers_by_status(self, status: SupplierStatus) -> List[Supplier]:
+        """
+        Retrieve suppliers by their status.
+
+        Args:
+            status (SupplierStatus): Status to filter suppliers
+
+        Returns:
+            List[Supplier]: List of suppliers matching the status
+        """
+        pass
+
+    @abstractmethod
+    def update_supplier(
+        self,
+        supplier_id: int,
+        name: Optional[str] = None,
+        contact_email: Optional[str] = None,
+        status: Optional[SupplierStatus] = None,
+        **kwargs
+    ) -> Supplier:
+        """
+        Update supplier information.
 
         Args:
             supplier_id (int): ID of the supplier to update
-            update_data (Dict[str, Any]): Updated supplier details
+            name (Optional[str]): New name of the supplier
+            contact_email (Optional[str]): New contact email
+            status (Optional[SupplierStatus]): New status of the supplier
+            **kwargs: Additional attributes to update
 
         Returns:
-            Updated supplier details
+            Supplier: The updated supplier
+        """
+        pass
 
-        Raises:
-            NotFoundError: If supplier is not found
-            ValidationError: If update data is invalid
+    @abstractmethod
+    def update_supplier_status(
+        self,
+        supplier_id: int,
+        status: SupplierStatus
+    ) -> Supplier:
+        """
+        Update the status of a supplier.
+
+        Args:
+            supplier_id (int): ID of the supplier
+            status (SupplierStatus): New status for the supplier
+
+        Returns:
+            Supplier: The updated supplier
+        """
+        pass
+
+    @abstractmethod
+    def get_supplier_materials(self, supplier_id: int) -> List[Any]:
+        """
+        Retrieve materials supplied by a specific supplier.
+
+        Args:
+            supplier_id (int): ID of the supplier
+
+        Returns:
+            List[Any]: List of materials supplied by the supplier
+        """
+        pass
+
+    @abstractmethod
+    def get_supplier_leather(self, supplier_id: int) -> List[Any]:
+        """
+        Retrieve leather supplied by a specific supplier.
+
+        Args:
+            supplier_id (int): ID of the supplier
+
+        Returns:
+            List[Any]: List of leather supplied by the supplier
+        """
+        pass
+
+    @abstractmethod
+    def get_supplier_hardware(self, supplier_id: int) -> List[Any]:
+        """
+        Retrieve hardware supplied by a specific supplier.
+
+        Args:
+            supplier_id (int): ID of the supplier
+
+        Returns:
+            List[Any]: List of hardware supplied by the supplier
+        """
+        pass
+
+    @abstractmethod
+    def get_supplier_tools(self, supplier_id: int) -> List[Any]:
+        """
+        Retrieve tools supplied by a specific supplier.
+
+        Args:
+            supplier_id (int): ID of the supplier
+
+        Returns:
+            List[Any]: List of tools supplied by the supplier
+        """
+        pass
+
+    @abstractmethod
+    def get_supplier_purchases(self, supplier_id: int) -> List[Any]:
+        """
+        Retrieve purchase orders from a specific supplier.
+
+        Args:
+            supplier_id (int): ID of the supplier
+
+        Returns:
+            List[Any]: List of purchase orders from the supplier
         """
         pass
 
     @abstractmethod
     def delete_supplier(self, supplier_id: int) -> bool:
         """
-        Delete a supplier.
+        Delete a supplier from the system.
 
         Args:
             supplier_id (int): ID of the supplier to delete
 
         Returns:
-            Boolean indicating successful deletion
-
-        Raises:
-            NotFoundError: If supplier is not found
-        """
-        pass
-
-    @abstractmethod
-    def search_suppliers(self, search_term: str) -> List[Dict[str, Any]]:
-        """
-        Search for suppliers by various fields.
-
-        Args:
-            search_term (str): Term to search for
-
-        Returns:
-            List of matching suppliers
-        """
-        pass
-
-    @abstractmethod
-    def get_suppliers_by_status(self, status: SupplierStatus) -> List[Dict[str, Any]]:
-        """
-        Get suppliers by their status.
-
-        Args:
-            status (SupplierStatus): Status to filter suppliers
-
-        Returns:
-            List of suppliers with the given status
+            bool: True if deletion was successful, False otherwise
         """
         pass

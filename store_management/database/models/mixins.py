@@ -1,103 +1,262 @@
 # database/models/mixins.py
 """
-Mixin classes for SQLAlchemy models providing additional functionality.
+Advanced Mixin Classes for SQLAlchemy Models
+
+Provides comprehensive mixin classes to extend model functionality
+with reusable, composable behaviors for database entities.
 """
 
 import abc
+import uuid
 from datetime import datetime
-from typing import Optional, Any
+from enum import Enum
+from typing import Any, Optional, Dict, List, Union
 
-from sqlalchemy import Column, DateTime, Float, String
+from sqlalchemy import Column, DateTime, Float, String, Boolean
 from sqlalchemy.orm import declared_attr
 from sqlalchemy.sql import func
 from sqlalchemy.dialects.sqlite import TEXT  # For SQLite compatibility
-import uuid
+
+from database.models.enums import (
+    QualityGrade,
+    MaterialType,
+    InventoryStatus
+)
+
 
 class TimestampMixin:
     """
-    Mixin to automatically track creation and update timestamps.
+    Enhanced timestamp tracking for database models.
+    Provides creation and modification timestamp tracking.
     """
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), default=func.now(), onupdate=func.now())
+    created_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False
+    )
+
+    @classmethod
+    def get_recent_records(cls, session, days: int = 30):
+        """
+        Retrieve records created within the specified number of days.
+
+        Args:
+            session: Database session
+            days: Number of days to look back (default 30)
+
+        Returns:
+            Query of recent records
+        """
+        from sqlalchemy import func
+        return session.query(cls).filter(
+            cls.created_at >= func.date('now', f'-{days} days')
+        )
+
 
 class ValidationMixin(abc.ABC):
     """
-    Mixin providing validation methods for model instances.
+    Advanced validation mixin with comprehensive validation strategies.
     """
+
     @classmethod
-    def validate(cls, data: dict) -> bool:
+    def validate(cls, data: Dict[str, Any]) -> Dict[str, List[str]]:
         """
-        Validate input data for the model.
+        Comprehensive validation method with detailed error reporting.
 
         Args:
-            data (dict): Data to validate
+            data: Dictionary of attributes to validate
 
         Returns:
-            bool: Whether the data is valid
+            Dictionary of validation errors
         """
-        # Implement basic validation logic
-        # This is a placeholder and should be overridden in specific models
-        return all(value is not None for value in data.values())
+        errors = {}
+
+        # Implement base validation logic
+        for key, value in data.items():
+            # Check for None values
+            if value is None:
+                errors.setdefault('required_fields', []).append(
+                    f"{key} cannot be None"
+                )
+
+        return errors
+
+    @classmethod
+    def validate_enum(
+            cls,
+            value: Any,
+            enum_class: Type[Enum],
+            field_name: str
+    ) -> Optional[str]:
+        """
+        Validate that a value is a valid enum member.
+
+        Args:
+            value: Value to validate
+            enum_class: Enum class to validate against
+            field_name: Name of the field being validated
+
+        Returns:
+            Error message if validation fails, None otherwise
+        """
+        try:
+            if not isinstance(value, enum_class):
+                return f"{field_name} must be a valid {enum_class.__name__}"
+            return None
+        except Exception:
+            return f"Invalid {field_name} value"
+
 
 class CostingMixin:
     """
-    Mixin to provide costing-related calculations.
+    Advanced costing tracking for financial entities.
     """
-    unit_cost = Column(Float, default=0.0)
-    total_cost = Column(Float, default=0.0)
+    # Base costing attributes
+    unit_cost = Column(Float, default=0.0, nullable=False)
+    total_cost = Column(Float, default=0.0, nullable=False)
 
-    def calculate_total_cost(self) -> float:
-        """
-        Calculate the total cost of the item.
+    # Quality and pricing attributes
+    quality_grade = Column(
+        Enum(QualityGrade),
+        default=QualityGrade.STANDARD,
+        nullable=False
+    )
 
-        Returns:
-            float: Total cost
+    # Cost calculation methods
+    def calculate_total_cost(
+            self,
+            unit_cost: Optional[float] = None,
+            quantity: Optional[float] = 1.0
+    ) -> float:
         """
-        # Placeholder implementation
-        # Should be overridden in specific models
-        return self.total_cost
-
-    def update_total_cost(self, new_cost: float) -> None:
-        """
-        Update the total cost of the item.
+        Calculate total cost with optional overrides.
 
         Args:
-            new_cost (float): New total cost value
+            unit_cost: Optional unit cost override
+            quantity: Quantity to calculate cost for
+
+        Returns:
+            Calculated total cost
         """
-        self.total_cost = new_cost
+        cost_per_unit = unit_cost or self.unit_cost
+        return cost_per_unit * (quantity or 1.0)
+
+    def update_cost(
+            self,
+            unit_cost: float,
+            total_cost: Optional[float] = None
+    ) -> None:
+        """
+        Update costing information.
+
+        Args:
+            unit_cost: New unit cost
+            total_cost: Optional total cost (will be calculated if not provided)
+        """
+        self.unit_cost = unit_cost
+        self.total_cost = total_cost or self.calculate_total_cost()
+
 
 class TrackingMixin:
     """
-    Mixin to provide tracking capabilities for model instances.
+    Advanced tracking capabilities for database entities.
     """
-    tracking_id = Column(String(255), unique=True, nullable=True)
+    # Unique tracking identifier
+    tracking_id = Column(
+        String(255),
+        unique=True,
+        nullable=True,
+        default=lambda: str(uuid.uuid4())
+    )
 
-    def generate_tracking_id(self) -> Optional[str]:
+    # Inventory and status tracking
+    material_type = Column(
+        Enum(MaterialType),
+        nullable=True
+    )
+
+    inventory_status = Column(
+        Enum(InventoryStatus),
+        default=InventoryStatus.IN_STOCK,
+        nullable=False
+    )
+
+    # Tracking methods
+    def generate_tracking_id(self) -> str:
         """
-        Generate a unique tracking identifier.
+        Generate a new unique tracking identifier.
 
         Returns:
-            Optional[str]: A unique tracking identifier
+            Unique tracking ID
         """
-        # Use uuid to generate a unique tracking ID
         return str(uuid.uuid4())
 
     def update_tracking_id(self) -> None:
         """
-        Update the tracking ID to a new unique value.
+        Update the tracking identifier.
         """
         self.tracking_id = self.generate_tracking_id()
 
-def comparison_func(x: Any, y: Any) -> bool:
+    def update_inventory_status(
+            self,
+            new_status: InventoryStatus,
+            threshold: Optional[float] = None
+    ) -> None:
+        """
+        Update inventory status with optional threshold logic.
+
+        Args:
+            new_status: New inventory status
+            threshold: Optional threshold for status determination
+        """
+        self.inventory_status = new_status
+
+
+class ComplianceMixin:
     """
-    Generic comparison function for sorting or comparing objects.
+    Advanced compliance and audit tracking mixin.
+    """
+    # Compliance and audit tracking
+    is_compliant = Column(Boolean, default=True, nullable=False)
+    compliance_notes = Column(TEXT, nullable=True)
+    last_compliance_check = Column(
+        DateTime,
+        nullable=True,
+        onupdate=datetime.utcnow
+    )
+
+    def mark_compliance(
+            self,
+            is_compliant: bool,
+            notes: Optional[str] = None
+    ) -> None:
+        """
+        Update compliance status.
+
+        Args:
+            is_compliant: Compliance status
+            notes: Optional compliance notes
+        """
+        self.is_compliant = is_compliant
+        self.compliance_notes = notes
+        self.last_compliance_check = datetime.utcnow()
+
+
+# Utility function for easy mixin application
+def apply_mixins(*mixin_classes):
+    """
+    Utility to dynamically apply multiple mixins.
 
     Args:
-        x (Any): First object to compare
-        y (Any): Second object to compare
+        *mixin_classes: Mixin classes to apply
 
     Returns:
-        bool: Result of the comparison
+        Tuple of mixin classes
     """
-    # Default implementation - can be customized as needed
-    return x < y
+    return mixin_classes

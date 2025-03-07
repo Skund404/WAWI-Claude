@@ -1,62 +1,84 @@
 # database/models/supplier.py
 """
-Supplier Model
+Comprehensive Supplier Model for Leatherworking Management System
 
-This module defines the Supplier model which implements
-the Supplier entity from the ER diagram.
+This module defines the Supplier model with extensive validation,
+relationship management, and circular import resolution.
+
+Implements the Supplier entity from the ER diagram with all its
+relationships and attributes.
 """
 
 import logging
 import re
 from typing import Dict, Any, Optional, List, Union
 
-from sqlalchemy import Column, String, Text, Boolean, Enum, Integer
-from sqlalchemy.orm import relationship
+from sqlalchemy import Column, Enum, String, Text, Boolean, Integer
+from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.exc import SQLAlchemyError
 
 from database.models.base import Base, ModelValidationError
 from database.models.enums import SupplierStatus
-from store_management.utils.circular_import_resolver import lazy_import, register_lazy_import
-from utils.enhanced_model_validator import validate_not_empty, ValidationError
+from database.models.mixins import (
+    TimestampMixin,
+    ValidationMixin,
+    TrackingMixin
+)
+from utils.circular_import_resolver import (
+    lazy_import,
+    register_lazy_import
+)
+from utils.enhanced_model_validator import (
+    ModelValidator,
+    ValidationError,
+    validate_not_empty
+)
 
 # Setup logger
 logger = logging.getLogger(__name__)
 
-# Register lazy imports
-register_lazy_import('database.models.material.Material', 'database.models.material', 'Material')
-register_lazy_import('database.models.leather.Leather', 'database.models.leather', 'Leather')
-register_lazy_import('database.models.hardware.Hardware', 'database.models.hardware', 'Hardware')
-register_lazy_import('database.models.tool.Tool', 'database.models.tool', 'Tool')
-register_lazy_import('database.models.purchase.Purchase', 'database.models.purchase', 'Purchase')
-register_lazy_import('database.models.product.Product', 'database.models.product', 'Product')
+# Register lazy imports to resolve potential circular dependencies
+register_lazy_import('Material', 'database.models.material', 'Material')
+register_lazy_import('Leather', 'database.models.leather', 'Leather')
+register_lazy_import('Hardware', 'database.models.hardware', 'Hardware')
+register_lazy_import('Tool', 'database.models.tool', 'Tool')
+register_lazy_import('Purchase', 'database.models.purchase', 'Purchase')
+register_lazy_import('Product', 'database.models.product', 'Product')
 
 
-class Supplier(Base):
+class Supplier(Base, TimestampMixin, ValidationMixin, TrackingMixin):
     """
-    Supplier model representing vendors and suppliers.
-    This corresponds to the Supplier entity in the ER diagram.
+    Supplier model representing vendors and suppliers for leatherworking materials.
+
+    This implements the Supplier entity from the ER diagram with comprehensive
+    attributes and relationship management.
     """
     __tablename__ = 'suppliers'
 
-    id = Column(Integer, primary_key=True)
-    name = Column(String(255), nullable=False, index=True)
-    contact_email = Column(String(255), nullable=True)
-    status = Column(Enum(SupplierStatus), nullable=False, default=SupplierStatus.ACTIVE)
+    # Basic attributes
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    contact_email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    status: Mapped[SupplierStatus] = mapped_column(
+        Enum(SupplierStatus),
+        nullable=False,
+        default=SupplierStatus.ACTIVE
+    )
 
     # Contact information
-    contact_name = Column(String(255), nullable=True)
-    phone = Column(String(50), nullable=True)
-    website = Column(String(255), nullable=True)
+    contact_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    phone: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    website: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
     # Address
-    street_address = Column(String(255), nullable=True)
-    city = Column(String(100), nullable=True)
-    state = Column(String(100), nullable=True)
-    postal_code = Column(String(20), nullable=True)
-    country = Column(String(100), nullable=True)
+    street_address: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    city: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    state: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    postal_code: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    country: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
 
     # Additional information
-    notes = Column(Text, nullable=True)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Relationships
     materials = relationship("Material", back_populates="supplier")
@@ -66,67 +88,34 @@ class Supplier(Base):
     purchases = relationship("Purchase", back_populates="supplier")
     products = relationship("Product", back_populates="supplier")
 
-    def __init__(self, name: str, status: SupplierStatus = SupplierStatus.ACTIVE,
-                 contact_email: Optional[str] = None, contact_name: Optional[str] = None,
-                 phone: Optional[str] = None, website: Optional[str] = None,
-                 street_address: Optional[str] = None, city: Optional[str] = None,
-                 state: Optional[str] = None, postal_code: Optional[str] = None,
-                 country: Optional[str] = None, notes: Optional[str] = None, **kwargs):
+    def __init__(self, **kwargs):
         """
         Initialize a Supplier instance with comprehensive validation.
 
         Args:
-            name: Supplier name
-            status: Supplier status
-            contact_email: Optional email address
-            contact_name: Optional contact person name
-            phone: Optional phone number
-            website: Optional website URL
-            street_address: Optional street address
-            city: Optional city
-            state: Optional state/province
-            postal_code: Optional postal/zip code
-            country: Optional country
-            notes: Optional notes
-            **kwargs: Additional attributes
+            **kwargs: Keyword arguments for supplier attributes
 
         Raises:
             ModelValidationError: If validation fails
         """
         try:
-            # Prepare data
-            kwargs.update({
-                'name': name,
-                'status': status,
-                'contact_email': contact_email,
-                'contact_name': contact_name,
-                'phone': phone,
-                'website': website,
-                'street_address': street_address,
-                'city': city,
-                'state': state,
-                'postal_code': postal_code,
-                'country': country,
-                'notes': notes
-            })
+            # Validate input data
+            self._validate_supplier_data(kwargs)
 
-            # Validate
-            self._validate_creation(kwargs)
-
-            # Initialize
+            # Initialize base model
             super().__init__(**kwargs)
 
         except (ValidationError, SQLAlchemyError) as e:
             logger.error(f"Supplier initialization failed: {e}")
-            raise ModelValidationError(f"Failed to create supplier: {str(e)}") from e
+            raise ModelValidationError(f"Failed to create Supplier: {str(e)}") from e
 
     @classmethod
-    def _validate_creation(cls, data: Dict[str, Any]) -> None:
+    def _validate_supplier_data(cls, data: Dict[str, Any]) -> None:
         """
-        Validate supplier creation data with comprehensive checks.
+        Comprehensive validation of supplier creation data.
 
         Args:
-            data: Data to validate
+            data: Supplier creation data to validate
 
         Raises:
             ValidationError: If validation fails
@@ -138,17 +127,25 @@ class Supplier(Base):
         if data.get('contact_email'):
             email_pattern = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
             if not re.match(email_pattern, data['contact_email']):
-                raise ValidationError("Invalid email format")
+                raise ValidationError("Invalid email format", "contact_email")
 
         # Validate website format if provided
         if data.get('website'):
             website_pattern = r'^(http|https)://[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+(:[0-9]+)?(/.*)?$'
             if not re.match(website_pattern, data['website']):
                 # Try adding http:// prefix if missing
-                if re.match(website_pattern, f"http://{data['website']}"):
+                if re.match(r'^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+', data['website']):
                     data['website'] = f"http://{data['website']}"
                 else:
-                    raise ValidationError("Invalid website URL format")
+                    raise ValidationError("Invalid website URL format", "website")
+
+        # Validate status if provided
+        if 'status' in data:
+            ModelValidator.validate_enum(
+                data['status'],
+                SupplierStatus,
+                'status'
+            )
 
     def mark_as_inactive(self) -> None:
         """Mark the supplier as inactive."""
@@ -170,7 +167,7 @@ class Supplier(Base):
         Get the full address as a formatted string.
 
         Returns:
-            str: Formatted address
+            Formatted address
         """
         address_parts = []
 
@@ -194,10 +191,92 @@ class Supplier(Base):
 
         return '\n'.join(address_parts)
 
+    def to_dict(self, exclude_fields: Optional[List[str]] = None) -> Dict[str, Any]:
+        """
+        Convert model instance to a dictionary representation.
+
+        Args:
+            exclude_fields: Optional list of fields to exclude
+
+        Returns:
+            Dictionary representation of the model
+        """
+        if exclude_fields is None:
+            exclude_fields = []
+
+        # Add standard fields to exclude
+        exclude_fields.extend(['_sa_instance_state'])
+
+        result = {}
+        for column in self.__table__.columns:
+            if column.name not in exclude_fields:
+                value = getattr(self, column.name)
+
+                # Handle special types
+                if isinstance(value, SupplierStatus):
+                    result[column.name] = value.name
+                else:
+                    result[column.name] = value
+
+        # Add computed fields
+        result['full_address'] = self.get_full_address()
+
+        return result
+
+    def validate(self) -> Dict[str, List[str]]:
+        """
+        Validate the supplier instance.
+
+        Returns:
+            Dictionary mapping field names to validation errors,
+            or an empty dictionary if validation succeeds
+        """
+        errors = {}
+
+        try:
+            # Validate required fields
+            if not self.name:
+                errors.setdefault('name', []).append("Name is required")
+
+            # Validate email format if provided
+            if self.contact_email:
+                email_pattern = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
+                if not re.match(email_pattern, self.contact_email):
+                    errors.setdefault('contact_email', []).append("Invalid email format")
+
+            # Validate website format if provided
+            if self.website:
+                website_pattern = r'^(http|https)://[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+(:[0-9]+)?(/.*)?$'
+                if not re.match(website_pattern, self.website):
+                    errors.setdefault('website', []).append("Invalid website URL format")
+
+        except Exception as e:
+            errors.setdefault('general', []).append(f"Validation error: {str(e)}")
+
+        return errors
+
+    def is_valid(self) -> bool:
+        """
+        Check if the supplier instance is valid.
+
+        Returns:
+            True if the instance is valid, False otherwise
+        """
+        return len(self.validate()) == 0
+
     def __repr__(self) -> str:
-        """String representation of the supplier."""
-        return f"<Supplier(id={self.id}, name='{self.name}', status={self.status})>"
+        """
+        String representation of the Supplier.
+
+        Returns:
+            Detailed supplier representation
+        """
+        return (
+            f"<Supplier(id={self.id}, "
+            f"name='{self.name}', "
+            f"status={self.status.name if self.status else 'None'})>"
+        )
 
 
-# Final registration
-register_lazy_import('database.models.supplier.Supplier', 'database.models.supplier', 'Supplier')
+# Register for lazy import resolution
+register_lazy_import('Supplier', 'database.models.supplier', 'Supplier')

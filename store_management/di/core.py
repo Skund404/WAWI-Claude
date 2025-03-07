@@ -1,54 +1,15 @@
-# File: di/core.py
+# di/core.py
+"""
+Dependency Injection Core Decorator and Utility
+"""
+
 from functools import wraps
-from typing import Any, Callable, TypeVar, Type, Optional
+from typing import Any, Callable, Optional, Type, TypeVar
 
 T = TypeVar('T')
 
 
-class DependencyContainer:
-    """
-    Dependency injection container.
-    """
-    _instance = None
-    _services: dict = {}
-
-    def __new__(cls):
-        """
-        Singleton pattern implementation.
-
-        Returns:
-            DependencyContainer: Singleton instance
-        """
-        if not cls._instance:
-            cls._instance = super().__new__(cls)
-        return cls._instance
-
-    @classmethod
-    def register(cls, service_type: Type[T], service_impl: Any):
-        """
-        Register a service implementation.
-
-        Args:
-            service_type (Type[T]): Interface/abstract base class
-            service_impl (Any): Concrete implementation
-        """
-        cls._services[service_type] = service_impl
-
-    @classmethod
-    def resolve(cls, service_type: Type[T]) -> Optional[Any]:
-        """
-        Resolve a service implementation.
-
-        Args:
-            service_type (Type[T]): Interface/abstract base class
-
-        Returns:
-            Optional[Any]: Registered service implementation
-        """
-        return cls._services.get(service_type)
-
-
-def inject(service_type: Type[T]):
+def inject(service_type: Type[T]) -> Callable:
     """
     Dependency injection decorator.
 
@@ -58,22 +19,22 @@ def inject(service_type: Type[T]):
     Returns:
         Callable: Decorated function
     """
-
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         def wrapper(*args, **kwargs):
-            # Find the service
-            service = DependencyContainer.resolve(service_type)
+            # Dynamically import the DI container to avoid circular imports
+            from di.setup import get_di_container
 
-            # If no service is registered, call the original function
-            if not service:
-                return func(*args, **kwargs)
+            # Retrieve the DI container
+            di_container = get_di_container()
 
-            # Replace or add the service to kwargs
-            kwargs['service'] = service
+            # Resolve the service
+            service_instance = di_container.get(service_type.__name__)
+
+            # Inject the service if not already in kwargs
+            if service_type.__name__ not in kwargs:
+                kwargs[service_type.__name__] = service_instance
 
             return func(*args, **kwargs)
-
         return wrapper
-
     return decorator

@@ -1,119 +1,116 @@
-# store_management/services/interfaces/pattern_service.py
+# services/interfaces/pattern_service.py
 """
-Interface for Pattern Service in Leatherworking Store Management.
-
-Defines the contract for pattern-related operations.
+Interface for Pattern Service in the leatherworking application.
 """
 
 from abc import ABC, abstractmethod
-from enum import Enum
-from typing import Any, Dict, List, Optional, Callable
+from typing import Any, Dict, List, Optional
+from database.models.enums import SkillLevel, PatternStatus
+from database.models.pattern import Pattern
+from database.models.components import Component
 
-from di.core import inject
-from utils.circular_import_resolver import CircularImportResolver
-
-class PatternStatus(Enum):
-    """
-    Enumeration of possible pattern statuses.
-    """
-    DRAFT = "Draft"
-    IN_PROGRESS = "In Progress"
-    COMPLETE = "Complete"
-    PUBLISHED = "Published"
-    ARCHIVED = "Archived"
 
 class IPatternService(ABC):
     """
-    Abstract base class defining the interface for pattern-related operations.
+    Abstract base class defining the interface for Pattern Service.
+    Handles operations related to leatherworking patterns.
     """
 
     @abstractmethod
-    @inject('IMaterialService')
     def create_pattern(
         self,
         name: str,
         description: Optional[str] = None,
-        skill_level: Optional[str] = None,
-        material_service: Optional[Any] = None
-    ) -> Dict[str, Any]:
+        skill_level: Optional[SkillLevel] = None,
+        status: Optional[PatternStatus] = None,
+        components: Optional[List[Dict[str, Any]]] = None,
+        **kwargs
+    ) -> Pattern:
         """
         Create a new pattern.
 
         Args:
             name (str): Name of the pattern
-            description (Optional[str], optional): Detailed description of the pattern
-            skill_level (Optional[str], optional): Skill level required for the pattern
-            material_service (Optional[Any], optional): Material service for pattern creation
+            description (Optional[str]): Description of the pattern
+            skill_level (Optional[SkillLevel]): Skill level required for the pattern
+            status (Optional[PatternStatus]): Current status of the pattern
+            components (Optional[List[Dict[str, Any]]]): List of components for the pattern
+            **kwargs: Additional attributes for the pattern
 
         Returns:
-            Dict[str, Any]: Details of the created pattern
+            Pattern: The created pattern
         """
         pass
 
     @abstractmethod
-    def update_pattern(
-        self,
-        pattern_id: str,
-        updates: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def get_pattern_by_id(self, pattern_id: int) -> Pattern:
+        """
+        Retrieve a pattern by its ID.
+
+        Args:
+            pattern_id (int): ID of the pattern
+
+        Returns:
+            Pattern: The retrieved pattern
+        """
+        pass
+
+    @abstractmethod
+    def get_patterns_by_skill_level(self, skill_level: SkillLevel) -> List[Pattern]:
+        """
+        Retrieve patterns by skill level.
+
+        Args:
+            skill_level (SkillLevel): Skill level to filter patterns
+
+        Returns:
+            List[Pattern]: List of patterns matching the skill level
+        """
+        pass
+
+    @abstractmethod
+    def update_pattern(self, pattern_id: int, **kwargs) -> Pattern:
         """
         Update an existing pattern.
 
         Args:
-            pattern_id (str): Unique identifier of the pattern
-            updates (Dict[str, Any]): Dictionary of fields to update
+            pattern_id (int): ID of the pattern to update
+            **kwargs: Attributes to update
 
         Returns:
-            Dict[str, Any]: Updated pattern details
+            Pattern: The updated pattern
         """
         pass
 
     @abstractmethod
-    def get_pattern(
-        self,
-        pattern_id: str
-    ) -> Optional[Dict[str, Any]]:
-        """
-        Retrieve a specific pattern by its ID.
-
-        Args:
-            pattern_id (str): Unique identifier of the pattern
-
-        Returns:
-            Optional[Dict[str, Any]]: Pattern details, or None if not found
-        """
-        pass
-
-    @abstractmethod
-    def list_patterns(
-        self,
-        status: Optional[PatternStatus] = None,
-        skill_level: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
-        """
-        List patterns with optional filtering.
-
-        Args:
-            status (Optional[PatternStatus], optional): Filter by pattern status
-            skill_level (Optional[str], optional): Filter by skill level
-
-        Returns:
-            List[Dict[str, Any]]: List of patterns matching the criteria
-        """
-        pass
-
-    @abstractmethod
-    def delete_pattern(
-        self,
-        pattern_id: str
-    ) -> bool:
+    def delete_pattern(self, pattern_id: int) -> bool:
         """
         Delete a pattern.
 
         Args:
-            pattern_id (str): Unique identifier of the pattern to delete
+            pattern_id (int): ID of the pattern to delete
 
         Returns:
             bool: True if deletion was successful, False otherwise
+        """
+        pass
+
+    @abstractmethod
+    def add_component_to_pattern(
+        self,
+        pattern_id: int,
+        component_id: int,
+        quantity: int = 1
+    ) -> Any:
+        """
+        Add a component to a pattern.
+
+        Args:
+            pattern_id (int): ID of the pattern
+            component_id (int): ID of the component
+            quantity (int, optional): Quantity of the component. Defaults to 1.
+
+        Returns:
+            Any: The created pattern component association
         """
         pass

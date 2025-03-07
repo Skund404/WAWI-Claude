@@ -1,152 +1,346 @@
-# path: database/models/material.py
+# database/models/models.py
 """
-Material model for the leatherworking store management application.
+Central Index for Leatherworking Management System Models
 
-This module defines the database model for materials used in
-leatherworking projects, such as leather, thread, adhesives, etc.
+This module serves as the central import and initialization point
+for all models in the application, providing convenient access and
+initialization of models and their relationships.
 """
 
-import enum
-from datetime import datetime
-from typing import Dict, Any, Optional, List
+import logging
+from typing import Dict, Any, Type, List, Optional, Union, Set
 
-from sqlalchemy import Column, String, Integer, Float, ForeignKey, Enum, Boolean, DateTime, Text
-from sqlalchemy.orm import relationship
+# Import base classes and metadata
+from database.models.base import Base
+from database.models.model_metaclass import BaseModelMetaclass
 
-# Import base classes without causing circular dependencies
-from database.models.base import Base, BaseModel
+# Import interfaces
+from database.models.interfaces import IModel, IProject, IInventoryItem, ISalesItem
+
+# Import primary models
+from database.models.customer import Customer
+from database.models.sales import Sales
+from database.models.sales_item import SalesItem
+from database.models.product import Product
+from database.models.pattern import Pattern
+from database.models.project import Project
+from database.models.components import (
+    Component,
+    ProjectComponent,
+    ComponentMaterial,
+    ComponentLeather,
+    ComponentHardware,
+    ComponentTool
+)
+# Note: PatternComponent is actually missing from components.py and should be implemented there
+
+# Import inventory models
+from database.models.material import Material
+from database.models.material_inventory import MaterialInventory
+from database.models.leather import Leather
+from database.models.leather_inventory import LeatherInventory
+from database.models.hardware import Hardware
+from database.models.hardware_inventory import HardwareInventory
+from database.models.tool import Tool
+from database.models.inventory import Inventory
+
+# Import support models
+from database.models.supplier import Supplier
+from database.models.purchase import Purchase
+from database.models.purchase_item import PurchaseItem  # Corrected import
+from database.models.storage import Storage
+from database.models.picking_list import PickingList, PickingListItem
+from database.models.tool_list import ToolList, ToolListItem
+from database.models.metrics import MetricSnapshot, MaterialUsageLog, EfficiencyReport
+from database.models.transaction import (
+    Transaction,
+    MaterialTransaction,
+    LeatherTransaction,
+    HardwareTransaction
+)
+
+# Import enums for convenience
+from database.models.enums import (
+    SaleStatus,
+    PaymentStatus,
+    ProjectStatus,
+    ProjectType,
+    ComponentType,
+    InventoryStatus,
+    MaterialType,
+    LeatherType,
+    HardwareType,
+    TransactionType,
+    InventoryAdjustmentType,
+    SkillLevel,
+    QualityGrade,
+    MeasurementUnit
+)
+
+# Import model factories
+from database.models.factories import (
+    ProjectFactory,
+    PatternFactory,
+    ComponentFactory,
+    SalesFactory,
+    HardwareFactory,
+    MaterialFactory,
+    LeatherFactory,
+    ToolFactory,        # Added missing factory
+    SupplierFactory,    # Added missing factory
+    ProductFactory      # Added missing factory
+)
+
+# Setup logger
+logger = logging.getLogger(__name__)
 
 
-class MaterialType(enum.Enum):
-    """Enumeration of material types."""
-    LEATHER = "leather"
-    HARDWARE = "hardware"
-    THREAD = "thread"
-    LINING = "lining"
-    ADHESIVE = "adhesive"
-    OTHER = "other"
-
-
-class LeatherType(enum.Enum):
-    """Enumeration of leather types."""
-    FULL_GRAIN = "full_grain"
-    TOP_GRAIN = "top_grain"
-    GENUINE = "genuine"
-    SPLIT = "split"
-    BONDED = "bonded"
-    SYNTHETIC = "synthetic"
-    EXOTIC = "exotic"
-    OTHER = "other"
-
-
-class MaterialQualityGrade(enum.Enum):
-    """Enumeration of material quality grades."""
-    PREMIUM = "premium"
-    STANDARD = "standard"
-    ECONOMY = "economy"
-    SECONDS = "seconds"
-    REMNANT = "remnant"
-
-
-class Material(Base, BaseModel):
+class ModelRegistry:
     """
-    Model for materials used in leatherworking.
+    Central registry for model management and initialization.
 
-    This model represents all types of materials used in leatherworking projects,
-    such as leather, thread, adhesives, etc.
+    This class provides utility methods for working with models, including
+    initialization, registration tracking, and relationship management.
     """
-    __tablename__ = 'materials'
 
-    id = Column(Integer, primary_key=True)
-    name = Column(String(100), nullable=False)
-    description = Column(Text, nullable=True)
+    # Track models for easy lookup
+    _models: Dict[str, Type] = {}
+    _model_instances: Dict[str, Dict[int, Any]] = {}
 
-    # Material categorization
-    material_type = Column(Enum(MaterialType), nullable=False)
-
-    # For leather materials
-    leather_type = Column(Enum(LeatherType), nullable=True)
-    quality_grade = Column(Enum(MaterialQualityGrade), nullable=True)
-    thickness = Column(Float, nullable=True)  # in mm
-
-    # Inventory
-    in_stock = Column(Boolean, default=True)
-    quantity = Column(Float, default=0)
-    unit = Column(String(20), default="piece")  # piece, meter, sq_foot, etc.
-    min_stock_level = Column(Float, default=5)
-    reorder_quantity = Column(Float, default=10)
-
-    # Location
-    location = Column(String(100), nullable=True)
-
-    # Supplier information
-    supplier_id = Column(Integer, ForeignKey('suppliers.id'), nullable=True)
-    supplier_sku = Column(String(100), nullable=True)
-    supplier = relationship("Supplier", backref="materials")
-
-    # Pricing
-    cost_per_unit = Column(Float, nullable=True)
-
-    # Sustainability and impact
-    eco_friendly = Column(Boolean, default=False)
-    carbon_footprint = Column(Float, nullable=True)  # in kg CO2e per unit
-
-    # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    def __repr__(self) -> str:
+    @classmethod
+    def initialize(cls) -> None:
         """
-        Return a string representation of the material.
+        Initialize all models and their relationships.
 
-        Returns:
-            str: String representation with id, name, and type
+        This method should be called during application startup to ensure
+        all models and their relationships are properly initialized.
         """
-        return f"<Material(id={self.id}, name='{self.name}', type={self.material_type})>"
+        try:
+            logger.info("Initializing model registry...")
 
-    def calculate_sustainability_impact(self) -> Dict[str, float]:
-        """
-        Calculate the sustainability impact metrics.
+            # Register primary models
+            cls._register_models()
 
-        Returns:
-            Dict[str, float]: Dictionary of sustainability metrics
-        """
-        return {
-            "carbon_footprint": self.carbon_footprint or 0,
-            "eco_friendly": 1 if self.eco_friendly else 0
-        }
+            # Initialize all relationships
+            cls._initialize_relationships()
 
-    def is_low_stock(self) -> bool:
-        """
-        Check if the material is low in stock.
+            logger.info("Model registry initialization completed successfully")
+        except Exception as e:
+            logger.error(f"Error initializing model registry: {e}")
+            raise
 
-        Returns:
-            bool: True if the quantity is below the minimum stock level
+    @classmethod
+    def _register_models(cls) -> None:
         """
-        return self.quantity <= self.min_stock_level
+        Register all models in the central registry.
+        """
+        # Collect all model classes from BaseModelMetaclass registry
+        if hasattr(BaseModelMetaclass, '_registered_models'):
+            cls._models.update(BaseModelMetaclass._registered_models)
+            logger.debug(f"Registered {len(cls._models)} models from metaclass registry")
+        else:
+            # Register models manually if metaclass registry not available
+            models = [
+                Customer, Sales, SalesItem, Product, Pattern, Project,
+                Component, ProjectComponent,
+                ComponentMaterial, ComponentLeather, ComponentHardware, ComponentTool,
+                Material, MaterialInventory, Leather, LeatherInventory,
+                Hardware, HardwareInventory, Tool, Inventory,
+                Supplier, Purchase, PurchaseItem, Storage,
+                PickingList, PickingListItem, ToolList, ToolListItem,
+                MetricSnapshot, MaterialUsageLog, EfficiencyReport,
+                Transaction, MaterialTransaction, LeatherTransaction, HardwareTransaction
+            ]
 
-    def update_stock(self, quantity_change: float) -> None:
+            for model in models:
+                cls._models[model.__name__] = model
+
+            logger.debug(f"Manually registered {len(cls._models)} models")
+
+    @classmethod
+    def _initialize_relationships(cls) -> None:
         """
-        Update the stock quantity.
+        Initialize all model relationships.
+        """
+        # Use metaclass relationship initialization if available
+        if hasattr(BaseModelMetaclass, 'initialize_all_relationships'):
+            BaseModelMetaclass.initialize_all_relationships()
+            logger.debug("Initialized relationships using metaclass")
+        else:
+            # Otherwise, call individual relationship initializers
+            for model_name, model_class in cls._models.items():
+                if hasattr(model_class, 'initialize_relationships'):
+                    try:
+                        model_class.initialize_relationships()
+                        logger.debug(f"Initialized relationships for {model_name}")
+                    except Exception as e:
+                        logger.error(f"Error initializing relationships for {model_name}: {e}")
+
+    @classmethod
+    def get_model(cls, model_name: str) -> Optional[Type]:
+        """
+        Get a model class by name.
 
         Args:
-            quantity_change: Amount to change the quantity by (positive or negative)
+            model_name: Name of the model to retrieve
+
+        Returns:
+            The model class or None if not found
         """
-        self.quantity += quantity_change
-        if self.quantity < 0:
-            self.quantity = 0
+        return cls._models.get(model_name)
 
-        self.in_stock = self.quantity > 0
-
-        # Trigger reorder if needed
-        if self.is_low_stock():
-            self._trigger_reorder()
-
-    def _trigger_reorder(self) -> None:
+    @classmethod
+    def get_instance(cls, model_name: str, instance_id: int) -> Optional[Any]:
         """
-        Trigger a reorder for this material.
+        Get a cached model instance by name and ID.
 
-        This is a placeholder method that would typically
-        interact with the ordering system.
+        Note: This is primarily used for in-memory caching during
+        application runtime, not for database retrieval.
+
+        Args:
+            model_name: Name of the model
+            instance_id: ID of the instance
+
+        Returns:
+            The model instance or None if not found
         """
-        pass  # In a real implementation, this would create a reorder request
+        return cls._model_instances.get(model_name, {}).get(instance_id)
+
+    @classmethod
+    def cache_instance(cls, instance: Any) -> None:
+        """
+        Cache a model instance for later retrieval.
+
+        Args:
+            instance: The model instance to cache
+        """
+        if not hasattr(instance, 'id') or not hasattr(instance, '__class__'):
+            return
+
+        model_name = instance.__class__.__name__
+
+        if model_name not in cls._model_instances:
+            cls._model_instances[model_name] = {}
+
+        cls._model_instances[model_name][instance.id] = instance
+
+    @classmethod
+    def clear_cache(cls) -> None:
+        """
+        Clear the instance cache.
+        """
+        cls._model_instances.clear()
+
+    @classmethod
+    def get_model_dependencies(cls, model_name: str) -> Set[str]:
+        """
+        Get all models that depend on the specified model.
+
+        Args:
+            model_name: Name of the model
+
+        Returns:
+            Set of model names that depend on the specified model
+        """
+        dependencies = set()
+
+        # Check each model for relationships to the target model
+        for name, model in cls._models.items():
+            if hasattr(model, '__mapper__') and hasattr(model.__mapper__, 'relationships'):
+                for relationship in model.__mapper__.relationships:
+                    if relationship.target.name == model_name:
+                        dependencies.add(name)
+
+        return dependencies
+
+
+# Initialize model registry during module import
+# This ensures models are registered but relationships
+# will be initialized when explicitly called
+ModelRegistry._register_models()
+
+# Convenience exports
+__all__ = [
+    # Base classes
+    'Base',
+    'IModel',
+    'IProject',
+    'IInventoryItem',
+    'ISalesItem',
+
+    # Primary models
+    'Customer',
+    'Sales',
+    'SalesItem',
+    'Product',
+    'Pattern',
+    'Project',
+    'Component',
+    'ProjectComponent',
+    # 'PatternComponent', # Removed as it doesn't exist in components.py
+
+    # Inventory models
+    'Material',
+    'MaterialInventory',
+    'Leather',
+    'LeatherInventory',
+    'Hardware',
+    'HardwareInventory',
+    'Tool',
+    'Inventory',
+
+    # Support models
+    'Supplier',
+    'Purchase',
+    'PurchaseItem',
+    'Storage',
+    'PickingList',
+    'PickingListItem',
+    'ToolList',
+    'ToolListItem',
+    'MetricSnapshot',
+    'MaterialUsageLog',
+    'EfficiencyReport',
+    'Transaction',
+    'MaterialTransaction',
+    'LeatherTransaction',
+    'HardwareTransaction',
+
+    # Factories
+    'ProjectFactory',
+    'PatternFactory',
+    'ComponentFactory',
+    'SalesFactory',
+    'HardwareFactory',
+    'MaterialFactory',
+    'LeatherFactory',
+    'ToolFactory',        # Added missing factory
+    'SupplierFactory',    # Added missing factory
+    'ProductFactory',     # Added missing factory
+
+    # Enums
+    'SaleStatus',
+    'PaymentStatus',
+    'ProjectStatus',
+    'ProjectType',
+    'ComponentType',
+    'InventoryStatus',
+    'MaterialType',
+    'LeatherType',
+    'HardwareType',
+    'TransactionType',
+    'InventoryAdjustmentType',
+    'SkillLevel',
+    'QualityGrade',
+    'MeasurementUnit',
+
+    # Registry
+    'ModelRegistry'
+]
+
+
+def initialize_models() -> None:
+    """
+    Convenience function to initialize all models during application startup.
+    """
+    ModelRegistry.initialize()

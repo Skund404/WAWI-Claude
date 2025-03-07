@@ -1,30 +1,39 @@
 # database/models/components.py
 """
-Enhanced Component Models with Advanced Relationship and Validation Strategies
+Comprehensive Component Models for Leatherworking Management System
 
 This module defines the component-related models with comprehensive validation,
 relationship management, and circular import resolution.
 
-These models implement the Component, ProjectComponent, and PatternComponent
-entities from the ER diagram.
+Implements the Component, ProjectComponent, PatternComponent, and junction table entities
+from the ER diagram, ensuring proper relationship tracking and validation.
 """
 
 import logging
-from typing import Dict, Any, Optional, List, Union
+from typing import Dict, Any, Optional, List, Union, Type
 
-from sqlalchemy import Column, Enum, Float, ForeignKey, Integer, String, Text, Boolean
-from sqlalchemy.orm import relationship, declared_attr, Mapped
+from sqlalchemy import Column, Enum, Float, ForeignKey, Integer, String, Text, Boolean, JSON
+from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.exc import SQLAlchemyError
 
 from database.models.base import Base, ModelValidationError
 from database.models.enums import (
     ComponentType,
     EdgeFinishType,
-    MaterialQualityGrade
+    MaterialType,
+    QualityGrade,
+    SkillLevel,
+    MeasurementUnit
+)
+from database.models.mixins import (
+    TimestampMixin,
+    ValidationMixin,
+    CostingMixin
 )
 from utils.circular_import_resolver import (
     lazy_import,
-    register_lazy_import
+    register_lazy_import,
+    CircularImportResolver
 )
 from utils.enhanced_model_validator import (
     ModelValidator,
@@ -37,39 +46,44 @@ from utils.enhanced_model_validator import (
 logger = logging.getLogger(__name__)
 
 # Register lazy imports to resolve potential circular dependencies
-register_lazy_import('database.models.project.Project', 'database.models.project', 'Project')
-register_lazy_import('database.models.leather.Leather', 'database.models.leather', 'Leather')
-register_lazy_import('database.models.pattern.Pattern', 'database.models.pattern', 'Pattern')
-register_lazy_import('database.models.material.Material', 'database.models.material', 'Material')
-register_lazy_import('database.models.hardware.Hardware', 'database.models.hardware', 'Hardware')
-register_lazy_import('database.models.picking_list_item.PickingListItem', 'database.models.picking_list_item',
-                     'PickingListItem')
+register_lazy_import('Project', 'database.models.project', 'Project')
+register_lazy_import('Pattern', 'database.models.pattern', 'Pattern')
+register_lazy_import('Material', 'database.models.material', 'Material')
+register_lazy_import('Leather', 'database.models.leather', 'Leather')
+register_lazy_import('Hardware', 'database.models.hardware', 'Hardware')
+register_lazy_import('Tool', 'database.models.tool', 'Tool')
+register_lazy_import('PickingListItem', 'database.models.picking_list', 'PickingListItem')
+register_lazy_import('Product', 'database.models.product', 'Product')
 
 
-class Component(Base):
+class Component(Base, TimestampMixin, ValidationMixin):
     """
-    Base Component model with core attributes and validation.
+    Base Component model representing a fundamental building block for patterns and projects.
 
     This corresponds to the Component entity in the ER diagram.
     """
     __tablename__ = 'components'
 
-    id = Column(Integer, primary_key=True)
-    name = Column(String(255), nullable=False, index=True)
-    description = Column(Text, nullable=True)
-    component_type = Column(Enum(ComponentType), nullable=False)
+    # Core attributes
+    name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    component_type: Mapped[ComponentType] = mapped_column(Enum(ComponentType), nullable=False)
 
-    # Common physical attributes
-    quantity = Column(Float, default=1.0, nullable=False)
-    dimensions = Column(String(100), nullable=True)
+    # Metadata attributes
+    skill_level: Mapped[Optional[SkillLevel]] = mapped_column(Enum(SkillLevel), nullable=True)
+    attributes: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
 
-    type = Column(String(50))  # Discriminator column for inheritance
+    # Physical attributes
+    dimensions: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
 
-    # New relationships from ER diagram
-    component_materials = relationship("ComponentMaterial", back_populates="component")
-    component_leathers = relationship("ComponentLeather", back_populates="component")
-    component_hardwares = relationship("ComponentHardware", back_populates="component")
-    component_tools = relationship("ComponentTool", back_populates="component")
+    # Discriminator column for inheritance
+    type: Mapped[str] = mapped_column(String(50))
+
+    # Relationships as defined in ER diagram
+    component_materials = relationship("ComponentMaterial", back_populates="component", cascade="all, delete-orphan")
+    component_leathers = relationship("ComponentLeather", back_populates="component", cascade="all, delete-orphan")
+    component_hardwares = relationship("ComponentHardware", back_populates="component", cascade="all, delete-orphan")
+    component_tools = relationship("ComponentTool", back_populates="component", cascade="all, delete-orphan")
 
     __mapper_args__ = {
         'polymorphic_identity': 'component',
@@ -78,7 +92,7 @@ class Component(Base):
 
     def __init__(self, **kwargs):
         """
-        Initialize a Component instance with validation.
+        Initialize a Component instance with comprehensive validation.
 
         Args:
             **kwargs: Keyword arguments for component attributes
@@ -88,22 +102,25 @@ class Component(Base):
         """
         try:
             # Validate input data
-            self._validate_creation(kwargs)
+            self._validate_component_data(kwargs)
 
             # Initialize base model
             super().__init__(**kwargs)
+
+            # Post-initialization processing
+            self._post_init_processing()
 
         except (ValidationError, SQLAlchemyError) as e:
             logger.error(f"Component initialization failed: {e}")
             raise ModelValidationError(f"Failed to create Component: {str(e)}") from e
 
     @classmethod
-    def _validate_creation(cls, data: Dict[str, Any]) -> None:
+    def _validate_component_data(cls, data: Dict[str, Any]) -> None:
         """
-        Validate component creation data.
+        Comprehensive validation of component creation data.
 
         Args:
-            data (Dict[str, Any]): Component creation data to validate
+            data: Component creation data to validate
 
         Raises:
             ValidationError: If validation fails
@@ -120,197 +137,157 @@ class Component(Base):
                 'component_type'
             )
 
-        # Validate quantity
-        if 'quantity' in data:
-            validate_positive_number(
-                data,
-                'quantity',
-                allow_zero=False,
-                message="Quantity must be a positive number"
+        # Validate skill level if provided
+        if 'skill_level' in data and data['skill_level'] is not None:
+            ModelValidator.validate_enum(
+                data['skill_level'],
+                SkillLevel,
+                'skill_level'
             )
 
-
-class ProjectComponent(Component):
-    """
-    Project-specific component with additional attributes and relationships.
-
-    This corresponds to the ProjectComponent entity in the ER diagram, which
-    connects Project and Component.
-    """
-    __tablename__ = 'project_components'
-
-    # Define the foreign key to the base Component table
-    id = Column(Integer, ForeignKey('components.id'), primary_key=True)
-
-    # Additional project-specific columns
-    project_id = Column(Integer, ForeignKey('projects.id'), nullable=False)
-    pattern_id = Column(Integer, ForeignKey('patterns.id'), nullable=True)
-    leather_id = Column(Integer, ForeignKey('leathers.id'), nullable=True)
-
-    # Added to match ER diagram
-    picking_list_item_id = Column(Integer, ForeignKey('picking_list_items.id'), nullable=True)
-
-    # Edge finish specifics
-    edge_finish_type = Column(Enum(EdgeFinishType), nullable=True)
-    edge_finish_color = Column(String(50), nullable=True)
-
-    # Tracking attributes
-    is_complete = Column(Boolean, default=False, nullable=False)
-
-    hardware_id = Column(Integer, ForeignKey('hardwares.id'), nullable=True)
-    material_id = Column(Integer, ForeignKey('materials.id'), nullable=True)
-    product_id = Column(Integer, ForeignKey('products.id'), nullable=True)
-
-    # Relationships
-
-    hardware = relationship(
-        "Hardware",
-        back_populates="project_components",
-        foreign_keys=[hardware_id],
-        lazy='select'
-    )
-
-    project = relationship(
-        "Project",
-        back_populates="components",
-        lazy='select'
-    )
-
-    pattern = relationship(
-        "Pattern",
-        back_populates="project_components",
-        lazy='select'
-    )
-
-    leather = relationship(
-        "Leather",
-        back_populates="project_components",
-        foreign_keys=[leather_id],
-        lazy='select'
-    )
-
-    material = relationship(
-        "Material",
-        back_populates="project_components",
-        foreign_keys=[material_id],
-        lazy='select'
-    )
-
-    product = relationship(
-        "Product",
-        back_populates="components",
-        foreign_keys=[product_id],
-        lazy='select'
-    )
-
-    # New relationship for ER diagram compliance
-    picking_list_item = relationship(
-        "PickingListItem",
-        back_populates="project_component",
-        lazy='select'
-    )
-
-    __mapper_args__ = {
-        'polymorphic_identity': 'project_component',
-        'inherit_condition': (id == Component.id)
-    }
-
-    def __init__(self, **kwargs):
+    def _post_init_processing(self) -> None:
         """
-        Initialize a ProjectComponent instance with validation.
+        Perform additional processing after instance creation.
+
+        Applies business logic and performs final validations.
+        """
+        # Ensure basic attributes are initialized
+        if not hasattr(self, 'attributes') or self.attributes is None:
+            self.attributes = {}
+
+    def add_material(self, material_id: int, quantity: float = 1.0) -> "ComponentMaterial":
+        """
+        Add a material to this component.
 
         Args:
-            **kwargs: Keyword arguments for project component attributes
+            material_id: ID of the material to add
+            quantity: Amount of material needed
 
-        Raises:
-            ModelValidationError: If validation fails
+        Returns:
+            The created ComponentMaterial junction object
         """
         try:
-            # Additional project component validation
-            self._validate_project_component(kwargs)
+            junction = ComponentMaterial(
+                component_id=self.id,
+                material_id=material_id,
+                quantity=quantity
+            )
+            self.component_materials.append(junction)
+            logger.info(f"Added material {material_id} to component {self.id}")
+            return junction
+        except Exception as e:
+            logger.error(f"Failed to add material to component: {e}")
+            raise ModelValidationError(f"Failed to add material: {str(e)}")
 
-            # Initialize parent and base model
-            super().__init__(**kwargs)
-
-        except (ValidationError, SQLAlchemyError) as e:
-            logger.error(f"ProjectComponent initialization failed: {e}")
-            raise ModelValidationError(f"Failed to create ProjectComponent: {str(e)}") from e
-
-    @classmethod
-    def _validate_project_component(cls, data: Dict[str, Any]) -> None:
+    def add_leather(self, leather_id: int, quantity: float = 1.0) -> "ComponentLeather":
         """
-        Validate project-specific component attributes.
+        Add a leather to this component.
 
         Args:
-            data (Dict[str, Any]): Project component data to validate
+            leather_id: ID of the leather to add
+            quantity: Amount of leather needed
 
-        Raises:
-            ValidationError: If validation fails
+        Returns:
+            The created ComponentLeather junction object
         """
-        # Validate project_id
-        if 'project_id' not in data or not data['project_id']:
-            raise ValidationError("Project ID is required for a project component")
-
-        # Validate edge finish type if provided
-        if 'edge_finish_type' in data and data['edge_finish_type']:
-            ModelValidator.validate_enum(
-                data['edge_finish_type'],
-                EdgeFinishType,
-                'edge_finish_type'
+        try:
+            junction = ComponentLeather(
+                component_id=self.id,
+                leather_id=leather_id,
+                quantity=quantity
             )
+            self.component_leathers.append(junction)
+            logger.info(f"Added leather {leather_id} to component {self.id}")
+            return junction
+        except Exception as e:
+            logger.error(f"Failed to add leather to component: {e}")
+            raise ModelValidationError(f"Failed to add leather: {str(e)}")
 
-    def mark_complete(self) -> None:
+    def add_hardware(self, hardware_id: int, quantity: int = 1) -> "ComponentHardware":
         """
-        Mark the project component as complete.
+        Add a hardware item to this component.
+
+        Args:
+            hardware_id: ID of the hardware to add
+            quantity: Number of hardware items needed
+
+        Returns:
+            The created ComponentHardware junction object
         """
-        self.is_complete = True
-        logger.info(f"Project component {self.id} marked as complete")
+        try:
+            junction = ComponentHardware(
+                component_id=self.id,
+                hardware_id=hardware_id,
+                quantity=quantity
+            )
+            self.component_hardwares.append(junction)
+            logger.info(f"Added hardware {hardware_id} to component {self.id}")
+            return junction
+        except Exception as e:
+            logger.error(f"Failed to add hardware to component: {e}")
+            raise ModelValidationError(f"Failed to add hardware: {str(e)}")
+
+    def add_tool(self, tool_id: int) -> "ComponentTool":
+        """
+        Add a tool to this component.
+
+        Args:
+            tool_id: ID of the tool to add
+
+        Returns:
+            The created ComponentTool junction object
+        """
+        try:
+            junction = ComponentTool(
+                component_id=self.id,
+                tool_id=tool_id
+            )
+            self.component_tools.append(junction)
+            logger.info(f"Added tool {tool_id} to component {self.id}")
+            return junction
+        except Exception as e:
+            logger.error(f"Failed to add tool to component: {e}")
+            raise ModelValidationError(f"Failed to add tool: {str(e)}")
 
     def __repr__(self) -> str:
         """
-        Provide a comprehensive string representation.
+        String representation of the Component.
 
         Returns:
-            str: Detailed project component representation
+            Detailed component representation
         """
         return (
-            f"<ProjectComponent(id={self.id}, name='{self.name}', "
-            f"type={self.component_type}, "
-            f"project_id={self.project_id}, "
-            f"complete={self.is_complete})>"
+            f"<Component(id={self.id}, "
+            f"name='{self.name}', "
+            f"type={self.component_type.name if self.component_type else 'None'})>"
         )
 
 
-class PatternComponent(Component):
+class PatternComponent(Base, TimestampMixin, ValidationMixin):
     """
-    Pattern-specific component with additional attributes and relationships.
+    Pattern-specific component junction table with enhanced attributes.
+
+    This corresponds to the PatternComponent entity in the ER diagram,
+    which serves as a junction between Pattern and Component.
     """
     __tablename__ = 'pattern_components'
 
-    # Define the foreign key to the base Component table
-    id = Column(Integer, ForeignKey('components.id'), primary_key=True)
+    # Primary key
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
 
-    # Additional pattern-specific columns
-    pattern_id = Column(Integer, ForeignKey('patterns.id'), nullable=False)
+    # Foreign keys
+    pattern_id: Mapped[int] = mapped_column(Integer, ForeignKey('patterns.id'), nullable=False)
+    component_id: Mapped[int] = mapped_column(Integer, ForeignKey('components.id'), nullable=False)
 
-    # Material and dimensional details
-    material_type = Column(String(100), nullable=True)
-    material_thickness = Column(Float, nullable=True)
-
-    # Tracking attributes
-    is_template = Column(Boolean, default=False, nullable=False)
+    # Attributes
+    quantity: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    position: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    dimensions: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
 
     # Relationships
-    pattern = relationship(
-        "Pattern",
-        back_populates="components",
-        lazy='select'
-    )
-
-    __mapper_args__ = {
-        'polymorphic_identity': 'pattern_component',
-        'inherit_condition': (id == Component.id)
-    }
+    pattern = relationship("Pattern", back_populates="components")
+    component = relationship("Component")
 
     def __init__(self, **kwargs):
         """
@@ -323,63 +300,165 @@ class PatternComponent(Component):
             ModelValidationError: If validation fails
         """
         try:
-            # Additional pattern component validation
-            self._validate_pattern_component(kwargs)
+            # Validate input data
+            self._validate_pattern_component_data(kwargs)
 
-            # Initialize parent and base model
+            # Initialize base model
             super().__init__(**kwargs)
+
+            # Post-initialization processing
+            self._post_init_processing()
 
         except (ValidationError, SQLAlchemyError) as e:
             logger.error(f"PatternComponent initialization failed: {e}")
             raise ModelValidationError(f"Failed to create PatternComponent: {str(e)}") from e
 
     @classmethod
-    def _validate_pattern_component(cls, data: Dict[str, Any]) -> None:
+    def _validate_pattern_component_data(cls, data: Dict[str, Any]) -> None:
         """
-        Validate pattern-specific component attributes.
+        Validate pattern component data.
 
         Args:
-            data (Dict[str, Any]): Pattern component data to validate
+            data: Data to validate
 
         Raises:
             ValidationError: If validation fails
         """
-        # Validate pattern_id
-        if 'pattern_id' not in data or not data['pattern_id']:
-            raise ValidationError("Pattern ID is required for a pattern component")
+        # Validate required fields
+        validate_not_empty(data, 'pattern_id', 'Pattern ID is required')
+        validate_not_empty(data, 'component_id', 'Component ID is required')
 
-        # Validate material thickness if provided
-        if 'material_thickness' in data and data['material_thickness'] is not None:
+        # Validate quantity if provided
+        if 'quantity' in data:
             validate_positive_number(
                 data,
-                'material_thickness',
+                'quantity',
                 allow_zero=False,
-                message="Material thickness must be a positive number"
+                message="Quantity must be a positive number"
             )
 
-    def mark_as_template(self) -> None:
+    def _post_init_processing(self) -> None:
         """
-        Mark the pattern component as a template.
+        Perform additional processing after instance creation.
+
+        Initializes default values and performs any necessary setup.
         """
-        self.is_template = True
-        logger.info(f"Pattern component {self.id} marked as template")
+        # Initialize dimensions if not provided
+        if not hasattr(self, 'dimensions') or self.dimensions is None:
+            self.dimensions = {}
 
     def __repr__(self) -> str:
         """
-        Provide a comprehensive string representation.
+        String representation of the PatternComponent.
 
         Returns:
-            str: Detailed pattern component representation
+            Detailed pattern component representation
         """
         return (
-            f"<PatternComponent(id={self.id}, name='{self.name}', "
-            f"type={self.component_type}, "
+            f"<PatternComponent(id={self.id}, "
             f"pattern_id={self.pattern_id}, "
-            f"template={self.is_template})>"
+            f"component_id={self.component_id}, "
+            f"quantity={self.quantity})>"
         )
 
 
-# New junction tables from ER diagram
+class ProjectComponent(Base, TimestampMixin, ValidationMixin):
+    """
+    Project-specific component junction table with enhanced attributes.
+
+    This corresponds to the ProjectComponent entity in the ER diagram,
+    which serves as a junction between Project and Component.
+    """
+    __tablename__ = 'project_components'
+
+    # Primary key
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+
+    # Foreign keys
+    project_id: Mapped[int] = mapped_column(Integer, ForeignKey('projects.id'), nullable=False)
+    component_id: Mapped[int] = mapped_column(Integer, ForeignKey('components.id'), nullable=False)
+    picking_list_item_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey('picking_list_items.id'),
+                                                                nullable=True)
+
+    # Attributes
+    quantity: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    is_complete: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Relationships
+    project = relationship("Project", back_populates="components")
+    component = relationship("Component")
+    picking_list_item = relationship("PickingListItem", back_populates="project_component")
+
+    def __init__(self, **kwargs):
+        """
+        Initialize a ProjectComponent instance with validation.
+
+        Args:
+            **kwargs: Keyword arguments for project component attributes
+
+        Raises:
+            ModelValidationError: If validation fails
+        """
+        try:
+            # Validate input data
+            self._validate_project_component_data(kwargs)
+
+            # Initialize base model
+            super().__init__(**kwargs)
+
+        except (ValidationError, SQLAlchemyError) as e:
+            logger.error(f"ProjectComponent initialization failed: {e}")
+            raise ModelValidationError(f"Failed to create ProjectComponent: {str(e)}") from e
+
+    @classmethod
+    def _validate_project_component_data(cls, data: Dict[str, Any]) -> None:
+        """
+        Validate project component data.
+
+        Args:
+            data: Data to validate
+
+        Raises:
+            ValidationError: If validation fails
+        """
+        # Validate required fields
+        validate_not_empty(data, 'project_id', 'Project ID is required')
+        validate_not_empty(data, 'component_id', 'Component ID is required')
+
+        # Validate quantity if provided
+        if 'quantity' in data:
+            validate_positive_number(
+                data,
+                'quantity',
+                allow_zero=False,
+                message="Quantity must be a positive number"
+            )
+
+    def mark_complete(self) -> None:
+        """
+        Mark the project component as complete.
+        """
+        self.is_complete = True
+        logger.info(f"Project component {self.id} marked as complete")
+
+    def __repr__(self) -> str:
+        """
+        String representation of the ProjectComponent.
+
+        Returns:
+            Detailed project component representation
+        """
+        return (
+            f"<ProjectComponent(id={self.id}, "
+            f"project_id={self.project_id}, "
+            f"component_id={self.component_id}, "
+            f"quantity={self.quantity}, "
+            f"complete={self.is_complete})>"
+        )
+
+
+# Junction tables for relationships from ER diagram
 class ComponentMaterial(Base):
     """
     Junction table linking Component to Material with quantity.
@@ -387,34 +466,56 @@ class ComponentMaterial(Base):
     """
     __tablename__ = 'component_materials'
 
-    component_id = Column(Integer, ForeignKey('components.id'), primary_key=True)
-    material_id = Column(Integer, ForeignKey('materials.id'), primary_key=True)
-    quantity = Column(Float, nullable=False, default=1.0)
+    component_id: Mapped[int] = mapped_column(Integer, ForeignKey('components.id'), primary_key=True)
+    material_id: Mapped[int] = mapped_column(Integer, ForeignKey('materials.id'), primary_key=True)
+    quantity: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
 
     # Relationships
     component = relationship("Component", back_populates="component_materials")
     material = relationship("Material", back_populates="component_materials")
 
-    def __init__(self, component_id: int, material_id: int, quantity: float, **kwargs):
+    def __init__(self, **kwargs):
         """
-        Initialize a ComponentMaterial instance.
+        Initialize a ComponentMaterial instance with validation.
 
         Args:
-            component_id: ID of the component
-            material_id: ID of the material
-            quantity: Amount of material needed
-            **kwargs: Additional attributes
+            **kwargs: Keyword arguments
+
+        Raises:
+            ModelValidationError: If validation fails
         """
         try:
-            kwargs.update({
-                'component_id': component_id,
-                'material_id': material_id,
-                'quantity': quantity
-            })
+            # Validate
+            self._validate_data(kwargs)
+
+            # Initialize
             super().__init__(**kwargs)
+
         except Exception as e:
-            logger.error(f"Error initializing ComponentMaterial: {e}")
-            raise ValueError(f"Failed to initialize component material: {str(e)}") from e
+            logger.error(f"ComponentMaterial initialization failed: {e}")
+            raise ModelValidationError(f"Failed to create component material: {str(e)}") from e
+
+    @classmethod
+    def _validate_data(cls, data: Dict[str, Any]) -> None:
+        """
+        Validate junction data.
+
+        Args:
+            data: Data to validate
+
+        Raises:
+            ValidationError: If validation fails
+        """
+        validate_not_empty(data, 'component_id', 'Component ID is required')
+        validate_not_empty(data, 'material_id', 'Material ID is required')
+
+        if 'quantity' in data:
+            validate_positive_number(
+                data,
+                'quantity',
+                allow_zero=False,
+                message="Quantity must be a positive number"
+            )
 
 
 class ComponentLeather(Base):
@@ -424,34 +525,56 @@ class ComponentLeather(Base):
     """
     __tablename__ = 'component_leathers'
 
-    component_id = Column(Integer, ForeignKey('components.id'), primary_key=True)
-    leather_id = Column(Integer, ForeignKey('leathers.id'), primary_key=True)
-    quantity = Column(Float, nullable=False, default=1.0)
+    component_id: Mapped[int] = mapped_column(Integer, ForeignKey('components.id'), primary_key=True)
+    leather_id: Mapped[int] = mapped_column(Integer, ForeignKey('leathers.id'), primary_key=True)
+    quantity: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
 
     # Relationships
     component = relationship("Component", back_populates="component_leathers")
     leather = relationship("Leather", back_populates="component_leathers")
 
-    def __init__(self, component_id: int, leather_id: int, quantity: float, **kwargs):
+    def __init__(self, **kwargs):
         """
-        Initialize a ComponentLeather instance.
+        Initialize a ComponentLeather instance with validation.
 
         Args:
-            component_id: ID of the component
-            leather_id: ID of the leather
-            quantity: Amount of leather needed
-            **kwargs: Additional attributes
+            **kwargs: Keyword arguments
+
+        Raises:
+            ModelValidationError: If validation fails
         """
         try:
-            kwargs.update({
-                'component_id': component_id,
-                'leather_id': leather_id,
-                'quantity': quantity
-            })
+            # Validate
+            self._validate_data(kwargs)
+
+            # Initialize
             super().__init__(**kwargs)
+
         except Exception as e:
-            logger.error(f"Error initializing ComponentLeather: {e}")
-            raise ValueError(f"Failed to initialize component leather: {str(e)}") from e
+            logger.error(f"ComponentLeather initialization failed: {e}")
+            raise ModelValidationError(f"Failed to create component leather: {str(e)}") from e
+
+    @classmethod
+    def _validate_data(cls, data: Dict[str, Any]) -> None:
+        """
+        Validate junction data.
+
+        Args:
+            data: Data to validate
+
+        Raises:
+            ValidationError: If validation fails
+        """
+        validate_not_empty(data, 'component_id', 'Component ID is required')
+        validate_not_empty(data, 'leather_id', 'Leather ID is required')
+
+        if 'quantity' in data:
+            validate_positive_number(
+                data,
+                'quantity',
+                allow_zero=False,
+                message="Quantity must be a positive number"
+            )
 
 
 class ComponentHardware(Base):
@@ -461,34 +584,56 @@ class ComponentHardware(Base):
     """
     __tablename__ = 'component_hardwares'
 
-    component_id = Column(Integer, ForeignKey('components.id'), primary_key=True)
-    hardware_id = Column(Integer, ForeignKey('hardwares.id'), primary_key=True)
-    quantity = Column(Integer, nullable=False, default=1)
+    component_id: Mapped[int] = mapped_column(Integer, ForeignKey('components.id'), primary_key=True)
+    hardware_id: Mapped[int] = mapped_column(Integer, ForeignKey('hardwares.id'), primary_key=True)
+    quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
 
     # Relationships
     component = relationship("Component", back_populates="component_hardwares")
     hardware = relationship("Hardware", back_populates="component_hardwares")
 
-    def __init__(self, component_id: int, hardware_id: int, quantity: int, **kwargs):
+    def __init__(self, **kwargs):
         """
-        Initialize a ComponentHardware instance.
+        Initialize a ComponentHardware instance with validation.
 
         Args:
-            component_id: ID of the component
-            hardware_id: ID of the hardware
-            quantity: Number of hardware items needed
-            **kwargs: Additional attributes
+            **kwargs: Keyword arguments
+
+        Raises:
+            ModelValidationError: If validation fails
         """
         try:
-            kwargs.update({
-                'component_id': component_id,
-                'hardware_id': hardware_id,
-                'quantity': quantity
-            })
+            # Validate
+            self._validate_data(kwargs)
+
+            # Initialize
             super().__init__(**kwargs)
+
         except Exception as e:
-            logger.error(f"Error initializing ComponentHardware: {e}")
-            raise ValueError(f"Failed to initialize component hardware: {str(e)}") from e
+            logger.error(f"ComponentHardware initialization failed: {e}")
+            raise ModelValidationError(f"Failed to create component hardware: {str(e)}") from e
+
+    @classmethod
+    def _validate_data(cls, data: Dict[str, Any]) -> None:
+        """
+        Validate junction data.
+
+        Args:
+            data: Data to validate
+
+        Raises:
+            ValidationError: If validation fails
+        """
+        validate_not_empty(data, 'component_id', 'Component ID is required')
+        validate_not_empty(data, 'hardware_id', 'Hardware ID is required')
+
+        if 'quantity' in data:
+            validate_positive_number(
+                data,
+                'quantity',
+                allow_zero=False,
+                message="Quantity must be a positive number"
+            )
 
 
 class ComponentTool(Base):
@@ -498,38 +643,54 @@ class ComponentTool(Base):
     """
     __tablename__ = 'component_tools'
 
-    component_id = Column(Integer, ForeignKey('components.id'), primary_key=True)
-    tool_id = Column(Integer, ForeignKey('tools.id'), primary_key=True)
+    component_id: Mapped[int] = mapped_column(Integer, ForeignKey('components.id'), primary_key=True)
+    tool_id: Mapped[int] = mapped_column(Integer, ForeignKey('tools.id'), primary_key=True)
 
     # Relationships
     component = relationship("Component", back_populates="component_tools")
     tool = relationship("Tool", back_populates="component_tools")
 
-    def __init__(self, component_id: int, tool_id: int, **kwargs):
+    def __init__(self, **kwargs):
         """
-        Initialize a ComponentTool instance.
+        Initialize a ComponentTool instance with validation.
 
         Args:
-            component_id: ID of the component
-            tool_id: ID of the tool
-            **kwargs: Additional attributes
+            **kwargs: Keyword arguments
+
+        Raises:
+            ModelValidationError: If validation fails
         """
         try:
-            kwargs.update({
-                'component_id': component_id,
-                'tool_id': tool_id
-            })
+            # Validate
+            self._validate_data(kwargs)
+
+            # Initialize
             super().__init__(**kwargs)
+
         except Exception as e:
-            logger.error(f"Error initializing ComponentTool: {e}")
-            raise ValueError(f"Failed to initialize component tool: {str(e)}") from e
+            logger.error(f"ComponentTool initialization failed: {e}")
+            raise ModelValidationError(f"Failed to create component tool: {str(e)}") from e
+
+    @classmethod
+    def _validate_data(cls, data: Dict[str, Any]) -> None:
+        """
+        Validate junction data.
+
+        Args:
+            data: Data to validate
+
+        Raises:
+            ValidationError: If validation fails
+        """
+        validate_not_empty(data, 'component_id', 'Component ID is required')
+        validate_not_empty(data, 'tool_id', 'Tool ID is required')
 
 
-# Final registration for lazy imports
-register_lazy_import('database.models.components.Component', 'database.models.components', 'Component')
-register_lazy_import('database.models.components.ProjectComponent', 'database.models.components', 'ProjectComponent')
-register_lazy_import('database.models.components.PatternComponent', 'database.models.components', 'PatternComponent')
-register_lazy_import('database.models.components.ComponentMaterial', 'database.models.components', 'ComponentMaterial')
-register_lazy_import('database.models.components.ComponentLeather', 'database.models.components', 'ComponentLeather')
-register_lazy_import('database.models.components.ComponentHardware', 'database.models.components', 'ComponentHardware')
-register_lazy_import('database.models.components.ComponentTool', 'database.models.components', 'ComponentTool')
+# Register models for circular import resolution
+register_lazy_import('Component', 'database.models.components', 'Component')
+register_lazy_import('ProjectComponent', 'database.models.components', 'ProjectComponent')
+register_lazy_import('PatternComponent', 'database.models.components', 'PatternComponent')  # Added registration
+register_lazy_import('ComponentMaterial', 'database.models.components', 'ComponentMaterial')
+register_lazy_import('ComponentLeather', 'database.models.components', 'ComponentLeather')
+register_lazy_import('ComponentHardware', 'database.models.components', 'ComponentHardware')
+register_lazy_import('ComponentTool', 'database.models.components', 'ComponentTool')

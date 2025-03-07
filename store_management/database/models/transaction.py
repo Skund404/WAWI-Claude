@@ -1,581 +1,686 @@
 # database/models/transaction.py
 """
-Transaction models for tracking inventory movements and changes.
+Comprehensive Transaction Models for Leatherworking Management System
 
-This module defines transaction models that support the inventory management
-aspect of the application by tracking all changes to inventory quantities.
+This module defines transaction models for tracking inventory movements
+and material flows throughout the system, providing an audit trail for
+all inventory changes with comprehensive validation and relationship management.
+
 While not explicitly in the ER diagram, these models provide the backbone
-for maintaining accurate inventory records.
+for maintaining accurate inventory records and supporting the integrity
+of the inventory management subsystem.
 """
 
 import logging
-import traceback
 from datetime import datetime
-from typing import Optional, Dict, Any, Union, List, Type
+from typing import Dict, Any, Optional, List, Union, Type, Tuple, cast
 
-from sqlalchemy import Column, Enum, Float, ForeignKey, Integer, String, Text, Boolean, DateTime, MetaData, and_
-from sqlalchemy.orm import relationship, backref, foreign, remote
-from sqlalchemy import inspect, create_engine
+from sqlalchemy import Column, Enum, Float, ForeignKey, Integer, String, Text, Boolean, DateTime, JSON
+from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.exc import SQLAlchemyError
 
-from database.models.base import Base
-from database.models.enums import TransactionType
-from utils.circular_import_resolver import lazy_import, register_lazy_import
+from database.models.base import Base, ModelValidationError
+from database.models.enums import (
+    TransactionType,
+    InventoryAdjustmentType,
+    InventoryStatus
+)
+from database.models.mixins import (
+    TimestampMixin,
+    ValidationMixin,
+    TrackingMixin
+)
+from utils.circular_import_resolver import (
+    lazy_import,
+    register_lazy_import,
+    CircularImportResolver
+)
+from utils.enhanced_model_validator import (
+    ModelValidator,
+    ValidationError,
+    validate_not_empty,
+    validate_positive_number
+)
 
 # Setup logger
 logger = logging.getLogger(__name__)
 
-# Lazy import helpers - updated for new inventory models
-Material = lazy_import('database.models.material', 'Material')
-Leather = lazy_import('database.models.leather', 'Leather')
-Hardware = lazy_import('database.models.hardware', 'Hardware')
-Project = lazy_import('database.models.project', 'Project')
-MaterialInventory = lazy_import('database.models.material_inventory', 'MaterialInventory')
-LeatherInventory = lazy_import('database.models.leather_inventory', 'LeatherInventory')
-HardwareInventory = lazy_import('database.models.hardware_inventory', 'HardwareInventory')
-
-# Register lazy imports
-register_lazy_import('database.models.material.Material', 'database.models.material', 'Material')
-register_lazy_import('database.models.leather.Leather', 'database.models.leather', 'Leather')
-register_lazy_import('database.models.hardware.Hardware', 'database.models.hardware', 'Hardware')
-register_lazy_import('database.models.project.Project', 'database.models.project', 'Project')
-register_lazy_import('database.models.material_inventory.MaterialInventory', 'database.models.material_inventory',
-                     'MaterialInventory')
-register_lazy_import('database.models.leather_inventory.LeatherInventory', 'database.models.leather_inventory',
-                     'LeatherInventory')
-register_lazy_import('database.models.hardware_inventory.HardwareInventory', 'database.models.hardware_inventory',
-                     'HardwareInventory')
+# Register lazy imports to resolve potential circular dependencies
+register_lazy_import('Material', 'database.models.material', 'Material')
+register_lazy_import('MaterialInventory', 'database.models.material_inventory', 'MaterialInventory')
+register_lazy_import('Leather', 'database.models.leather', 'Leather')
+register_lazy_import('LeatherInventory', 'database.models.leather_inventory', 'LeatherInventory')
+register_lazy_import('Hardware', 'database.models.hardware', 'Hardware')
+register_lazy_import('HardwareInventory', 'database.models.hardware_inventory', 'HardwareInventory')
+register_lazy_import('Project', 'database.models.project', 'Project')
+register_lazy_import('Purchase', 'database.models.purchase', 'Purchase')
 
 
-class BaseTransaction(Base):
+class Transaction(Base, TimestampMixin, ValidationMixin, TrackingMixin):
     """
-    Base model for all transaction types.
-    Implements single-table inheritance for different transaction types.
+    Base Transaction model representing inventory adjustments and movements.
 
-    While not in the ER diagram, this model supports inventory tracking and
-    provides historical records of all inventory changes.
+    Implements single-table inheritance for different transaction types, providing
+    a comprehensive audit trail for all inventory changes in the system.
     """
-    __tablename__ = 'base_transactions'
+    __tablename__ = 'transactions'
 
-    # Important: Set extend_existing to True to handle multiple imports
-    __table_args__ = {'extend_existing': True}
+    # Core attributes
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
 
-    # Base transaction fields
-    transaction_type = Column(Enum(TransactionType), nullable=False)
-    quantity = Column(Float, default=0.0, nullable=False)
-    notes = Column(Text, nullable=True)
-    is_addition = Column(Boolean, default=True, nullable=False)
+    # Transaction details
+    transaction_type: Mapped[TransactionType] = mapped_column(
+        Enum(TransactionType),
+        nullable=False,
+        index=True
+    )
+    quantity: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    is_addition: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
-    # Timestamps
-    transaction_date = Column(DateTime, default=datetime.utcnow, nullable=False)
+    # Transaction metadata
+    transaction_date: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.utcnow,
+        nullable=False,
+        index=True
+    )
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    reference_number: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, index=True)
+    reference_type: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
 
-    # Reference information
-    reference_number = Column(String(50), nullable=True)
-    reference_type = Column(String(50), nullable=True)
-
-    # Project relationship (optional) - stored at base transaction level
-    project_id = Column(
+    # Linked records
+    project_id: Mapped[Optional[int]] = mapped_column(
         Integer,
-        ForeignKey("projects.id", name="fk_base_transaction_project"),
+        ForeignKey("projects.id"),
         nullable=True,
-        info={'constraint_name': 'fk_base_transaction_project'}
+        index=True
+    )
+    purchase_id: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        ForeignKey("purchases.id"),
+        nullable=True,
+        index=True
     )
 
     # Single-table inheritance discriminator
-    transaction_class = Column(String(50), nullable=False)
+    transaction_class: Mapped[str] = mapped_column(String(50), nullable=False)
+
+    # Relationships
+    project = relationship("Project", back_populates="transactions")
+    purchase = relationship("Purchase", back_populates="transactions")
 
     __mapper_args__ = {
         'polymorphic_on': transaction_class,
-        'polymorphic_identity': 'base_transaction'
+        'polymorphic_identity': 'transaction'
     }
 
-    def __init__(self, transaction_type: TransactionType, quantity: float,
-                 is_addition: bool = True, notes: Optional[str] = None, **kwargs):
-        """Initialize a new transaction.
+    def __init__(self, **kwargs):
+        """
+        Initialize a Transaction instance with comprehensive validation.
 
         Args:
-            transaction_type: Type of the transaction
-            quantity: Amount being transacted
-            is_addition: Whether this is an addition or reduction
-            notes: Optional notes about the transaction
-            **kwargs: Additional attributes for the transaction
+            **kwargs: Keyword arguments for transaction attributes
+
+        Raises:
+            ModelValidationError: If validation fails
         """
         try:
-            kwargs.update({
-                'transaction_type': transaction_type,
-                'quantity': quantity,
-                'is_addition': is_addition,
-                'notes': notes,
-                'transaction_date': datetime.utcnow()
-            })
+            # Set default transaction class if not provided
+            if 'transaction_class' not in kwargs:
+                kwargs['transaction_class'] = self.__class__.__name__.lower()
 
-            # Validate transaction data before creating
-            self._validate_creation(kwargs)
+            # Set transaction date if not provided
+            if 'transaction_date' not in kwargs:
+                kwargs['transaction_date'] = datetime.utcnow()
 
+            # Validate input data
+            self._validate_transaction_data(kwargs)
+
+            # Initialize base model
             super().__init__(**kwargs)
-        except Exception as e:
-            logger.error(f"Error initializing BaseTransaction: {e}")
-            raise ValueError(f"Failed to initialize transaction: {str(e)}") from e
+
+            # Post-initialization processing
+            self._post_init_processing()
+
+        except (ValidationError, SQLAlchemyError) as e:
+            logger.error(f"Transaction initialization failed: {e}")
+            raise ModelValidationError(f"Failed to create Transaction: {str(e)}") from e
 
     @classmethod
-    def _validate_creation(cls, data: Dict[str, Any]) -> None:
-        """Validate transaction data before creation.
+    def _validate_transaction_data(cls, data: Dict[str, Any]) -> None:
+        """
+        Comprehensive validation of transaction creation data.
 
         Args:
-            data: The data to validate
+            data: Transaction creation data to validate
 
         Raises:
-            ValueError: If validation fails
+            ValidationError: If validation fails
         """
-        try:
-            if 'transaction_type' not in data:
-                raise ValueError("Transaction type is required")
+        # Validate core required fields
+        validate_not_empty(data, 'transaction_type', 'Transaction type is required')
+        validate_not_empty(data, 'quantity', 'Quantity is required')
 
-            if 'quantity' not in data:
-                raise ValueError("Quantity is required")
+        # Validate transaction type
+        if 'transaction_type' in data:
+            ModelValidator.validate_enum(
+                data['transaction_type'],
+                TransactionType,
+                'transaction_type'
+            )
 
-            if data.get('quantity', 0) <= 0:
-                raise ValueError("Quantity must be greater than zero")
-        except Exception as e:
-            logger.error(f"Error validating transaction data: {e}")
-            if isinstance(e, ValueError):
-                raise
-            raise ValueError(f"Transaction validation failed: {str(e)}") from e
+        # Validate quantity
+        if 'quantity' in data:
+            validate_positive_number(
+                data,
+                'quantity',
+                allow_zero=False,
+                message="Quantity must be greater than zero"
+            )
 
-    def _validate_instance(self) -> None:
+    def _post_init_processing(self) -> None:
         """
-        Additional validation after instance creation.
+        Perform additional processing after instance creation.
 
-        Raises:
-            ValueError: If validation fails
+        Applies business logic and performs final validations.
         """
-        try:
-            if self.quantity <= 0:
-                raise ValueError("Quantity must be greater than zero")
-        except Exception as e:
-            logger.error(f"Error validating transaction instance: {e}")
-            if isinstance(e, ValueError):
-                raise
-            raise ValueError(f"Transaction instance validation failed: {str(e)}") from e
+        # Initialize metadata if not provided
+        if not hasattr(self, 'metadata') or self.metadata is None:
+            self.metadata = {}
 
-    def reverse(self) -> 'BaseTransaction':
+        # Ensure tracking ID is set
+        if not hasattr(self, 'tracking_id') or not self.tracking_id:
+            self.generate_tracking_id()
+
+    def reverse(self) -> 'Transaction':
         """
         Create a reversal transaction that undoes this transaction.
 
         Returns:
-            BaseTransaction: A new transaction that reverses this one
-
-        Raises:
-            ValueError: If creating the reversal fails
+            A new transaction that reverses this one
         """
-        try:
-            reversal_data = {
-                'transaction_type': TransactionType.REVERSAL,
-                'quantity': self.quantity,
-                'is_addition': not self.is_addition,
-                'notes': f"Reversal of transaction {self.id}",
-                'reference_number': str(self.id),
-                'reference_type': 'transaction_reversal'
-            }
+        # Create basic reversal data
+        reversal_data = {
+            'transaction_type': TransactionType.REVERSAL,
+            'quantity': self.quantity,
+            'is_addition': not self.is_addition,
+            'notes': f"Reversal of transaction {self.id}",
+            'reference_number': str(self.id),
+            'reference_type': 'transaction_reversal',
+            'project_id': self.project_id,
+            'purchase_id': self.purchase_id
+        }
 
-            return self.__class__(**reversal_data)
-        except Exception as e:
-            logger.error(f"Error creating reversal transaction: {e}")
-            raise ValueError(f"Failed to create reversal transaction: {str(e)}") from e
+        # Create specific reversal based on transaction type
+        if isinstance(self, MaterialTransaction):
+            return MaterialTransaction(
+                material_id=self.material_id,
+                material_inventory_id=self.material_inventory_id,
+                **reversal_data
+            )
+        elif isinstance(self, LeatherTransaction):
+            return LeatherTransaction(
+                leather_id=self.leather_id,
+                leather_inventory_id=self.leather_inventory_id,
+                **reversal_data
+            )
+        elif isinstance(self, HardwareTransaction):
+            return HardwareTransaction(
+                hardware_id=self.hardware_id,
+                hardware_inventory_id=self.hardware_inventory_id,
+                **reversal_data
+            )
+        else:
+            # Fall back to generic transaction
+            return Transaction(**reversal_data)
+
+    def to_dict(self, exclude_fields: Optional[List[str]] = None) -> Dict[str, Any]:
+        """
+        Convert transaction to a dictionary representation.
+
+        Args:
+            exclude_fields: Optional list of fields to exclude
+
+        Returns:
+            Dictionary representation of the transaction
+        """
+        if exclude_fields is None:
+            exclude_fields = []
+
+        # Add standard fields to exclude
+        exclude_fields.extend(['_sa_instance_state'])
+
+        # Special handling for dates and enums
+        result = {}
+        for column in self.__table__.columns:
+            if column.name not in exclude_fields:
+                value = getattr(self, column.name)
+
+                # Convert datetime to ISO format
+                if isinstance(value, datetime):
+                    result[column.name] = value.isoformat()
+                # Convert enum to string
+                elif isinstance(value, enum.Enum):
+                    result[column.name] = value.name
+                else:
+                    result[column.name] = value
+
+        return result
 
     def __repr__(self) -> str:
-        """String representation of the transaction."""
-        return (f"<{self.__class__.__name__}(id={self.id}, "
-                f"type={self.transaction_type.name if hasattr(self.transaction_type, 'name') else 'Unknown'}, "
-                f"quantity={self.quantity}, "
-                f"is_addition={self.is_addition})>")
+        """
+        String representation of the Transaction.
+
+        Returns:
+            Detailed transaction representation
+        """
+        return (
+            f"<{self.__class__.__name__}(id={self.id}, "
+            f"type={self.transaction_type.name if hasattr(self.transaction_type, 'name') else 'Unknown'}, "
+            f"quantity={self.quantity}, "
+            f"is_addition={self.is_addition})>"
+        )
 
 
-class MaterialTransaction(BaseTransaction):
+class MaterialTransaction(Transaction):
     """
-    Model for transactions involving generic materials.
-    Supports the MaterialInventory entity in the ER diagram.
+    Transaction model for material inventory movements.
+    Tracks changes to material quantities and provides an audit trail.
     """
-    __table_args__ = {'extend_existing': True}
+    __tablename__ = 'material_transactions'
 
-    # Foreign keys
-    material_id = Column(Integer, ForeignKey("materials.id"), nullable=True)
-    material_inventory_id = Column(Integer, ForeignKey("material_inventories.id"), nullable=True)
+    # Link to parent transaction
+    id: Mapped[int] = mapped_column(ForeignKey('transactions.id'), primary_key=True)
 
-    # Relationships - explicitly defining the join condition
-    material = relationship(
-        "Material",
-        back_populates="transactions",
-        lazy="select"
+    # Material-specific references
+    material_id: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        ForeignKey("materials.id"),
+        nullable=True,
+        index=True
+    )
+    material_inventory_id: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        ForeignKey("material_inventories.id"),
+        nullable=True,
+        index=True
     )
 
-    material_inventory = relationship(
-        "MaterialInventory",
-        back_populates="transactions",
-        lazy="select"
-    )
+    # Relationships
+    material = relationship("Material", back_populates="transactions")
+    material_inventory = relationship("MaterialInventory", back_populates="transactions")
 
     __mapper_args__ = {
-        'polymorphic_identity': 'material_transaction'
+        'polymorphic_identity': 'materialtransaction',
+        'inherit_condition': id == Transaction.id
     }
 
-    def __init__(self, material_id: int, **kwargs):
-        """Initialize a material transaction.
-
-        Args:
-            material_id: ID of the material being transacted
-            **kwargs: Additional attributes for the transaction
+    def __init__(self, **kwargs):
         """
-        try:
-            kwargs.update({
-                'material_id': material_id
-            })
-            super().__init__(**kwargs)
-        except Exception as e:
-            logger.error(f"Error initializing MaterialTransaction: {e}")
-            raise ValueError(f"Failed to initialize material transaction: {str(e)}") from e
-
-    @classmethod
-    def _validate_creation(cls, data: Dict[str, Any]) -> None:
-        """Validate material transaction data before creation.
+        Initialize a MaterialTransaction instance with comprehensive validation.
 
         Args:
-            data: The data to validate
+            **kwargs: Keyword arguments for transaction attributes
 
         Raises:
-            ValueError: If validation fails
+            ModelValidationError: If validation fails
         """
         try:
-            super()._validate_creation(data)
+            # Validate material-specific data
+            self._validate_material_transaction_data(kwargs)
 
-            if 'material_id' not in data:
-                raise ValueError("Material ID is required")
-        except Exception as e:
-            logger.error(f"Error validating material transaction data: {e}")
-            if isinstance(e, ValueError):
-                raise
-            raise ValueError(f"Material transaction validation failed: {str(e)}") from e
+            # Initialize base transaction
+            super().__init__(**kwargs)
 
+        except (ValidationError, SQLAlchemyError) as e:
+            logger.error(f"MaterialTransaction initialization failed: {e}")
+            raise ModelValidationError(f"Failed to create MaterialTransaction: {str(e)}") from e
 
-class LeatherTransaction(BaseTransaction):
-    """
-    Model for transactions involving leather.
-    Supports the LeatherInventory entity in the ER diagram.
-    """
-    __table_args__ = {'extend_existing': True}
-
-    # Leather-specific fields
-    area_sqft = Column(Float, nullable=True)
-
-    # Foreign keys with explicit configuration
-    leather_id = Column(
-        Integer,
-        ForeignKey("leathers.id", name="fk_leather_transaction_leather"),
-        nullable=False,
-        info={'constraint_name': 'fk_leather_transaction_leather'}
-    )
-
-    leather_inventory_id = Column(
-        Integer,
-        ForeignKey("leather_inventories.id", name="fk_leather_transaction_inventory"),
-        nullable=True,
-        info={'constraint_name': 'fk_leather_transaction_inventory'}
-    )
-
-    # Relationships with explicit join conditions
-    leather = relationship(
-        "Leather",
-        primaryjoin="LeatherTransaction.leather_id == Leather.id",
-        foreign_keys=[leather_id],
-        back_populates="transactions",
-        lazy="select"
-    )
-
-    leather_inventory = relationship(
-        "LeatherInventory",
-        primaryjoin="LeatherTransaction.leather_inventory_id == LeatherInventory.id",
-        foreign_keys=[leather_inventory_id],
-        back_populates="transactions",
-        lazy="select"
-    )
-
-    # Using string-based primaryjoin and viewonly=True to resolve circular dependency issue
-    project = relationship(
-        "Project",
-        primaryjoin="LeatherTransaction.project_id == Project.id",
-        foreign_keys="[LeatherTransaction.project_id]",
-        viewonly=True,  # This is the key change to fix the circular dependency
-        back_populates="leather_transactions"
-    )
-
-    __mapper_args__ = {
-        'polymorphic_identity': 'leather_transaction'
-    }
-
-    def __init__(self, leather_id: int, **kwargs):
-        """Initialize a leather transaction.
+    @classmethod
+    def _validate_material_transaction_data(cls, data: Dict[str, Any]) -> None:
+        """
+        Validate material transaction specific data.
 
         Args:
-            leather_id: ID of the leather being transacted
-            **kwargs: Additional attributes for the transaction
+            data: Transaction data to validate
+
+        Raises:
+            ValidationError: If validation fails
+        """
+        # Ensure we have at least one identifier
+        if not data.get('material_id') and not data.get('material_inventory_id'):
+            raise ValidationError("Either material_id or material_inventory_id is required")
+
+
+class LeatherTransaction(Transaction):
+    """
+    Transaction model for leather inventory movements.
+    Tracks changes to leather quantities and provides an audit trail.
+    """
+    __tablename__ = 'leather_transactions'
+
+    # Link to parent transaction
+    id: Mapped[int] = mapped_column(ForeignKey('transactions.id'), primary_key=True)
+
+    # Leather-specific attributes
+    area_sqft: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+
+    # Leather-specific references
+    leather_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("leathers.id"),
+        nullable=False,
+        index=True
+    )
+    leather_inventory_id: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        ForeignKey("leather_inventories.id"),
+        nullable=True,
+        index=True
+    )
+
+    # Relationships
+    leather = relationship("Leather", back_populates="transactions")
+    leather_inventory = relationship("LeatherInventory", back_populates="transactions")
+
+    __mapper_args__ = {
+        'polymorphic_identity': 'leathertransaction',
+        'inherit_condition': id == Transaction.id
+    }
+
+    def __init__(self, **kwargs):
+        """
+        Initialize a LeatherTransaction instance with comprehensive validation.
+
+        Args:
+            **kwargs: Keyword arguments for transaction attributes
+
+        Raises:
+            ModelValidationError: If validation fails
         """
         try:
-            # Set area_sqft to match quantity for consistency if not provided
+            # Set area_sqft to match quantity if not provided
             if 'area_sqft' not in kwargs and 'quantity' in kwargs:
                 kwargs['area_sqft'] = kwargs['quantity']
 
-            kwargs.update({
-                'leather_id': leather_id
-            })
+            # Validate leather-specific data
+            self._validate_leather_transaction_data(kwargs)
+
+            # Initialize base transaction
             super().__init__(**kwargs)
-        except Exception as e:
-            logger.error(f"Error initializing LeatherTransaction: {e}")
-            raise ValueError(f"Failed to initialize leather transaction: {str(e)}") from e
+
+        except (ValidationError, SQLAlchemyError) as e:
+            logger.error(f"LeatherTransaction initialization failed: {e}")
+            raise ModelValidationError(f"Failed to create LeatherTransaction: {str(e)}") from e
 
     @classmethod
-    def _validate_creation(cls, data: Dict[str, Any]) -> None:
-        """Validate leather transaction data before creation.
+    def _validate_leather_transaction_data(cls, data: Dict[str, Any]) -> None:
+        """
+        Validate leather transaction specific data.
 
         Args:
-            data: The data to validate
+            data: Transaction data to validate
 
         Raises:
-            ValueError: If validation fails
+            ValidationError: If validation fails
         """
-        try:
-            super()._validate_creation(data)
+        # Validate required fields
+        validate_not_empty(data, 'leather_id', 'Leather ID is required')
 
-            if 'leather_id' not in data:
-                raise ValueError("Leather ID is required")
-
-            # Validate area_sqft if provided
-            if 'area_sqft' in data and data['area_sqft'] is not None:
-                if data['area_sqft'] <= 0:
-                    raise ValueError("Area must be greater than zero")
-        except Exception as e:
-            logger.error(f"Error validating leather transaction data: {e}")
-            if isinstance(e, ValueError):
-                raise
-            raise ValueError(f"Leather transaction validation failed: {str(e)}") from e
+        # Validate area if provided
+        if 'area_sqft' in data and data['area_sqft'] is not None:
+            validate_positive_number(
+                data,
+                'area_sqft',
+                allow_zero=False,
+                message="Area must be a positive number"
+            )
 
 
-class HardwareTransaction(BaseTransaction):
+class HardwareTransaction(Transaction):
     """
-    Model for transactions involving hardware.
-    Supports the HardwareInventory entity in the ER diagram.
+    Transaction model for hardware inventory movements.
+    Tracks changes to hardware quantities and provides an audit trail.
     """
-    __table_args__ = {'extend_existing': True}
+    __tablename__ = 'hardware_transactions'
 
-    # Foreign keys
-    hardware_id = Column(
+    # Link to parent transaction
+    id: Mapped[int] = mapped_column(ForeignKey('transactions.id'), primary_key=True)
+
+    # Hardware-specific references
+    hardware_id: Mapped[int] = mapped_column(
         Integer,
-        ForeignKey("hardwares.id", name="fk_hardware_transaction_hardware"),
+        ForeignKey("hardwares.id"),
         nullable=False,
-        info={'constraint_name': 'fk_hardware_transaction_hardware'}
+        index=True
     )
-
-    hardware_inventory_id = Column(
+    hardware_inventory_id: Mapped[Optional[int]] = mapped_column(
         Integer,
-        ForeignKey("hardware_inventories.id", name="fk_hardware_transaction_inventory"),
+        ForeignKey("hardware_inventories.id"),
         nullable=True,
-        info={'constraint_name': 'fk_hardware_transaction_inventory'}
+        index=True
     )
 
-    # Relationships with explicit join conditions
-    hardware = relationship(
-        "Hardware",
-        primaryjoin="HardwareTransaction.hardware_id == Hardware.id",
-        foreign_keys=[hardware_id],
-        lazy="select"
-    )
-
-    hardware_inventory = relationship(
-        "HardwareInventory",
-        primaryjoin="HardwareTransaction.hardware_inventory_id == HardwareInventory.id",
-        foreign_keys=[hardware_inventory_id],
-        back_populates="transactions",
-        lazy="select"
-    )
-
-    # Using string-based primaryjoin and viewonly=True to resolve circular dependency issue
-    project = relationship(
-        "Project",
-        primaryjoin="HardwareTransaction.project_id == Project.id",
-        foreign_keys="[HardwareTransaction.project_id]",
-        viewonly=True,  # This is the key change to fix the circular dependency
-        back_populates="hardware_transactions"
-    )
+    # Relationships
+    hardware = relationship("Hardware", back_populates="transactions")
+    hardware_inventory = relationship("HardwareInventory", back_populates="transactions")
 
     __mapper_args__ = {
-        'polymorphic_identity': 'hardware_transaction'
+        'polymorphic_identity': 'hardwaretransaction',
+        'inherit_condition': id == Transaction.id
     }
 
-    def __init__(self, hardware_id: int, **kwargs):
-        """Initialize a hardware transaction.
-
-        Args:
-            hardware_id: ID of the hardware being transacted
-            **kwargs: Additional attributes for the transaction
+    def __init__(self, **kwargs):
         """
-        try:
-            kwargs.update({
-                'hardware_id': hardware_id
-            })
-            super().__init__(**kwargs)
-        except Exception as e:
-            logger.error(f"Error initializing HardwareTransaction: {e}")
-            raise ValueError(f"Failed to initialize hardware transaction: {str(e)}") from e
-
-    @classmethod
-    def _validate_creation(cls, data: Dict[str, Any]) -> None:
-        """Validate hardware transaction data before creation.
+        Initialize a HardwareTransaction instance with comprehensive validation.
 
         Args:
-            data: The data to validate
+            **kwargs: Keyword arguments for transaction attributes
 
         Raises:
-            ValueError: If validation fails
+            ModelValidationError: If validation fails
         """
         try:
-            super()._validate_creation(data)
+            # Validate hardware-specific data
+            self._validate_hardware_transaction_data(kwargs)
 
-            if 'hardware_id' not in data:
-                raise ValueError("Hardware ID is required")
-        except Exception as e:
-            logger.error(f"Error validating hardware transaction data: {e}")
-            if isinstance(e, ValueError):
-                raise
-            raise ValueError(f"Hardware transaction validation failed: {str(e)}") from e
+            # Initialize base transaction
+            super().__init__(**kwargs)
+
+        except (ValidationError, SQLAlchemyError) as e:
+            logger.error(f"HardwareTransaction initialization failed: {e}")
+            raise ModelValidationError(f"Failed to create HardwareTransaction: {str(e)}") from e
+
+    @classmethod
+    def _validate_hardware_transaction_data(cls, data: Dict[str, Any]) -> None:
+        """
+        Validate hardware transaction specific data.
+
+        Args:
+            data: Transaction data to validate
+
+        Raises:
+            ValidationError: If validation fails
+        """
+        # Validate required fields
+        validate_not_empty(data, 'hardware_id', 'Hardware ID is required')
 
 
-# ----- Module-level functions below -----
+# Helper functions for transaction management
 
 def create_transaction(
-        item: Union[Any, 'Material', 'Leather', 'Hardware'],
+        item_type: str,
+        item_id: int,
         quantity: float,
-        transaction_type: TransactionType,
+        transaction_type: Union[str, TransactionType],
         is_addition: bool = True,
-        project_id: Optional[int] = None,
         inventory_id: Optional[int] = None,
-        notes: Optional[str] = None
-) -> BaseTransaction:
+        project_id: Optional[int] = None,
+        purchase_id: Optional[int] = None,
+        notes: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None
+) -> Transaction:
     """
-    Create a transaction for a material, leather, or hardware item.
+    Create a transaction for a specific item type.
 
     Args:
-        item: The item being transacted
-        quantity: Amount being transacted
+        item_type: Type of item ("material", "leather", "hardware")
+        item_id: ID of the specific item
+        quantity: Amount involved in the transaction
         transaction_type: Type of transaction
         is_addition: Whether this is an addition or reduction
+        inventory_id: Optional ID of the specific inventory record
         project_id: Optional project ID to associate with the transaction
-        inventory_id: Optional inventory ID to associate with the transaction
+        purchase_id: Optional purchase ID to associate with the transaction
         notes: Optional notes about the transaction
+        metadata: Optional additional transaction metadata
 
     Returns:
-        The created transaction
+        The created transaction object
 
     Raises:
-        ValueError: If the transaction would result in negative inventory
-        TypeError: If an unsupported item type is provided
+        ModelValidationError: If transaction creation fails
+        ValueError: If item type is not supported
     """
-    transaction_data = {
-        'quantity': quantity,
-        'transaction_type': transaction_type,
-        'is_addition': is_addition,
-        'notes': notes
-    }
-
-    if project_id is not None:
-        transaction_data['project_id'] = project_id
-
     try:
-        # Dynamically create transaction based on item type
-        if isinstance(item, Material) or (hasattr(item, '__class__') and item.__class__.__name__ == 'Material'):
-            transaction = MaterialTransaction(material_id=item.id, **transaction_data)
-            if inventory_id:
-                transaction.material_inventory_id = inventory_id
+        # Normalize transaction type
+        if isinstance(transaction_type, str):
+            try:
+                transaction_type = TransactionType[transaction_type.upper()]
+            except KeyError:
+                raise ValidationError(f"Invalid transaction type: {transaction_type}")
 
-        elif isinstance(item, Leather) or (hasattr(item, '__class__') and item.__class__.__name__ == 'Leather'):
-            transaction = LeatherTransaction(leather_id=item.id, **transaction_data)
-            if inventory_id:
-                transaction.leather_inventory_id = inventory_id
+        # Prepare common transaction data
+        transaction_data = {
+            'transaction_type': transaction_type,
+            'quantity': quantity,
+            'is_addition': is_addition,
+            'notes': notes,
+            'project_id': project_id,
+            'purchase_id': purchase_id,
+            'metadata': metadata or {}
+        }
 
-        elif isinstance(item, Hardware) or (hasattr(item, '__class__') and item.__class__.__name__ == 'Hardware'):
-            transaction = HardwareTransaction(hardware_id=item.id, **transaction_data)
-            if inventory_id:
-                transaction.hardware_inventory_id = inventory_id
+        # Create transaction based on item type
+        item_type = item_type.lower()
 
+        if item_type == 'material':
+            transaction = MaterialTransaction(
+                material_id=item_id,
+                material_inventory_id=inventory_id,
+                **transaction_data
+            )
+        elif item_type == 'leather':
+            transaction = LeatherTransaction(
+                leather_id=item_id,
+                leather_inventory_id=inventory_id,
+                **transaction_data
+            )
+        elif item_type == 'hardware':
+            transaction = HardwareTransaction(
+                hardware_id=item_id,
+                hardware_inventory_id=inventory_id,
+                **transaction_data
+            )
         else:
-            raise TypeError(f"Unsupported item type: {type(item)}")
+            raise ValueError(f"Unsupported item type: {item_type}")
 
         return transaction
 
     except Exception as e:
         logger.error(f"Error creating transaction: {e}")
-        logger.error(traceback.format_exc())
-        if isinstance(e, (ValueError, TypeError)):
-            raise
-        raise ValueError(f"Failed to create transaction: {str(e)}") from e
+        if isinstance(e, (ValidationError, ValueError)):
+            raise ModelValidationError(str(e))
+        raise ModelValidationError(f"Failed to create transaction: {str(e)}")
 
 
-def get_transactions_by_project(project_id: int) -> List[BaseTransaction]:
+def get_transactions_by_project(project_id: int, session) -> List[Transaction]:
     """
-    Get all transactions associated with a specific project.
+    Retrieve all transactions associated with a project.
 
     Args:
-        project_id: The ID of the project
+        project_id: ID of the project
+        session: Database session
 
     Returns:
-        List of transactions associated with the project
+        List of transactions for the project
 
     Raises:
-        ValueError: If the project ID is invalid
+        ModelValidationError: If retrieval fails
     """
-    if not project_id:
-        raise ValueError("Project ID is required")
-
     try:
-        # Use SQLAlchemy's polymorphic query capability to fetch all transaction types
+        validate_not_empty({'project_id': project_id}, 'project_id', 'Project ID is required')
+
         from sqlalchemy import select
-        from sqlalchemy.orm import Session
-        from database.sqlalchemy.session import get_db_session
+        query = select(Transaction).where(Transaction.project_id == project_id)
+        return session.execute(query).scalars().all()
 
-        # Get a database session
-        session = get_db_session()
-
-        # Create a query for all transaction types with the given project_id
-        query = select(BaseTransaction).where(BaseTransaction.project_id == project_id)
-
-        # Execute the query
-        transactions = session.execute(query).scalars().all()
-
-        return transactions
     except Exception as e:
-        logger.error(f"Error fetching transactions for project {project_id}: {e}")
-        logger.error(traceback.format_exc())
-        raise ValueError(f"Failed to retrieve project transactions: {str(e)}") from e
+        logger.error(f"Error getting transactions for project {project_id}: {e}")
+        raise ModelValidationError(f"Failed to retrieve project transactions: {str(e)}")
 
 
-def initialize_relationships():
+def get_transactions_by_item(
+        item_type: str,
+        item_id: int,
+        session,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None
+) -> List[Transaction]:
     """
-    Initialize all relationships for transaction models.
-    This function should be called after all models are loaded to ensure
-    correct relationship setup, especially for circular dependencies.
+    Retrieve transactions for a specific inventory item.
+
+    Args:
+        item_type: Type of item ("material", "leather", "hardware")
+        item_id: ID of the specific item
+        session: Database session
+        start_date: Optional start date for filtering
+        end_date: Optional end date for filtering
+
+    Returns:
+        List of transactions for the item
+
+    Raises:
+        ModelValidationError: If retrieval fails
+        ValueError: If item type is not supported
     """
     try:
-        logger.info("Initializing transaction relationships")
+        validate_not_empty({'item_id': item_id}, 'item_id', 'Item ID is required')
+        validate_not_empty({'item_type': item_type}, 'item_type', 'Item type is required')
 
-        # Import necessary models directly to avoid circular import issues
-        from database.models.project import Project
-        from database.models.material import Material
-        from database.models.leather import Leather
-        from database.models.hardware import Hardware
-        from database.models.material_inventory import MaterialInventory
-        from database.models.leather_inventory import LeatherInventory
-        from database.models.hardware_inventory import HardwareInventory
+        from sqlalchemy import select, and_
 
-        # Log successful initialization
-        logger.info("Transaction relationships initialized successfully")
+        # Create query based on item type
+        item_type = item_type.lower()
+
+        if item_type == 'material':
+            query = select(MaterialTransaction).where(MaterialTransaction.material_id == item_id)
+        elif item_type == 'leather':
+            query = select(LeatherTransaction).where(LeatherTransaction.leather_id == item_id)
+        elif item_type == 'hardware':
+            query = select(HardwareTransaction).where(HardwareTransaction.hardware_id == item_id)
+        else:
+            raise ValueError(f"Unsupported item type: {item_type}")
+
+        # Add date filters if provided
+        if start_date:
+            query = query.where(Transaction.transaction_date >= start_date)
+        if end_date:
+            query = query.where(Transaction.transaction_date <= end_date)
+
+        # Execute query
+        return session.execute(query).scalars().all()
+
     except Exception as e:
-        logger.error(f"Error initializing transaction relationships: {e}")
-        logger.error(traceback.format_exc())
+        logger.error(f"Error getting transactions for {item_type} {item_id}: {e}")
+        if isinstance(e, ValueError):
+            raise ModelValidationError(str(e))
+        raise ModelValidationError(f"Failed to retrieve item transactions: {str(e)}")
+
+
+# Register for lazy import resolution
+register_lazy_import('Transaction', 'database.models.transaction', 'Transaction')
+register_lazy_import('MaterialTransaction', 'database.models.transaction', 'MaterialTransaction')
+register_lazy_import('LeatherTransaction', 'database.models.transaction', 'LeatherTransaction')
+register_lazy_import('HardwareTransaction', 'database.models.transaction', 'HardwareTransaction')

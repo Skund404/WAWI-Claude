@@ -1,33 +1,42 @@
 # database/models/hardware.py
 """
-Enhanced Hardware Model with Advanced Relationship and Validation Strategies
+Comprehensive Hardware Model for Leatherworking Management System
 
-This module defines the Hardware model with comprehensive validation,
+This module defines the Hardware model with extensive validation,
 relationship management, and circular import resolution.
+
+Implements the Hardware entity from the ER diagram with all its
+relationships and attributes.
 """
 
 import logging
 from datetime import datetime
-from typing import Dict, Any, Optional, List, Union
+from typing import Dict, Any, Optional, List, Union, Type
 
-from sqlalchemy import Column, Enum, Float, String, Boolean, Integer, ForeignKey, Text
-from sqlalchemy.orm import relationship
+from sqlalchemy import Column, Enum, Float, ForeignKey, Integer, String, Text, Boolean
+from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.exc import SQLAlchemyError
 
 from database.models.base import Base, ModelValidationError
 from database.models.enums import (
-    InventoryStatus,
-    MeasurementUnit,
-    TransactionType
-)
-from database.models.enums import (
     HardwareType,
     HardwareMaterial,
-    HardwareFinish
+    HardwareFinish,
+    InventoryStatus,
+    MeasurementUnit,
+    QualityGrade,
+    TransactionType
+)
+from database.models.mixins import (
+    TimestampMixin,
+    ValidationMixin,
+    CostingMixin,
+    TrackingMixin
 )
 from utils.circular_import_resolver import (
     lazy_import,
-    register_lazy_import
+    register_lazy_import,
+    CircularImportResolver
 )
 from utils.enhanced_model_validator import (
     ModelValidator,
@@ -39,76 +48,57 @@ from utils.enhanced_model_validator import (
 # Setup logger
 logger = logging.getLogger(__name__)
 
-# Lazy import potential related models
-register_lazy_import('database.models.supplier.Supplier', 'database.models.supplier', 'Supplier')
-register_lazy_import('database.models.storage.Storage', 'database.models.storage', 'Storage')
-register_lazy_import('database.models.transaction.HardwareTransaction', 'database.models.transaction', 'HardwareTransaction')
-register_lazy_import('database.models.project.Project', 'database.models.project', 'Project')
-register_lazy_import('database.models.components.ProjectComponent', 'database.models.components', 'ProjectComponent')
+# Register lazy imports to resolve potential circular dependencies
+register_lazy_import('Supplier', 'database.models.supplier', 'Supplier')
+register_lazy_import('PurchaseItem', 'database.models.purchase', 'PurchaseItem')
+register_lazy_import('PickingListItem', 'database.models.picking_list', 'PickingListItem')
+register_lazy_import('HardwareInventory', 'database.models.hardware_inventory', 'HardwareInventory')
+register_lazy_import('ComponentHardware', 'database.models.components', 'ComponentHardware')
 
 
-class Hardware(Base):
+class Hardware(Base, TimestampMixin, ValidationMixin, CostingMixin, TrackingMixin):
     """
-    Enhanced Hardware model with comprehensive validation and relationship management.
+    Hardware model representing hardware items used in leatherworking projects.
 
-    Represents hardware items used in leatherworking projects with
-    advanced tracking and relationship configuration.
+    This implements the Hardware entity from the ER diagram with comprehensive
+    attributes and relationship management.
     """
     __tablename__ = 'hardwares'
 
-    # Core hardware attributes
-    name = Column(String(255), nullable=False, index=True)
-    description = Column(Text, nullable=True)
-    sku = Column(String(50), nullable=True, unique=True)
+    # Basic attributes
+    name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
-    # Hardware characteristics
-    hardware_type = Column(Enum(HardwareType), nullable=False)
-    material = Column(Enum(HardwareMaterial), nullable=False)
-    finish = Column(Enum(HardwareFinish), nullable=True)
+    # Hardware-specific attributes
+    hardware_type: Mapped[HardwareType] = mapped_column(Enum(HardwareType), nullable=False)
+    material: Mapped[HardwareMaterial] = mapped_column(Enum(HardwareMaterial), nullable=False)
+    finish: Mapped[Optional[HardwareFinish]] = mapped_column(Enum(HardwareFinish), nullable=True)
 
-    # Inventory management
-    quantity = Column(Float, default=0.0, nullable=False)
-    min_quantity = Column(Float, default=0.0, nullable=False)
-    unit = Column(Enum(MeasurementUnit), nullable=False, default=MeasurementUnit.PIECE)
+    # Inventory attributes
+    sku: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, unique=True, index=True)
+    cost: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    price: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
 
-    # Financial tracking
-    cost_per_unit = Column(Float, default=0.0, nullable=False)
-    price_per_unit = Column(Float, default=0.0, nullable=False)
-
-    # Status tracking
-    status = Column(Enum(InventoryStatus), default=InventoryStatus.IN_STOCK, nullable=False)
-    is_active = Column(Boolean, default=True, nullable=False)
-
-    # Foreign keys
-    supplier_id = Column(Integer, ForeignKey("suppliers.id"), nullable=True)
-    storage_id = Column(Integer, ForeignKey("storages.id"), nullable=True)
-
-    # Relationships configured to avoid circular imports
-    transactions = relationship(
-        "HardwareTransaction",
-        back_populates="hardware",
-        lazy='select',
-        cascade='all, delete-orphan'
+    # Measurement attributes
+    unit: Mapped[MeasurementUnit] = mapped_column(
+        Enum(MeasurementUnit),
+        default=MeasurementUnit.PIECE,
+        nullable=False
     )
 
-    supplier = relationship(
-        "Supplier",
-        back_populates="hardware_items",
-        lazy='select'
-    )
+    # Quality tracking
+    quality: Mapped[Optional[QualityGrade]] = mapped_column(Enum(QualityGrade), nullable=True)
 
-    storage = relationship(
-        "Storage",
-        back_populates="hardware_items",
-        lazy='select'
-    )
+    # Supplier relationship
+    supplier_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey('suppliers.id'), nullable=True)
 
-    project_components = relationship(
-        "ProjectComponent",
-        back_populates="hardware",
-        viewonly=True,  # Add this line to make it a view-only relationship
-        lazy='select'
-    )
+    # Relationships - following the ER diagram
+    supplier = relationship("Supplier", back_populates="hardware")
+    purchase_items = relationship("PurchaseItem", back_populates="hardware")
+    component_hardwares = relationship("ComponentHardware", back_populates="hardware")
+    inventories = relationship("HardwareInventory", back_populates="hardware")
+    picking_list_items = relationship("PickingListItem", back_populates="hardware")
+
     def __init__(self, **kwargs):
         """
         Initialize a Hardware instance with comprehensive validation.
@@ -120,23 +110,26 @@ class Hardware(Base):
             ModelValidationError: If validation fails
         """
         try:
-            # Validate and filter input data
-            self._validate_creation(kwargs)
+            # Validate input data
+            self._validate_hardware_data(kwargs)
 
             # Initialize base model
             super().__init__(**kwargs)
+
+            # Post-initialization processing
+            self._post_init_processing()
 
         except (ValidationError, SQLAlchemyError) as e:
             logger.error(f"Hardware initialization failed: {e}")
             raise ModelValidationError(f"Failed to create Hardware: {str(e)}") from e
 
     @classmethod
-    def _validate_creation(cls, data: Dict[str, Any]) -> None:
+    def _validate_hardware_data(cls, data: Dict[str, Any]) -> None:
         """
-        Validate hardware creation data with comprehensive checks.
+        Comprehensive validation of hardware creation data.
 
         Args:
-            data (Dict[str, Any]): Hardware creation data to validate
+            data: Hardware creation data to validate
 
         Raises:
             ValidationError: If validation fails
@@ -146,7 +139,7 @@ class Hardware(Base):
         validate_not_empty(data, 'hardware_type', 'Hardware type is required')
         validate_not_empty(data, 'material', 'Hardware material is required')
 
-        # Validate hardware type and material
+        # Validate hardware type
         if 'hardware_type' in data:
             ModelValidator.validate_enum(
                 data['hardware_type'],
@@ -154,6 +147,7 @@ class Hardware(Base):
                 'hardware_type'
             )
 
+        # Validate hardware material
         if 'material' in data:
             ModelValidator.validate_enum(
                 data['material'],
@@ -161,145 +155,160 @@ class Hardware(Base):
                 'material'
             )
 
-        # Validate optional finish
-        if 'finish' in data and data['finish']:
+        # Validate hardware finish if provided
+        if 'finish' in data and data['finish'] is not None:
             ModelValidator.validate_enum(
                 data['finish'],
                 HardwareFinish,
                 'finish'
             )
 
-        # Validate numeric fields
-        numeric_fields = [
-            'quantity', 'min_quantity',
-            'cost_per_unit', 'price_per_unit'
-        ]
+        # Validate unit if provided
+        if 'unit' in data:
+            ModelValidator.validate_enum(
+                data['unit'],
+                MeasurementUnit,
+                'unit'
+            )
 
-        for field in numeric_fields:
+        # Validate quality if provided
+        if 'quality' in data and data['quality'] is not None:
+            ModelValidator.validate_enum(
+                data['quality'],
+                QualityGrade,
+                'quality'
+            )
+
+        # Validate cost and price
+        for field in ['cost', 'price']:
             if field in data:
                 validate_positive_number(
                     data,
                     field,
                     allow_zero=True,
-                    message=f"{field.replace('_', ' ').title()} must be a non-negative number"
+                    message=f"{field.capitalize()} cannot be negative"
                 )
 
-    def _validate_instance(self) -> None:
+    def _post_init_processing(self) -> None:
         """
-        Perform additional validation after instance creation.
+        Perform additional processing after instance creation.
 
-        Raises:
-            ValidationError: If instance validation fails
+        Applies business logic and performs final validations.
         """
-        # Validate quantity and stock levels
-        if self.quantity < 0:
-            raise ValidationError(
-                "Quantity cannot be negative",
-                "quantity"
-            )
+        # Initialize inventory status if not set
+        if not hasattr(self, 'inventory_status') or self.inventory_status is None:
+            self.inventory_status = InventoryStatus.OUT_OF_STOCK
 
-    def adjust_quantity(self, quantity_change: float, transaction_type: TransactionType,
-                        notes: Optional[str] = None) -> None:
+        # Generate SKU if not provided
+        if not hasattr(self, 'sku') or not self.sku:
+            self._generate_sku()
+
+    def _generate_sku(self) -> None:
         """
-        Adjust hardware quantity with comprehensive validation.
+        Generate a unique SKU for the hardware.
+        """
+        # Simple implementation - in practice would have more complexity
+        timestamp = datetime.utcnow().strftime('%Y%m%d%H%M%S')
+        type_prefix = self.hardware_type.name[:3].upper()
+        self.sku = f"HW-{type_prefix}-{timestamp}"
+        logger.debug(f"Generated SKU for hardware {self.id}: {self.sku}")
+
+    def update_inventory(self, quantity: int, location: str) -> "HardwareInventory":
+        """
+        Update or create an inventory record for this hardware.
 
         Args:
-            quantity_change: Amount to adjust (positive for addition, negative for reduction)
-            transaction_type: Type of transaction
-            notes: Optional notes about the transaction
-
-        Raises:
-            ModelValidationError: If quantity adjustment is invalid
-        """
-        try:
-            # Validate quantity change
-            validate_positive_number(
-                {'quantity_change': abs(quantity_change)},
-                'quantity_change',
-                message="Quantity change must be a non-negative number"
-            )
-
-            # Validate resulting quantity
-            new_quantity = (self.quantity or 0.0) + quantity_change
-
-            if new_quantity < 0:
-                raise ModelValidationError(
-                    f"Cannot reduce quantity below zero. Current: {self.quantity}, Change: {quantity_change}"
-                )
-
-            # Update quantity
-            self.quantity = new_quantity
-
-            # Update status based on quantity
-            if self.quantity <= 0:
-                self.status = InventoryStatus.OUT_OF_STOCK
-            elif self.quantity <= self.min_quantity:
-                self.status = InventoryStatus.LOW_STOCK
-            else:
-                self.status = InventoryStatus.IN_STOCK
-
-            # Log the adjustment
-            logger.info(
-                f"Hardware {self.id} quantity adjusted. "
-                f"Change: {quantity_change}, New Quantity: {self.quantity}"
-            )
-
-        except Exception as e:
-            logger.error(f"Quantity adjustment failed: {e}")
-            raise ModelValidationError(f"Hardware quantity adjustment failed: {str(e)}")
-
-    def calculate_total_value(self) -> float:
-        """
-        Calculate the total value of the hardware based on current quantity.
+            quantity: The quantity to set
+            location: The storage location
 
         Returns:
-            float: Total value of the hardware
+            The updated or created inventory record
         """
         try:
-            total_value = (self.quantity or 0.0) * self.price_per_unit
-            return total_value
-        except Exception as e:
-            logger.error(f"Value calculation failed: {e}")
-            raise ModelValidationError(f"Hardware value calculation failed: {str(e)}")
+            # Import the HardwareInventory model
+            HardwareInventory = lazy_import('database.models.hardware_inventory', 'HardwareInventory')
 
-    def mark_as_inactive(self) -> None:
-        """
-        Mark the hardware as inactive.
-        """
-        self.is_active = False
-        self.status = InventoryStatus.OUT_OF_STOCK
-        logger.info(f"Hardware {self.id} marked as inactive")
+            # Find or create inventory record
+            inventory = None
+            if hasattr(self, 'inventories') and self.inventories:
+                # Find inventory by location if it exists
+                for inv in self.inventories:
+                    if inv.storage_location == location:
+                        inventory = inv
+                        break
 
-    def restore(self) -> None:
-        """
-        Restore an inactive hardware item.
-        """
-        self.is_active = True
-        # Restore status based on quantity
-        if self.quantity is not None:
-            if self.quantity <= 0:
-                self.status = InventoryStatus.OUT_OF_STOCK
-            elif self.quantity <= self.min_quantity:
-                self.status = InventoryStatus.LOW_STOCK
+            if inventory:
+                # Update existing inventory
+                inventory.quantity = quantity
+                inventory._update_status()
+                logger.info(f"Updated inventory for hardware {self.id} at {location}")
             else:
-                self.status = InventoryStatus.IN_STOCK
-        logger.info(f"Hardware {self.id} restored")
+                # Create new inventory
+                inventory = HardwareInventory(
+                    hardware_id=self.id,
+                    quantity=quantity,
+                    storage_location=location
+                )
+                if hasattr(self, 'inventories'):
+                    self.inventories.append(inventory)
+                logger.info(f"Created new inventory for hardware {self.id} at {location}")
+
+            return inventory
+
+        except Exception as e:
+            logger.error(f"Failed to update inventory: {e}")
+            raise ModelValidationError(f"Inventory update failed: {str(e)}")
+
+    def calculate_total_inventory(self) -> int:
+        """
+        Calculate the total inventory across all locations.
+
+        Returns:
+            Total quantity in inventory
+        """
+        try:
+            total = 0
+            if hasattr(self, 'inventories') and self.inventories:
+                total = sum(inv.quantity for inv in self.inventories)
+            return total
+        except Exception as e:
+            logger.error(f"Failed to calculate total inventory: {e}")
+            raise ModelValidationError(f"Inventory calculation failed: {str(e)}")
+
+    def update_status_from_inventory(self) -> None:
+        """
+        Update inventory status based on total inventory.
+        """
+        try:
+            total = self.calculate_total_inventory()
+
+            if total <= 0:
+                self.inventory_status = InventoryStatus.OUT_OF_STOCK
+            elif total < 10:  # Example threshold
+                self.inventory_status = InventoryStatus.LOW_STOCK
+            else:
+                self.inventory_status = InventoryStatus.IN_STOCK
+
+            logger.info(f"Updated status for hardware {self.id} to {self.inventory_status}")
+
+        except Exception as e:
+            logger.error(f"Failed to update status: {e}")
+            raise ModelValidationError(f"Status update failed: {str(e)}")
 
     def __repr__(self) -> str:
         """
-        Provide a comprehensive string representation of the hardware.
+        String representation of the Hardware.
 
         Returns:
-            str: Detailed hardware representation
+            Detailed hardware representation
         """
         return (
-            f"<Hardware(id={self.id}, name='{self.name}', "
-            f"type={self.hardware_type}, "
-            f"quantity={self.quantity or 0.0}, "
-            f"status={self.status}, "
-            f"active={self.is_active})>"
+            f"<Hardware(id={self.id}, "
+            f"name='{self.name}', "
+            f"type={self.hardware_type.name if self.hardware_type else 'None'}, "
+            f"status={self.inventory_status.name if hasattr(self, 'inventory_status') and self.inventory_status else 'None'})>"
         )
 
 
-# Final registration for lazy imports
-register_lazy_import('database.models.hardware.Hardware', 'database.models.hardware', 'Hardware')
+# Register for lazy import resolution
+register_lazy_import('Hardware', 'database.models.hardware', 'Hardware')

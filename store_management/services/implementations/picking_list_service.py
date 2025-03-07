@@ -1,19 +1,22 @@
 """
-services/implementations/picking_list_service.py - Implementation of the Picking List Service
+services/implementations/picking_list_service.py
+Implementation of the picking list service for the leatherworking application.
 """
 import logging
+from typing import Any, Dict, List, Optional
 from datetime import datetime
 
+from database.models.picking_list import PickingList, PickingListItem
+from database.models.picking_list import PickingListStatus
 from database.repositories.picking_list_repository import PickingListRepository
 from database.sqlalchemy.session import get_db_session
-from database.models.picking_list import PickingList, PickingListItem, PickingListStatus
+
 from services.base_service import BaseService, NotFoundError, ValidationError
 from services.interfaces.picking_list_service import IPickingListService
 
-from typing import Any, Dict, List, Optional
 
 class PickingListService(BaseService, IPickingListService):
-    """Service for managing picking lists and items."""
+    """Service implementation for managing picking lists."""
 
     def __init__(self, picking_list_repository=None):
         """
@@ -25,616 +28,427 @@ class PickingListService(BaseService, IPickingListService):
         super().__init__()
         self.logger = logging.getLogger(__name__)
 
+        # Initialize repository, creating a new one if not provided
         if picking_list_repository is None:
-            # Create repository with a new session
             session = get_db_session()
-            self.picking_list_repository = PickingListRepository(session)
-            self._owns_session = True
+            self.repository = PickingListRepository(session)
         else:
-            self.picking_list_repository = picking_list_repository
-            self._owns_session = False
+            self.repository = picking_list_repository
 
-        self.logger.info("Initialized PickingListService with repository")
-
-    def _convert_picking_list_to_dict(self, picking_list: PickingList) -> Dict[str, Any]:
+    def create_picking_list(self, sales_id: int, **kwargs) -> Dict[str, Any]:
         """
-        Convert a PickingList model instance to a dictionary.
+        Create a new picking list for a sales order.
 
         Args:
-            picking_list: PickingList model instance
+            sales_id: ID of the associated sales record
+            **kwargs: Additional picking list attributes
 
         Returns:
-            Dict[str, Any]: Dictionary representation
-        """
-        return {
-            'id': picking_list.id,
-            'name': picking_list.name,
-            'description': picking_list.description,
-            'status': picking_list.status.name if isinstance(picking_list.status, PickingListStatus) else picking_list.status,
-            'created_at': picking_list.created_at,
-            'updated_at': picking_list.updated_at
-        }
+            Dict containing the created picking list data
 
-    def _convert_item_to_dict(self, item: PickingListItem) -> Dict[str, Any]:
-        """
-        Convert a PickingListItem model instance to a dictionary.
-
-        Args:
-            item: PickingListItem model instance
-
-        Returns:
-            Dict[str, Any]: Dictionary representation
-        """
-        material_name = f"Material {item.material_id}"
-        if hasattr(item, 'material') and item.material:
-            material_name = item.material.name
-
-        return {
-            'id': item.id,
-            'list_id': item.list_id,
-            'material_id': item.material_id,
-            'material_name': material_name,
-            'required_quantity': item.required_quantity,
-            'picked_quantity': item.picked_quantity,
-            'unit': item.unit,
-            'storage_location': item.storage_location,
-            'notes': item.notes,
-            'is_picked': item.is_picked
-        }
-
-    def get_all_lists(self) -> List[Dict[str, Any]]:
-        """
-        Get all picking lists.
-
-        Returns:
-            List[Dict[str, Any]]: List of picking lists data
+        Raises:
+            ValidationError: If validation fails
         """
         try:
-            picking_lists = self.picking_list_repository.get_all()
-            return [self._convert_picking_list_to_dict(pl) for pl in picking_lists]
+            # Set defaults for new picking list
+            data = {
+                "sales_id": sales_id,
+                "status": PickingListStatus.DRAFT,
+                "created_at": datetime.now(),
+                **kwargs
+            }
+
+            self.logger.info(f"Creating picking list for sales_id={sales_id}")
+
+            # Create the picking list through the repository
+            picking_list = self.repository.create(data)
+
+            # Return the serialized picking list
+            return self._serialize_picking_list(picking_list)
         except Exception as e:
-            self.logger.error(f"Error retrieving all picking lists: {e}")
-            return []
+            self.logger.error(f"Error creating picking list: {str(e)}")
+            raise ValidationError(f"Failed to create picking list: {str(e)}")
 
-    # Alias for get_all_lists to match view calls
-    def get_all(self) -> List[Dict[str, Any]]:
-        """Alias for get_all_lists for backward compatibility."""
-        return self.get_all_lists()
-
-    def get_list_by_id(self, list_id: int) -> Dict[str, Any]:
+    def get_picking_list(self, picking_list_id: int) -> Dict[str, Any]:
         """
         Get a picking list by ID.
 
         Args:
-            list_id: ID of the picking list to retrieve
+            picking_list_id: ID of the picking list to retrieve
 
         Returns:
-            Dict[str, Any]: Picking list data
+            Dict containing the picking list data
 
         Raises:
-            NotFoundError: If picking list not found
-        """
-        picking_list = self.picking_list_repository.get_by_id(list_id)
-        if not picking_list:
-            raise NotFoundError(f"Picking list with ID {list_id} not found")
-
-        result = self._convert_picking_list_to_dict(picking_list)
-
-        # Add items to the result
-        items = self.picking_list_repository.get_items(list_id)
-        result['items'] = [self._convert_item_to_dict(item) for item in items]
-
-        return result
-
-    # Alias for get_list_by_id to match view calls
-    def get_picking_list(self, list_id: int) -> Dict[str, Any]:
-        """Alias for get_list_by_id for backward compatibility."""
-        return self.get_list_by_id(list_id)
-
-    def get_by_name(self, name: str) -> Optional[Dict[str, Any]]:
-        """
-        Get a picking list by name.
-
-        Args:
-            name: Name of the picking list to retrieve
-
-        Returns:
-            Optional[Dict[str, Any]]: Picking list data or None if not found
+            NotFoundError: If the picking list doesn't exist
         """
         try:
-            picking_lists = self.picking_list_repository.search(name)
-            for pl in picking_lists:
-                if pl.name.lower() == name.lower():
-                    result = self._convert_picking_list_to_dict(pl)
-
-                    # Add items to the result
-                    items = self.picking_list_repository.get_items(pl.id)
-                    result['items'] = [self._convert_item_to_dict(item) for item in items]
-
-                    return result
-            return None
-        except Exception as e:
-            self.logger.error(f"Error retrieving picking list by name '{name}': {e}")
-            return None
-
-    def create_list(self, list_data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Create a new picking list.
-
-        Args:
-            list_data: Picking list data
-
-        Returns:
-            Dict[str, Any]: Created picking list
-
-        Raises:
-            ValidationError: If data is invalid
-        """
-        # Validate required fields
-        if 'name' not in list_data or not list_data['name']:
-            raise ValidationError("Picking list name is required")
-
-        try:
-            # Create the picking list
-            picking_list = self.picking_list_repository.create(list_data)
-
-            # Commit changes
-            if self._owns_session:
-                self.picking_list_repository.session.commit()
-
-            self.logger.info(f"Created new picking list: {picking_list.name}")
-            return self._convert_picking_list_to_dict(picking_list)
-
-        except Exception as e:
-            if self._owns_session:
-                self.picking_list_repository.session.rollback()
-            self.logger.error(f"Error creating picking list: {e}")
-            raise
-
-    def update_list(self, list_id: int, list_data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Update an existing picking list.
-
-        Args:
-            list_id: ID of the picking list to update
-            list_data: Picking list data to update
-
-        Returns:
-            Dict[str, Any]: Updated picking list
-
-        Raises:
-            NotFoundError: If picking list not found
-            ValidationError: If data is invalid
-        """
-        # Validate name if provided
-        if 'name' in list_data and not list_data['name']:
-            raise ValidationError("Picking list name cannot be empty")
-
-        try:
-            # Update the picking list
-            picking_list = self.picking_list_repository.update(list_id, list_data)
-
+            picking_list = self.repository.get_by_id(picking_list_id)
             if not picking_list:
-                raise NotFoundError(f"Picking list with ID {list_id} not found")
+                raise NotFoundError(f"Picking list with ID {picking_list_id} not found")
 
-            # Commit changes
-            if self._owns_session:
-                self.picking_list_repository.session.commit()
-
-            self.logger.info(f"Updated picking list: {picking_list.name}")
-            return self._convert_picking_list_to_dict(picking_list)
-
-        except (NotFoundError, ValidationError):
-            # Pass through our custom exceptions
-            raise
-        except Exception as e:
-            if self._owns_session:
-                self.picking_list_repository.session.rollback()
-            self.logger.error(f"Error updating picking list {list_id}: {e}")
-            raise
-
-    def delete_list(self, list_id: int) -> bool:
-        """
-        Delete a picking list.
-
-        Args:
-            list_id: ID of the picking list to delete
-
-        Returns:
-            bool: True if successfully deleted
-
-        Raises:
-            NotFoundError: If picking list not found
-        """
-        try:
-            # Delete the picking list
-            result = self.picking_list_repository.delete(list_id)
-
-            if not result:
-                raise NotFoundError(f"Picking list with ID {list_id} not found")
-
-            # Commit changes
-            if self._owns_session:
-                self.picking_list_repository.session.commit()
-
-            self.logger.info(f"Deleted picking list with ID: {list_id}")
-            return True
-
+            return self._serialize_picking_list(picking_list)
         except NotFoundError:
-            # Pass through our custom exception
             raise
         except Exception as e:
-            if self._owns_session:
-                self.picking_list_repository.session.rollback()
-            self.logger.error(f"Error deleting picking list {list_id}: {e}")
-            raise
+            self.logger.error(f"Error retrieving picking list {picking_list_id}: {str(e)}")
+            raise ServiceError(f"Failed to retrieve picking list: {str(e)}")
 
-    def get_list_items(self, list_id: int) -> List[Dict[str, Any]]:
+    def get_picking_lists(self,
+                         status: Optional[PickingListStatus] = None,
+                         sales_id: Optional[int] = None) -> List[Dict[str, Any]]:
         """
-        Get all items for a picking list.
+        Get picking lists with optional filtering.
 
         Args:
-            list_id: ID of the picking list
+            status: Filter by picking list status
+            sales_id: Filter by associated sales ID
 
         Returns:
-            List[Dict[str, Any]]: List of picking list items
+            List of picking list dictionaries
+        """
+        try:
+            filters = {}
+            if status:
+                filters["status"] = status
+            if sales_id:
+                filters["sales_id"] = sales_id
+
+            picking_lists = self.repository.get_all_by_filter(**filters)
+            return [self._serialize_picking_list(pl) for pl in picking_lists]
+        except Exception as e:
+            self.logger.error(f"Error retrieving picking lists: {str(e)}")
+            return []
+
+    def update_picking_list(self,
+                           picking_list_id: int,
+                           **kwargs) -> Dict[str, Any]:
+        """
+        Update a picking list's attributes.
+
+        Args:
+            picking_list_id: ID of the picking list to update
+            **kwargs: Attributes to update
+
+        Returns:
+            Dict containing the updated picking list
 
         Raises:
-            NotFoundError: If picking list not found
+            NotFoundError: If the picking list doesn't exist
+            ValidationError: If update validation fails
         """
-        # Verify picking list exists
-        self.get_list_by_id(list_id)
-
         try:
-            # Get items
-            items = self.picking_list_repository.get_items(list_id)
-            return [self._convert_item_to_dict(item) for item in items]
+            picking_list = self.repository.get_by_id(picking_list_id)
+            if not picking_list:
+                raise NotFoundError(f"Picking list with ID {picking_list_id} not found")
 
-        except Exception as e:
-            self.logger.error(f"Error retrieving items for picking list {list_id}: {e}")
+            # Remove any attributes that shouldn't be directly updated
+            for key in ["id", "created_at"]:
+                if key in kwargs:
+                    del kwargs[key]
+
+            self.logger.info(f"Updating picking list {picking_list_id} with {kwargs}")
+            updated_picking_list = self.repository.update(picking_list_id, kwargs)
+            return self._serialize_picking_list(updated_picking_list)
+        except NotFoundError:
             raise
+        except Exception as e:
+            self.logger.error(f"Error updating picking list {picking_list_id}: {str(e)}")
+            raise ValidationError(f"Failed to update picking list: {str(e)}")
 
-    def add_item(self, list_id: int, item_data: Dict[str, Any]) -> Dict[str, Any]:
+    def update_status(self,
+                     picking_list_id: int,
+                     status: PickingListStatus) -> Dict[str, Any]:
+        """
+        Update the status of a picking list.
+
+        Args:
+            picking_list_id: ID of the picking list
+            status: New status value
+
+        Returns:
+            Dict containing the updated picking list
+
+        Raises:
+            NotFoundError: If the picking list doesn't exist
+            ValidationError: If status transition is invalid
+        """
+        try:
+            picking_list = self.repository.get_by_id(picking_list_id)
+            if not picking_list:
+                raise NotFoundError(f"Picking list with ID {picking_list_id} not found")
+
+            # Validate status transition
+            self._validate_status_transition(picking_list.status, status)
+
+            update_data = {"status": status}
+
+            # If completing the picking list, set the completed_at timestamp
+            if status == PickingListStatus.COMPLETED:
+                update_data["completed_at"] = datetime.now()
+
+            self.logger.info(f"Updating picking list {picking_list_id} status to {status}")
+            updated_picking_list = self.repository.update(picking_list_id, update_data)
+            return self._serialize_picking_list(updated_picking_list)
+        except (NotFoundError, ValidationError):
+            raise
+        except Exception as e:
+            self.logger.error(f"Error updating picking list status: {str(e)}")
+            raise ValidationError(f"Failed to update picking list status: {str(e)}")
+
+    def add_item(self,
+                picking_list_id: int,
+                component_id: Optional[int] = None,
+                material_id: Optional[int] = None,
+                leather_id: Optional[int] = None,
+                hardware_id: Optional[int] = None,
+                quantity_ordered: int = 1) -> Dict[str, Any]:
         """
         Add an item to a picking list.
 
         Args:
-            list_id: ID of the picking list
-            item_data: Item data to add
+            picking_list_id: ID of the picking list
+            component_id: ID of the component (optional)
+            material_id: ID of the material (optional)
+            leather_id: ID of the leather (optional)
+            hardware_id: ID of the hardware (optional)
+            quantity_ordered: Quantity of the item ordered
 
         Returns:
-            Dict[str, Any]: Added item
+            Dict containing the created picking list item
 
         Raises:
-            NotFoundError: If picking list not found
-            ValidationError: If data is invalid
+            NotFoundError: If the picking list doesn't exist
+            ValidationError: If item validation fails
         """
-        # Verify picking list exists
-        self.get_list_by_id(list_id)
-
-        # Validate required fields
-        if 'material_id' not in item_data:
-            raise ValidationError("Material ID is required for picking list items")
-
-        if 'required_quantity' not in item_data or item_data['required_quantity'] <= 0:
-            raise ValidationError("Required quantity must be positive")
-
         try:
-            # Add list_id to item data
-            item_data['list_id'] = list_id
+            # Verify picking list exists
+            picking_list = self.repository.get_by_id(picking_list_id)
+            if not picking_list:
+                raise NotFoundError(f"Picking list with ID {picking_list_id} not found")
 
-            # Create the item
-            item = self.picking_list_repository.add_item(item_data)
+            # Validate at least one item type is specified
+            if not any([component_id, material_id, leather_id, hardware_id]):
+                raise ValidationError("At least one item type must be specified")
 
-            # Commit changes
-            if self._owns_session:
-                self.picking_list_repository.session.commit()
+            # Validate quantity
+            if quantity_ordered <= 0:
+                raise ValidationError("Quantity ordered must be greater than zero")
 
-            self.logger.info(f"Added item to picking list {list_id}: Material ID {item.material_id}")
-            return self._convert_item_to_dict(item)
+            # Create item data
+            item_data = {
+                "picking_list_id": picking_list_id,
+                "quantity_ordered": quantity_ordered,
+                "quantity_picked": 0  # Initialize to zero
+            }
 
-        except Exception as e:
-            if self._owns_session:
-                self.picking_list_repository.session.rollback()
-            self.logger.error(f"Error adding item to picking list {list_id}: {e}")
+            # Add optional IDs if provided
+            if component_id:
+                item_data["component_id"] = component_id
+            if material_id:
+                item_data["material_id"] = material_id
+            if leather_id:
+                item_data["leather_id"] = leather_id
+            if hardware_id:
+                item_data["hardware_id"] = hardware_id
+
+            self.logger.info(f"Adding item to picking list {picking_list_id}")
+            item = self.repository.add_item(item_data)
+            return self._serialize_picking_list_item(item)
+        except (NotFoundError, ValidationError):
             raise
+        except Exception as e:
+            self.logger.error(f"Error adding item to picking list: {str(e)}")
+            raise ValidationError(f"Failed to add item to picking list: {str(e)}")
 
-    def add_items(self, list_name: str, items_data: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """
-        Add multiple items to a picking list.
-
-        Args:
-            list_name: Name of the picking list
-            items_data: List of item data to add
-
-        Returns:
-            Dict[str, Any]: Updated picking list
-
-        Raises:
-            NotFoundError: If picking list not found
-            ValidationError: If data is invalid
-        """
-        # Get the picking list by name
-        picking_list = self.get_by_name(list_name)
-        if not picking_list:
-            raise NotFoundError(f"Picking list with name '{list_name}' not found")
-
-        list_id = picking_list['id']
-
-        # Add each item
-        for item_data in items_data:
-            # Add material_id if it's missing (for backward compatibility)
-            if 'material_id' not in item_data and 'name' in item_data:
-                # This is a simplified implementation - in a real app, you'd
-                # need to look up the material ID by name
-                item_data['material_id'] = 1
-
-            # Convert quantity to required_quantity if needed
-            if 'quantity' in item_data and 'required_quantity' not in item_data:
-                item_data['required_quantity'] = item_data.pop('quantity')
-
-            self.add_item(list_id, item_data)
-
-        # Return the updated picking list
-        return self.get_list_by_id(list_id)
-
-    def update_item(self, item_data: Dict[str, Any]) -> Dict[str, Any]:
+    def update_item(self,
+                   item_id: int,
+                   quantity_picked: Optional[int] = None,
+                   **kwargs) -> Dict[str, Any]:
         """
         Update a picking list item.
 
         Args:
-            item_data: Item data including ID
+            item_id: ID of the picking list item
+            quantity_picked: Quantity actually picked
+            **kwargs: Additional attributes to update
 
         Returns:
-            Dict[str, Any]: Updated item
+            Dict containing the updated picking list item
 
         Raises:
-            NotFoundError: If item not found
-            ValidationError: If data is invalid
+            NotFoundError: If the item doesn't exist
+            ValidationError: If update validation fails
         """
-        if 'id' not in item_data:
-            raise ValidationError("Item ID is required for updates")
-
-        item_id = item_data['id']
-
-        # Validate quantity if provided
-        if 'required_quantity' in item_data and item_data['required_quantity'] <= 0:
-            raise ValidationError("Required quantity must be positive")
-
         try:
-            # Update the item
-            item = self.picking_list_repository.update_item(item_id, item_data)
-
+            # Verify item exists
+            item = self.repository.get_item_by_id(item_id)
             if not item:
                 raise NotFoundError(f"Picking list item with ID {item_id} not found")
 
-            # Commit changes
-            if self._owns_session:
-                self.picking_list_repository.session.commit()
+            # Update data
+            update_data = kwargs
+            if quantity_picked is not None:
+                if quantity_picked < 0:
+                    raise ValidationError("Quantity picked cannot be negative")
+                update_data["quantity_picked"] = quantity_picked
 
-            self.logger.info(f"Updated picking list item: {item_id}")
-            return self._convert_item_to_dict(item)
+            # Remove any attributes that shouldn't be directly updated
+            for key in ["id", "picking_list_id"]:
+                if key in update_data:
+                    del update_data[key]
 
+            self.logger.info(f"Updating picking list item {item_id}")
+            updated_item = self.repository.update_item(item_id, update_data)
+            return self._serialize_picking_list_item(updated_item)
         except (NotFoundError, ValidationError):
-            # Pass through our custom exceptions
             raise
         except Exception as e:
-            if self._owns_session:
-                self.picking_list_repository.session.rollback()
-            self.logger.error(f"Error updating picking list item {item_id}: {e}")
-            raise
+            self.logger.error(f"Error updating picking list item: {str(e)}")
+            raise ValidationError(f"Failed to update picking list item: {str(e)}")
 
-    # Compatibility method for updating items from the view
-    def update_picking_list_item(self, item_id: int, item_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Compatibility method for updating picking list items."""
-        item_data['id'] = item_id
-        return self.update_item(item_data)
-
-    def remove_item(self, item_id: int) -> bool:
+    def remove_item(self, item_id: int) -> None:
         """
         Remove an item from a picking list.
 
         Args:
-            item_id: ID of the item to remove
-
-        Returns:
-            bool: True if successfully removed
+            item_id: ID of the picking list item to remove
 
         Raises:
-            NotFoundError: If item not found
+            NotFoundError: If the item doesn't exist
         """
         try:
-            # Remove the item
-            result = self.picking_list_repository.remove_item(item_id)
-
-            if not result:
-                raise NotFoundError(f"Picking list item with ID {item_id} not found")
-
-            # Commit changes
-            if self._owns_session:
-                self.picking_list_repository.session.commit()
-
-            self.logger.info(f"Removed picking list item with ID: {item_id}")
-            return True
-
-        except NotFoundError:
-            # Pass through our custom exception
-            raise
-        except Exception as e:
-            if self._owns_session:
-                self.picking_list_repository.session.rollback()
-            self.logger.error(f"Error removing picking list item {item_id}: {e}")
-            raise
-
-    def mark_item_picked(self, item_id: int, quantity: float) -> Dict[str, Any]:
-        """
-        Mark a picking list item as picked with the specified quantity.
-
-        Args:
-            item_id: ID of the item to mark
-            quantity: Quantity picked
-
-        Returns:
-            Dict[str, Any]: Updated item
-
-        Raises:
-            NotFoundError: If item not found
-            ValidationError: If quantity is invalid
-        """
-        if quantity < 0:
-            raise ValidationError("Picked quantity cannot be negative")
-
-        try:
-            # Get the item
-            item = self.picking_list_repository.get_item_by_id(item_id)
-
+            # Verify item exists
+            item = self.repository.get_item_by_id(item_id)
             if not item:
                 raise NotFoundError(f"Picking list item with ID {item_id} not found")
 
-            # Update picked quantity and status
-            item_data = {
-                'picked_quantity': quantity,
-                'is_picked': quantity >= item.required_quantity
-            }
+            self.logger.info(f"Removing picking list item {item_id}")
+            self.repository.delete_item(item_id)
+        except NotFoundError:
+            raise
+        except Exception as e:
+            self.logger.error(f"Error removing picking list item: {str(e)}")
+            raise ValidationError(f"Failed to remove picking list item: {str(e)}")
 
-            # Update the item
-            item = self.picking_list_repository.update_item(item_id, item_data)
+    def process_picking_list(self, picking_list_id: int) -> Dict[str, Any]:
+        """
+        Process a picking list, updating inventory and related records.
 
-            # Commit changes
-            if self._owns_session:
-                self.picking_list_repository.session.commit()
+        Args:
+            picking_list_id: ID of the picking list to process
 
-            self.logger.info(f"Marked item {item_id} as picked: {quantity} {item.unit}")
-            return self._convert_item_to_dict(item)
+        Returns:
+            Dict containing the processed picking list data
 
+        Raises:
+            NotFoundError: If the picking list doesn't exist
+            ValidationError: If the picking list cannot be processed
+        """
+        try:
+            # Verify picking list exists
+            picking_list = self.repository.get_by_id(picking_list_id)
+            if not picking_list:
+                raise NotFoundError(f"Picking list with ID {picking_list_id} not found")
+
+            # Validate picking list status
+            if picking_list.status not in [PickingListStatus.IN_PROGRESS, PickingListStatus.DRAFT]:
+                raise ValidationError(f"Cannot process picking list with status {picking_list.status}")
+
+            # Validate all items have been picked
+            for item in picking_list.items:
+                if item.quantity_picked < item.quantity_ordered:
+                    raise ValidationError(f"Item {item.id} has not been fully picked")
+
+            # Process the picking list - this would typically update inventory
+            # and possibly create related records, but we'll just update the status
+            # for this implementation
+
+            self.logger.info(f"Processing picking list {picking_list_id}")
+            updated_picking_list = self.repository.update(
+                picking_list_id,
+                {
+                    "status": PickingListStatus.COMPLETED,
+                    "completed_at": datetime.now()
+                }
+            )
+
+            # Update project components or other related records as needed
+            # This would be implemented based on the specific business requirements
+
+            return self._serialize_picking_list(updated_picking_list)
         except (NotFoundError, ValidationError):
-            # Pass through our custom exceptions
             raise
         except Exception as e:
-            if self._owns_session:
-                self.picking_list_repository.session.rollback()
-            self.logger.error(f"Error marking item {item_id} as picked: {e}")
-            raise
+            self.logger.error(f"Error processing picking list: {str(e)}")
+            raise ValidationError(f"Failed to process picking list: {str(e)}")
 
-    def filter_lists_by_status(self, status: PickingListStatus) -> List[Dict[str, Any]]:
+    def _validate_status_transition(self, current_status: PickingListStatus,
+                                   new_status: PickingListStatus) -> None:
         """
-        Filter picking lists by status.
+        Validate if a status transition is allowed.
 
         Args:
-            status: Status to filter by
-
-        Returns:
-            List[Dict[str, Any]]: Filtered picking lists
-        """
-        try:
-            picking_lists = self.picking_list_repository.filter_by_status(status)
-            return [self._convert_picking_list_to_dict(pl) for pl in picking_lists]
-        except Exception as e:
-            self.logger.error(f"Error filtering picking lists by status {status}: {e}")
-            return []
-
-    def search_lists(self, search_term: str) -> List[Dict[str, Any]]:
-        """
-        Search picking lists by name or description.
-
-        Args:
-            search_term: Term to search for
-
-        Returns:
-            List[Dict[str, Any]]: Matching picking lists
-        """
-        try:
-            picking_lists = self.picking_list_repository.search(search_term)
-            return [self._convert_picking_list_to_dict(pl) for pl in picking_lists]
-        except Exception as e:
-            self.logger.error(f"Error searching picking lists with term '{search_term}': {e}")
-            return []
-
-    # Add additional methods to support the view
-    def generate_picking_list_from_project(self, project_id: int) -> Dict[str, Any]:
-        """
-        Generate a picking list from a project.
-
-        Args:
-            project_id: ID of the project to generate from
-
-        Returns:
-            Dict[str, Any]: Created picking list
+            current_status: Current picking list status
+            new_status: New picking list status
 
         Raises:
-            NotFoundError: If project not found
+            ValidationError: If the status transition is not allowed
         """
-        # This is a placeholder implementation
-        # In a real app, you would:
-        # 1. Get the project details
-        # 2. Extract materials needed
-        # 3. Create a picking list with those materials
+        # Define allowed status transitions
+        allowed_transitions = {
+            PickingListStatus.DRAFT: [PickingListStatus.IN_PROGRESS, PickingListStatus.CANCELLED],
+            PickingListStatus.IN_PROGRESS: [PickingListStatus.COMPLETED, PickingListStatus.CANCELLED],
+            PickingListStatus.COMPLETED: [PickingListStatus.CANCELLED],
+            PickingListStatus.CANCELLED: []  # No transitions allowed from cancelled
+        }
 
-        try:
-            # Create a picking list
-            list_data = {
-                'name': f"Project {project_id} Picking List",
-                'description': f"Generated from Project {project_id}",
-                'status': PickingListStatus.DRAFT.name
-            }
+        if new_status not in allowed_transitions.get(current_status, []):
+            raise ValidationError(
+                f"Cannot transition from {current_status} to {new_status}"
+            )
 
-            picking_list = self.create_list(list_data)
-
-            # Dummy item data - in a real app, this would come from the project
-            item_data = {
-                'material_id': 1,
-                'required_quantity': 10,
-                'unit': 'pcs'
-            }
-
-            self.add_item(picking_list['id'], item_data)
-
-            return self.get_list_by_id(picking_list['id'])
-
-        except Exception as e:
-            self.logger.error(f"Error generating picking list from project {project_id}: {e}")
-            raise
-
-    def generate_picking_list_from_order(self, order_id: int) -> Dict[str, Any]:
+    def _serialize_picking_list(self, picking_list: PickingList) -> Dict[str, Any]:
         """
-        Generate a picking list from an sale.
+        Serialize a picking list to a dictionary.
 
         Args:
-            order_id: ID of the sale to generate from
+            picking_list: PickingList instance to serialize
 
         Returns:
-            Dict[str, Any]: Created picking list
-
-        Raises:
-            NotFoundError: If sale not found
+            Dictionary representation of the picking list
         """
-        # This is a placeholder implementation
-        # In a real app, you would:
-        # 1. Get the sale details
-        # 2. Extract materials needed
-        # 3. Create a picking list with those materials
+        result = {
+            "id": picking_list.id,
+            "sales_id": picking_list.sales_id,
+            "status": picking_list.status.name,
+            "created_at": picking_list.created_at.isoformat() if picking_list.created_at else None,
+            "completed_at": picking_list.completed_at.isoformat() if picking_list.completed_at else None
+        }
 
-        try:
-            # Create a picking list
-            list_data = {
-                'name': f"Order {order_id} Picking List",
-                'description': f"Generated from Order {order_id}",
-                'status': PickingListStatus.DRAFT.name
-            }
+        # Include items if they are loaded
+        if hasattr(picking_list, 'items') and picking_list.items is not None:
+            result["items"] = [self._serialize_picking_list_item(item) for item in picking_list.items]
 
-            picking_list = self.create_list(list_data)
+        return result
 
-            # Dummy item data - in a real app, this would come from the sale
-            item_data = {
-                'material_id': 1,
-                'required_quantity': 5,
-                'unit': 'pcs'
-            }
+    def _serialize_picking_list_item(self, item: PickingListItem) -> Dict[str, Any]:
+        """
+        Serialize a picking list item to a dictionary.
 
-            self.add_item(picking_list['id'], item_data)
+        Args:
+            item: PickingListItem instance to serialize
 
-            return self.get_list_by_id(picking_list['id'])
-
-        except Exception as e:
-            self.logger.error(f"Error generating picking list from sale {order_id}: {e}")
-            raise
+        Returns:
+            Dictionary representation of the picking list item
+        """
+        return {
+            "id": item.id,
+            "picking_list_id": item.picking_list_id,
+            "component_id": item.component_id if hasattr(item, 'component_id') else None,
+            "material_id": item.material_id if hasattr(item, 'material_id') else None,
+            "leather_id": item.leather_id if hasattr(item, 'leather_id') else None,
+            "hardware_id": item.hardware_id if hasattr(item, 'hardware_id') else None,
+            "quantity_ordered": item.quantity_ordered,
+            "quantity_picked": item.quantity_picked
+        }

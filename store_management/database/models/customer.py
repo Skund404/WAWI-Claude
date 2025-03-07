@@ -9,7 +9,7 @@ providing robust tracking of customer information and sales interactions.
 import logging
 import re
 from datetime import datetime
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Union
 
 from sqlalchemy import String, Text, DateTime, Boolean, Integer, ForeignKey
 from sqlalchemy.orm import relationship, Mapped, mapped_column
@@ -21,21 +21,29 @@ from database.models.enums import (
     CustomerTier,
     CustomerSource
 )
+from database.models.mixins import (
+    TimestampMixin,
+    ValidationMixin,
+    TrackingMixin
+)
 from utils.circular_import_resolver import (
-    register_lazy_import,
-    lazy_import
+    CircularImportResolver,
+    lazy_import,
+    register_lazy_import
 )
 from utils.enhanced_model_validator import (
-    ValidationError,
-    validate_not_empty,
-    ModelValidator
+    ModelValidator,
+    ValidationError
 )
 
 # Setup logger
 logger = logging.getLogger(__name__)
 
+# Lazy imports to resolve potential circular dependencies
+register_lazy_import('Sales', 'database.models.sales', 'Sales')
 
-class Customer(Base):
+
+class Customer(Base, TimestampMixin, ValidationMixin, TrackingMixin):
     """
     Comprehensive Customer model with advanced tracking and validation.
 
@@ -62,21 +70,23 @@ class Customer(Base):
         default=CustomerStatus.ACTIVE,
         nullable=False
     )
+    tier: Mapped[Optional[CustomerTier]] = mapped_column(
+        String(50),
+        nullable=True
+    )
+    source: Mapped[Optional[CustomerSource]] = mapped_column(
+        String(50),
+        nullable=True
+    )
+
+    # Notes and additional information
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Customer Preferences
     accepts_marketing: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     preferred_contact_method: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
 
-    # Relationships with lazy imports and loading
-    sales: Mapped[List["Sale"]] = relationship(
-        "Sale",
-        back_populates="customer",
-        lazy="selectin",
-        cascade="save-update, merge"
-    )
-
-    # Relationship with Sales model (previously named Order)
+    # Relationships with lazy loading and circular import resolution
     sales_records: Mapped[List["Sales"]] = relationship(
         "Sales",
         back_populates="customer",
@@ -96,22 +106,22 @@ class Customer(Base):
         """
         try:
             # Validate input data
-            self._validate_creation(kwargs)
+            self._validate_customer_data(kwargs)
 
             # Initialize base model
             super().__init__(**kwargs)
 
-            # Post-initialization validation
-            self._validate_instance()
+            # Additional post-initialization validation
+            self._post_init_validation()
 
         except (ValidationError, SQLAlchemyError) as e:
             logger.error(f"Customer initialization failed: {e}")
             raise ModelValidationError(f"Failed to create Customer: {str(e)}") from e
 
     @classmethod
-    def _validate_creation(cls, data: Dict[str, Any]) -> None:
+    def _validate_customer_data(cls, data: Dict[str, Any]) -> None:
         """
-        Validate customer creation data with comprehensive checks.
+        Comprehensive validation of customer creation data.
 
         Args:
             data (Dict[str, Any]): Customer creation data to validate
@@ -120,29 +130,62 @@ class Customer(Base):
             ValidationError: If validation fails
         """
         # Validate core required fields
-        validate_not_empty(data, 'first_name', 'First name is required')
-        validate_not_empty(data, 'last_name', 'Last name is required')
+        if not data.get('first_name'):
+            raise ValidationError("First name is required", "first_name")
+
+        if not data.get('last_name'):
+            raise ValidationError("Last name is required", "last_name")
 
         # Validate email if provided
-        if 'email' in data and data['email']:
-            try:
-                ModelValidator.validate_email(data['email'])
-            except ValidationError:
-                raise ValidationError("Invalid email format", "email")
+        if data.get('email'):
+            cls._validate_email(data['email'])
 
-        # Validate phone number format if provided
-        if 'phone' in data and data['phone']:
+        # Validate phone number if provided
+        if data.get('phone'):
             cls._validate_phone_number(data['phone'])
 
-    def _validate_instance(self) -> None:
+        # Validate customer status
+        if data.get('status'):
+            cls._validate_customer_status(data['status'])
+
+        # Validate customer tier if provided
+        if data.get('tier'):
+            cls._validate_customer_tier(data['tier'])
+
+        # Validate customer source if provided
+        if data.get('source'):
+            cls._validate_customer_source(data['source'])
+
+    def _post_init_validation(self) -> None:
         """
-        Perform additional validation after instance creation.
+        Additional validation after instance creation.
 
         Raises:
-            ValidationError: If instance validation fails
+            ValidationError: If post-initialization validation fails
         """
-        # Additional instance-level validations can be added here
-        pass
+        # Validate total sales records
+        if hasattr(self, 'sales_records'):
+            total_sales = len(self.sales_records)
+            # Example business logic: Update tier based on sales
+            if total_sales > 10:
+                self.tier = CustomerTier.VIP
+            elif total_sales > 5:
+                self.tier = CustomerTier.PREMIUM
+
+    @classmethod
+    def _validate_email(cls, email: str) -> None:
+        """
+        Validate email format using comprehensive regex.
+
+        Args:
+            email: Email address to validate
+
+        Raises:
+            ValidationError: If email is invalid
+        """
+        email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(email_regex, email):
+            raise ValidationError("Invalid email format", "email")
 
     @classmethod
     def _validate_phone_number(cls, phone: str) -> None:
@@ -150,15 +193,68 @@ class Customer(Base):
         Validate phone number format.
 
         Args:
-            phone (str): Phone number to validate
+            phone: Phone number to validate
 
         Raises:
             ValidationError: If phone number is invalid
         """
-        # Basic phone number validation (adjust regex as needed)
-        phone_pattern = re.compile(r'^\+?1?\d{9,15}$')
-        if not phone_pattern.match(phone):
+        # Robust phone number validation
+        phone_regex = r'^\+?1?\d{9,15}$'
+        cleaned_phone = re.sub(r'\D', '', phone)
+
+        if not re.match(phone_regex, cleaned_phone):
             raise ValidationError("Invalid phone number format", "phone")
+
+    @classmethod
+    def _validate_customer_status(cls, status: Union[str, CustomerStatus]) -> None:
+        """
+        Validate customer status.
+
+        Args:
+            status: Customer status to validate
+
+        Raises:
+            ValidationError: If status is invalid
+        """
+        if isinstance(status, str):
+            try:
+                status = CustomerStatus[status.upper()]
+            except KeyError:
+                raise ValidationError("Invalid customer status", "status")
+
+    @classmethod
+    def _validate_customer_tier(cls, tier: Union[str, CustomerTier]) -> None:
+        """
+        Validate customer tier.
+
+        Args:
+            tier: Customer tier to validate
+
+        Raises:
+            ValidationError: If tier is invalid
+        """
+        if isinstance(tier, str):
+            try:
+                tier = CustomerTier[tier.upper()]
+            except KeyError:
+                raise ValidationError("Invalid customer tier", "tier")
+
+    @classmethod
+    def _validate_customer_source(cls, source: Union[str, CustomerSource]) -> None:
+        """
+        Validate customer source.
+
+        Args:
+            source: Customer source to validate
+
+        Raises:
+            ValidationError: If source is invalid
+        """
+        if isinstance(source, str):
+            try:
+                source = CustomerSource[source.upper()]
+            except KeyError:
+                raise ValidationError("Invalid customer source", "source")
 
     def full_name(self) -> str:
         """
@@ -174,33 +270,27 @@ class Customer(Base):
         Update customer's preferred contact method.
 
         Args:
-            method (str): Preferred contact method
+            method: Preferred contact method
 
         Raises:
-            ModelValidationError: If update fails
+            ValidationError: If method is invalid
         """
-        try:
-            # Validate contact method
-            valid_methods = ['email', 'phone', 'mail', 'sms']
-            if method.lower() not in valid_methods:
-                raise ValidationError(
-                    f"Invalid contact method. Must be one of {valid_methods}",
-                    "preferred_contact_method"
-                )
+        valid_methods = ['email', 'phone', 'mail', 'sms']
+        if method.lower() not in valid_methods:
+            raise ValidationError(
+                f"Invalid contact method. Must be one of {valid_methods}",
+                "preferred_contact_method"
+            )
 
-            self.preferred_contact_method = method.lower()
-            logger.info(f"Updated contact preference for {self.full_name()}")
-
-        except Exception as e:
-            logger.error(f"Failed to update contact preference: {e}")
-            raise ModelValidationError(f"Contact preference update failed: {str(e)}")
+        self.preferred_contact_method = method.lower()
+        logger.info(f"Updated contact preference for {self.full_name()}")
 
     def toggle_marketing_consent(self, consent: bool) -> None:
         """
         Toggle marketing communication consent.
 
         Args:
-            consent (bool): Whether to accept marketing communications
+            consent: Whether to accept marketing communications
         """
         self.accepts_marketing = consent
         logger.info(
@@ -216,12 +306,15 @@ class Customer(Base):
             str: Detailed customer representation
         """
         return (
-            f"<Customer(id={self.id}, "
+            f"<Customer("
+            f"id={self.id}, "
             f"name='{self.full_name()}', "
             f"email='{self.email or 'N/A'}', "
-            f"status={self.status})>"
+            f"status={self.status.name}, "
+            f"tier={self.tier.name if self.tier else 'N/A'}"
+            f")>"
         )
 
 
-# Explicitly return the Customer class for import
-__all__ = ['Customer']
+# Register for lazy import resolution
+register_lazy_import('Customer', 'database.models.customer', 'Customer')

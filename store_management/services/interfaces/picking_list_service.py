@@ -1,196 +1,143 @@
+# services/interfaces/picking_list_service.py
 """
-services/interfaces/picking_list_service.py - Interface for Picking List Service
+Interface for Picking List Service in the leatherworking application.
 """
+
 from abc import ABC, abstractmethod
-from database.models.picking_list import PickingListStatus
 from typing import Any, Dict, List, Optional
+from datetime import datetime
+from database.models.enums import PickingListStatus
+from database.models.picking_list import PickingList, PickingListItem
 
 
 class IPickingListService(ABC):
-    """Interface for the picking list service which manages picking lists and items."""
+    """
+    Abstract base class defining the interface for Picking List Service.
+    Handles operations related to picking lists for material and resource collection.
+    """
 
     @abstractmethod
-    def get_all_lists(self) -> List[Dict[str, Any]]:
+    def create_picking_list(
+        self,
+        sales_id: int,
+        status: PickingListStatus = PickingListStatus.PENDING,
+        **kwargs
+    ) -> PickingList:
         """
-        Get all picking lists.
-
-        Returns:
-            List[Dict[str, Any]]: List of picking lists data
-        """
-        pass
-
-    @abstractmethod
-    def get_list_by_id(self, list_id: int) -> Dict[str, Any]:
-        """
-        Get a picking list by ID.
+        Create a new picking list for a sales order.
 
         Args:
-            list_id: ID of the picking list to retrieve
+            sales_id (int): ID of the associated sales order
+            status (PickingListStatus): Initial status of the picking list
+            **kwargs: Additional attributes for the picking list
 
         Returns:
-            Dict[str, Any]: Picking list data
-
-        Raises:
-            NotFoundError: If picking list not found
+            PickingList: The created picking list
         """
         pass
 
     @abstractmethod
-    def create_list(self, list_data: Dict[str, Any]) -> Dict[str, Any]:
+    def get_picking_list_by_id(self, picking_list_id: int) -> PickingList:
         """
-        Create a new picking list.
+        Retrieve a picking list by its ID.
 
         Args:
-            list_data: Picking list data
+            picking_list_id (int): ID of the picking list
 
         Returns:
-            Dict[str, Any]: Created picking list
-
-        Raises:
-            ValidationError: If data is invalid
+            PickingList: The retrieved picking list
         """
         pass
 
     @abstractmethod
-    def update_list(self, list_data: Dict[str, Any]) -> Dict[str, Any]:
+    def get_picking_lists_by_status(
+        self,
+        status: PickingListStatus
+    ) -> List[PickingList]:
         """
-        Update an existing picking list.
+        Retrieve picking lists by their status.
 
         Args:
-            list_data: Picking list data including ID
+            status (PickingListStatus): Status to filter picking lists
 
         Returns:
-            Dict[str, Any]: Updated picking list
-
-        Raises:
-            NotFoundError: If picking list not found
-            ValidationError: If data is invalid
+            List[PickingList]: List of picking lists matching the status
         """
         pass
 
     @abstractmethod
-    def delete_list(self, list_id: int) -> bool:
+    def update_picking_list_status(
+        self,
+        picking_list_id: int,
+        status: PickingListStatus
+    ) -> PickingList:
         """
-        Delete a picking list.
+        Update the status of a picking list.
 
         Args:
-            list_id: ID of the picking list to delete
+            picking_list_id (int): ID of the picking list
+            status (PickingListStatus): New status for the picking list
 
         Returns:
-            bool: True if successfully deleted
-
-        Raises:
-            NotFoundError: If picking list not found
+            PickingList: The updated picking list
         """
         pass
 
     @abstractmethod
-    def get_list_items(self, list_id: int) -> List[Dict[str, Any]]:
-        """
-        Get all items for a picking list.
-
-        Args:
-            list_id: ID of the picking list
-
-        Returns:
-            List[Dict[str, Any]]: List of picking list items
-
-        Raises:
-            NotFoundError: If picking list not found
-        """
-        pass
-
-    @abstractmethod
-    def add_item(self, list_id: int, item_data: Dict[str, Any]) -> Dict[str, Any]:
+    def add_picking_list_item(
+        self,
+        picking_list_id: int,
+        component_id: Optional[int] = None,
+        material_id: Optional[int] = None,
+        leather_id: Optional[int] = None,
+        hardware_id: Optional[int] = None,
+        quantity_ordered: int = 1
+    ) -> PickingListItem:
         """
         Add an item to a picking list.
 
         Args:
-            list_id: ID of the picking list
-            item_data: Item data to add
+            picking_list_id (int): ID of the picking list
+            component_id (Optional[int]): ID of the component (if applicable)
+            material_id (Optional[int]): ID of the material (if applicable)
+            leather_id (Optional[int]): ID of the leather (if applicable)
+            hardware_id (Optional[int]): ID of the hardware (if applicable)
+            quantity_ordered (int): Quantity of the item ordered
 
         Returns:
-            Dict[str, Any]: Added item
-
-        Raises:
-            NotFoundError: If picking list not found
-            ValidationError: If data is invalid
+            PickingListItem: The created picking list item
         """
         pass
 
     @abstractmethod
-    def update_item(self, item_data: Dict[str, Any]) -> Dict[str, Any]:
+    def update_picking_list_item(
+        self,
+        picking_list_item_id: int,
+        quantity_picked: Optional[int] = None,
+        **kwargs
+    ) -> PickingListItem:
         """
         Update a picking list item.
 
         Args:
-            item_data: Item data including ID
+            picking_list_item_id (int): ID of the picking list item
+            quantity_picked (Optional[int]): Quantity actually picked
+            **kwargs: Additional attributes to update
 
         Returns:
-            Dict[str, Any]: Updated item
-
-        Raises:
-            NotFoundError: If item not found
-            ValidationError: If data is invalid
+            PickingListItem: The updated picking list item
         """
         pass
 
     @abstractmethod
-    def remove_item(self, item_id: int) -> bool:
+    def complete_picking_list(self, picking_list_id: int) -> PickingList:
         """
-        Remove an item from a picking list.
+        Mark a picking list as completed.
 
         Args:
-            item_id: ID of the item to remove
+            picking_list_id (int): ID of the picking list to complete
 
         Returns:
-            bool: True if successfully removed
-
-        Raises:
-            NotFoundError: If item not found
-        """
-        pass
-
-    @abstractmethod
-    def mark_item_picked(self, item_id: int, quantity: float) -> Dict[str, Any]:
-        """
-        Mark a picking list item as picked with the specified quantity.
-
-        Args:
-            item_id: ID of the item to mark
-            quantity: Quantity picked
-
-        Returns:
-            Dict[str, Any]: Updated item
-
-        Raises:
-            NotFoundError: If item not found
-            ValidationError: If quantity is invalid
-        """
-        pass
-
-    @abstractmethod
-    def filter_lists_by_status(self, status: PickingListStatus) -> List[Dict[str, Any]]:
-        """
-        Filter picking lists by status.
-
-        Args:
-            status: Status to filter by
-
-        Returns:
-            List[Dict[str, Any]]: Filtered picking lists
-        """
-        pass
-
-    @abstractmethod
-    def search_lists(self, search_term: str) -> List[Dict[str, Any]]:
-        """
-        Search picking lists by name or description.
-
-        Args:
-            search_term: Term to search for
-
-        Returns:
-            List[Dict[str, Any]]: Matching picking lists
+            PickingList: The completed picking list
         """
         pass
