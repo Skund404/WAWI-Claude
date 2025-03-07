@@ -6,22 +6,18 @@ Provides comprehensive mixin classes to extend model functionality
 with reusable, composable behaviors for database entities.
 """
 
-import abc
 import uuid
 from datetime import datetime
-from enum import Enum
-from typing import Any, Optional, Dict, List, Union
+from typing import Any, Optional, Dict, List, Union, Type
 
-from sqlalchemy import Column, DateTime, Float, String, Boolean
+from sqlalchemy import Column, DateTime, Float, String, Boolean, Enum as SAEnum
 from sqlalchemy.orm import declared_attr
 from sqlalchemy.sql import func
 from sqlalchemy.dialects.sqlite import TEXT  # For SQLite compatibility
 
-from database.models.enums import (
-    QualityGrade,
-    MaterialType,
-    InventoryStatus
-)
+# Setup logger
+import logging
+logger = logging.getLogger(__name__)
 
 
 class TimestampMixin:
@@ -59,7 +55,7 @@ class TimestampMixin:
         )
 
 
-class ValidationMixin(abc.ABC):
+class ValidationMixin:
     """
     Advanced validation mixin with comprehensive validation strategies.
     """
@@ -91,7 +87,7 @@ class ValidationMixin(abc.ABC):
     def validate_enum(
             cls,
             value: Any,
-            enum_class: Type[Enum],
+            enum_class: Type,
             field_name: str
     ) -> Optional[str]:
         """
@@ -121,12 +117,16 @@ class CostingMixin:
     unit_cost = Column(Float, default=0.0, nullable=False)
     total_cost = Column(Float, default=0.0, nullable=False)
 
-    # Quality and pricing attributes
-    quality_grade = Column(
-        Enum(QualityGrade),
-        default=QualityGrade.STANDARD,
-        nullable=False
-    )
+    @declared_attr
+    def quality_grade(cls):
+        """Adds quality_grade column using declared_attr."""
+        # Import inside method to avoid circular imports
+        from database.models.enums import QualityGrade
+        return Column(
+            SAEnum(QualityGrade),
+            default=QualityGrade.STANDARD,
+            nullable=False
+        )
 
     # Cost calculation methods
     def calculate_total_cost(
@@ -175,17 +175,26 @@ class TrackingMixin:
         default=lambda: str(uuid.uuid4())
     )
 
-    # Inventory and status tracking
-    material_type = Column(
-        Enum(MaterialType),
-        nullable=True
-    )
+    @declared_attr
+    def material_type(cls):
+        """Adds material_type column using declared_attr."""
+        # Import inside method to avoid circular imports
+        from database.models.enums import MaterialType
+        return Column(
+            SAEnum(MaterialType),
+            nullable=True
+        )
 
-    inventory_status = Column(
-        Enum(InventoryStatus),
-        default=InventoryStatus.IN_STOCK,
-        nullable=False
-    )
+    @declared_attr
+    def inventory_status(cls):
+        """Adds inventory_status column using declared_attr."""
+        # Import inside method to avoid circular imports
+        from database.models.enums import InventoryStatus
+        return Column(
+            SAEnum(InventoryStatus),
+            default=InventoryStatus.IN_STOCK,
+            nullable=False
+        )
 
     # Tracking methods
     def generate_tracking_id(self) -> str:
@@ -205,7 +214,7 @@ class TrackingMixin:
 
     def update_inventory_status(
             self,
-            new_status: InventoryStatus,
+            new_status,  # Type hint removed to avoid circular import
             threshold: Optional[float] = None
     ) -> None:
         """

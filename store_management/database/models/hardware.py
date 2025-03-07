@@ -14,7 +14,7 @@ from datetime import datetime
 from typing import Dict, Any, Optional, List, Union, Type
 
 from sqlalchemy import Column, Enum, Float, ForeignKey, Integer, String, Text, Boolean
-from sqlalchemy.orm import relationship, Mapped, mapped_column
+from sqlalchemy.orm import relationship
 from sqlalchemy.exc import SQLAlchemyError
 
 from database.models.base import Base, ModelValidationError
@@ -35,14 +35,7 @@ from database.models.mixins import (
 )
 from utils.circular_import_resolver import (
     lazy_import,
-    register_lazy_import,
-    CircularImportResolver
-)
-from utils.enhanced_model_validator import (
-    ModelValidator,
-    ValidationError,
-    validate_not_empty,
-    validate_positive_number
+    register_lazy_import
 )
 
 # Setup logger
@@ -54,6 +47,92 @@ register_lazy_import('PurchaseItem', 'database.models.purchase', 'PurchaseItem')
 register_lazy_import('PickingListItem', 'database.models.picking_list', 'PickingListItem')
 register_lazy_import('HardwareInventory', 'database.models.hardware_inventory', 'HardwareInventory')
 register_lazy_import('ComponentHardware', 'database.models.components', 'ComponentHardware')
+register_lazy_import('HardwareTransaction', 'database.models.transaction', 'HardwareTransaction')
+
+
+# Validation utility functions
+def validate_not_empty(data: Dict[str, Any], field_name: str, message: str = None):
+    """
+    Validate that a field is not empty.
+
+    Args:
+        data: Data dictionary to validate
+        field_name: Field to check
+        message: Optional custom error message
+
+    Raises:
+        ValidationError: If the field is empty
+    """
+    if field_name not in data or data[field_name] is None:
+        raise ValidationError(message or f"{field_name} cannot be empty")
+
+
+def validate_positive_number(data: Dict[str, Any], field_name: str, allow_zero: bool = False, message: str = None):
+    """
+    Validate that a field is a positive number.
+
+    Args:
+        data: Data dictionary to validate
+        field_name: Field to check
+        allow_zero: Whether zero is considered valid
+        message: Optional custom error message
+
+    Raises:
+        ValidationError: If the field is not a positive number
+    """
+    if field_name not in data:
+        return
+
+    value = data[field_name]
+
+    if value is None:
+        return
+
+    try:
+        number_value = float(value)
+        if allow_zero:
+            if number_value < 0:
+                raise ValidationError(message or f"{field_name} must be a non-negative number")
+        else:
+            if number_value <= 0:
+                raise ValidationError(message or f"{field_name} must be a positive number")
+    except (ValueError, TypeError):
+        raise ValidationError(message or f"{field_name} must be a valid number")
+
+
+class ValidationError(Exception):
+    """Exception raised for validation errors."""
+    pass
+
+
+class ModelValidator:
+    """Utility class for model validation."""
+
+    @staticmethod
+    def validate_enum(value: Any, enum_class: Type, field_name: str) -> None:
+        """
+        Validate that a value is a valid enum member.
+
+        Args:
+            value: Value to validate
+            enum_class: Enum class to validate against
+            field_name: Name of the field being validated
+
+        Raises:
+            ValidationError: If validation fails
+        """
+        try:
+            if not isinstance(value, enum_class):
+                # Try to convert string to enum
+                if isinstance(value, str):
+                    try:
+                        enum_class[value.upper()]
+                        return
+                    except (KeyError, AttributeError):
+                        pass
+                raise ValidationError(f"{field_name} must be a valid {enum_class.__name__}")
+        except Exception:
+            raise ValidationError(f"Invalid {field_name} value")
 
 
 class Hardware(Base, TimestampMixin, ValidationMixin, CostingMixin, TrackingMixin):
@@ -66,31 +145,31 @@ class Hardware(Base, TimestampMixin, ValidationMixin, CostingMixin, TrackingMixi
     __tablename__ = 'hardwares'
 
     # Basic attributes
-    name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    name = Column(String(255), nullable=False, index=True)
+    description = Column(Text, nullable=True)
 
     # Hardware-specific attributes
-    hardware_type: Mapped[HardwareType] = mapped_column(Enum(HardwareType), nullable=False)
-    material: Mapped[HardwareMaterial] = mapped_column(Enum(HardwareMaterial), nullable=False)
-    finish: Mapped[Optional[HardwareFinish]] = mapped_column(Enum(HardwareFinish), nullable=True)
+    hardware_type = Column(Enum(HardwareType), nullable=False)
+    material = Column(Enum(HardwareMaterial), nullable=False)
+    finish = Column(Enum(HardwareFinish), nullable=True)
 
     # Inventory attributes
-    sku: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, unique=True, index=True)
-    cost: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
-    price: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    sku = Column(String(50), nullable=True, unique=True, index=True)
+    cost = Column(Float, default=0.0, nullable=False)
+    price = Column(Float, default=0.0, nullable=False)
 
     # Measurement attributes
-    unit: Mapped[MeasurementUnit] = mapped_column(
+    unit = Column(
         Enum(MeasurementUnit),
         default=MeasurementUnit.PIECE,
         nullable=False
     )
 
     # Quality tracking
-    quality: Mapped[Optional[QualityGrade]] = mapped_column(Enum(QualityGrade), nullable=True)
+    quality = Column(Enum(QualityGrade), nullable=True)
 
     # Supplier relationship
-    supplier_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey('suppliers.id'), nullable=True)
+    supplier_id = Column(Integer, ForeignKey('suppliers.id'), nullable=True)
 
     # Relationships - following the ER diagram
     supplier = relationship("Supplier", back_populates="hardware")
@@ -98,6 +177,7 @@ class Hardware(Base, TimestampMixin, ValidationMixin, CostingMixin, TrackingMixi
     component_hardwares = relationship("ComponentHardware", back_populates="hardware")
     inventories = relationship("HardwareInventory", back_populates="hardware")
     picking_list_items = relationship("PickingListItem", back_populates="hardware")
+    transactions = relationship("HardwareTransaction", back_populates="hardware")
 
     def __init__(self, **kwargs):
         """
@@ -226,7 +306,7 @@ class Hardware(Base, TimestampMixin, ValidationMixin, CostingMixin, TrackingMixi
         """
         try:
             # Import the HardwareInventory model
-            HardwareInventory = lazy_import('database.models.hardware_inventory', 'HardwareInventory')
+            HardwareInventory = lazy_import('HardwareInventory')
 
             # Find or create inventory record
             inventory = None

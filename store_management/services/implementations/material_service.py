@@ -1,562 +1,357 @@
-# services/implementations/material_service.py
-import logging
-import uuid
-from datetime import datetime
-from decimal import Decimal
-from sqlalchemy import or_, select, inspect, text
-from typing import Any, Dict, List, Optional, Union, Tuple
+# database/services/implementations/material_service.py
+"""
+Service implementation for managing Material entities and their relationships.
+"""
 
-from database.models.enums import InventoryStatus, MaterialType, TransactionType
+from typing import Any, Dict, List, Optional, Union
+import uuid
+import logging
+
+from database.models.enums import (
+    MaterialType,
+    MaterialQualityGrade,
+    InventoryStatus,
+    TransactionType
+)
 from database.models.material import Material
-from database.models.leather import Leather
-from database.models.hardware import Hardware
-from database.models.base import ModelValidationError
-from database.models.transaction import MaterialTransaction, LeatherTransaction, HardwareTransaction
+from database.models.transaction import MaterialTransaction
+from database.models.material_inventory import MaterialInventory
 from database.repositories.material_repository import MaterialRepository
-from database.repositories.leather_repository import LeatherRepository
-from database.repositories.hardware_repository import HardwareRepository
+from database.repositories.material_inventory_repository import MaterialInventoryRepository
 from database.repositories.transaction_repository import TransactionRepository
 from database.sqlalchemy.session import get_db_session
 
-from services.base_service import BaseService, NotFoundError, ValidationError, ServiceError
-from services.interfaces.material_service import IMaterialService, MaterialType as IMaterialType
-
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
-
-from utils.logger import log_debug, log_error, log_info
+from services.base_service import BaseService, NotFoundError, ValidationError
+from services.interfaces.material_service import IMaterialService
 
 
 class MaterialService(BaseService[Material], IMaterialService):
-    """Service for material-related operations."""
+    """
+    Service for managing Material-related operations.
 
-    def __init__(self, session: Session):
-        """Initialize the Material Service.
+    Handles creation, retrieval, updating, and deletion of materials,
+    along with inventory and transaction management.
+    """
+
+    def __init__(
+            self,
+            session=None,
+            material_repository: Optional[MaterialRepository] = None,
+            material_inventory_repository: Optional[MaterialInventoryRepository] = None,
+            transaction_repository: Optional[TransactionRepository] = None
+    ):
+        """
+        Initialize the Material Service.
 
         Args:
-            session (Session): SQLAlchemy database session
+            session: SQLAlchemy database session
+            material_repository: Repository for material data access
+            material_inventory_repository: Repository for material inventory
+            transaction_repository: Repository for material transactions
         """
-        super().__init__()
-        self._session = session
-        self._repository = MaterialRepository(session)
-        self._logger = logging.getLogger(__name__)
+        self.session = session or get_db_session()
+        self.material_repository = material_repository or MaterialRepository(self.session)
+        self.material_inventory_repository = (
+                material_inventory_repository or
+                MaterialInventoryRepository(self.session)
+        )
+        self.transaction_repository = (
+                transaction_repository or
+                TransactionRepository(self.session)
+        )
+        self.logger = logging.getLogger(__name__)
 
-        # Initialize additional repositories for different material types
-        try:
-            self._leather_repository = LeatherRepository(session)
-            self._hardware_repository = HardwareRepository(session)
-            self._transaction_repository = TransactionRepository(session)
-            self._logger.info("MaterialService initialized with all repositories")
-        except Exception as e:
-            self._logger.warning(f"Could not initialize all repositories: {e}")
-
-    def _ensure_session_active(self) -> Tuple[Session, bool]:
+    def create_material(
+            self,
+            name: str,
+            material_type: MaterialType,
+            quality_grade: MaterialQualityGrade,
+            supplier_id: Optional[str] = None,
+            **kwargs
+    ) -> Material:
         """
-        Ensure the session is active, creating a new one if needed.
+        Create a new material.
+
+        Args:
+            name: Material name
+            material_type: Type of material
+            quality_grade: Quality grade of the material
+            supplier_id: Optional supplier identifier
+            **kwargs: Additional material attributes
 
         Returns:
-            Tuple[Session, bool]: A tuple containing the active session and a boolean
-                                 indicating if a new session was created
+            Created Material instance
+
+        Raises:
+            ValidationError: If material creation fails validation
         """
         try:
-            # Check if session exists and is active
-            if not hasattr(self, '_session') or self._session is None:
-                self._logger.warning("Session is None, creating a new one")
-                self._session = get_db_session()
-                return self._session, True
+            # Validate required fields
+            if not name or not material_type or not quality_grade:
+                raise ValidationError("Missing required material attributes")
 
-            # Test session connection
-            try:
-                # Simple query to test connection
-                self._session.execute(text("SELECT 1")).scalar()
-                return self._session, False
-            except Exception as e:
-                self._logger.warning(f"Session connection test failed: {e}, creating a new one")
-                # Close old session if possible
-                try:
-                    self._session.close()
-                except:
-                    pass
-                # Create new session
-                self._session = get_db_session()
-                # Update repositories with new session
-                self._repository.session = self._session
-                if hasattr(self, '_leather_repository'):
-                    self._leather_repository.session = self._session
-                if hasattr(self, '_hardware_repository'):
-                    self._hardware_repository.session = self._session
-                if hasattr(self, '_transaction_repository'):
-                    self._transaction_repository.session = self._session
-                return self._session, True
-        except Exception as e:
-            self._logger.error(f"Error ensuring active session: {e}")
-            # Return a new session as fallback
-            return get_db_session(), True
+            # Generate a unique identifier
+            material_id = str(uuid.uuid4())
 
-    def debug_table_schema(self, table_name):
-        """
-        Debug the schema of a specific table, especially checking column types and constraints.
+            # Create material
+            material_data = {
+                'id': material_id,
+                'name': name,
+                'type': material_type,
+                'quality': quality_grade,
+                'supplier_id': supplier_id,
+                **kwargs
+            }
 
-        Args:
-            table_name: Name of the table to inspect
-        """
-        session, is_new_session = self._ensure_session_active()
-        logger = logging.getLogger(__name__)
+            material = Material(**material_data)
 
-        try:
-            # Use SQLAlchemy inspector
-            inspector = inspect(session.bind)
+            # Save material
+            with self.session:
+                self.session.add(material)
+                self.session.commit()
+                self.session.refresh(material)
 
-            # Get columns
-            columns = inspector.get_columns(table_name)
-            logger.info(f"Columns in {table_name}:")
-            for col in columns:
-                logger.info(f"  {col['name']}: {col['type']} (nullable: {col.get('nullable', 'Unknown')})")
-
-            # Try to get table constraints
-            try:
-                foreign_keys = inspector.get_foreign_keys(table_name)
-                logger.info("Foreign Keys:")
-                for fk in foreign_keys:
-                    logger.info(f"  {fk}")
-            except Exception as fk_error:
-                logger.warning(f"Could not retrieve foreign keys: {fk_error}")
-
-            # Direct SQL inspection for more details
-            try:
-                # Get detailed schema information
-                result = session.execute(text(f"PRAGMA table_info({table_name})"))
-                logger.info(f"PRAGMA table_info for {table_name}:")
-                for row in result:
-                    logger.info(f"  {row}")
-            except Exception as sql_error:
-                logger.warning(f"Could not execute PRAGMA for {table_name}: {sql_error}")
+            self.logger.info(f"Created material: {material.name}")
+            return material
 
         except Exception as e:
-            logger.error(f"Error inspecting {table_name} schema: {e}")
-        finally:
-            # Close the session if we created a new one
-            if is_new_session:
-                try:
-                    session.close()
-                except:
-                    pass
+            self.logger.error(f"Error creating material: {str(e)}")
+            raise ValidationError(f"Material creation failed: {str(e)}")
 
-    # Existing methods remain the same...
-    def create(self, data: Dict[str, Any]) -> Any:
-        """Create a new material.
-
-        Args:
-            data: Material creation data
-
-        Returns:
-            Created material ID
+    def get_material_by_id(self, material_id: str) -> Material:
         """
-        return self.create_material(data)
-
-    def get_by_id(self, material_id: str) -> Optional[Dict[str, Any]]:
-        """Get material by ID.
+        Retrieve a material by its ID.
 
         Args:
-            material_id: ID of the material
+            material_id: Unique identifier of the material
 
         Returns:
-            Material data or None if not found
+            Material instance
+
+        Raises:
+            NotFoundError: If material is not found
         """
         try:
-            return self.get_material_by_id(int(material_id))
-        except ValueError:
-            raise ValidationError(f"Invalid material ID: {material_id}")
-
-    def update(self, material_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Update an existing material.
-
-        Args:
-            material_id: ID of the material
-            updates: Update data
-
-        Returns:
-            Updated material data or None if not found
-        """
-        try:
-            return self.update_material(int(material_id), updates)
-        except ValueError:
-            raise ValidationError(f"Invalid material ID: {material_id}")
-
-    def delete(self, material_id: str) -> bool:
-        """Delete a material.
-
-        Args:
-            material_id: ID of the material
-
-        Returns:
-            True if successful, False otherwise
-        """
-        try:
-            return self.delete_material(int(material_id))
-        except ValueError:
-            raise ValidationError(f"Invalid material ID: {material_id}")
-
-    def get_materials(self, material_type=None, **kwargs):
-        """
-        Get materials with the given material type and optional filters.
-
-        Args:
-            material_type: The type of material to filter by.
-            **kwargs: Additional filters to apply.
-
-        Returns:
-            List of materials matching the filters.
-        """
-        session, is_new_session = self._ensure_session_active()
-
-        try:
-            # Debug table schema before query
-            self.debug_table_schema('materials')
-
-            self._logger.info(f"get_materials called with material_type={material_type}")
-
-            # Build filter conditions based on keyword arguments
-            conditions = []
-
-            # Handle material_type parameter (either as positional or keyword arg)
-            if material_type is not None:
-                # Handle different ways material_type might be provided
-                if hasattr(material_type, 'name'):
-                    # It's an enum object, use its name
-                    material_type_value = material_type.name
-                    self._logger.info(f"Using material_type enum name: {material_type_value}")
-                else:
-                    # It's something else (string, etc.), use it directly
-                    material_type_value = material_type
-                    self._logger.info(f"Using material_type value directly: {material_type_value}")
-
-                conditions.append(Material.material_type == material_type_value)
-
-            # Create the base query
-            query = select(Material)
-
-            # Apply filters if any
-            if conditions:
-                query = query.where(*conditions)
-
-            # Execute the query
-            materials = session.execute(query).scalars().all()
-            self._logger.info(f"Found {len(materials)} materials")
-
-            # Convert materials to dictionaries with serialized enum values
-            result = []
-            for material in materials:
-                material_dict = self.to_dict(material)
-
-                # Serialize enum values
-                for key, value in material_dict.items():
-                    material_dict[key] = self._serialize_enum_value(value)
-
-                result.append(material_dict)
-
-            return result
-
-        except SQLAlchemyError as e:
-            # Log detailed SQLAlchemy error
-            self._logger.error(f"Database error in get_materials: {e}")
-            # Return empty list instead of raising exception to prevent UI crashes
-            return []
-        except Exception as e:
-            # Log unexpected errors
-            self._logger.error(f"Unexpected error in get_materials: {e}")
-            # Return empty list instead of raising exception
-            return []
-        finally:
-            # Close the session if we created a new one
-            if is_new_session:
-                try:
-                    session.close()
-                except:
-                    pass
-
-    def _serialize_enum_value(self, value):
-        """
-        Safely serialize enum values or return the original value.
-
-        Args:
-            value: The value to serialize
-
-        Returns:
-            Serialized value (enum name or original value)
-        """
-        try:
-            # If it's an enum, return its name
-            if hasattr(value, 'name'):
-                return value.name
-            # If it's an enum-like object with a string representation
-            elif hasattr(value, '__str__'):
-                return str(value)
-            # Return the original value if no special handling is needed
-            return value
-        except Exception as e:
-            self._logger.warning(f"Error serializing enum value: {e}")
-            return str(value)
-
-    # Implement the missing abstract methods that were causing the error
-
-    def calculate_material_cost(self, material_id: int, quantity: float, material_type=None) -> Decimal:
-        """
-        Calculate the cost of a given quantity of material.
-
-        Args:
-            material_id: ID of the material
-            quantity: Quantity of the material
-            material_type: Type of the material
-
-        Returns:
-            Total cost of the specified quantity of material
-        """
-        session, is_new_session = self._ensure_session_active()
-
-        try:
-            self._logger.info(
-                f"Calculating cost for material_id={material_id}, quantity={quantity}, type={material_type}")
-
-            # Try to get the material
-            material = None
-
-            # Query the appropriate repository based on material_type
-            if material_type and material_type == IMaterialType.LEATHER:
-                if hasattr(self, '_leather_repository'):
-                    self._leather_repository.session = session
-                    material = self._leather_repository.get_by_id(material_id)
-            elif material_type and material_type == IMaterialType.HARDWARE:
-                if hasattr(self, '_hardware_repository'):
-                    self._hardware_repository.session = session
-                    material = self._hardware_repository.get_by_id(material_id)
-            else:
-                # Default to generic material
-                self._repository.session = session
-                material = self._repository.get_by_id(material_id)
-
+            material = self.material_repository.get(material_id)
             if not material:
-                self._logger.warning(f"Material not found: id={material_id}, type={material_type}")
-                return Decimal('0.00')
-
-            # Calculate cost based on unit price and quantity
-            unit_price = getattr(material, 'unit_price', Decimal('0.00'))
-            if not isinstance(unit_price, Decimal):
-                unit_price = Decimal(str(unit_price) if unit_price is not None else '0.00')
-
-            total_cost = unit_price * Decimal(str(quantity))
-            self._logger.info(f"Calculated cost: {total_cost} (unit_price={unit_price} * quantity={quantity})")
-
-            return total_cost
-
+                raise NotFoundError(f"Material with ID {material_id} not found")
+            return material
         except Exception as e:
-            self._logger.error(f"Error calculating material cost: {e}")
-            return Decimal('0.00')
-        finally:
-            # Close the session if we created a new one
-            if is_new_session:
-                try:
-                    session.close()
-                except:
-                    pass
+            self.logger.error(f"Error retrieving material: {str(e)}")
+            raise NotFoundError(f"Material retrieval failed: {str(e)}")
 
-    def get_material_transactions(self, material_id: int, material_type=None, start_date=None, end_date=None) -> List:
+    def update_material(
+            self,
+            material_id: str,
+            **update_data: Dict[str, Any]
+    ) -> Material:
         """
-        Get a list of transactions for a specific material.
+        Update an existing material.
 
         Args:
-            material_id: ID of the material
-            material_type: Type of the material
-            start_date: Optional start date for filtering transactions
-            end_date: Optional end date for filtering transactions
+            material_id: Unique identifier of the material
+            update_data: Dictionary of fields to update
 
         Returns:
-            List of transactions for the specified material
+            Updated Material instance
+
+        Raises:
+            NotFoundError: If material is not found
+            ValidationError: If update fails validation
         """
-        session, is_new_session = self._ensure_session_active()
-
         try:
-            self._logger.info(f"Getting transactions for material_id={material_id}, type={material_type}")
+            # Retrieve existing material
+            material = self.get_material_by_id(material_id)
 
-            # Prepare filters
-            filters = {}
+            # Validate update data
+            if 'type' in update_data and not isinstance(update_data['type'], MaterialType):
+                raise ValidationError("Invalid material type")
 
-            if start_date:
-                filters["start_date"] = start_date
+            if 'quality' in update_data and not isinstance(update_data['quality'], MaterialQualityGrade):
+                raise ValidationError("Invalid material quality grade")
 
-            if end_date:
-                filters["end_date"] = end_date
+            # Update material attributes
+            for key, value in update_data.items():
+                setattr(material, key, value)
 
-            # If transaction repository doesn't exist, return empty list
-            if not hasattr(self, '_transaction_repository'):
-                self._logger.warning("Transaction repository not initialized")
-                return []
+            # Save updates
+            with self.session:
+                self.session.add(material)
+                self.session.commit()
+                self.session.refresh(material)
 
-            # Update transaction repository session
-            self._transaction_repository.session = session
-
-            # Query the appropriate repository based on material_type
-            if material_type == IMaterialType.LEATHER:
-                filters["leather_id"] = material_id
-                return self._transaction_repository.get_leather_transactions(**filters)
-            elif material_type == IMaterialType.HARDWARE:
-                filters["hardware_id"] = material_id
-                return self._transaction_repository.get_hardware_transactions(**filters)
-            else:
-                filters["material_id"] = material_id
-                return self._transaction_repository.get_material_transactions(**filters)
+            self.logger.info(f"Updated material: {material.name}")
+            return material
 
         except Exception as e:
-            self._logger.error(f"Error retrieving material transactions: {e}")
-            return []
-        finally:
-            # Close the session if we created a new one
-            if is_new_session:
-                try:
-                    session.close()
-                except:
-                    pass
+            self.logger.error(f"Error updating material: {str(e)}")
+            raise ValidationError(f"Material update failed: {str(e)}")
 
-    def get_material_types(self) -> List:
+    def delete_material(self, material_id: str) -> bool:
         """
-        Get a list of available material types.
+        Delete a material.
+
+        Args:
+            material_id: Unique identifier of the material
 
         Returns:
-            List of available material types
-        """
-        self._logger.info("Getting material types")
+            Boolean indicating successful deletion
 
+        Raises:
+            NotFoundError: If material is not found
+        """
         try:
-            # Return all material types from the IMaterialType enum
-            return list(IMaterialType)
+            # Retrieve material
+            material = self.get_material_by_id(material_id)
+
+            # Delete material
+            with self.session:
+                self.session.delete(material)
+                self.session.commit()
+
+            self.logger.info(f"Deleted material: {material_id}")
+            return True
+
         except Exception as e:
-            self._logger.error(f"Error retrieving material types: {e}")
+            self.logger.error(f"Error deleting material: {str(e)}")
+            raise NotFoundError(f"Material deletion failed: {str(e)}")
+
+    def get_materials_by_type(
+            self,
+            material_type: Optional[MaterialType] = None,
+            quality_grade: Optional[MaterialQualityGrade] = None
+    ) -> List[Material]:
+        """
+        Retrieve materials filtered by type and quality grade.
+
+        Args:
+            material_type: Optional material type to filter materials
+            quality_grade: Optional quality grade to filter materials
+
+        Returns:
+            List of Material instances
+        """
+        try:
+            # Use repository method to filter materials
+            materials = self.material_repository.get_by_type_and_quality(
+                material_type,
+                quality_grade
+            )
+            return materials
+        except Exception as e:
+            self.logger.error(f"Error retrieving materials: {str(e)}")
             return []
 
-    def record_material_transaction(self, material_id: int, quantity: float, transaction_type: str,
-                                    material_type=None, notes=None) -> Any:
+    def add_material_inventory(
+            self,
+            material_id: str,
+            quantity: float,
+            storage_location: Optional[str] = None,
+            inventory_status: InventoryStatus = InventoryStatus.IN_STOCK
+    ) -> MaterialInventory:
+        """
+        Add inventory for a specific material.
+
+        Args:
+            material_id: Unique identifier of the material
+            quantity: Quantity to add to inventory
+            storage_location: Optional storage location
+            inventory_status: Inventory status (default: IN_STOCK)
+
+        Returns:
+            MaterialInventory instance
+
+        Raises:
+            NotFoundError: If material is not found
+            ValidationError: If inventory addition fails
+        """
+        try:
+            # Verify material exists
+            material = self.get_material_by_id(material_id)
+
+            # Create inventory entry
+            inventory_data = {
+                'material_id': material_id,
+                'quantity': quantity,
+                'storage_location': storage_location,
+                'status': inventory_status
+            }
+
+            material_inventory = MaterialInventory(**inventory_data)
+
+            # Save inventory
+            with self.session:
+                self.session.add(material_inventory)
+                self.session.commit()
+                self.session.refresh(material_inventory)
+
+            self.logger.info(f"Added inventory for material: {material_id}")
+            return material_inventory
+
+        except Exception as e:
+            self.logger.error(f"Error adding material inventory: {str(e)}")
+            raise ValidationError(f"Material inventory addition failed: {str(e)}")
+
+    def record_material_transaction(
+            self,
+            material_id: str,
+            quantity: float,
+            transaction_type: TransactionType,
+            description: Optional[str] = None,
+            related_entity_id: Optional[str] = None
+    ) -> MaterialTransaction:
         """
         Record a transaction for a material.
 
         Args:
-            material_id: ID of the material
-            quantity: Quantity of material in the transaction
-            transaction_type: Type of transaction (e.g., "IN", "OUT")
-            material_type: Type of the material
-            notes: Optional notes about the transaction
-
-        Returns:
-            Created transaction record
-        """
-        session, is_new_session = self._ensure_session_active()
-
-        try:
-            self._logger.info(f"Recording transaction: material_id={material_id}, quantity={quantity}, "
-                              f"type={transaction_type}, material_type={material_type}")
-
-            # If transaction repository doesn't exist, raise exception
-            if not hasattr(self, '_transaction_repository'):
-                self._logger.error("Transaction repository not initialized")
-                raise ServiceError("Transaction repository not initialized")
-
-            # Update transaction repository session
-            self._transaction_repository.session = session
-
-            # Create transaction data
-            transaction_data = {
-                "quantity": quantity,
-                "transaction_type": transaction_type,
-                "transaction_date": datetime.now(),
-                "notes": notes or ""
-            }
-
-            # Create and add the appropriate transaction type
-            if material_type == IMaterialType.LEATHER:
-                transaction = LeatherTransaction(leather_id=material_id, **transaction_data)
-            elif material_type == IMaterialType.HARDWARE:
-                transaction = HardwareTransaction(hardware_id=material_id, **transaction_data)
-            else:
-                transaction = MaterialTransaction(material_id=material_id, **transaction_data)
-
-            # Add the transaction
-            result = self._transaction_repository.add(transaction)
-            self._logger.info(f"Transaction recorded successfully: {result.id}")
-
-            # Update material quantity
-            self._update_material_quantity(material_id, quantity, transaction_type, material_type, session)
-
-            return result
-
-        except Exception as e:
-            self._logger.error(f"Error recording material transaction: {e}")
-            raise ServiceError(f"Failed to record transaction: {str(e)}")
-        finally:
-            # Close the session if we created a new one
-            if is_new_session:
-                try:
-                    session.close()
-                except:
-                    pass
-
-    def _update_material_quantity(self, material_id: int, quantity: float,
-                                  transaction_type: str, material_type=None, session=None) -> None:
-        """
-        Update material quantity based on transaction.
-
-        Args:
-            material_id: ID of the material
+            material_id: Unique identifier of the material
             quantity: Transaction quantity
             transaction_type: Type of transaction
-            material_type: Type of the material
-            session: Optional session to use
+            description: Optional transaction description
+            related_entity_id: Optional ID of related entity (e.g., purchase, project)
+
+        Returns:
+            MaterialTransaction instance
+
+        Raises:
+            NotFoundError: If material is not found
+            ValidationError: If transaction recording fails
         """
-        use_session, is_new_session = (session, False) if session else self._ensure_session_active()
-
         try:
-            # Get the material
-            material = None
+            # Verify material exists
+            material = self.get_material_by_id(material_id)
 
-            # Query the appropriate repository based on material_type
-            if material_type == IMaterialType.LEATHER:
-                if hasattr(self, '_leather_repository'):
-                    self._leather_repository.session = use_session
-                    material = self._leather_repository.get_by_id(material_id)
-            elif material_type == IMaterialType.HARDWARE:
-                if hasattr(self, '_hardware_repository'):
-                    self._hardware_repository.session = use_session
-                    material = self._hardware_repository.get_by_id(material_id)
-            else:
-                self._repository.session = use_session
-                material = self._repository.get_by_id(material_id)
+            # Create transaction
+            transaction_data = {
+                'material_id': material_id,
+                'quantity': quantity,
+                'transaction_type': transaction_type,
+                'description': description,
+                'related_entity_id': related_entity_id
+            }
 
-            if not material:
-                self._logger.warning(f"Material not found for quantity update: id={material_id}, type={material_type}")
-                return
+            material_transaction = MaterialTransaction(**transaction_data)
 
-            # Update quantity based on transaction type
-            current_quantity = getattr(material, 'quantity', 0)
+            # Save transaction
+            with self.session:
+                self.session.add(material_transaction)
 
-            if transaction_type == TransactionType.IN.name:
-                new_quantity = current_quantity + quantity
-            elif transaction_type == TransactionType.OUT.name:
-                new_quantity = max(0, current_quantity - quantity)
-            else:
-                self._logger.warning(f"Unknown transaction type: {transaction_type}")
-                return
+                # Update inventory based on transaction type
+                inventory = self.material_inventory_repository.get_by_material_id(material_id)
+                if inventory:
+                    if transaction_type in [TransactionType.PURCHASE, TransactionType.RETURN]:
+                        inventory.quantity += quantity
+                    elif transaction_type in [TransactionType.USAGE, TransactionType.WASTE]:
+                        inventory.quantity -= quantity
 
-            # Update the material
-            material.quantity = new_quantity
-            use_session.commit()
+                    self.session.add(inventory)
 
-            self._logger.info(f"Updated material quantity: {current_quantity} -> {new_quantity}")
+                self.session.commit()
+                self.session.refresh(material_transaction)
+
+            self.logger.info(f"Recorded material transaction: {transaction_type} for material {material_id}")
+            return material_transaction
 
         except Exception as e:
-            self._logger.error(f"Error updating material quantity: {e}")
-            # Don't raise here to avoid affecting the transaction creation
-        finally:
-            # Close the session if we created a new one and weren't provided one
-            if is_new_session and not session:
-                try:
-                    use_session.close()
-                except:
-                    pass
+            self.logger.error(f"Error recording material transaction: {str(e)}")
+            raise ValidationError(f"Material transaction recording failed: {str(e)}")

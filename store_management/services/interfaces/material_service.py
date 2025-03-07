@@ -1,164 +1,155 @@
-# services/interfaces/material_service.py
-from abc import ABC, abstractmethod
-from enum import Enum
-from typing import Any, Dict, List, Optional
+# database/services/interfaces/material_service.py
+"""
+Interface definition for Material Service.
+"""
 
-class MaterialType(Enum):
-    """Types of materials used in leatherworking."""
-    LEATHER = "leather"
-    HARDWARE = "hardware"
-    THREAD = "thread"
-    LINING = "lining"
-    ADHESIVE = "adhesive"
-    OTHER = "other"
+from abc import ABC, abstractmethod
+from typing import List, Optional, Any
+
+from database.models.enums import (
+    MaterialType,
+    MaterialQualityGrade,
+    InventoryStatus,
+    TransactionType
+)
+from database.models.material import Material
+from database.models.material_inventory import MaterialInventory
+from database.models.transaction import MaterialTransaction
+
 
 class IMaterialService(ABC):
-    """Interface for the Material Service."""
+    """
+    Interface defining contract for Material Service operations.
+    """
 
     @abstractmethod
-    def create(self, data: Dict[str, Any]) -> Any:
+    def create_material(
+        self,
+        name: str,
+        material_type: MaterialType,
+        quality_grade: MaterialQualityGrade,
+        supplier_id: Optional[str] = None,
+        **kwargs
+    ) -> Material:
         """
         Create a new material.
 
         Args:
-            data (Dict[str, Any]): Material creation data
+            name: Material name
+            material_type: Type of material
+            quality_grade: Quality grade of the material
+            supplier_id: Optional supplier identifier
+            **kwargs: Additional material attributes
 
         Returns:
-            Any: Created material identifier
+            Created Material instance
         """
         pass
 
     @abstractmethod
-    def get_by_id(self, material_id: str) -> Optional[Dict[str, Any]]:
+    def get_material_by_id(self, material_id: str) -> Material:
         """
-        Get material by ID.
+        Retrieve a material by its ID.
 
         Args:
-            material_id (str): Unique identifier of the material
+            material_id: Unique identifier of the material
 
         Returns:
-            Optional[Dict[str, Any]]: Material details or None if not found
+            Material instance
         """
         pass
 
     @abstractmethod
-    def update(self, material_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def update_material(
+        self,
+        material_id: str,
+        **update_data
+    ) -> Material:
         """
         Update an existing material.
 
         Args:
-            material_id (str): Unique identifier of the material
-            updates (Dict[str, Any]): Update data for the material
+            material_id: Unique identifier of the material
+            update_data: Dictionary of fields to update
 
         Returns:
-            Optional[Dict[str, Any]]: Updated material details or None if update failed
+            Updated Material instance
         """
         pass
 
     @abstractmethod
-    def delete(self, material_id: str) -> bool:
+    def delete_material(self, material_id: str) -> bool:
         """
         Delete a material.
 
         Args:
-            material_id (str): Unique identifier of the material to delete
+            material_id: Unique identifier of the material
 
         Returns:
-            bool: True if deletion was successful, False otherwise
+            Boolean indicating successful deletion
         """
         pass
 
     @abstractmethod
-    def get_materials(
+    def get_materials_by_type(
         self,
         material_type: Optional[MaterialType] = None,
-        **kwargs
-    ) -> List[Dict[str, Any]]:
+        quality_grade: Optional[MaterialQualityGrade] = None
+    ) -> List[Material]:
         """
-        Get materials with optional filtering.
+        Retrieve materials filtered by type and quality grade.
 
         Args:
-            material_type (Optional[MaterialType], optional): Filter by material type
-            **kwargs: Additional filter parameters
+            material_type: Optional material type to filter materials
+            quality_grade: Optional quality grade to filter materials
 
         Returns:
-            List[Dict[str, Any]]: List of materials matching the filter criteria
+            List of Material instances
         """
         pass
 
-    def search_materials(
+    @abstractmethod
+    def add_material_inventory(
         self,
-        search_text: str,
-        material_type: Optional[MaterialType] = None,
-        **kwargs
-    ) -> List[Dict[str, Any]]:
+        material_id: str,
+        quantity: float,
+        storage_location: Optional[str] = None,
+        inventory_status: InventoryStatus = InventoryStatus.IN_STOCK
+    ) -> MaterialInventory:
         """
-        Search materials with optional filtering.
+        Add inventory for a specific material.
 
         Args:
-            search_text (str): Text to search for
-            material_type (Optional[MaterialType], optional): Filter by material type
-            **kwargs: Additional filter parameters
+            material_id: Unique identifier of the material
+            quantity: Quantity to add to inventory
+            storage_location: Optional storage location
+            inventory_status: Inventory status (default: IN_STOCK)
 
         Returns:
-            List[Dict[str, Any]]: List of materials matching the search and filter criteria
-        """
-        kwargs['search'] = search_text
-        if material_type:
-            kwargs['material_type'] = material_type
-        return self.get_materials(**kwargs)
-
-    @abstractmethod
-    def record_material_transaction(self, transaction_data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Record a material transaction.
-
-        Args:
-            transaction_data (Dict[str, Any]): Transaction details
-
-        Returns:
-            Dict[str, Any]: Recorded transaction details
+            MaterialInventory instance
         """
         pass
 
     @abstractmethod
-    def get_material_transactions(
+    def record_material_transaction(
         self,
-        material_id: Optional[str] = None,
-        transaction_type: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+        material_id: str,
+        quantity: float,
+        transaction_type: TransactionType,
+        description: Optional[str] = None,
+        related_entity_id: Optional[str] = None
+    ) -> MaterialTransaction:
         """
-        Get material transactions with optional filtering.
+        Record a transaction for a material.
 
         Args:
-            material_id (Optional[str], optional): Filter by material ID
-            transaction_type (Optional[str], optional): Filter by transaction type
+            material_id: Unique identifier of the material
+            quantity: Transaction quantity
+            transaction_type: Type of transaction
+            description: Optional transaction description
+            related_entity_id: Optional ID of related entity (e.g., purchase, project)
 
         Returns:
-            List[Dict[str, Any]]: List of material transactions
-        """
-        pass
-
-    @abstractmethod
-    def calculate_material_cost(self, material_id: str, quantity: float) -> float:
-        """
-        Calculate cost for a given material quantity.
-
-        Args:
-            material_id (str): Unique identifier of the material
-            quantity (float): Quantity of the material
-
-        Returns:
-            float: Total cost for the specified quantity
-        """
-        pass
-
-    @abstractmethod
-    def get_material_types(self) -> List[str]:
-        """
-        Get all available material types.
-
-        Returns:
-            List[str]: List of material type names
+            MaterialTransaction instance
         """
         pass

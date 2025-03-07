@@ -1,28 +1,35 @@
-# services/interfaces/product_pattern_service.py
+# database/services/interfaces/product_pattern_service.py
+"""
+Interface definition for Product Pattern Service.
+"""
+
 from abc import ABC, abstractmethod
+from typing import List, Optional
+
 from database.models.product import Product
 from database.models.pattern import Pattern
 from database.models.product_pattern import ProductPattern
-from typing import List
+
 
 class IProductPatternService(ABC):
     """
-    Interface for Product Pattern Service defining core operations
-    for managing relationships between products and patterns.
+    Interface defining contract for Product Pattern Service operations.
     """
 
     @abstractmethod
     def create_product_pattern(
         self,
-        product_id: int,
-        pattern_id: int
+        product_id: str,
+        pattern_id: str,
+        **kwargs
     ) -> ProductPattern:
         """
-        Create a link between a product and a pattern.
+        Create a new product-pattern relationship.
 
         Args:
-            product_id: ID of the product
-            pattern_id: ID of the pattern
+            product_id: Unique identifier of the product
+            pattern_id: Unique identifier of the pattern
+            **kwargs: Additional product pattern attributes
 
         Returns:
             Created ProductPattern instance
@@ -30,42 +37,63 @@ class IProductPatternService(ABC):
         pass
 
     @abstractmethod
-    def get_patterns_for_product(self, product_id: int) -> List[Pattern]:
+    def get_product_patterns(
+        self,
+        product_id: Optional[str] = None,
+        pattern_id: Optional[str] = None
+    ) -> List[ProductPattern]:
+        """
+        Retrieve product-pattern relationships.
+
+        Args:
+            product_id: Optional product identifier to filter relationships
+            pattern_id: Optional pattern identifier to filter relationships
+
+        Returns:
+            List of ProductPattern instances
+        """
+        pass
+
+    @abstractmethod
+    def get_patterns_for_product(self, product_id: str) -> List[Pattern]:
         """
         Retrieve all patterns associated with a specific product.
 
         Args:
-            product_id: ID of the product
+            product_id: Unique identifier of the product
 
         Returns:
-            List of Pattern instances
+            List of Pattern instances associated with the product
         """
         pass
 
     @abstractmethod
-    def get_products_for_pattern(self, pattern_id: int) -> List[Product]:
+    def get_products_for_pattern(self, pattern_id: str) -> List[Product]:
         """
         Retrieve all products associated with a specific pattern.
 
         Args:
-            pattern_id: ID of the pattern
+            pattern_id: Unique identifier of the pattern
 
         Returns:
-            List of Product instances
+            List of Product instances associated with the pattern
         """
         pass
 
     @abstractmethod
-    def remove_product_pattern_link(
+    def remove_product_pattern(
         self,
-        product_id: int,
-        pattern_id: int
-    ) -> None:
+        product_id: str,
+        pattern_id: str
+    ) -> bool:
         """
-        Remove the link between a product and a pattern.
+        Remove a product-pattern relationship.
 
         Args:
-            product_id: ID of the product
-            pattern_id: ID of the pattern
+            product_id: Unique identifier of the product
+            pattern_id: Unique identifier of the pattern
+
+        Returns:
+            Boolean indicating successful removal
         """
         pass

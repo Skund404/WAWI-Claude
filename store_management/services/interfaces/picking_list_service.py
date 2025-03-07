@@ -1,143 +1,238 @@
 # services/interfaces/picking_list_service.py
 """
-Interface for Picking List Service in the leatherworking application.
+Interface for Picking List Service that manages picking lists for sales orders.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
-from datetime import datetime
 from database.models.enums import PickingListStatus
 from database.models.picking_list import PickingList, PickingListItem
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 
 class IPickingListService(ABC):
-    """
-    Abstract base class defining the interface for Picking List Service.
-    Handles operations related to picking lists for material and resource collection.
-    """
+    """Interface for the Picking List Service that handles operations related to picking lists."""
 
     @abstractmethod
-    def create_picking_list(
-        self,
-        sales_id: int,
-        status: PickingListStatus = PickingListStatus.PENDING,
-        **kwargs
-    ) -> PickingList:
-        """
-        Create a new picking list for a sales order.
-
-        Args:
-            sales_id (int): ID of the associated sales order
-            status (PickingListStatus): Initial status of the picking list
-            **kwargs: Additional attributes for the picking list
-
-        Returns:
-            PickingList: The created picking list
-        """
-        pass
-
-    @abstractmethod
-    def get_picking_list_by_id(self, picking_list_id: int) -> PickingList:
+    def get_picking_list(self, picking_list_id: int) -> PickingList:
         """
         Retrieve a picking list by its ID.
 
         Args:
-            picking_list_id (int): ID of the picking list
+            picking_list_id: ID of the picking list to retrieve
 
         Returns:
             PickingList: The retrieved picking list
+
+        Raises:
+            NotFoundError: If the picking list does not exist
         """
         pass
 
     @abstractmethod
-    def get_picking_lists_by_status(
-        self,
-        status: PickingListStatus
-    ) -> List[PickingList]:
+    def get_picking_lists(self, **filters) -> List[PickingList]:
         """
-        Retrieve picking lists by their status.
+        Retrieve picking lists based on optional filters.
 
         Args:
-            status (PickingListStatus): Status to filter picking lists
+            **filters: Optional keyword arguments for filtering picking lists
 
         Returns:
-            List[PickingList]: List of picking lists matching the status
+            List[PickingList]: List of picking lists matching the filters
         """
         pass
 
     @abstractmethod
-    def update_picking_list_status(
-        self,
-        picking_list_id: int,
-        status: PickingListStatus
-    ) -> PickingList:
+    def create_picking_list(self, sales_id: int, picking_list_data: Dict[str, Any] = None) -> PickingList:
+        """
+        Create a new picking list for a sales order with the provided data.
+
+        Args:
+            sales_id: ID of the sales order to create a picking list for
+            picking_list_data: Additional data for creating the picking list
+
+        Returns:
+            PickingList: The created picking list
+
+        Raises:
+            ValidationError: If the picking list data is invalid
+            NotFoundError: If the sales order does not exist
+        """
+        pass
+
+    @abstractmethod
+    def update_picking_list(self, picking_list_id: int, picking_list_data: Dict[str, Any]) -> PickingList:
+        """
+        Update a picking list with the provided data.
+
+        Args:
+            picking_list_id: ID of the picking list to update
+            picking_list_data: Data for updating the picking list
+
+        Returns:
+            PickingList: The updated picking list
+
+        Raises:
+            NotFoundError: If the picking list does not exist
+            ValidationError: If the picking list data is invalid
+        """
+        pass
+
+    @abstractmethod
+    def delete_picking_list(self, picking_list_id: int) -> bool:
+        """
+        Delete a picking list by its ID.
+
+        Args:
+            picking_list_id: ID of the picking list to delete
+
+        Returns:
+            bool: True if deletion was successful
+
+        Raises:
+            NotFoundError: If the picking list does not exist
+        """
+        pass
+
+    @abstractmethod
+    def update_picking_list_status(self, picking_list_id: int, status: PickingListStatus) -> PickingList:
         """
         Update the status of a picking list.
 
         Args:
-            picking_list_id (int): ID of the picking list
-            status (PickingListStatus): New status for the picking list
+            picking_list_id: ID of the picking list to update
+            status: New status for the picking list
 
         Returns:
             PickingList: The updated picking list
+
+        Raises:
+            NotFoundError: If the picking list does not exist
+            ValidationError: If the status transition is invalid
         """
         pass
 
     @abstractmethod
-    def add_picking_list_item(
-        self,
-        picking_list_id: int,
-        component_id: Optional[int] = None,
-        material_id: Optional[int] = None,
-        leather_id: Optional[int] = None,
-        hardware_id: Optional[int] = None,
-        quantity_ordered: int = 1
+    def mark_picking_list_completed(self, picking_list_id: int) -> PickingList:
+        """
+        Mark a picking list as completed.
+
+        Args:
+            picking_list_id: ID of the picking list to mark as completed
+
+        Returns:
+            PickingList: The updated picking list
+
+        Raises:
+            NotFoundError: If the picking list does not exist
+            ValidationError: If the picking list cannot be marked as completed
+        """
+        pass
+
+    @abstractmethod
+    def get_picking_list_items(self, picking_list_id: int) -> List[PickingListItem]:
+        """
+        Retrieve items in a picking list.
+
+        Args:
+            picking_list_id: ID of the picking list
+
+        Returns:
+            List[PickingListItem]: List of items in the picking list
+
+        Raises:
+            NotFoundError: If the picking list does not exist
+        """
+        pass
+
+    @abstractmethod
+    def add_item_to_picking_list(
+        self, picking_list_id: int, item_data: Dict[str, Any]
     ) -> PickingListItem:
         """
         Add an item to a picking list.
 
         Args:
-            picking_list_id (int): ID of the picking list
-            component_id (Optional[int]): ID of the component (if applicable)
-            material_id (Optional[int]): ID of the material (if applicable)
-            leather_id (Optional[int]): ID of the leather (if applicable)
-            hardware_id (Optional[int]): ID of the hardware (if applicable)
-            quantity_ordered (int): Quantity of the item ordered
+            picking_list_id: ID of the picking list
+            item_data: Data for the item to add (component_id, material_id, leather_id, hardware_id, etc.)
 
         Returns:
             PickingListItem: The created picking list item
+
+        Raises:
+            NotFoundError: If the picking list does not exist
+            ValidationError: If the item data is invalid
         """
         pass
 
     @abstractmethod
     def update_picking_list_item(
-        self,
-        picking_list_item_id: int,
-        quantity_picked: Optional[int] = None,
-        **kwargs
+        self, picking_list_id: int, item_id: int, item_data: Dict[str, Any]
     ) -> PickingListItem:
         """
         Update a picking list item.
 
         Args:
-            picking_list_item_id (int): ID of the picking list item
-            quantity_picked (Optional[int]): Quantity actually picked
-            **kwargs: Additional attributes to update
+            picking_list_id: ID of the picking list
+            item_id: ID of the item to update
+            item_data: Data for updating the item
 
         Returns:
             PickingListItem: The updated picking list item
+
+        Raises:
+            NotFoundError: If the picking list or item does not exist
+            ValidationError: If the item data is invalid
         """
         pass
 
     @abstractmethod
-    def complete_picking_list(self, picking_list_id: int) -> PickingList:
+    def remove_item_from_picking_list(self, picking_list_id: int, item_id: int) -> bool:
         """
-        Mark a picking list as completed.
+        Remove an item from a picking list.
 
         Args:
-            picking_list_id (int): ID of the picking list to complete
+            picking_list_id: ID of the picking list
+            item_id: ID of the item to remove
 
         Returns:
-            PickingList: The completed picking list
+            bool: True if the item was removed successfully
+
+        Raises:
+            NotFoundError: If the picking list or item does not exist
+        """
+        pass
+
+    @abstractmethod
+    def update_item_quantities(
+        self, picking_list_id: int, item_id: int, quantity_picked: int
+    ) -> PickingListItem:
+        """
+        Update the quantities of a picking list item.
+
+        Args:
+            picking_list_id: ID of the picking list
+            item_id: ID of the item to update
+            quantity_picked: The quantity that has been picked
+
+        Returns:
+            PickingListItem: The updated picking list item
+
+        Raises:
+            NotFoundError: If the picking list or item does not exist
+            ValidationError: If the quantity is invalid
+        """
+        pass
+
+    @abstractmethod
+    def get_picking_lists_by_sales_order(self, sales_id: int) -> List[PickingList]:
+        """
+        Retrieve picking lists for a specific sales order.
+
+        Args:
+            sales_id: ID of the sales order
+
+        Returns:
+            List[PickingList]: List of picking lists for the sales order
         """
         pass

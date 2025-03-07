@@ -1,76 +1,130 @@
-# services/interfaces/inventory_services.py
+# database/services/interfaces/inventory_service.py
+"""
+Interface definition for Inventory Service.
+"""
+
 from abc import ABC, abstractmethod
-from database.models.enums import InventoryStatus, MaterialType
-from typing import Any, Dict, List, Optional
-from datetime import datetime
+from typing import List, Optional, Union
+
+from database.models.enums import (
+    MaterialType,
+    InventoryStatus,
+    InventoryAdjustmentType
+)
+from database.models.product_inventory import ProductInventory
+from database.models.material_inventory import MaterialInventory
+from database.models.leather_inventory import LeatherInventory
+from database.models.hardware_inventory import HardwareInventory
+from database.models.tool_inventory import ToolInventory
 
 
-class IGenericInventoryService(ABC):
-    """Base interface for inventory services."""
+class IInventoryService(ABC):
+    """
+    Interface defining contract for Inventory Service operations.
+    """
 
     @abstractmethod
-    def update_inventory(
-            self,
-            item_id: int,
-            quantity: float,
-            status: Optional[InventoryStatus] = None,
-            storage_location: Optional[str] = None
-    ) -> bool:
-        """Update inventory details."""
+    def add_inventory(
+        self,
+        item_id: str,
+        inventory_type: MaterialType,
+        quantity: float,
+        storage_location: Optional[str] = None,
+        status: InventoryStatus = InventoryStatus.IN_STOCK
+    ) -> Union[
+        ProductInventory,
+        MaterialInventory,
+        LeatherInventory,
+        HardwareInventory,
+        ToolInventory
+    ]:
+        """
+        Add or update inventory for a specific item.
+
+        Args:
+            item_id: Unique identifier of the item
+            inventory_type: Type of material/item
+            quantity: Quantity to add or update
+            storage_location: Optional storage location
+            status: Inventory status (default: IN_STOCK)
+
+        Returns:
+            Corresponding inventory instance
+        """
         pass
 
     @abstractmethod
-    def get_inventory_by_id(self, item_id: int) -> Optional[Dict[str, Any]]:
-        """Retrieve inventory item details."""
+    def adjust_inventory(
+        self,
+        item_id: str,
+        inventory_type: MaterialType,
+        quantity_change: float,
+        adjustment_type: InventoryAdjustmentType,
+        storage_location: Optional[str] = None
+    ) -> Union[
+        ProductInventory,
+        MaterialInventory,
+        LeatherInventory,
+        HardwareInventory,
+        ToolInventory
+    ]:
+        """
+        Adjust inventory quantity with specific adjustment type.
+
+        Args:
+            item_id: Unique identifier of the item
+            inventory_type: Type of material/item
+            quantity_change: Quantity to add or subtract
+            adjustment_type: Type of inventory adjustment
+            storage_location: Optional storage location
+
+        Returns:
+            Updated inventory instance
+        """
         pass
 
     @abstractmethod
-    def list_inventory(
-            self,
-            status: Optional[InventoryStatus] = None,
-            storage_location: Optional[str] = None,
-            **filters
-    ) -> List[Dict[str, Any]]:
-        """List inventory items with optional filtering."""
+    def get_inventory_status(
+        self,
+        item_id: str,
+        inventory_type: MaterialType
+    ) -> Union[
+        ProductInventory,
+        MaterialInventory,
+        LeatherInventory,
+        HardwareInventory,
+        ToolInventory
+    ]:
+        """
+        Retrieve inventory status for a specific item.
+
+        Args:
+            item_id: Unique identifier of the item
+            inventory_type: Type of material/item
+
+        Returns:
+            Inventory instance
+        """
         pass
-
-
-class IProductInventoryService(IGenericInventoryService):
-    """Interface for product inventory management."""
 
     @abstractmethod
-    def update_product_stock(
-            self,
-            product_id: int,
-            quantity: int,
-            storage_location: Optional[str] = None
-    ) -> bool:
-        """Update stock for a specific product."""
+    def get_low_stock_inventory(
+        self,
+        inventory_type: Optional[MaterialType] = None
+    ) -> List[Union[
+        ProductInventory,
+        MaterialInventory,
+        LeatherInventory,
+        HardwareInventory,
+        ToolInventory
+    ]]:
+        """
+        Retrieve inventory items with low stock.
+
+        Args:
+            inventory_type: Optional specific inventory type to filter
+
+        Returns:
+            List of low stock inventory items
+        """
         pass
-
-
-class IMaterialInventoryService(IGenericInventoryService):
-    """Interface for material inventory management."""
-
-    @abstractmethod
-    def get_materials_by_type(
-            self,
-            material_type: Optional[MaterialType] = None
-    ) -> List[Dict[str, Any]]:
-        """Retrieve materials by type."""
-        pass
-
-
-class ILeatherInventoryService(IGenericInventoryService):
-    """Interface for leather inventory management."""
-    pass
-
-
-class IHardwareInventoryService(IGenericInventoryService):
-    """Interface for hardware inventory management."""
-    pass
-
-
-class IToolInventoryService(IGenericInventoryService):
-    """Interface for tool inventory management."""
-    pass

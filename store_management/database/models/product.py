@@ -9,10 +9,10 @@ relationship management and validation strategies.
 import logging
 import uuid
 from datetime import datetime
-from typing import Dict, Any, Optional, List, Union
+from typing import Dict, Any, Optional, List, Union, Type
 
-from sqlalchemy import Column, Float, Integer, String, Text, Boolean, ForeignKey, JSON
-from sqlalchemy.orm import relationship, Mapped, mapped_column
+from sqlalchemy import Column, Float, Integer, String, Text, Boolean, ForeignKey, JSON, Enum
+from sqlalchemy.orm import relationship
 from sqlalchemy.exc import SQLAlchemyError
 
 from database.models.base import Base, ModelValidationError
@@ -30,12 +30,6 @@ from utils.circular_import_resolver import (
     lazy_import,
     register_lazy_import
 )
-from utils.enhanced_model_validator import (
-    ModelValidator,
-    ValidationError,
-    validate_not_empty,
-    validate_positive_number
-)
 
 # Setup logger
 logger = logging.getLogger(__name__)
@@ -49,6 +43,91 @@ register_lazy_import('Supplier', 'database.models.supplier', 'Supplier')
 register_lazy_import('Storage', 'database.models.storage', 'Storage')
 
 
+# Validation utility functions
+class ValidationError(Exception):
+    """Exception raised for validation errors."""
+    pass
+
+
+def validate_not_empty(data: Dict[str, Any], field_name: str, message: str = None):
+    """
+    Validate that a field is not empty.
+
+    Args:
+        data: Data dictionary to validate
+        field_name: Field to check
+        message: Optional custom error message
+
+    Raises:
+        ValidationError: If the field is empty
+    """
+    if field_name not in data or data[field_name] is None:
+        raise ValidationError(message or f"{field_name} cannot be empty")
+
+
+def validate_positive_number(data: Dict[str, Any], field_name: str, allow_zero: bool = False, message: str = None):
+    """
+    Validate that a field is a positive number.
+
+    Args:
+        data: Data dictionary to validate
+        field_name: Field to check
+        allow_zero: Whether zero is considered valid
+        message: Optional custom error message
+
+    Raises:
+        ValidationError: If the field is not a positive number
+    """
+    if field_name not in data:
+        return
+
+    value = data[field_name]
+
+    if value is None:
+        return
+
+    try:
+        number_value = float(value)
+        if allow_zero:
+            if number_value < 0:
+                raise ValidationError(message or f"{field_name} must be a non-negative number")
+        else:
+            if number_value <= 0:
+                raise ValidationError(message or f"{field_name} must be a positive number")
+    except (ValueError, TypeError):
+        raise ValidationError(message or f"{field_name} must be a valid number")
+
+
+class ModelValidator:
+    """Utility class for model validation."""
+
+    @staticmethod
+    def validate_enum(value: Any, enum_class: Type, field_name: str) -> None:
+        """
+        Validate that a value is a valid enum member.
+
+        Args:
+            value: Value to validate
+            enum_class: Enum class to validate against
+            field_name: Name of the field being validated
+
+        Raises:
+            ValidationError: If validation fails
+        """
+        try:
+            if not isinstance(value, enum_class):
+                # Try to convert string to enum
+                if isinstance(value, str):
+                    try:
+                        enum_class[value.upper()]
+                        return
+                    except (KeyError, AttributeError):
+                        pass
+                raise ValidationError(f"{field_name} must be a valid {enum_class.__name__}")
+        except Exception:
+            raise ValidationError(f"Invalid {field_name} value")
+
+
 class Product(Base, TimestampMixin, ValidationMixin, CostingMixin):
     """
     Product model representing items that can be sold in the leatherworking system.
@@ -59,88 +138,88 @@ class Product(Base, TimestampMixin, ValidationMixin, CostingMixin):
     __tablename__ = 'products'
 
     # Core product attributes
-    name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    name = Column(String(255), nullable=False, index=True)
+    description = Column(Text, nullable=True)
 
     # Pricing and financial attributes
-    price: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    price = Column(Float, nullable=False, default=0.0)
 
     # Tracking and identification
-    sku: Mapped[Optional[str]] = mapped_column(
+    sku = Column(
         String(50),
         nullable=True,
         unique=True,
         default=lambda: f"PROD-{uuid.uuid4().hex[:8].upper()}"
     )
-    barcode: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, unique=True)
+    barcode = Column(String(50), nullable=True, unique=True)
 
     # Product characteristics
-    material_type: Mapped[Optional[MaterialType]] = mapped_column(
+    material_type = Column(
         Enum(MaterialType),
         nullable=True
     )
-    skill_level: Mapped[Optional[SkillLevel]] = mapped_column(
+    skill_level = Column(
         Enum(SkillLevel),
         nullable=True
     )
-    project_type: Mapped[Optional[ProjectType]] = mapped_column(
+    project_type = Column(
         Enum(ProjectType),
         nullable=True
     )
 
     # Visibility and status
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    is_featured: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    is_featured = Column(Boolean, default=False, nullable=False)
 
     # Physical attributes
-    weight: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    dimensions: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    weight = Column(Float, nullable=True)
+    dimensions = Column(String(100), nullable=True)
 
     # Metadata and additional information
-    extra_metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
+    extra_metadata = Column(JSON, nullable=True)
 
     # Foreign keys
-    supplier_id: Mapped[Optional[int]] = mapped_column(
+    supplier_id = Column(
         Integer,
         ForeignKey('suppliers.id'),
         nullable=True
     )
-    storage_id: Mapped[Optional[int]] = mapped_column(
+    storage_id = Column(
         Integer,
         ForeignKey('storages.id'),
         nullable=True
     )
 
     # Relationships with lazy loading and circular import resolution
-    patterns: Mapped[List['ProductPattern']] = relationship(
+    patterns = relationship(
         "ProductPattern",
         back_populates="product",
         cascade="all, delete-orphan"
     )
 
-    inventories: Mapped[List['ProductInventory']] = relationship(
+    inventories = relationship(
         "ProductInventory",
         back_populates="product",
         cascade="all, delete-orphan"
     )
 
-    sales_items: Mapped[List['SalesItem']] = relationship(
+    sales_items = relationship(
         "SalesItem",
         back_populates="product"
     )
 
-    components: Mapped[List['ProjectComponent']] = relationship(
+    components = relationship(
         "ProjectComponent",
         back_populates="product",
-        foreign_keys="[ProjectComponent.product_id]"
+        foreign_keys="ProjectComponent.product_id"
     )
 
-    supplier: Mapped[Optional['Supplier']] = relationship(
+    supplier = relationship(
         "Supplier",
         back_populates="products"
     )
 
-    storage: Mapped[Optional['Storage']] = relationship(
+    storage = relationship(
         "Storage",
         back_populates="product_items"
     )
@@ -244,12 +323,11 @@ class Product(Base, TimestampMixin, ValidationMixin, CostingMixin):
                 return MaterialType[material_type.upper()]
             except KeyError:
                 raise ValidationError(
-                    f"Invalid material type. Must be one of {[t.name for t in MaterialType]}",
-                    "material_type"
+                    f"Invalid material type. Must be one of {[t.name for t in MaterialType]}"
                 )
 
         if not isinstance(material_type, MaterialType):
-            raise ValidationError("Invalid material type", "material_type")
+            raise ValidationError("Invalid material type")
 
         return material_type
 
@@ -272,12 +350,11 @@ class Product(Base, TimestampMixin, ValidationMixin, CostingMixin):
                 return SkillLevel[skill_level.upper()]
             except KeyError:
                 raise ValidationError(
-                    f"Invalid skill level. Must be one of {[l.name for l in SkillLevel]}",
-                    "skill_level"
+                    f"Invalid skill level. Must be one of {[l.name for l in SkillLevel]}"
                 )
 
         if not isinstance(skill_level, SkillLevel):
-            raise ValidationError("Invalid skill level", "skill_level")
+            raise ValidationError("Invalid skill level")
 
         return skill_level
 
@@ -300,12 +377,11 @@ class Product(Base, TimestampMixin, ValidationMixin, CostingMixin):
                 return ProjectType[project_type.upper()]
             except KeyError:
                 raise ValidationError(
-                    f"Invalid project type. Must be one of {[t.name for t in ProjectType]}",
-                    "project_type"
+                    f"Invalid project type. Must be one of {[t.name for t in ProjectType]}"
                 )
 
         if not isinstance(project_type, ProjectType):
-            raise ValidationError("Invalid project type", "project_type")
+            raise ValidationError("Invalid project type")
 
         return project_type
 
@@ -350,18 +426,34 @@ class Product(Base, TimestampMixin, ValidationMixin, CostingMixin):
         Args:
             pattern: Pattern to add
         """
-        # Lazy import to avoid circular dependencies
-        ProductPattern = lazy_import('database.models.product_pattern', 'ProductPattern')
+        try:
+            # Lazy import to avoid circular dependencies
+            ProductPattern = lazy_import('ProductPattern')
 
-        # Create product pattern association if not exists
-        product_pattern = ProductPattern(
-            product_id=self.id,
-            pattern_id=pattern.id
-        )
+            # Create product pattern association if it doesn't exist
+            product_pattern = ProductPattern(
+                product_id=self.id,
+                pattern_id=pattern.id
+            )
 
-        if product_pattern not in self.patterns:
-            self.patterns.append(product_pattern)
-            logger.info(f"Pattern {pattern.id} added to Product {self.id}")
+            if not hasattr(self, 'patterns'):
+                self.patterns = []
+
+            # Check if pattern already exists
+            pattern_exists = False
+            for existing_pattern in self.patterns:
+                if (existing_pattern.product_id == product_pattern.product_id and
+                        existing_pattern.pattern_id == product_pattern.pattern_id):
+                    pattern_exists = True
+                    break
+
+            if not pattern_exists:
+                self.patterns.append(product_pattern)
+                logger.info(f"Pattern {pattern.id} added to Product {self.id}")
+
+        except Exception as e:
+            logger.error(f"Error adding pattern: {e}")
+            raise ModelValidationError(f"Failed to add pattern: {str(e)}")
 
     def __repr__(self) -> str:
         """

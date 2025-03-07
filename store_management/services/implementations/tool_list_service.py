@@ -1,23 +1,27 @@
+# services/implementations/tool_list_service.py
 """
-services/implementations/tool_list_service.py
-Implementation of the tool list service for the leatherworking application.
+Implementation of Tool List Service that manages tool lists for projects.
 """
-import logging
-from typing import Any, Dict, List, Optional
-from datetime import datetime
 
-from database.models.tool_list import ToolList, ToolListItem
+import logging
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+
 from database.models.enums import ToolListStatus
+from database.models.tool_list import ToolList, ToolListItem
 from database.repositories.tool_list_repository import ToolListRepository
 from database.sqlalchemy.session import get_db_session
-
-from services.base_service import BaseService, NotFoundError, ValidationError, ServiceError
+from di.core import inject
+from services.base_service import BaseService, NotFoundError, ServiceError, ValidationError
 from services.interfaces.tool_list_service import IToolListService
 
 
 class ToolListService(BaseService, IToolListService):
-    """Service implementation for managing tool lists."""
+    """
+    Implementation of the Tool List Service interface that handles tool list operations.
+    """
 
+    @inject
     def __init__(self, tool_list_repository=None):
         """
         Initialize the Tool List Service with a repository.
@@ -28,369 +32,387 @@ class ToolListService(BaseService, IToolListService):
         super().__init__()
         self.logger = logging.getLogger(__name__)
 
-        # Initialize repository, creating a new one if not provided
-        if tool_list_repository is None:
-            session = get_db_session()
-            self.repository = ToolListRepository(session)
+        if tool_list_repository:
+            self.tool_list_repository = tool_list_repository
         else:
-            self.repository = tool_list_repository
+            session = get_db_session()
+            self.tool_list_repository = ToolListRepository(session)
+            self.session = session
 
-    def create_tool_list(self, project_id: int, **kwargs) -> Dict[str, Any]:
+    def get_tool_list(self, tool_list_id: int) -> ToolList:
         """
-        Create a new tool list for a project.
-
-        Args:
-            project_id: ID of the associated project
-            **kwargs: Additional tool list attributes
-
-        Returns:
-            Dict containing the created tool list data
-
-        Raises:
-            ValidationError: If validation fails
-        """
-        try:
-            # Set defaults for new tool list
-            data = {
-                "project_id": project_id,
-                "status": ToolListStatus.ACTIVE,
-                "created_at": datetime.now(),
-                **kwargs
-            }
-
-            self.logger.info(f"Creating tool list for project_id={project_id}")
-
-            # Create the tool list through the repository
-            tool_list = self.repository.create(data)
-
-            # Return the serialized tool list
-            return self._serialize_tool_list(tool_list)
-        except Exception as e:
-            self.logger.error(f"Error creating tool list: {str(e)}")
-            raise ValidationError(f"Failed to create tool list: {str(e)}")
-
-    def get_tool_list(self, tool_list_id: int) -> Dict[str, Any]:
-        """
-        Get a tool list by ID.
+        Retrieve a tool list by its ID.
 
         Args:
             tool_list_id: ID of the tool list to retrieve
 
         Returns:
-            Dict containing the tool list data
+            ToolList: The retrieved tool list
 
         Raises:
-            NotFoundError: If the tool list doesn't exist
+            NotFoundError: If the tool list does not exist
         """
         try:
-            tool_list = self.repository.get_by_id(tool_list_id)
+            tool_list = self.tool_list_repository.get_by_id(tool_list_id)
             if not tool_list:
                 raise NotFoundError(f"Tool list with ID {tool_list_id} not found")
-
-            return self._serialize_tool_list(tool_list)
-        except NotFoundError:
-            raise
+            return tool_list
         except Exception as e:
             self.logger.error(f"Error retrieving tool list {tool_list_id}: {str(e)}")
-            raise ServiceError(f"Failed to retrieve tool list: {str(e)}")
+            raise NotFoundError(f"Error retrieving tool list: {str(e)}")
 
-    def get_tool_lists(self,
-                       status: Optional[ToolListStatus] = None,
-                       project_id: Optional[int] = None) -> List[Dict[str, Any]]:
+    def get_tool_lists(self, **filters) -> List[ToolList]:
         """
-        Get tool lists with optional filtering.
+        Retrieve tool lists based on optional filters.
 
         Args:
-            status: Filter by tool list status
-            project_id: Filter by associated project ID
+            **filters: Optional keyword arguments for filtering tool lists
 
         Returns:
-            List of tool list dictionaries
+            List[ToolList]: List of tool lists matching the filters
         """
         try:
-            filters = {}
-            if status:
-                filters["status"] = status
-            if project_id:
-                filters["project_id"] = project_id
-
-            tool_lists = self.repository.get_all_by_filter(**filters)
-            return [self._serialize_tool_list(tl) for tl in tool_lists]
+            return self.tool_list_repository.find_all(**filters)
         except Exception as e:
             self.logger.error(f"Error retrieving tool lists: {str(e)}")
             return []
 
-    def update_tool_list(self,
-                         tool_list_id: int,
-                         **kwargs) -> Dict[str, Any]:
+    def create_tool_list(self, project_id: int, tool_list_data: Dict[str, Any] = None) -> ToolList:
         """
-        Update a tool list's attributes.
+        Create a new tool list for a project with the provided data.
+
+        Args:
+            project_id: ID of the project to create a tool list for
+            tool_list_data: Additional data for creating the tool list
+
+        Returns:
+            ToolList: The created tool list
+
+        Raises:
+            ValidationError: If the tool list data is invalid
+            NotFoundError: If the project does not exist
+        """
+        try:
+            # Initialize tool list data if not provided
+            if tool_list_data is None:
+                tool_list_data = {}
+
+            # Set required fields
+            tool_list_data["project_id"] = project_id
+            if "status" not in tool_list_data:
+                tool_list_data["status"] = ToolListStatus.PENDING
+            if "created_at" not in tool_list_data:
+                tool_list_data["created_at"] = datetime.now()
+
+            # Create tool list
+            tool_list = ToolList(**tool_list_data)
+            return self.tool_list_repository.add(tool_list)
+        except Exception as e:
+            self.logger.error(f"Error creating tool list for project {project_id}: {str(e)}")
+            raise ValidationError(f"Error creating tool list: {str(e)}")
+
+    def update_tool_list(self, tool_list_id: int, tool_list_data: Dict[str, Any]) -> ToolList:
+        """
+        Update a tool list with the provided data.
 
         Args:
             tool_list_id: ID of the tool list to update
-            **kwargs: Attributes to update
+            tool_list_data: Data for updating the tool list
 
         Returns:
-            Dict containing the updated tool list
+            ToolList: The updated tool list
 
         Raises:
-            NotFoundError: If the tool list doesn't exist
-            ValidationError: If update validation fails
+            NotFoundError: If the tool list does not exist
+            ValidationError: If the tool list data is invalid
         """
         try:
-            tool_list = self.repository.get_by_id(tool_list_id)
-            if not tool_list:
-                raise NotFoundError(f"Tool list with ID {tool_list_id} not found")
+            # Get the tool list
+            tool_list = self.get_tool_list(tool_list_id)
 
-            # Remove any attributes that shouldn't be directly updated
-            for key in ["id", "created_at", "project_id"]:
-                if key in kwargs:
-                    del kwargs[key]
+            # Update tool list fields
+            for key, value in tool_list_data.items():
+                if hasattr(tool_list, key):
+                    setattr(tool_list, key, value)
 
-            self.logger.info(f"Updating tool list {tool_list_id} with {kwargs}")
-            updated_tool_list = self.repository.update(tool_list_id, kwargs)
-            return self._serialize_tool_list(updated_tool_list)
+            return self.tool_list_repository.update(tool_list)
         except NotFoundError:
             raise
         except Exception as e:
             self.logger.error(f"Error updating tool list {tool_list_id}: {str(e)}")
-            raise ValidationError(f"Failed to update tool list: {str(e)}")
+            raise ValidationError(f"Error updating tool list: {str(e)}")
 
-    def update_status(self,
-                      tool_list_id: int,
-                      status: ToolListStatus) -> Dict[str, Any]:
+    def delete_tool_list(self, tool_list_id: int) -> bool:
+        """
+        Delete a tool list by its ID.
+
+        Args:
+            tool_list_id: ID of the tool list to delete
+
+        Returns:
+            bool: True if deletion was successful
+
+        Raises:
+            NotFoundError: If the tool list does not exist
+        """
+        try:
+            # Get the tool list
+            tool_list = self.get_tool_list(tool_list_id)
+
+            # Delete tool list
+            self.tool_list_repository.delete(tool_list)
+            return True
+        except NotFoundError:
+            raise
+        except Exception as e:
+            self.logger.error(f"Error deleting tool list {tool_list_id}: {str(e)}")
+            raise ServiceError(f"Error deleting tool list: {str(e)}")
+
+    def update_tool_list_status(self, tool_list_id: int, status: ToolListStatus) -> ToolList:
         """
         Update the status of a tool list.
 
         Args:
-            tool_list_id: ID of the tool list
-            status: New status value
+            tool_list_id: ID of the tool list to update
+            status: New status for the tool list
 
         Returns:
-            Dict containing the updated tool list
+            ToolList: The updated tool list
 
         Raises:
-            NotFoundError: If the tool list doesn't exist
-            ValidationError: If status transition is invalid
+            NotFoundError: If the tool list does not exist
+            ValidationError: If the status transition is invalid
         """
         try:
-            tool_list = self.repository.get_by_id(tool_list_id)
-            if not tool_list:
-                raise NotFoundError(f"Tool list with ID {tool_list_id} not found")
+            # Get the tool list
+            tool_list = self.get_tool_list(tool_list_id)
 
             # Validate status transition
             self._validate_status_transition(tool_list.status, status)
 
-            self.logger.info(f"Updating tool list {tool_list_id} status to {status}")
-            updated_tool_list = self.repository.update(tool_list_id, {"status": status})
-            return self._serialize_tool_list(updated_tool_list)
-        except (NotFoundError, ValidationError):
+            # Update status
+            tool_list.status = status
+            return self.tool_list_repository.update(tool_list)
+        except NotFoundError:
+            raise
+        except ValidationError:
             raise
         except Exception as e:
-            self.logger.error(f"Error updating tool list status: {str(e)}")
-            raise ValidationError(f"Failed to update tool list status: {str(e)}")
+            self.logger.error(f"Error updating tool list {tool_list_id} status: {str(e)}")
+            raise ServiceError(f"Error updating tool list status: {str(e)}")
 
-    def add_item(self,
-                 tool_list_id: int,
-                 tool_id: int,
-                 quantity: int = 1) -> Dict[str, Any]:
+    def _validate_status_transition(self, current_status: ToolListStatus, new_status: ToolListStatus) -> None:
         """
-        Add a tool item to a tool list.
+        Validate if a status transition is allowed.
+
+        Args:
+            current_status: Current status of the tool list
+            new_status: New status for the tool list
+
+        Raises:
+            ValidationError: If the status transition is invalid
+        """
+        # Define allowed status transitions
+        allowed_transitions = {
+            ToolListStatus.PENDING: [ToolListStatus.IN_PROGRESS, ToolListStatus.CANCELLED],
+            ToolListStatus.IN_PROGRESS: [ToolListStatus.COMPLETED, ToolListStatus.CANCELLED, ToolListStatus.ON_HOLD],
+            ToolListStatus.ON_HOLD: [ToolListStatus.IN_PROGRESS, ToolListStatus.CANCELLED],
+            ToolListStatus.COMPLETED: [ToolListStatus.IN_PROGRESS],  # Allow reopening if needed
+            ToolListStatus.CANCELLED: [ToolListStatus.PENDING]  # Allow reactivating cancelled lists
+        }
+
+        if new_status not in allowed_transitions.get(current_status, []):
+            raise ValidationError(
+                f"Invalid status transition from {current_status.value} to {new_status.value}"
+            )
+
+    def get_tool_list_items(self, tool_list_id: int) -> List[ToolListItem]:
+        """
+        Retrieve items in a tool list.
 
         Args:
             tool_list_id: ID of the tool list
-            tool_id: ID of the tool
-            quantity: Quantity of the tool needed
 
         Returns:
-            Dict containing the created tool list item
+            List[ToolListItem]: List of items in the tool list
 
         Raises:
-            NotFoundError: If the tool list doesn't exist
-            ValidationError: If item validation fails
+            NotFoundError: If the tool list does not exist
         """
         try:
-            # Verify tool list exists
-            tool_list = self.repository.get_by_id(tool_list_id)
-            if not tool_list:
-                raise NotFoundError(f"Tool list with ID {tool_list_id} not found")
+            # Get the tool list to ensure it exists
+            tool_list = self.get_tool_list(tool_list_id)
 
+            # Return its items
+            return tool_list.items
+        except NotFoundError:
+            raise
+        except Exception as e:
+            self.logger.error(f"Error retrieving items for tool list {tool_list_id}: {str(e)}")
+            raise ServiceError(f"Error retrieving tool list items: {str(e)}")
+
+    def add_tool_to_list(self, tool_list_id: int, tool_id: int, quantity: int = 1) -> ToolListItem:
+        """
+        Add a tool to a tool list.
+
+        Args:
+            tool_list_id: ID of the tool list
+            tool_id: ID of the tool to add
+            quantity: Quantity of the tool to add (default 1)
+
+        Returns:
+            ToolListItem: The created tool list item
+
+        Raises:
+            NotFoundError: If the tool list or tool does not exist
+            ValidationError: If the quantity is invalid
+        """
+        try:
             # Validate quantity
             if quantity <= 0:
                 raise ValidationError("Quantity must be greater than zero")
 
-            # Create item data
-            item_data = {
-                "tool_list_id": tool_list_id,
-                "tool_id": tool_id,
-                "quantity": quantity
-            }
+            # Get the tool list
+            tool_list = self.get_tool_list(tool_list_id)
 
-            self.logger.info(f"Adding tool item to tool list {tool_list_id}")
-            item = self.repository.add_item(item_data)
-            return self._serialize_tool_list_item(item)
-        except (NotFoundError, ValidationError):
+            # Check if the tool exists (would normally use a tool repository)
+            # For now, we'll assume the tool_id is valid
+
+            # Check if the tool is already in the list
+            for item in tool_list.items:
+                if item.tool_id == tool_id:
+                    # Update quantity
+                    item.quantity += quantity
+                    self.tool_list_repository.session.commit()
+                    return item
+
+            # Create new tool list item
+            item = ToolListItem(
+                tool_list_id=tool_list_id,
+                tool_id=tool_id,
+                quantity=quantity
+            )
+
+            # Add item to database
+            self.tool_list_repository.session.add(item)
+            self.tool_list_repository.session.commit()
+
+            return item
+        except NotFoundError:
+            raise
+        except ValidationError:
             raise
         except Exception as e:
-            self.logger.error(f"Error adding item to tool list: {str(e)}")
-            raise ValidationError(f"Failed to add item to tool list: {str(e)}")
+            self.logger.error(f"Error adding tool to list {tool_list_id}: {str(e)}")
+            self.tool_list_repository.session.rollback()
+            raise ServiceError(f"Error adding tool to list: {str(e)}")
 
-    def update_item(self,
-                    item_id: int,
-                    quantity: Optional[int] = None,
-                    **kwargs) -> Dict[str, Any]:
+    def update_tool_list_item(
+            self, tool_list_id: int, item_id: int, item_data: Dict[str, Any]
+    ) -> ToolListItem:
         """
         Update a tool list item.
 
         Args:
-            item_id: ID of the tool list item
-            quantity: New quantity needed
-            **kwargs: Additional attributes to update
+            tool_list_id: ID of the tool list
+            item_id: ID of the item to update
+            item_data: Data for updating the item
 
         Returns:
-            Dict containing the updated tool list item
+            ToolListItem: The updated tool list item
 
         Raises:
-            NotFoundError: If the item doesn't exist
-            ValidationError: If update validation fails
+            NotFoundError: If the tool list or item does not exist
+            ValidationError: If the item data is invalid
         """
         try:
-            # Verify item exists
-            item = self.repository.get_item_by_id(item_id)
+            # Get the tool list to ensure it exists
+            tool_list = self.get_tool_list(tool_list_id)
+
+            # Find the item
+            item = None
+            for list_item in tool_list.items:
+                if list_item.id == item_id:
+                    item = list_item
+                    break
+
             if not item:
                 raise NotFoundError(f"Tool list item with ID {item_id} not found")
 
-            # Update data
-            update_data = kwargs
-            if quantity is not None:
-                if quantity <= 0:
-                    raise ValidationError("Quantity must be greater than zero")
-                update_data["quantity"] = quantity
+            # Validate quantity if it's being updated
+            if "quantity" in item_data and item_data["quantity"] <= 0:
+                raise ValidationError("Quantity must be greater than zero")
 
-            # Remove any attributes that shouldn't be directly updated
-            for key in ["id", "tool_list_id", "tool_id"]:
-                if key in update_data:
-                    del update_data[key]
+            # Update item fields
+            for key, value in item_data.items():
+                if hasattr(item, key):
+                    setattr(item, key, value)
 
-            self.logger.info(f"Updating tool list item {item_id}")
-            updated_item = self.repository.update_item(item_id, update_data)
-            return self._serialize_tool_list_item(updated_item)
-        except (NotFoundError, ValidationError):
+            # Commit changes
+            self.tool_list_repository.session.commit()
+
+            return item
+        except NotFoundError:
+            raise
+        except ValidationError:
             raise
         except Exception as e:
-            self.logger.error(f"Error updating tool list item: {str(e)}")
-            raise ValidationError(f"Failed to update tool list item: {str(e)}")
+            self.logger.error(f"Error updating tool list item {item_id}: {str(e)}")
+            self.tool_list_repository.session.rollback()
+            raise ServiceError(f"Error updating tool list item: {str(e)}")
 
-    def remove_item(self, item_id: int) -> None:
+    def remove_tool_from_list(self, tool_list_id: int, item_id: int) -> bool:
         """
-        Remove an item from a tool list.
+        Remove a tool from a tool list.
 
         Args:
-            item_id: ID of the tool list item to remove
+            tool_list_id: ID of the tool list
+            item_id: ID of the item to remove
+
+        Returns:
+            bool: True if the item was removed successfully
 
         Raises:
-            NotFoundError: If the item doesn't exist
+            NotFoundError: If the tool list or item does not exist
         """
         try:
-            # Verify item exists
-            item = self.repository.get_item_by_id(item_id)
+            # Get the tool list to ensure it exists
+            tool_list = self.get_tool_list(tool_list_id)
+
+            # Find the item
+            item = None
+            for list_item in tool_list.items:
+                if list_item.id == item_id:
+                    item = list_item
+                    break
+
             if not item:
                 raise NotFoundError(f"Tool list item with ID {item_id} not found")
 
-            self.logger.info(f"Removing tool list item {item_id}")
-            self.repository.delete_item(item_id)
+            # Remove the item
+            self.tool_list_repository.session.delete(item)
+            self.tool_list_repository.session.commit()
+
+            return True
         except NotFoundError:
             raise
         except Exception as e:
-            self.logger.error(f"Error removing tool list item: {str(e)}")
-            raise ValidationError(f"Failed to remove tool list item: {str(e)}")
+            self.logger.error(f"Error removing tool from list {tool_list_id}: {str(e)}")
+            self.tool_list_repository.session.rollback()
+            raise ServiceError(f"Error removing tool from list: {str(e)}")
 
-    def get_tool_list_for_project(self, project_id: int) -> Optional[Dict[str, Any]]:
+    def get_tool_lists_by_project(self, project_id: int) -> List[ToolList]:
         """
-        Get the active tool list for a specific project.
+        Retrieve tool lists for a specific project.
 
         Args:
             project_id: ID of the project
 
         Returns:
-            Dict containing the tool list data, or None if no active tool list exists
+            List[ToolList]: List of tool lists for the project
         """
         try:
-            # Get active tool list for the project
-            tool_lists = self.repository.get_all_by_filter(
-                project_id=project_id,
-                status=ToolListStatus.ACTIVE
-            )
-
-            if not tool_lists or len(tool_lists) == 0:
-                return None
-
-            # Return the first active tool list
-            return self._serialize_tool_list(tool_lists[0])
+            return self.tool_list_repository.find_all(project_id=project_id)
         except Exception as e:
-            self.logger.error(f"Error getting tool list for project {project_id}: {str(e)}")
-            return None
-
-    def _validate_status_transition(self, current_status: ToolListStatus,
-                                    new_status: ToolListStatus) -> None:
-        """
-        Validate if a status transition is allowed.
-
-        Args:
-            current_status: Current tool list status
-            new_status: New tool list status
-
-        Raises:
-            ValidationError: If the status transition is not allowed
-        """
-        # Define allowed status transitions
-        allowed_transitions = {
-            ToolListStatus.ACTIVE: [ToolListStatus.COMPLETED, ToolListStatus.CANCELLED],
-            ToolListStatus.COMPLETED: [],  # No transitions from completed
-            ToolListStatus.CANCELLED: []  # No transitions from cancelled
-        }
-
-        if new_status not in allowed_transitions.get(current_status, []):
-            raise ValidationError(
-                f"Cannot transition from {current_status} to {new_status}"
-            )
-
-    def _serialize_tool_list(self, tool_list: ToolList) -> Dict[str, Any]:
-        """
-        Serialize a tool list to a dictionary.
-
-        Args:
-            tool_list: ToolList instance to serialize
-
-        Returns:
-            Dictionary representation of the tool list
-        """
-        result = {
-            "id": tool_list.id,
-            "project_id": tool_list.project_id,
-            "status": tool_list.status.name,
-            "created_at": tool_list.created_at.isoformat() if tool_list.created_at else None
-        }
-
-        # Include items if they are loaded
-        if hasattr(tool_list, 'items') and tool_list.items is not None:
-            result["items"] = [self._serialize_tool_list_item(item) for item in tool_list.items]
-
-        return result
-
-    def _serialize_tool_list_item(self, item: ToolListItem) -> Dict[str, Any]:
-        """
-        Serialize a tool list item to a dictionary.
-
-        Args:
-            item: ToolListItem instance to serialize
-
-        Returns:
-            Dictionary representation of the tool list item
-        """
-        return {
-            "id": item.id,
-            "tool_list_id": item.tool_list_id,
-            "tool_id": item.tool_id,
-            "quantity": item.quantity
-        }
+            self.logger.error(f"Error retrieving tool lists for project {project_id}: {str(e)}")
+            return []

@@ -1,128 +1,160 @@
 # services/interfaces/component_service.py
+"""
+Interface for Component Service that manages component-related business logic.
+"""
+
 from abc import ABC, abstractmethod
 from database.models.components import Component
 from database.models.enums import ComponentType
-from typing import Any, Dict, List, Optional
 from datetime import datetime
+from typing import Any, Dict, List, Optional
+
 
 class IComponentService(ABC):
-    """
-    Interface defining operations for Component management in the leatherworking application.
-    """
+    """Interface for the Component Service that handles operations related to components."""
 
     @abstractmethod
-    def create_component(
-        self,
-        name: str,
-        description: Optional[str] = None,
-        component_type: Optional[ComponentType] = None,
-        attributes: Optional[Dict[str, Any]] = None
-    ) -> Component:
+    def get_component(self, component_id: int) -> Component:
         """
-        Create a new component with specified details.
+        Retrieve a component by its ID.
 
         Args:
-            name: Name of the component
-            description: Optional description of the component
-            component_type: Type of the component
-            attributes: Optional JSON-compatible attributes for the component
+            component_id: ID of the component to retrieve
 
         Returns:
-            The created Component instance
+            Component: The retrieved component
+
+        Raises:
+            NotFoundError: If the component does not exist
         """
         pass
 
     @abstractmethod
-    def get_component_by_id(self, component_id: int) -> Optional[Component]:
+    def get_components(self, **filters) -> List[Component]:
         """
-        Retrieve a component by its unique identifier.
+        Retrieve components based on optional filters.
 
         Args:
-            component_id: Unique identifier of the component
+            **filters: Optional keyword arguments for filtering components
 
         Returns:
-            Component instance or None if not found
+            List[Component]: List of components matching the filters
         """
         pass
 
     @abstractmethod
-    def update_component(
-        self,
-        component_id: int,
-        updates: Dict[str, Any]
-    ) -> Optional[Component]:
+    def create_component(self, component_data: Dict[str, Any]) -> Component:
         """
-        Update an existing component's details.
+        Create a new component with the provided data.
 
         Args:
-            component_id: Unique identifier of the component
-            updates: Dictionary of attributes to update
+            component_data: Data for creating the component
 
         Returns:
-            Updated Component instance or None if update failed
+            Component: The created component
+
+        Raises:
+            ValidationError: If the component data is invalid
+        """
+        pass
+
+    @abstractmethod
+    def update_component(self, component_id: int, component_data: Dict[str, Any]) -> Component:
+        """
+        Update a component with the provided data.
+
+        Args:
+            component_id: ID of the component to update
+            component_data: Data for updating the component
+
+        Returns:
+            Component: The updated component
+
+        Raises:
+            NotFoundError: If the component does not exist
+            ValidationError: If the component data is invalid
         """
         pass
 
     @abstractmethod
     def delete_component(self, component_id: int) -> bool:
         """
-        Delete a component by its unique identifier.
+        Delete a component by its ID.
 
         Args:
-            component_id: Unique identifier of the component
+            component_id: ID of the component to delete
 
         Returns:
-            Boolean indicating successful deletion
+            bool: True if deletion was successful
+
+        Raises:
+            NotFoundError: If the component does not exist
         """
         pass
 
     @abstractmethod
-    def list_components(
-        self,
-        component_type: Optional[ComponentType] = None,
-        **filters
-    ) -> List[Component]:
+    def get_components_by_type(self, component_type: ComponentType) -> List[Component]:
         """
-        List components with optional filtering.
+        Retrieve components filtered by their type.
 
         Args:
-            component_type: Optional filter by component type
-            **filters: Additional optional filters
+            component_type: Type of components to retrieve
 
         Returns:
-            List of matching Component instances
-        """
-        pass
-
-    @abstractmethod
-    def associate_materials(
-        self,
-        component_id: int,
-        material_ids: List[int],
-        quantities: Optional[List[float]] = None
-    ) -> bool:
-        """
-        Associate materials with a component.
-
-        Args:
-            component_id: ID of the component
-            material_ids: List of material IDs to associate
-            quantities: Optional list of quantities corresponding to materials
-
-        Returns:
-            Boolean indicating successful association
+            List[Component]: List of components of the specified type
         """
         pass
 
     @abstractmethod
     def get_component_materials(self, component_id: int) -> List[Dict[str, Any]]:
         """
-        Retrieve materials associated with a specific component.
+        Retrieve materials associated with a component.
 
         Args:
             component_id: ID of the component
 
         Returns:
-            List of dictionaries containing material details
+            List[Dict[str, Any]]: List of materials with quantities used in the component
+
+        Raises:
+            NotFoundError: If the component does not exist
+        """
+        pass
+
+    @abstractmethod
+    def add_material_to_component(
+        self, component_id: int, material_id: int, quantity: float
+    ) -> bool:
+        """
+        Add a material to a component or update its quantity.
+
+        Args:
+            component_id: ID of the component
+            material_id: ID of the material to add
+            quantity: Quantity of the material to use
+
+        Returns:
+            bool: True if the material was added/updated successfully
+
+        Raises:
+            NotFoundError: If the component or material does not exist
+            ValidationError: If the quantity is invalid
+        """
+        pass
+
+    @abstractmethod
+    def remove_material_from_component(self, component_id: int, material_id: int) -> bool:
+        """
+        Remove a material from a component.
+
+        Args:
+            component_id: ID of the component
+            material_id: ID of the material to remove
+
+        Returns:
+            bool: True if the material was removed successfully
+
+        Raises:
+            NotFoundError: If the component or component-material association does not exist
         """
         pass

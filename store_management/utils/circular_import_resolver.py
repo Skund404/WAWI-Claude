@@ -1,4 +1,4 @@
-# database/models/circular_import_resolver.py
+# utils/circular_import_resolver.py
 """
 Advanced Circular Import Resolution Utility
 
@@ -14,6 +14,7 @@ in a complex database model ecosystem, with support for:
 import importlib
 import logging
 import sys
+import inspect
 from types import ModuleType
 from typing import (
     Any,
@@ -24,7 +25,10 @@ from typing import (
     Type,
     TypeVar,
     Union,
-    cast, Set
+    cast,
+    Set,
+    Tuple,
+    get_type_hints
 )
 
 # Setup logging
@@ -44,7 +48,11 @@ class CircularImportResolver:
     - Relationship resolution
     - Dependency tracking
     - Type management
+
+    This is implemented as a singleton to ensure consistent state across imports.
     """
+    # Class instance for singleton pattern
+    _instance = None
 
     # Class-level registries for managing imports and dependencies
     _model_registry: Dict[str, Type] = {}
@@ -52,6 +60,18 @@ class CircularImportResolver:
     _relationship_registry: Dict[str, Dict[str, Callable]] = {}
     _type_aliases: Dict[str, Type] = {}
     _import_dependencies: Dict[str, Set[str]] = {}
+
+    def __new__(cls):
+        """
+        Singleton pattern implementation.
+
+        Returns:
+            CircularImportResolver: The singleton instance
+        """
+        if cls._instance is None:
+            cls._instance = super(CircularImportResolver, cls).__new__(cls)
+            logger.debug("Created new CircularImportResolver instance")
+        return cls._instance
 
     @classmethod
     def register_model(
@@ -121,7 +141,7 @@ class CircularImportResolver:
             # Store lazy import configuration
             cls._lazy_imports[target_name] = {
                 'module_path': module_path,
-                'class_name': class_name or target_name
+                'class_name': class_name or target_name.split('.')[-1]
             }
             logger.debug(f"Registered lazy import: {target_name} -> {module_path}.{class_name}")
         except Exception as e:
@@ -161,7 +181,7 @@ class CircularImportResolver:
             return model
         except Exception as e:
             logger.error(f"Failed to resolve lazy import {target_name}: {e}")
-            raise ImportError(f"Circular import resolution failed for {target_name}")
+            raise ImportError(f"Circular import resolution failed for {target_name}: {e}")
 
     @classmethod
     def register_relationship(
@@ -278,11 +298,68 @@ class CircularImportResolver:
         cls._import_dependencies.clear()
         logger.info("Circular import resolver registries reset")
 
+    @classmethod
+    def resolve_lazy_relationships(cls) -> None:
+        """
+        Resolve all registered relationships across all models.
 
-# Convenience imports and exports
+        This is useful during application startup to ensure all
+        relationships are properly initialized.
+        """
+        for model_name in cls._relationship_registry:
+            try:
+                cls.resolve_relationships(model_name)
+                logger.debug(f"Resolved relationships for model {model_name}")
+            except Exception as e:
+                logger.error(f"Failed to resolve relationships for model {model_name}: {e}")
+
+
+# Standalone convenience functions
+def get_module(module_path: str) -> ModuleType:
+    """
+    Get a module by path, importing it if necessary.
+
+    Args:
+        module_path: Full Python path to the module
+
+    Returns:
+        The imported module
+
+    Raises:
+        ImportError: If the module cannot be imported
+    """
+    try:
+        return importlib.import_module(module_path)
+    except Exception as e:
+        logger.error(f"Failed to import module {module_path}: {e}")
+        raise ImportError(f"Could not import module {module_path}: {e}")
+
+
+def get_class(module_path: str, class_name: str) -> Type:
+    """
+    Get a class from a module, importing the module if necessary.
+
+    Args:
+        module_path: Full Python path to the module
+        class_name: Name of the class to retrieve
+
+    Returns:
+        The requested class
+
+    Raises:
+        ImportError: If the module or class cannot be found
+    """
+    try:
+        module = get_module(module_path)
+        return getattr(module, class_name)
+    except (ImportError, AttributeError) as e:
+        logger.error(f"Failed to get class {class_name} from {module_path}: {e}")
+        raise ImportError(f"Could not get class {class_name} from {module_path}: {e}")
+
+
 def lazy_import(module_path: str, class_name: Optional[str] = None) -> Any:
     """
-    Convenience wrapper for lazy import resolution.
+    Convenience function for lazy importing a module or class.
 
     Args:
         module_path: Full Python path to the module
@@ -292,7 +369,7 @@ def lazy_import(module_path: str, class_name: Optional[str] = None) -> Any:
         Imported module or class
     """
     try:
-        module = importlib.import_module(module_path)
+        module = get_module(module_path)
 
         if class_name:
             return getattr(module, class_name)
@@ -300,7 +377,7 @@ def lazy_import(module_path: str, class_name: Optional[str] = None) -> Any:
         return module
     except Exception as e:
         logger.error(f"Lazy import failed for {module_path}.{class_name}: {e}")
-        raise
+        raise ImportError(f"Lazy import failed for {module_path}.{class_name}: {e}")
 
 
 def register_lazy_import(
@@ -309,7 +386,7 @@ def register_lazy_import(
         class_name: Optional[str] = None
 ) -> None:
     """
-    Convenience wrapper for registering lazy imports.
+    Register a lazy import for deferred loading.
 
     Args:
         target_name: Unique identifier for the import
@@ -319,13 +396,121 @@ def register_lazy_import(
     CircularImportResolver.register_lazy_import(
         target_name,
         module_path,
-        class_name or target_name
+        class_name
     )
 
+
+def resolve_lazy_import(target_name: str) -> Any:
+    """
+    Resolve a previously registered lazy import.
+
+    Args:
+        target_name: Unique identifier for the import
+
+    Returns:
+        The imported model or class
+    """
+    return CircularImportResolver.resolve_lazy_import(target_name)
+
+
+def register_relationship(
+        model_name: str,
+        relationship_name: str,
+        relationship_config: Callable
+) -> None:
+    """
+    Register a relationship configuration for lazy resolution.
+
+    Args:
+        model_name: Name of the model owning the relationship
+        relationship_name: Name of the relationship attribute
+        relationship_config: Callable returning the relationship configuration
+    """
+    CircularImportResolver.register_relationship(
+        model_name,
+        relationship_name,
+        relationship_config
+    )
+
+
+def resolve_relationship(model_name: str, relationship_name: str) -> Any:
+    """
+    Resolve a specific relationship for a model.
+
+    Args:
+        model_name: Name of the model owning the relationship
+        relationship_name: Name of the relationship to resolve
+
+    Returns:
+        The resolved relationship configuration
+
+    Raises:
+        KeyError: If the relationship is not registered
+    """
+    relationships = CircularImportResolver.resolve_relationships(model_name)
+
+    if relationship_name not in relationships:
+        raise KeyError(f"No relationship named {relationship_name} registered for model {model_name}")
+
+    return relationships[relationship_name]
+
+
+def resolve_lazy_relationships() -> None:
+    """
+    Resolve all registered lazy relationships.
+    """
+    CircularImportResolver.resolve_lazy_relationships()
+
+
+def lazy_relationship(model_path: str, relationship_attr: str) -> Callable:
+    """
+    Create a lazy relationship configuration.
+
+    This function returns a decorator that can be used to define
+    relationships that depend on models not yet imported.
+
+    Args:
+        model_path: Full path to the related model
+        relationship_attr: Attribute name on the related model
+
+    Returns:
+        Callable decorator for lazy relationship definition
+    """
+
+    def decorator(func: Callable) -> Callable:
+        def wrapper(*args, **kwargs):
+            # Get the model at runtime
+            try:
+                if '.' in model_path:
+                    module_name, class_name = model_path.rsplit('.', 1)
+                    model = get_class(module_name, class_name)
+                else:
+                    model = resolve_lazy_import(model_path)
+
+                # Get relationship configuration
+                return func(model, relationship_attr, *args, **kwargs)
+            except Exception as e:
+                logger.error(f"Failed to resolve lazy relationship to {model_path}.{relationship_attr}: {e}")
+                raise
+
+        return wrapper
+
+    return decorator
+
+
+# Create instance at module load time to initialize the singleton
+_resolver_instance = CircularImportResolver()
 
 # Expose key functionality
 __all__ = [
     'CircularImportResolver',
     'lazy_import',
-    'register_lazy_import'
+    'register_lazy_import',
+    'resolve_lazy_import',
+    'register_relationship',
+    'resolve_relationship',
+    'resolve_lazy_relationships',
+    'get_module',
+    'get_class',
+    'lazy_relationship'
 ]

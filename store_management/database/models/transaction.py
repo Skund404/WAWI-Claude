@@ -5,13 +5,10 @@ Comprehensive Transaction Models for Leatherworking Management System
 This module defines transaction models for tracking inventory movements
 and material flows throughout the system, providing an audit trail for
 all inventory changes with comprehensive validation and relationship management.
-
-While not explicitly in the ER diagram, these models provide the backbone
-for maintaining accurate inventory records and supporting the integrity
-of the inventory management subsystem.
 """
 
 import logging
+import enum
 from datetime import datetime
 from typing import Dict, Any, Optional, List, Union, Type, Tuple, cast
 
@@ -32,14 +29,7 @@ from database.models.mixins import (
 )
 from utils.circular_import_resolver import (
     lazy_import,
-    register_lazy_import,
-    CircularImportResolver
-)
-from utils.enhanced_model_validator import (
-    ModelValidator,
-    ValidationError,
-    validate_not_empty,
-    validate_positive_number
+    register_lazy_import
 )
 
 # Setup logger
@@ -56,6 +46,91 @@ register_lazy_import('Project', 'database.models.project', 'Project')
 register_lazy_import('Purchase', 'database.models.purchase', 'Purchase')
 
 
+# Validation utility functions
+def validate_not_empty(data: Dict[str, Any], field_name: str, message: str = None):
+    """
+    Validate that a field is not empty.
+
+    Args:
+        data: Data dictionary to validate
+        field_name: Field to check
+        message: Optional custom error message
+
+    Raises:
+        ValidationError: If the field is empty
+    """
+    if field_name not in data or data[field_name] is None:
+        raise ValidationError(message or f"{field_name} cannot be empty")
+
+
+def validate_positive_number(data: Dict[str, Any], field_name: str, allow_zero: bool = False, message: str = None):
+    """
+    Validate that a field is a positive number.
+
+    Args:
+        data: Data dictionary to validate
+        field_name: Field to check
+        allow_zero: Whether zero is considered valid
+        message: Optional custom error message
+
+    Raises:
+        ValidationError: If the field is not a positive number
+    """
+    if field_name not in data:
+        return
+
+    value = data[field_name]
+
+    if value is None:
+        return
+
+    try:
+        number_value = float(value)
+        if allow_zero:
+            if number_value < 0:
+                raise ValidationError(message or f"{field_name} must be a non-negative number")
+        else:
+            if number_value <= 0:
+                raise ValidationError(message or f"{field_name} must be a positive number")
+    except (ValueError, TypeError):
+        raise ValidationError(message or f"{field_name} must be a valid number")
+
+
+class ValidationError(Exception):
+    """Exception raised for validation errors."""
+    pass
+
+
+class ModelValidator:
+    """Utility class for model validation."""
+
+    @staticmethod
+    def validate_enum(value: Any, enum_class: Type, field_name: str) -> None:
+        """
+        Validate that a value is a valid enum member.
+
+        Args:
+            value: Value to validate
+            enum_class: Enum class to validate against
+            field_name: Name of the field being validated
+
+        Raises:
+            ValidationError: If validation fails
+        """
+        try:
+            if not isinstance(value, enum_class):
+                # Try to convert string to enum
+                if isinstance(value, str):
+                    try:
+                        enum_class[value.upper()]
+                        return
+                    except (KeyError, AttributeError):
+                        pass
+                raise ValidationError(f"{field_name} must be a valid {enum_class.__name__}")
+        except Exception:
+            raise ValidationError(f"Invalid {field_name} value")
+
+
 class Transaction(Base, TimestampMixin, ValidationMixin, TrackingMixin):
     """
     Base Transaction model representing inventory adjustments and movements.
@@ -66,37 +141,37 @@ class Transaction(Base, TimestampMixin, ValidationMixin, TrackingMixin):
     __tablename__ = 'transactions'
 
     # Core attributes
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True)
 
     # Transaction details
-    transaction_type: Mapped[TransactionType] = mapped_column(
+    transaction_type = Column(
         Enum(TransactionType),
         nullable=False,
         index=True
     )
-    quantity: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
-    is_addition: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    quantity = Column(Float, default=0.0, nullable=False)
+    is_addition = Column(Boolean, default=True, nullable=False)
 
     # Transaction metadata
-    transaction_date: Mapped[datetime] = mapped_column(
+    transaction_date = Column(
         DateTime,
         default=datetime.utcnow,
         nullable=False,
         index=True
     )
-    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    reference_number: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, index=True)
-    reference_type: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-    metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
+    notes = Column(Text, nullable=True)
+    reference_number = Column(String(50), nullable=True, index=True)
+    reference_type = Column(String(50), nullable=True)
+    metadata = Column(JSON, nullable=True)
 
     # Linked records
-    project_id: Mapped[Optional[int]] = mapped_column(
+    project_id = Column(
         Integer,
         ForeignKey("projects.id"),
         nullable=True,
         index=True
     )
-    purchase_id: Mapped[Optional[int]] = mapped_column(
+    purchase_id = Column(
         Integer,
         ForeignKey("purchases.id"),
         nullable=True,
@@ -104,7 +179,7 @@ class Transaction(Base, TimestampMixin, ValidationMixin, TrackingMixin):
     )
 
     # Single-table inheritance discriminator
-    transaction_class: Mapped[str] = mapped_column(String(50), nullable=False)
+    transaction_class = Column(String(50), nullable=False)
 
     # Relationships
     project = relationship("Project", back_populates="transactions")
@@ -291,16 +366,16 @@ class MaterialTransaction(Transaction):
     __tablename__ = 'material_transactions'
 
     # Link to parent transaction
-    id: Mapped[int] = mapped_column(ForeignKey('transactions.id'), primary_key=True)
+    id = Column(ForeignKey('transactions.id'), primary_key=True)
 
     # Material-specific references
-    material_id: Mapped[Optional[int]] = mapped_column(
+    material_id = Column(
         Integer,
         ForeignKey("materials.id"),
         nullable=True,
         index=True
     )
-    material_inventory_id: Mapped[Optional[int]] = mapped_column(
+    material_inventory_id = Column(
         Integer,
         ForeignKey("material_inventories.id"),
         nullable=True,
@@ -361,19 +436,19 @@ class LeatherTransaction(Transaction):
     __tablename__ = 'leather_transactions'
 
     # Link to parent transaction
-    id: Mapped[int] = mapped_column(ForeignKey('transactions.id'), primary_key=True)
+    id = Column(ForeignKey('transactions.id'), primary_key=True)
 
     # Leather-specific attributes
-    area_sqft: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    area_sqft = Column(Float, nullable=True)
 
     # Leather-specific references
-    leather_id: Mapped[int] = mapped_column(
+    leather_id = Column(
         Integer,
         ForeignKey("leathers.id"),
         nullable=False,
         index=True
     )
-    leather_inventory_id: Mapped[Optional[int]] = mapped_column(
+    leather_inventory_id = Column(
         Integer,
         ForeignKey("leather_inventories.id"),
         nullable=True,
@@ -446,16 +521,16 @@ class HardwareTransaction(Transaction):
     __tablename__ = 'hardware_transactions'
 
     # Link to parent transaction
-    id: Mapped[int] = mapped_column(ForeignKey('transactions.id'), primary_key=True)
+    id = Column(ForeignKey('transactions.id'), primary_key=True)
 
     # Hardware-specific references
-    hardware_id: Mapped[int] = mapped_column(
+    hardware_id = Column(
         Integer,
         ForeignKey("hardwares.id"),
         nullable=False,
         index=True
     )
-    hardware_inventory_id: Mapped[Optional[int]] = mapped_column(
+    hardware_inventory_id = Column(
         Integer,
         ForeignKey("hardware_inventories.id"),
         nullable=True,

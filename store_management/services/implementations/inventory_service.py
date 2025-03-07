@@ -1,246 +1,369 @@
-# services/implementations/inventory_service.py
-import logging
-from typing import Any, Dict, List, Optional, Tuple, Union
+# database/services/implementations/inventory_service.py
+"""
+Service implementation for managing Inventory entities across different types.
+"""
 
-from services.base_service import BaseService
+from typing import Any, Dict, List, Optional, Union
+import logging
+from datetime import datetime
+
+from database.models.enums import (
+    InventoryStatus,
+    MaterialType,
+    InventoryAdjustmentType,
+)
+from database.models.product_inventory import ProductInventory
+from database.models.material_inventory import MaterialInventory
+from database.models.leather_inventory import LeatherInventory
+from database.models.hardware_inventory import HardwareInventory
+from database.models.tool_inventory import ToolInventory
+
+from database.repositories.product_inventory_repository import (
+    ProductInventoryRepository,
+)
+from database.repositories.material_inventory_repository import (
+    MaterialInventoryRepository,
+)
+from database.repositories.leather_inventory_repository import (
+    LeatherInventoryRepository,
+)
+from database.repositories.hardware_inventory_repository import (
+    HardwareInventoryRepository,
+)
+from database.repositories.tool_inventory_repository import ToolInventoryRepository
+
+from database.sqlalchemy.session import get_db_session
+
+from services.base_service import BaseService, NotFoundError, ValidationError
 from services.interfaces.inventory_service import IInventoryService
-from services.interfaces.material_service import MaterialType
 
 
 class InventoryService(BaseService, IInventoryService):
-    """Implementation of inventory service."""
+    """
+    Comprehensive service for managing inventory across different entity types.
 
-    def __init__(self):
-        """Initialize the Inventory Service with data structures for tracking."""
-        super().__init__()
-        self.logger.info("InventoryService initialized")
-        # Initialize data structures for tracking inventory
-        self._inventory = {}
-        self._reservations = {}
+    Handles inventory tracking, status updates, and adjustments for:
+    - Products
+    - Materials
+    - Leather
+    - Hardware
+    - Tools
+    """
 
-    def check_material_availability(self, material_id: str, quantity: float) -> bool:
-        """Check if a material is available in the specified quantity.
+    def __init__(
+        self,
+        session=None,
+        product_inventory_repository: Optional[ProductInventoryRepository] = None,
+        material_inventory_repository: Optional[MaterialInventoryRepository] = None,
+        leather_inventory_repository: Optional[LeatherInventoryRepository] = None,
+        hardware_inventory_repository: Optional[HardwareInventoryRepository] = None,
+        tool_inventory_repository: Optional[ToolInventoryRepository] = None,
+    ):
+        """
+        Initialize the Inventory Service.
 
         Args:
-            material_id: ID of the material to check
-            quantity: Quantity required
-
-        Returns:
-            bool: True if available, False otherwise
+            session: SQLAlchemy database session
+            product_inventory_repository: Repository for product inventory
+            material_inventory_repository: Repository for material inventory
+            leather_inventory_repository: Repository for leather inventory
+            hardware_inventory_repository: Repository for hardware inventory
+            tool_inventory_repository: Repository for tool inventory
         """
-        self.logger.debug(f"Checking availability of material {material_id}, quantity {quantity}")
-        # Simple implementation for now
-        if material_id not in self._inventory:
-            return False
-        return self._inventory[material_id].get('quantity', 0) >= quantity
+        self.session = session or get_db_session()
+        self.product_inventory_repo = (
+            product_inventory_repository
+            or ProductInventoryRepository(self.session)
+        )
+        self.material_inventory_repo = (
+            material_inventory_repository
+            or MaterialInventoryRepository(self.session)
+        )
+        self.leather_inventory_repo = (
+            leather_inventory_repository
+            or LeatherInventoryRepository(self.session)
+        )
+        self.hardware_inventory_repo = (
+            hardware_inventory_repository
+            or HardwareInventoryRepository(self.session)
+        )
+        self.tool_inventory_repo = (
+            tool_inventory_repository
+            or ToolInventoryRepository(self.session)
+        )
 
-    def reserve_materials(self, materials: List[Dict[str, Any]], project_id: str) -> bool:
-        """Reserve materials for a specific project.
+        self.logger = logging.getLogger(__name__)
+
+    def _get_inventory_repository(self, inventory_type: MaterialType):
+        """
+        Get the appropriate inventory repository based on material type.
 
         Args:
-            materials: List of materials with quantities
-            project_id: ID of the project to reserve for
+            inventory_type: Type of inventory
 
         Returns:
-            bool: True if reservation successful, False otherwise
+            Corresponding inventory repository
         """
-        self.logger.debug(f"Reserving materials for project {project_id}")
-
-        # Check if all materials are available
-        for material in materials:
-            if not self.check_material_availability(material['id'], material['quantity']):
-                return False
-
-        # Reserve materials
-        for material in materials:
-            if material['id'] not in self._reservations:
-                self._reservations[material['id']] = {}
-
-            self._reservations[material['id']][project_id] = material['quantity']
-
-            # Update available quantity
-            current_quantity = self._inventory[material['id']].get('quantity', 0)
-            self._inventory[material['id']]['quantity'] = current_quantity - material['quantity']
-
-        return True
-
-    def release_reserved_materials(self, project_id: str) -> bool:
-        """Release materials reserved for a specific project.
-
-        Args:
-            project_id: ID of the project to release reservations for
-
-        Returns:
-            bool: True if release successful, False otherwise
-        """
-        self.logger.debug(f"Releasing reserved materials for project {project_id}")
-
-        # Find all materials reserved for this project
-        released_materials = {}
-
-        for material_id, reservations in self._reservations.items():
-            if project_id in reservations:
-                released_quantity = reservations[project_id]
-                released_materials[material_id] = released_quantity
-
-                # Remove reservation
-                del reservations[project_id]
-
-                # Update available quantity
-                current_quantity = self._inventory[material_id].get('quantity', 0)
-                self._inventory[material_id]['quantity'] = current_quantity + released_quantity
-
-        return len(released_materials) > 0
-
-    def update_leather_area(self, leather_id: str, used_area: float) -> bool:
-        """Update remaining area of leather after cutting.
-
-        Args:
-            leather_id: ID of the leather
-            used_area: Area used in square units
-
-        Returns:
-            bool: True if update successful, False otherwise
-        """
-        self.logger.debug(f"Updating leather {leather_id} area, used {used_area} units")
-
-        if leather_id not in self._inventory:
-            return False
-
-        leather = self._inventory[leather_id]
-        if 'area' not in leather:
-            return False
-
-        current_area = leather['area']
-        if current_area < used_area:
-            return False
-
-        leather['area'] = current_area - used_area
-        return True
-
-    def update_part_stock(self, part_id: str, quantity_change: int) -> bool:
-        """Update stock level of a part.
-
-        Args:
-            part_id: ID of the part
-            quantity_change: Amount to change (positive or negative)
-
-        Returns:
-            bool: True if update successful, False otherwise
-        """
-        self.logger.debug(f"Updating part {part_id} stock by {quantity_change}")
-
-        if part_id not in self._inventory:
-            return False
-
-        part = self._inventory[part_id]
-        current_quantity = part.get('quantity', 0)
-        new_quantity = current_quantity + quantity_change
-
-        if new_quantity < 0:
-            return False
-
-        part['quantity'] = new_quantity
-        return True
-
-    def get_low_stock_leather(self, threshold_area: float = 1.0) -> List[Dict[str, Any]]:
-        """Get leather items below specified area threshold.
-
-        Args:
-            threshold_area: Area threshold in square units
-
-        Returns:
-            List of leather items below threshold
-        """
-        low_stock = []
-
-        for item_id, item in self._inventory.items():
-            if item.get('type') == 'leather' and item.get('area', 0) < threshold_area:
-                low_stock.append({
-                    'id': item_id,
-                    'name': item.get('name', ''),
-                    'area': item.get('area', 0),
-                    'type': item.get('type', '')
-                })
-
-        return low_stock
-
-    # Add to services/implementations/inventory_service.py
-
-    def get_inventory_value(self) -> float:
-        """Calculate total inventory value.
-
-        Returns:
-            float: Total value of all inventory items
-        """
-        total_value = 0.0
-
-        for item in self._inventory.values():
-            # Calculate based on item type
-            if item.get('type') == 'leather':
-                # Leather is valued by area
-                area = item.get('area', 0)
-                price_per_area = item.get('price_per_area', 0.0)
-                total_value += area * price_per_area
-            else:
-                # Other items valued by quantity
-                quantity = item.get('quantity', 0)
-                unit_price = item.get('unit_price', 0.0)
-                total_value += quantity * unit_price
-
-        return total_value
-
-    def get_low_stock_parts(self, threshold_quantity: int = 5) -> List[Dict[str, Any]]:
-        """Get parts below specified quantity threshold.
-
-        Args:
-            threshold_quantity: Quantity threshold
-
-        Returns:
-            List of parts below threshold
-        """
-        low_stock = []
-
-        for item_id, item in self._inventory.items():
-            if item.get('type') != 'leather' and item.get('quantity', 0) < threshold_quantity:
-                low_stock.append({
-                    'id': item_id,
-                    'name': item.get('name', ''),
-                    'quantity': item.get('quantity', 0),
-                    'type': item.get('type', '')
-                })
-
-        return low_stock
-
-    def generate_inventory_report(self) -> Dict[str, Any]:
-        """Generate a comprehensive inventory report.
-
-        Returns:
-            Dict containing inventory statistics and data
-        """
-        total_leather_area = 0
-        total_parts = 0
-        leather_count = 0
-        part_types = {}
-
-        for item in self._inventory.values():
-            if item.get('type') == 'leather':
-                total_leather_area += item.get('area', 0)
-                leather_count += 1
-            else:
-                item_type = item.get('type', 'unknown')
-                total_parts += item.get('quantity', 0)
-
-                if item_type not in part_types:
-                    part_types[item_type] = 0
-
-                part_types[item_type] += item.get('quantity', 0)
-
-        return {
-            'total_leather_area': total_leather_area,
-            'leather_count': leather_count,
-            'total_parts': total_parts,
-            'part_types': part_types,
-            'low_stock_leather': self.get_low_stock_leather(),
-            'low_stock_parts': self.get_low_stock_parts()
+        repositories = {
+            MaterialType.THREAD: self.material_inventory_repo,
+            MaterialType.LEATHER: self.leather_inventory_repo,
+            MaterialType.HARDWARE: self.hardware_inventory_repo,
+            MaterialType.OTHER: self.material_inventory_repo,
         }
+        return repositories.get(inventory_type, self.material_inventory_repo)
+
+    def _get_inventory_model(self, inventory_type: MaterialType):
+        """
+        Get the appropriate inventory model based on material type.
+
+        Args:
+            inventory_type: Type of inventory
+
+        Returns:
+            Corresponding inventory model class
+        """
+        models = {
+            MaterialType.THREAD: MaterialInventory,
+            MaterialType.LEATHER: LeatherInventory,
+            MaterialType.HARDWARE: HardwareInventory,
+            MaterialType.OTHER: MaterialInventory,
+        }
+        return models.get(inventory_type, MaterialInventory)
+
+    def add_inventory(
+        self,
+        item_id: str,
+        inventory_type: MaterialType,
+        quantity: float,
+        storage_location: Optional[str] = None,
+        status: InventoryStatus = InventoryStatus.IN_STOCK,
+    ) -> Union[
+        ProductInventory,
+        MaterialInventory,
+        LeatherInventory,
+        HardwareInventory,
+        ToolInventory,
+    ]:
+        """
+        Add or update inventory for a specific item.
+
+        Args:
+            item_id: Unique identifier of the item
+            inventory_type: Type of material/item
+            quantity: Quantity to add or update
+            storage_location: Optional storage location
+            status: Inventory status (default: IN_STOCK)
+
+        Returns:
+            Corresponding inventory instance
+
+        Raises:
+            NotFoundError: If item is not found
+            ValidationError: If inventory addition fails
+        """
+        try:
+            # Validate quantity
+            if quantity <= 0:
+                raise ValidationError("Quantity must be positive")
+
+            # Get appropriate repository and model
+            inventory_repo = self._get_inventory_repository(inventory_type)
+            inventory_model = self._get_inventory_model(inventory_type)
+
+            # Create inventory entry
+            inventory_data = {
+                f"{inventory_type.value}_id": item_id,
+                "quantity": quantity,
+                "storage_location": storage_location,
+                "status": status,
+            }
+
+            inventory = inventory_model(**inventory_data)
+
+            # Save inventory
+            with self.session:
+                self.session.add(inventory)
+                self.session.commit()
+                self.session.refresh(inventory)
+
+            self.logger.info(f"Added inventory for {inventory_type}: {item_id}")
+            return inventory
+
+        except Exception as e:
+            self.logger.error(f"Error adding inventory: {str(e)}")
+            raise ValidationError(f"Inventory addition failed: {str(e)}")
+
+    def adjust_inventory(
+        self,
+        item_id: str,
+        inventory_type: MaterialType,
+        quantity_change: float,
+        adjustment_type: InventoryAdjustmentType,
+        storage_location: Optional[str] = None,
+    ) -> Union[
+        ProductInventory,
+        MaterialInventory,
+        LeatherInventory,
+        HardwareInventory,
+        ToolInventory,
+    ]:
+        """
+        Adjust inventory quantity with specific adjustment type.
+
+        Args:
+            item_id: Unique identifier of the item
+            inventory_type: Type of material/item
+            quantity_change: Quantity to add or subtract
+            adjustment_type: Type of inventory adjustment
+            storage_location: Optional storage location
+
+        Returns:
+            Updated inventory instance
+
+        Raises:
+            NotFoundError: If inventory is not found
+            ValidationError: If inventory adjustment fails
+        """
+        try:
+            # Get appropriate repository
+            inventory_repo = self._get_inventory_repository(inventory_type)
+
+            # Find existing inventory
+            item_key = f"{inventory_type.value}_id"
+            existing_inventory = inventory_repo.get_by_item_id(item_id)
+
+            if not existing_inventory:
+                # If no existing inventory, create new
+                return self.add_inventory(
+                    item_id,
+                    inventory_type,
+                    abs(quantity_change),
+                    storage_location,
+                )
+
+            # Adjust quantity based on adjustment type
+            if adjustment_type in [
+                InventoryAdjustmentType.INITIAL_STOCK,
+                InventoryAdjustmentType.RESTOCK,
+                InventoryAdjustmentType.RETURN,
+                InventoryAdjustmentType.FOUND,
+            ]:
+                existing_inventory.quantity += abs(quantity_change)
+            elif adjustment_type in [
+                InventoryAdjustmentType.USAGE,
+                InventoryAdjustmentType.DAMAGE,
+                InventoryAdjustmentType.LOST,
+            ]:
+                if existing_inventory.quantity < abs(quantity_change):
+                    raise ValidationError("Insufficient inventory for adjustment")
+                existing_inventory.quantity -= abs(quantity_change)
+
+            # Update storage location if provided
+            if storage_location:
+                existing_inventory.storage_location = storage_location
+
+            # Update inventory status based on quantity
+            if existing_inventory.quantity == 0:
+                existing_inventory.status = InventoryStatus.OUT_OF_STOCK
+            elif existing_inventory.quantity < 10:  # Adjust threshold as needed
+                existing_inventory.status = InventoryStatus.LOW_STOCK
+            else:
+                existing_inventory.status = InventoryStatus.IN_STOCK
+
+            # Save updated inventory
+            with self.session:
+                self.session.add(existing_inventory)
+                self.session.commit()
+                self.session.refresh(existing_inventory)
+
+            self.logger.info(f"Adjusted inventory for {inventory_type}: {item_id}")
+            return existing_inventory
+
+        except Exception as e:
+            self.logger.error(f"Error adjusting inventory: {str(e)}")
+            raise ValidationError(f"Inventory adjustment failed: {str(e)}")
+
+    def get_inventory_status(
+        self, item_id: str, inventory_type: MaterialType
+    ) -> Union[
+        ProductInventory,
+        MaterialInventory,
+        LeatherInventory,
+        HardwareInventory,
+        ToolInventory,
+    ]:
+        """
+        Retrieve inventory status for a specific item.
+
+        Args:
+            item_id: Unique identifier of the item
+            inventory_type: Type of material/item
+
+        Returns:
+            Inventory instance
+
+        Raises:
+            NotFoundError: If inventory is not found
+        """
+        try:
+            # Get appropriate repository
+            inventory_repo = self._get_inventory_repository(inventory_type)
+
+            # Find inventory
+            inventory = inventory_repo.get_by_item_id(item_id)
+
+            if not inventory:
+                raise NotFoundError(
+                    f"Inventory not found for {inventory_type}: {item_id}"
+                )
+
+            return inventory
+
+        except Exception as e:
+            self.logger.error(f"Error retrieving inventory status: {str(e)}")
+            raise NotFoundError(f"Inventory status retrieval failed: {str(e)}")
+
+    def get_low_stock_inventory(
+        self, inventory_type: Optional[MaterialType] = None
+    ) -> List[
+        Union[
+            ProductInventory,
+            MaterialInventory,
+            LeatherInventory,
+            HardwareInventory,
+            ToolInventory,
+        ]
+    ]:
+        """
+        Retrieve inventory items with low stock.
+
+        Args:
+            inventory_type: Optional specific inventory type to filter
+
+        Returns:
+            List of low stock inventory items
+        """
+        try:
+            low_stock_inventories = []
+
+            # Check each repository if no specific type is given
+            if inventory_type is None:
+                repositories = [
+                    self.product_inventory_repo,
+                    self.material_inventory_repo,
+                    self.leather_inventory_repo,
+                    self.hardware_inventory_repo,
+                    self.tool_inventory_repo,
+                ]
+                for repo in repositories:
+                    low_stock_inventories.extend(repo.get_low_stock_items())
+            else:
+                # Get specific repository
+                inventory_repo = self._get_inventory_repository(inventory_type)
+                low_stock_inventories = inventory_repo.get_low_stock_items()
+
+            return low_stock_inventories
+
+        except Exception as e:
+            self.logger.error(f"Error retrieving low stock inventory: {str(e)}")
+            return []
