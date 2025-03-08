@@ -1,16 +1,26 @@
-Metadata-Version: 2.2
+Metadata-Version: 2.1
 Name: store-management
 Version: 0.1.0
-Summary: Store Management Application
+Summary: A store management system for leatherworking
+Home-page: https://github.com/yourusername/store_management
 Author: Your Name
 Author-email: your.email@example.com
-Requires-Python: >=3.9
-Requires-Dist: sqlalchemy>=2.0.19
-Requires-Dist: alembic>=1.11.1
-Requires-Dist: python-dotenv>=1.0.0
-Requires-Dist: sqlalchemy-utils>=0.41.1
-Dynamic: author
-Dynamic: author-email
-Dynamic: requires-dist
-Dynamic: requires-python
-Dynamic: summary
+Classifier: Programming Language :: Python :: 3.11
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+Requires-Dist: sqlalchemy>=2.0.0
+Requires-Dist: pytest
+Requires-Dist: sqlalchemy-utils
+
+# Store Management System
+
+A comprehensive store management system for leatherworking projects.
+
+## Features
+
+- Inventory tracking
+- Sales management
+- Project tracking
+- and more...

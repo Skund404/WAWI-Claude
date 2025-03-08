@@ -1,3 +1,5 @@
+from database.models.base import metadata
+from sqlalchemy.orm import declarative_base
 # database/models/project.py
 """
 Comprehensive Project Model for Leatherworking Management System
@@ -14,7 +16,7 @@ from sqlalchemy import Column, DateTime, Enum, Float, ForeignKey, Integer, JSON,
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.exc import SQLAlchemyError
 
-from database.models.base import Base, ModelValidationError
+from database.models.base import Base, ModelValidationError, metadata
 from database.models.enums import (
     ProjectStatus,
     ProjectType,
@@ -50,8 +52,12 @@ register_lazy_import('PickingList', 'database.models.picking_list', 'PickingList
 register_lazy_import('ToolList', 'database.models.tool_list', 'ToolList')
 register_lazy_import('Production', 'database.models.production', 'Production')
 
+from sqlalchemy.orm import declarative_base
+ProjectBase = declarative_base()
+ProjectBase.metadata = metadata
+ProjectBase.metadata = metadata
 
-class Project(Base, apply_mixins(TimestampMixin, ValidationMixin, CostingMixin)):
+class Project(ProjectBase):
     """
     Project model representing a comprehensive leatherworking project.
 

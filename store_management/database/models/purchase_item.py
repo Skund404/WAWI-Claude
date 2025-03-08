@@ -1,3 +1,5 @@
+from database.models.base import metadata
+from sqlalchemy.orm import declarative_base
 # database/models/purchase_item.py
 """
 Comprehensive Purchase Item Model for Leatherworking Management System
@@ -17,7 +19,7 @@ from sqlalchemy import Column, Enum, Float, ForeignKey, Integer, String, Text, B
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.exc import SQLAlchemyError
 
-from database.models.base import Base, ModelValidationError
+from database.models.base import Base, ModelValidationError, metadata
 from database.models.enums import (
     TransactionType,
     InventoryStatus,
@@ -53,8 +55,13 @@ register_lazy_import('Hardware', 'database.models.hardware', 'Hardware')
 register_lazy_import('Tool', 'database.models.tool', 'Tool')
 register_lazy_import('Transaction', 'database.models.transaction', 'Transaction')
 
+from sqlalchemy.orm import declarative_base
+PurchaseItemBase = declarative_base()
+PurchaseItemBase.metadata = metadata
+PurchaseItemBase.metadata = metadata
 
-class PurchaseItem(Base, TimestampMixin, ValidationMixin, CostingMixin):
+
+class PurchaseItem(PurchaseItemBase):
     """
     PurchaseItem model representing items in a purchase order.
 

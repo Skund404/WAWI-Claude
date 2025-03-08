@@ -24,6 +24,7 @@ from typing import (
     Union, Set, Tuple, cast, ClassVar, get_type_hints
 )
 
+# Import SQLAlchemy components
 from sqlalchemy import (
     MetaData, create_engine, Column, DateTime, Boolean,
     Float, String, Enum as SQLAlchemyEnum, CheckConstraint,
@@ -32,11 +33,16 @@ from sqlalchemy import (
 from sqlalchemy.orm import (
     DeclarativeMeta, DeclarativeBase,
     Mapped, mapped_column, declared_attr,
-    relationship, Session, registry, MappedAsDataclass
+    relationship, Session, registry, MappedAsDataclass,
+    declarative_base
 )
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.sql import func
 from sqlalchemy.dialects.sqlite import TEXT  # For SQLite compatibility
+
+# Create metadata FIRST before any imports that might use it
+metadata = MetaData()
+mapper_registry = registry(metadata=metadata)
 
 # Import circular import resolver for advanced dependency management
 from utils.circular_import_resolver import (
@@ -52,9 +58,20 @@ logger = logging.getLogger(__name__)
 T = TypeVar('T')
 ModelType = TypeVar('ModelType')
 
-# Create a single, global metadata and registry object
-metadata = MetaData()
-mapper_registry = registry(metadata=metadata)
+# Define the Base class using DeclarativeBase
+class Base(DeclarativeBase):
+    """Base class for all models"""
+    metadata = metadata
+    registry = mapper_registry
+
+# For backwards compatibility
+BaseModel = Base
+
+# The rest of the file remains unchanged...
+
+# Update BaseModel creation for SQLAlchemy 2.0
+BaseModel = declarative_base()
+BaseModel.metadata = metadata
 
 
 class ModelValidationError(Exception):
@@ -1204,7 +1221,7 @@ def create_base_model(
         A dynamically created base model class
     """
     # Prepare mixins
-    applied_mixins = [base_class]
+    applied_mixins = []
     if mixins:
         applied_mixins.extend(mixins)
 
@@ -1213,11 +1230,12 @@ def create_base_model(
         applied_mixins.append(AuditMixin)
 
     # Create a custom base with enhanced metaclass
-    class BaseModel(metaclass=EnhancedMetaclass):
+    class BaseModel(DeclarativeBase, metaclass=EnhancedMetaclass):
         """
         Comprehensive base model with advanced features.
         """
-        # Standard metadata configuration
+        # Connect the registry - this is critical for SQLAlchemy 2.0
+        registry = mapper_registry
         metadata = mapper_registry.metadata
 
         # Standard columns for tracking and identification
@@ -1232,6 +1250,7 @@ def create_base_model(
             default=True,
             nullable=False
         )
+
         created_at: Mapped[datetime] = mapped_column(
             DateTime(timezone=True),
             server_default=func.now()
@@ -1646,6 +1665,44 @@ class ModelFactory:
                 logger.warning(f"Unknown event name: {event_name}")
 
 
+def apply_mixins(base_class: Type, *mixins) -> Type:
+    """
+    Apply mixins to a base class, properly handling method resolution.
+
+    Args:
+        base_class: The base class to apply mixins to
+        *mixins: Variable number of mixin classes to apply
+
+    Returns:
+        New class with mixins applied
+    """
+    # Start with a copy of the base class attributes
+    attrs = {
+        name: attr for name, attr in inspect.getmembers(base_class)
+        if not name.startswith('__') or name in ('__tablename__', '__table_args__')
+    }
+
+    # Apply mixins in reverse order to respect method resolution order
+    # Convert to list if it's not already
+    mixin_list = list(mixins)
+
+    for mixin in reversed(mixin_list):
+        for name, attr in inspect.getmembers(mixin):
+            if not name.startswith('__'):
+                attrs[name] = attr
+
+    # Create a new class with the base class and mixins
+    class_name = base_class.__name__
+    new_class = type(
+        class_name,
+        (base_class,),
+        attrs
+    )
+
+    logger.debug(f"Applied {len(mixin_list)} mixins to {class_name}")
+    return new_class
+
+
 # Add database events to track model changes
 @event.listens_for(Base, 'after_insert', propagate=True)
 def after_insert(mapper, connection, target):
@@ -1666,6 +1723,7 @@ def after_delete(mapper, connection, target):
 
 
 
+
 # Export key components
 __all__ = [
     'Base',
@@ -1676,6 +1734,7 @@ __all__ = [
     'ModelValidationError',
     'metadata',
     'mapper_registry',
+    'apply_mixins',  # Add this line
 
     # Mixins
     'ValidationMixin',

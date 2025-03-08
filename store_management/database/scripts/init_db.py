@@ -1,3 +1,4 @@
+from database.models.base import metadata
 # scripts/init_db.py
 """
 Simple script to initialize the database with all tables.

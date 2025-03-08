@@ -1,3 +1,5 @@
+from database.models.base import metadata
+from sqlalchemy.orm import declarative_base
 # database/models/supplier.py
 """
 Comprehensive Supplier Model for Leatherworking Management System
@@ -18,7 +20,7 @@ from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.sql import sqltypes
 
-from database.models.base import Base, ModelValidationError
+from database.models.base import Base, ModelValidationError, metadata
 from database.models.enums import SupplierStatus
 from database.models.base import (
     TimestampMixin,
@@ -47,8 +49,13 @@ register_lazy_import('Tool', 'database.models.tool', 'Tool')
 register_lazy_import('Purchase', 'database.models.purchase', 'Purchase')
 register_lazy_import('Product', 'database.models.product', 'Product')
 
+from sqlalchemy.orm import declarative_base
+SupplierBase = declarative_base()
+SupplierBase.metadata = metadata
+SupplierBase.metadata = metadata
+SupplierBase.metadata = metadata
 
-class Supplier(Base, apply_mixins(TimestampMixin, ValidationMixin, TrackingMixin)):
+class Supplier(SupplierBase):
     """
     Supplier model representing vendors and suppliers for leatherworking materials.
 

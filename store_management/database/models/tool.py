@@ -1,3 +1,5 @@
+from database.models.base import metadata
+from sqlalchemy.orm import declarative_base
 # database/models/tool.py
 """
 Comprehensive Tool Model for Leatherworking Management System
@@ -17,7 +19,7 @@ from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.sql import sqltypes
 
-from database.models.base import Base, ModelValidationError
+from database.models.base import Base, ModelValidationError, metadata
 from database.models.enums import ToolCategory
 from database.models.base import (
     TimestampMixin,
@@ -45,8 +47,13 @@ register_lazy_import('ComponentTool', 'database.models.components', 'ComponentTo
 register_lazy_import('ToolListItem', 'database.models.tool_list', 'ToolListItem')
 register_lazy_import('PurchaseItem', 'database.models.purchase_item', 'PurchaseItem')
 
+from sqlalchemy.orm import declarative_base
+ToolBase = declarative_base()
+ToolBase.metadata = metadata
+ToolBase.metadata = metadata
+ToolBase.metadata = metadata
 
-class Tool(Base, apply_mixins(TimestampMixin, ValidationMixin, TrackingMixin)):
+class Tool(ToolBase):
     """
     Tool model representing tools used in leatherworking projects.
 

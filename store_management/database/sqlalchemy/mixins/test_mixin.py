@@ -1,3 +1,4 @@
+from database.models.base import metadata
 # test_mixin.py
 import pytest
 from sqlalchemy import Column, Integer, String, create_engine
@@ -8,6 +9,7 @@ from services.interfaces import MaterialService
 from base_mixins import SearchMixin, FilterMixin, PaginationMixin, TransactionMixin
 
 TestBase = declarative_base()
+TestBase.metadata = metadata
 
 
 class TestModel(TestBase):

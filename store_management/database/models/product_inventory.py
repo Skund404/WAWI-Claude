@@ -1,3 +1,5 @@
+from database.models.base import metadata
+from sqlalchemy.orm import declarative_base
 # database/models/product_inventory.py
 """
 Comprehensive Product Inventory Model for Leatherworking Management System
@@ -17,7 +19,7 @@ from sqlalchemy import Column, Enum, Float, ForeignKey, Integer, String, Text, B
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.exc import SQLAlchemyError
 
-from database.models.base import Base, ModelValidationError
+from database.models.base import Base, ModelValidationError, metadata
 from database.models.enums import (
     InventoryStatus,
     TransactionType,
@@ -48,8 +50,13 @@ logger = logging.getLogger(__name__)
 register_lazy_import('Product', 'database.models.product', 'Product')
 register_lazy_import('Storage', 'database.models.storage', 'Storage')
 
+from sqlalchemy.orm import declarative_base
+ProductInventoryBase = declarative_base()
+ProductInventoryBase.metadata = metadata
+ProductInventoryBase.metadata = metadata
 
-class ProductInventory(Base, TimestampMixin, ValidationMixin, TrackingMixin):
+
+class ProductInventory(ProductInventoryBase):
     """
     ProductInventory model representing inventory of finished products.
 

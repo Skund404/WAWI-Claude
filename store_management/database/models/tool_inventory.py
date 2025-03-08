@@ -1,3 +1,5 @@
+from database.models.base import metadata
+from sqlalchemy.orm import declarative_base
 # database/models/tool_inventory.py
 """
 Comprehensive Tool Inventory Model for Leatherworking Management System
@@ -18,7 +20,7 @@ from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.sql import sqltypes
 
-from database.models.base import Base, ModelValidationError
+from database.models.base import Base, ModelValidationError, metadata
 from database.models.enums import (
     InventoryStatus,
     StorageLocationType
@@ -46,8 +48,12 @@ logger = logging.getLogger(__name__)
 # Register lazy imports to resolve potential circular dependencies
 register_lazy_import('Tool', 'database.models.tool', 'Tool')
 
+from sqlalchemy.orm import declarative_base
+ToolInventoryBase = declarative_base()
+ToolInventoryBase.metadata = metadata
+ToolInventoryBase.metadata = metadata
 
-class ToolInventory(Base, apply_mixins(TimestampMixin, ValidationMixin, TrackingMixin)):
+class ToolInventory(ToolInventoryBase):
     """
     ToolInventory model representing tool stock quantities and locations.
 

@@ -1,3 +1,5 @@
+from database.models.base import metadata
+from sqlalchemy.orm import declarative_base
 # database/models/leather_inventory.py
 """
 Leather Inventory Model for Leatherworking Management System
@@ -15,7 +17,7 @@ from sqlalchemy import Column, Enum, Float, ForeignKey, Integer, String, DateTim
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.exc import SQLAlchemyError
 
-from database.models.base import Base, ModelValidationError
+from database.models.base import Base, ModelValidationError, metadata
 from database.models.enums import (
     InventoryStatus,
     TransactionType,
@@ -46,8 +48,13 @@ logger = logging.getLogger(__name__)
 register_lazy_import('Leather', 'database.models.leather', 'Leather')
 register_lazy_import('LeatherTransaction', 'database.models.transaction', 'LeatherTransaction')
 
+from sqlalchemy.orm import declarative_base
+LeatherInventoryBase = declarative_base()
+LeatherInventoryBase.metadata = metadata
+LeatherInventoryBase.metadata = metadata
 
-class LeatherInventory(Base, apply_mixins(TimestampMixin, ValidationMixin, TrackingMixin)):
+
+class LeatherInventory(LeatherInventoryBase):
     """
     LeatherInventory model representing leather stock quantities and locations.
 

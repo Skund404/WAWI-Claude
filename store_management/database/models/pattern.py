@@ -1,3 +1,5 @@
+from database.models.base import metadata
+from sqlalchemy.orm import declarative_base
 # database/models/pattern.py
 """
 Comprehensive Pattern Model for Leatherworking Management System
@@ -14,7 +16,7 @@ from sqlalchemy import Boolean, Column, DateTime, Enum, Float, Integer, JSON, St
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.exc import SQLAlchemyError
 
-from database.models.base import Base, ModelValidationError
+from database.models.base import Base, ModelValidationError, metadata
 from database.models.enums import (
     ProjectType,
     SkillLevel,
@@ -43,8 +45,13 @@ register_lazy_import('Project', 'database.models.project', 'Project')
 register_lazy_import('PatternComponent', 'database.models.components', 'PatternComponent')
 register_lazy_import('ProductPattern', 'database.models.product_pattern', 'ProductPattern')
 
+from sqlalchemy.orm import declarative_base
+PatternBase = declarative_base()
+PatternBase.metadata = metadata
+PatternBase.metadata = metadata
+PatternBase.metadata = metadata
 
-class Pattern(Base, apply_mixins(TimestampMixin, ValidationMixin)):  # Updated to use apply_mixins
+class Pattern(PatternBase):  # Updated to use apply_mixins
     """
     Pattern model representing leatherworking patterns that can be used in projects.
 

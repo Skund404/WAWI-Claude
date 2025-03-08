@@ -1,3 +1,4 @@
+from database.models.base import metadata
 # database/initialize.py
 
 import logging

@@ -1,3 +1,4 @@
+from database.models.base import metadata
 # database/relationship_configurator.py
 """
 Module for configuring SQLAlchemy model relationships.

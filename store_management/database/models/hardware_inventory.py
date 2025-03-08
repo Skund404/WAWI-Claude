@@ -1,3 +1,4 @@
+from database.models.base import metadata
 # database/models/hardware_inventory.py
 """
 Hardware Inventory Model for Leatherworking Management System
@@ -15,7 +16,7 @@ from sqlalchemy import Column, Enum, Integer, ForeignKey, String, DateTime, Floa
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.exc import SQLAlchemyError
 
-from database.models.base import Base, ModelValidationError
+from database.models.base import Base, ModelValidationError, metadata
 from database.models.enums import (
     InventoryStatus,
     TransactionType,
@@ -49,8 +50,14 @@ register_lazy_import('HardwareTransaction', 'database.models.transaction', 'Hard
 # Register this model for lazy import resolution
 register_lazy_import('HardwareInventory', 'database.models.hardware_inventory', 'HardwareInventory')
 
+from sqlalchemy.orm import declarative_base
+from sqlalchemy.orm import declarative_base
+HardwareInventoryBase = declarative_base()
+HardwareInventoryBase.metadata = metadata
+HardwareInventoryBase.metadata = metadata
 
-class HardwareInventory(Base, TimestampMixin, ValidationMixin, TrackingMixin):
+
+class HardwareInventory(HardwareInventoryBase):
     """
     HardwareInventory model representing hardware stock quantities and locations.
 

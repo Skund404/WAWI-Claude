@@ -1,3 +1,5 @@
+from database.models.base import metadata
+from sqlalchemy.orm import declarative_base
 # database/models/purchase.py
 """
 Comprehensive Purchase Model for Leatherworking Management System
@@ -19,7 +21,7 @@ from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.sql import sqltypes
 
-from database.models.base import Base, ModelValidationError
+from database.models.base import Base, ModelValidationError, metadata
 from database.models.enums import (
     PurchaseStatus,
     TransactionType
@@ -51,8 +53,12 @@ register_lazy_import('Supplier', 'database.models.supplier', 'Supplier')
 register_lazy_import('PurchaseItem', 'database.models.purchase_item', 'PurchaseItem')
 register_lazy_import('Transaction', 'database.models.transaction', 'Transaction')
 
+from sqlalchemy.orm import declarative_base
+PurchaseBase = declarative_base()
+PurchaseBase.metadata = metadata
+PurchaseBase.metadata = metadata
 
-class Purchase(Base, apply_mixins(TimestampMixin, ValidationMixin, CostingMixin, TrackingMixin)):
+class Purchase(PurchaseBase):
     """
     Purchase model representing orders from suppliers.
 

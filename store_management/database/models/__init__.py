@@ -1,3 +1,4 @@
+from database.models.base import metadata
 # database/models/__init__.py
 """
 Models Package Initialization for Leatherworking Management System
@@ -5,7 +6,9 @@ Models Package Initialization for Leatherworking Management System
 Provides centralized model registration, lazy loading, and relationship management
 with optimized initialization and error handling.
 """
-
+from . import init_relationships
+from . import base
+from . import enums
 import logging
 import time
 import os
@@ -15,8 +18,11 @@ import traceback
 from typing import Optional, Callable, Dict, Any, List, Set, Tuple
 from contextlib import contextmanager
 
-from database import Base
+from utils.circular_import_resolver import register_lazy_import, resolve_lazy_import
+from .base import Base
+
 from database.models.base import ModelRegistry, ModelFactory, ModelValidationError
+from database.models.enums import MeasurementUnit
 # Import circular import resolver
 from utils.circular_import_resolver import (
     CircularImportResolver,
@@ -384,6 +390,9 @@ def _populate_import_groups():
     _import_groups['projects'].add_model('PickingList', 'database.models.picking_list', 'PickingList')
     _import_groups['projects'].add_model('PickingListItem', 'database.models.picking_list_item', 'PickingListItem')
     _import_groups['projects'].add_model('ToolList', 'database.models.tool_list', 'ToolList')
+    _import_groups['projects'].add_model('ToolListItem', 'database.models.tool_list_item', 'ToolListItem')
+
+    # Add ToolListItem here
     _import_groups['projects'].add_model('ToolListItem', 'database.models.tool_list_item', 'ToolListItem')
 
     # Association models

@@ -1,7 +1,9 @@
+from database.models.base import metadata
+from sqlalchemy.orm import declarative_base
 # database/models/base.py
 import logging
 from sqlalchemy import Column, DateTime, Integer
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import declared_attr, DeclarativeMeta
 from sqlalchemy import func
 from typing import Any, Dict, Optional, Type, TypeVar
@@ -35,7 +37,8 @@ class Base:
 
 
 # Create the declarative base with our custom Base class
-BaseModel = declarative_base(cls=Base)
+BaseModel = declarative_base()
+BaseModel.metadata = metadata
 
 
 # No need for this class as it creates a duplicate base class issue

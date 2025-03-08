@@ -1,3 +1,5 @@
+from database.models.base import metadata
+from sqlalchemy.orm import declarative_base
 # database/models/leather.py
 """
 Comprehensive Leather Model for Leatherworking Management System
@@ -17,7 +19,7 @@ from sqlalchemy import Column, Enum, Float, ForeignKey, Integer, String, Text, B
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.exc import SQLAlchemyError
 
-from database.models.base import Base, ModelValidationError
+from database.models.base import Base, ModelValidationError, metadata
 from database.models.enums import (
     LeatherType,
     LeatherFinish,
@@ -55,8 +57,12 @@ register_lazy_import('LeatherInventory', 'database.models.leather_inventory', 'L
 register_lazy_import('ComponentLeather', 'database.models.components', 'ComponentLeather')
 register_lazy_import('ProjectComponent', 'database.models.components', 'ProjectComponent')
 
+from sqlalchemy.orm import declarative_base
+LeatherBase = declarative_base()
+LeatherBase.metadata = metadata
+LeatherBase.metadata = metadata
 
-class Leather(Base, apply_mixins(TimestampMixin, ValidationMixin, CostingMixin, TrackingMixin)):
+class Leather(LeatherBase):
     """
     Leather model representing leather materials used in leatherworking projects.
 

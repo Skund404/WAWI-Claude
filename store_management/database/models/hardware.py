@@ -1,3 +1,5 @@
+from database.models.base import metadata
+from sqlalchemy.orm import declarative_base
 # database/models/hardware.py
 """
 Hardware Model for Leatherworking Management System
@@ -12,7 +14,7 @@ from sqlalchemy import Boolean, Column, Enum, Float, ForeignKey, Integer, String
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from database.models.base import Base, ModelValidationError
+from database.models.base import Base, ModelValidationError, metadata
 from database.models.enums import (
     HardwareType,
     HardwareMaterial,
@@ -43,8 +45,12 @@ register_lazy_import('HardwareInventory', 'database.models.hardware_inventory', 
 register_lazy_import('ComponentHardware', 'database.models.components', 'ComponentHardware')
 register_lazy_import('HardwareTransaction', 'database.models.transaction', 'HardwareTransaction')
 
+from sqlalchemy.orm import declarative_base
+HardwareBase = declarative_base()
+HardwareBase.metadata = metadata
+HardwareBase.metadata = metadata
 
-class Hardware(Base, apply_mixins(TimestampMixin, ValidationMixin, CostingMixin, TrackingMixin)):
+class Hardware(HardwareBase):
     """
     Hardware model representing hardware items used in leatherworking.
 

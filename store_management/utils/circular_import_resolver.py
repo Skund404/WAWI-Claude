@@ -244,13 +244,159 @@ def resolve_lazy_import(target_name: str) -> Any:
     return resolver.resolve_lazy_import(target_name)
 
 
+def register_relationship(
+        source_model: str,
+        target_model: str,
+        relationship_type: Optional[str] = None,
+        **kwargs
+) -> None:
+    """
+    Register a relationship between models.
+
+    Args:
+        source_model: Name of the source model
+        target_model: Name of the target model
+        relationship_type: Type of relationship (optional)
+        **kwargs: Additional relationship configuration
+    """
+    resolver = CircularImportResolver()
+
+    # Create a key for the relationship
+    relationship_key = f"{source_model}_to_{target_model}"
+
+    # Use the type registry to store relationship information
+    resolver.register_type(relationship_key, {
+        'source': source_model,
+        'target': target_model,
+        'type': relationship_type,
+        'config': kwargs
+    })
+
+    logger.debug(f"Registered relationship: {relationship_key}")
+
+
+def resolve_relationship(source_model: str, target_model: str) -> Optional[Dict]:
+    """
+    Resolve a previously registered relationship.
+
+    Args:
+        source_model: Name of the source model
+        target_model: Name of the target model
+
+    Returns:
+        Relationship configuration or None
+    """
+    resolver = CircularImportResolver()
+    relationship_key = f"{source_model}_to_{target_model}"
+
+    return resolver.resolve_type(relationship_key)
+
+
+def resolve_lazy_relationships() -> List[Dict]:
+    """
+    Resolve all registered relationships.
+
+    Returns:
+        List of relationship configurations
+    """
+    resolver = CircularImportResolver()
+
+    return [
+        relationship
+        for key, relationship in resolver._type_registry.items()
+        if '_to_' in key
+    ]
+
+def get_module(module_path: str) -> Any:
+    """
+    Dynamically import and return a module.
+
+    Args:
+        module_path: Full path to the module
+
+    Returns:
+        Imported module
+    """
+    try:
+        return importlib.import_module(module_path)
+    except ImportError as e:
+        logger.error(f"Failed to import module {module_path}: {e}")
+        raise
+
+
+def get_class(module_path: str, class_name: Optional[str] = None) -> Type:
+    """
+    Dynamically import and return a class from a module.
+
+    Args:
+        module_path: Full path to the module
+        class_name: Name of the class to import (optional, defaults to last part of module path)
+
+    Returns:
+        Imported class
+    """
+    try:
+        # Import the module
+        module = importlib.import_module(module_path)
+
+        # Determine class name
+        if class_name is None:
+            class_name = module_path.split('.')[-1].capitalize()
+
+        # Get the class
+        return getattr(module, class_name)
+    except (ImportError, AttributeError) as e:
+        logger.error(f"Failed to import class {class_name} from {module_path}: {e}")
+        raise
+
+def lazy_relationship(
+    source_model: str,
+    target_model: str,
+    relationship_type: Optional[str] = None,
+    **kwargs
+) -> Callable[[], Any]:
+    """
+    Lazily register and resolve a relationship between models.
+
+    Args:
+        source_model: Name of the source model
+        target_model: Name of the target model
+        relationship_type: Type of relationship (optional)
+        **kwargs: Additional relationship configuration
+
+    Returns:
+        A callable that resolves the relationship when invoked
+    """
+    def resolver():
+        """
+        Resolve the registered relationship.
+
+        Returns:
+            The resolved relationship configuration
+        """
+        register_relationship(
+            source_model,
+            target_model,
+            relationship_type,
+            **kwargs
+        )
+        return resolve_relationship(source_model, target_model)
+
+    return resolver
+
 # Create singleton instance
 _resolver_instance = CircularImportResolver()
 
 # Export key components
-__all__ = [
+___all__ = [
     'CircularImportResolver',
     'lazy_import',
     'register_lazy_import',
-    'resolve_lazy_import'
+    'resolve_lazy_import',
+    'register_relationship',
+    'resolve_relationship',
+    'resolve_lazy_relationships',
+    'get_module',
+    'get_class',
+    'lazy_relationship'  # Add this line
 ]

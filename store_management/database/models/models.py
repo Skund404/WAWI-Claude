@@ -1,3 +1,4 @@
+from database.models.base import metadata
 # database/models/product.py
 """
 Comprehensive Product Model for Leatherworking Management System

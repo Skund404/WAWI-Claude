@@ -1,3 +1,4 @@
+from database.models.base import metadata
 # database/models/customer.py
 """
 Customer Model for Leatherworking Management System
@@ -14,7 +15,7 @@ from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from database.models.base import Base, ModelValidationError
+from database.models.base import Base, ModelValidationError, metadata
 from database.models.enums import (
     CustomerStatus,
     CustomerTier,
@@ -40,9 +41,14 @@ logger = logging.getLogger(__name__)
 
 # Register lazy imports for related models
 register_lazy_import('Sales', 'database.models.sales', 'Sales')
+from sqlalchemy.orm import declarative_base
+from sqlalchemy.orm import declarative_base
+CustomerBase = declarative_base()
+CustomerBase.metadata = metadata
+CustomerBase.metadata = metadata
+CustomerBase.metadata = metadata
 
-
-class Customer(Base, apply_mixins(TimestampMixin, ValidationMixin, TrackingMixin)):
+class Customer(CustomerBase):
     """
     Customer model representing detailed customer information.
 

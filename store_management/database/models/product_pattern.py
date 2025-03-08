@@ -1,3 +1,4 @@
+from database.models.base import metadata
 # database/models/product_pattern.py
 """
 Comprehensive Product Pattern Model for Leatherworking Management System
@@ -39,8 +40,12 @@ logger = logging.getLogger(__name__)
 register_lazy_import('Product', 'database.models.product', 'Product')
 register_lazy_import('Pattern', 'database.models.pattern', 'Pattern')
 
+from sqlalchemy.orm import declarative_base
+ProductPatternBase = declarative_base()
+ProductPatternBase.metadata = metadata
 
-class ProductPattern(Base, apply_mixins(TimestampMixin, ValidationMixin)):
+
+class ProductPattern(ProductPatternBase):
     """
     ProductPattern model representing the many-to-many relationship between
     Product and Pattern entities.

@@ -1,3 +1,4 @@
+from database.models.base import metadata
 # Relative path: store_management/database/sqlalchemy/migration.py
 
 """

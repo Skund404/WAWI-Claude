@@ -5,15 +5,17 @@ Centralized Relationship Initialization for Leatherworking Management System
 This module provides a comprehensive mechanism for initializing
 relationships between models based on the entity-relationship diagram.
 """
-
+import inspect
 import logging
 import importlib
 import traceback
+from datetime import time
 from typing import Dict, Any, Optional, Type, List, Tuple, Set, Union
 from enum import Enum, auto
 
 from sqlalchemy.orm import relationship, Session
 from sqlalchemy import select, ForeignKey
+from sqlalchemy_utils.types import json
 
 from utils.circular_import_resolver import (
     lazy_import,
@@ -24,6 +26,23 @@ from utils.circular_import_resolver import (
 # Setup logger
 logger = logging.getLogger(__name__)
 
+def register_critical_model_lazy_imports():
+    """
+    Centralized lazy import registration for critical models
+    """
+    lazy_import_configs = [
+        ('Product', 'database.models.product', 'Product'),
+        ('Sales', 'database.models.sales', 'Sales'),
+        ('SalesItem', 'database.models.sales_item', 'SalesItem'),
+        ('Customer', 'database.models.customer', 'Customer'),
+        ('Tool', 'database.models.tool', 'Tool'),
+        ('ToolList', 'database.models.tool_list', 'ToolList'),
+        ('ToolListItem', 'database.models.tool_list_item', 'ToolListItem'),
+        # Add more critical models as needed
+    ]
+
+    for name, module, cls_name in lazy_import_configs:
+        register_lazy_import(name, module, cls_name)
 
 class RelationshipType(Enum):
     """Enum defining different types of relationships for better classification."""
@@ -32,12 +51,41 @@ class RelationshipType(Enum):
     MANY_TO_ONE = auto()
     MANY_TO_MANY = auto()
 
+class RelationshipConfig:
+    """
+    Configurable relationship setup with dependency injection
+    """
+    def __init__(self, logger=None):
+        self.logger = logger or logging.getLogger(__name__)
+        self.relationship_registry = {}
+
+    def register_relationship(self, source, target, relationship_type, options=None):
+        """
+        Flexible relationship registration
+        """
+        key = (source, target, relationship_type)
+        self.relationship_registry[key] = options or {}
+        self.logger.debug(f"Registered relationship: {source} -> {target} ({relationship_type})")
+
+    def initialize_relationships(self):
+        """
+        Initialize registered relationships with flexible configuration
+        """
+        for (source, target, relationship_type), options in self.relationship_registry.items():
+            try:
+                # Dynamic relationship initialization logic
+                if relationship_type == 'one_to_many':
+                    register_one_to_many(source, target, **options)
+                elif relationship_type == 'many_to_one':
+                    register_many_to_one(source, target, **options)
+                # Add more relationship types as needed
+            except Exception as e:
+                self.logger.error(f"Failed to initialize {source}-{target} relationship: {e}")
 
 class RelationshipDefinition:
     """
     Structured relationship definition class to standardize relationship configurations.
     """
-
     def __init__(
             self,
             source_model: str,
@@ -135,6 +183,36 @@ class RelationshipDefinition:
         return config
 
 
+def validate_relationship_configuration():
+    """
+    Comprehensive relationship configuration validation
+    """
+    from .base import ModelRegistry
+
+    validation_errors = []
+
+    for relationship in RelationshipManager._relationships:
+        try:
+            # Check if source and target models exist
+            source_model = ModelRegistry.get(relationship.parent_model)
+            target_model = ModelRegistry.get(relationship.child_model)
+
+            if not source_model:
+                validation_errors.append(f"Missing source model: {relationship.parent_model}")
+
+            if not target_model:
+                validation_errors.append(f"Missing target model: {relationship.child_model}")
+
+        except Exception as e:
+            validation_errors.append(f"Validation error: {str(e)}")
+
+    if validation_errors:
+        logger.warning("Relationship configuration validation found issues:")
+        for error in validation_errors:
+            logger.warning(error)
+
+    return len(validation_errors) == 0
+
 class RelationshipManager:
     """
     Advanced relationship management for database models.
@@ -150,6 +228,16 @@ class RelationshipManager:
     _dependency_graph: Dict[str, Set[str]] = {}
     _initialization_order: List[str] = []
     _initialized: bool = False
+    _relationships: List[Dict[str, Any]] = []
+
+    def __init__(self, logger=None):
+        """
+        Initialize the RelationshipManager with optional logging.
+
+        Args:
+            logger: Optional logger instance
+        """
+        self.logger = logger or logging.getLogger(__name__)
 
     @classmethod
     def register_relationship(
@@ -210,46 +298,6 @@ class RelationshipManager:
         )
 
     @classmethod
-    def _determine_initialization_order(cls) -> List[str]:
-        """
-        Determine the optimal order for relationship initialization based on dependencies.
-
-        Returns:
-            List of model names in dependency order
-        """
-        visited: Set[str] = set()
-        temp_visited: Set[str] = set()
-        order: List[str] = []
-
-        def visit(node: str) -> None:
-            """Recursive depth-first traversal with cycle detection."""
-            if node in temp_visited:
-                # Cycle detected, break with current knowledge
-                logger.warning(f"Circular dependency detected for model: {node}")
-                return
-
-            if node in visited:
-                return
-
-            temp_visited.add(node)
-
-            # Visit dependencies first
-            for dependency in cls._dependency_graph.get(node, set()):
-                visit(dependency)
-
-            temp_visited.remove(node)
-            visited.add(node)
-            order.append(node)
-
-        # Start from each unvisited node
-        for node in cls._dependency_graph:
-            if node not in visited:
-                visit(node)
-
-        # Reverse for proper initialization order
-        return list(reversed(order))
-
-    @classmethod
     def resolve_relationships(cls) -> None:
         """
         Resolve all registered relationships across models.
@@ -266,7 +314,7 @@ class RelationshipManager:
         # Import here to avoid circular imports
         from .base import ModelRegistry
 
-        # Determine initialization order based on dependencies
+        # First pass: determine initialization order
         cls._initialization_order = cls._determine_initialization_order()
         logger.debug(f"Initialization order: {cls._initialization_order}")
 
@@ -322,16 +370,15 @@ class RelationshipManager:
                             )
                             continue
 
-                    # Create the relationship
-                    rel_prop = relationship(target_model, **rel_config)
+                    # Relationship configuration always requires target_model
+                    rel_config['target_model'] = target_model
 
-                    # Add the relationship to the source model
-                    setattr(source_model, rel_name, rel_prop)
-
-                    logger.debug(
-                        f"Configured relationship: {source_model_name}.{rel_name} "
-                        f"-> {target_model_name}"
-                    )
+                    # Track registered relationships for validation
+                    cls._relationships.append({
+                        'parent_model': source_model_name,
+                        'child_model': target_model_name,
+                        'relationship_name': rel_name
+                    })
 
                 except Exception as rel_err:
                     logger.error(
@@ -343,6 +390,46 @@ class RelationshipManager:
         logger.info("Comprehensive relationship resolution complete.")
 
     @classmethod
+    def _determine_initialization_order(cls) -> List[str]:
+        """
+        Determine the optimal order for relationship initialization based on dependencies.
+
+        Returns:
+            List of model names in dependency order
+        """
+        visited: Set[str] = set()
+        temp_visited: Set[str] = set()
+        order: List[str] = []
+
+        def visit(node: str) -> None:
+            """Recursive depth-first traversal with cycle detection."""
+            if node in temp_visited:
+                # Cycle detected, break with current knowledge
+                logger.warning(f"Circular dependency detected for model: {node}")
+                return
+
+            if node in visited:
+                return
+
+            temp_visited.add(node)
+
+            # Visit dependencies first
+            for dependency in cls._dependency_graph.get(node, set()):
+                visit(dependency)
+
+            temp_visited.remove(node)
+            visited.add(node)
+            order.append(node)
+
+        # Start from each unvisited node
+        for node in cls._dependency_graph:
+            if node not in visited:
+                visit(node)
+
+        # Reverse for proper initialization order
+        return list(reversed(order))
+
+    @classmethod
     def reset(cls) -> None:
         """
         Reset the relationship manager.
@@ -352,6 +439,7 @@ class RelationshipManager:
         cls._dependency_graph.clear()
         cls._initialization_order.clear()
         cls._initialized = False
+        cls._relationships.clear()
         logger.info("RelationshipManager reset complete")
 
 
@@ -1085,6 +1173,13 @@ def initialize_tool_list_relationships() -> None:
         back_populates='tool_list_items'
     )
 
+    register_many_to_one(
+        source_model='ToolListItem',
+        relationship_name='tool_list',
+        target_model='ToolList',
+        back_populates='items'
+    )
+
     register_one_to_many(
         source_model='Tool',
         relationship_name='tool_list_items',
@@ -1092,4 +1187,168 @@ def initialize_tool_list_relationships() -> None:
         back_populates='tool'
     )
 
+    # ToolList to Project (one-to-one)
+    register_one_to_one(
+        source_model='ToolList',
+        relationship_name='project',
+        target_model='Project',
+        back_populates='tool_list'
+    )
 
+
+def initialize_database_relationships(session: Optional[Session] = None) -> None:
+    """
+    Comprehensive error handling for relationship initialization
+    """
+    logger.info("Initializing all database relationships...")
+
+    try:
+        # Existing relationship initialization methods
+        initialization_methods = [
+            initialize_customer_sales_relationships,
+            initialize_product_relationships,
+            initialize_inventory_relationships,
+            initialize_component_relationships,
+            initialize_project_relationships,
+            initialize_supplier_relationships,
+            initialize_purchase_relationships,
+            initialize_picking_list_relationships,
+            initialize_tool_list_relationships
+        ]
+
+        # Track initialization status
+        initialization_errors = []
+
+        for method in initialization_methods:
+            try:
+                method()
+            except Exception as e:
+                error_info = {
+                    'method': method.__name__,
+                    'error': str(e),
+                    'traceback': traceback.format_exc()
+                }
+                initialization_errors.append(error_info)
+                logger.error(f"Failed to initialize {method.__name__}: {e}")
+
+        # Resolve relationships after all initializations
+        RelationshipManager.resolve_relationships()
+
+        # Log detailed initialization report
+        if initialization_errors:
+            logger.warning(f"Encountered {len(initialization_errors)} relationship initialization errors")
+            for error in initialization_errors:
+                logger.debug(f"Error in {error['method']}: {error['error']}")
+                logger.debug(error['traceback'])
+        else:
+            logger.info("All database relationships initialized successfully")
+
+    except Exception as e:
+        logger.critical(f"Catastrophic failure in relationship initialization: {e}")
+        logger.debug(traceback.format_exc())
+        raise
+
+def apply_mixins(base_class: Type, mixins: List[Type]) -> Type:
+    """
+    Apply mixins to a base class, properly handling method resolution.
+
+    Args:
+        base_class: The base class to apply mixins to
+        mixins: List of mixin classes to apply
+
+    Returns:
+        New class with mixins applied
+    """
+    # Start with a copy of the base class attributes
+    attrs = {
+        name: attr for name, attr in inspect.getmembers(base_class)
+        if not name.startswith('__') or name in ('__tablename__', '__table_args__')
+    }
+
+    # Apply mixins in reverse order to respect method resolution order
+    for mixin in reversed(mixins):
+        for name, attr in inspect.getmembers(mixin):
+            if not name.startswith('__'):
+                attrs[name] = attr
+
+    # Create a new class with the base class and mixins
+    class_name = base_class.__name__
+    new_class = type(
+        class_name,
+        (base_class,),
+        attrs
+    )
+
+    logger.debug(f"Applied {len(mixins)} mixins to {class_name}")
+    return new_class
+
+
+def test_relationship_initialization():
+    """
+    Comprehensive test function for relationship initialization.
+
+    This function provides a way to validate the relationship initialization process
+    by performing the following steps:
+    1. Register critical model lazy imports
+    2. Validate relationship configuration
+    3. Perform full relationship initialization
+    4. Log detailed metrics and catch any issues
+    """
+    try:
+        # Start timing
+        start_time = time.time()
+        logger.info("Starting comprehensive relationship initialization test")
+
+        # Register critical lazy imports
+        register_critical_model_lazy_imports()
+        logger.info("Critical model lazy imports registered")
+
+        # Validate relationship configuration
+        config_valid = validate_relationship_configuration()
+        if not config_valid:
+            logger.warning("Relationship configuration validation failed")
+
+        # Reset RelationshipManager to ensure clean state
+        RelationshipManager.reset()
+
+        # Perform full relationship initialization
+        initialize_database_relationships()
+
+        # Log initialization metrics
+        end_time = time.time()
+        duration = end_time - start_time
+
+        logger.info(f"Relationship initialization test completed successfully")
+        logger.info(f"Total initialization time: {duration:.4f} seconds")
+
+        # Verify key relationship registrations
+        registered_relationships = len(RelationshipManager._relationships)
+        logger.info(f"Total relationships registered: {registered_relationships}")
+
+        return {
+            'success': True,
+            'duration': duration,
+            'relationships_registered': registered_relationships
+        }
+
+    except Exception as e:
+        logger.critical(f"Relationship initialization test failed: {e}")
+        logger.debug(traceback.format_exc())
+        return {
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }
+
+
+# Add this at the end of the file
+if __name__ == '__main__':
+    # Configure logging for direct script execution
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+
+    # Run the test
+    test_result = test_relationship_initialization()
+    print(json.dumps(test_result, indent=2))

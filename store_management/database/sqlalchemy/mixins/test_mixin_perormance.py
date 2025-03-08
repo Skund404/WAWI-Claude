@@ -1,3 +1,4 @@
+from database.models.base import metadata
 # test_mixin_performance.py
 import time
 import pytest
@@ -9,6 +10,7 @@ from services.interfaces import MaterialService
 from base_mixins import SearchMixin, FilterMixin, PaginationMixin, TransactionMixin
 
 TestBase = declarative_base()
+TestBase.metadata = metadata
 
 
 class PerformanceTestModel(TestBase):

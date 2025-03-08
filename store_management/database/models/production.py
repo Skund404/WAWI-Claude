@@ -1,3 +1,4 @@
+from database.models.base import metadata
 # database/models/production.py
 """
 Comprehensive Production Model for Leatherworking Management System

@@ -1,109 +1,160 @@
 # database/__init__.py
 
 import logging
-from typing import Callable, Optional
-
+import sys
+from typing import Any, Optional, Tuple
+from . import models
+from database.models.enums import MeasurementUnit
+from database.models.base import Base, BaseModel
+from database.models import ModelValidationError, initialize_database
+from database.models.components import ProjectComponent, PatternComponent, Component
+from database.models.customer import Customer
+from database.models.hardware import Hardware
+from database.models.leather import Leather
+from database.models.material import Material
+from database.models.pattern import Pattern
+from database.models.picking_list import PickingList, PickingListItem
+from database.models.product import Product
+from database.models.project import Project
+from database.models.sales import Sales
+from database.models.sales_item import SalesItem
+from database.models.supplier import Supplier
+from database.models.transaction import HardwareTransaction, LeatherTransaction, MaterialTransaction, Transaction
+from initialize_database import add_minimal_sample_data, add_extra_demo_data, initialize_all_relationships, \
+    add_sample_data
 from utils.circular_import_resolver import (
     CircularImportResolver,
     register_lazy_import,
     lazy_import,
-    resolve_lazy_relationships
+    resolve_lazy_relationships,
+    get_module,
+    get_class
 )
 
 logger = logging.getLogger(__name__)
 
-try:
-    # First, import Base from models.base
-    from database.models.base import Base, ModelValidationError
 
-    # Define BaseModel as an alias for Base
-    BaseModel = Base
+class DatabaseModule:
+    """
+    Proxy module to handle lazy loading of database components.
+    """
 
-    # Import transaction models directly
-    from database.models.transaction import (
-        Transaction,
-        HardwareTransaction,
-        LeatherTransaction,
-        MaterialTransaction
-    )
+    def __init__(self):
+        self._import_mappings = {
+            # Models
+            'Base': ('database.models.base', 'Base'),
+            'BaseModel': ('database.models.base', 'Base'),
+            'ModelValidationError': ('database.models.base', 'ModelValidationError'),
 
-    # Import high-level models that are referenced frequently
-    from database.models.components import (
-        Component,
-        PatternComponent,
-        ProjectComponent,
-        ComponentLeather,
-        ComponentHardware,
-        ComponentMaterial
-    )
+            # Core models
+            'Customer': ('database.models.customer', 'Customer'),
+            'Hardware': ('database.models.hardware', 'Hardware'),
+            'Leather': ('database.models.leather', 'Leather'),
+            'Material': ('database.models.material', 'Material'),
+            'Pattern': ('database.models.pattern', 'Pattern'),
+            'Product': ('database.models.product', 'Product'),
+            'Project': ('database.models.project', 'Project'),
+            'Sales': ('database.models.sales', 'Sales'),
+            'SalesItem': ('database.models.sales_item', 'SalesItem'),
+            'Supplier': ('database.models.supplier', 'Supplier'),
 
-    # Import enum values that may be needed throughout the application
-    from database.models.enums import (
-        LeatherType, MaterialType, SaleStatus,
-        ProjectStatus, PaymentStatus, CustomerStatus,
-        CustomerTier, CustomerSource, MaterialQualityGrade,
-        HardwareMaterial, HardwareFinish, HardwareType,
-        ProjectType, SkillLevel, InventoryStatus,
-        PurchaseStatus, PickingListStatus, ToolListStatus,
-        ToolCategory, ComponentType, MeasurementUnit
-    )
+            # Inventory and List models
+            'PickingList': ('database.models.picking_list', 'PickingList'),
+            'PickingListItem': ('database.models.picking_list', 'PickingListItem'),
 
-    # Import remaining core models
-    from database.models.customer import Customer
-    from database.models.hardware import Hardware
-    from database.models.leather import Leather
-    from database.models.material import Material
-    from database.models.pattern import Pattern
-    from database.models.picking_list import PickingList, PickingListItem
-    from database.models.product import Product
-    from database.models.project import Project
-    from database.models.sales import Sales
-    from database.models.sales_item import SalesItem
-    from database.models.supplier import Supplier
-    from database.models.tool import Tool
-    from database.models.tool_list import ToolList, ToolListItem
+            # Transaction models
+            'Transaction': ('database.models.transaction', 'Transaction'),
+            'MaterialTransaction': ('database.models.transaction', 'MaterialTransaction'),
+            'LeatherTransaction': ('database.models.transaction', 'LeatherTransaction'),
+            'HardwareTransaction': ('database.models.transaction', 'HardwareTransaction'),
 
-    # Import key functions
-    from initialize_database import (
-        initialize_database,
-        initialize_all_relationships,
-        add_sample_data,
-        add_minimal_sample_data,
-        add_extra_demo_data
-    )
+            # Component models
+            'Component': ('database.models.components', 'Component'),
+            'PatternComponent': ('database.models.components', 'PatternComponent'),
+            'ProjectComponent': ('database.models.components', 'ProjectComponent'),
+            'ComponentLeather': ('database.models.components', 'ComponentLeather'),
+            'ComponentHardware': ('database.models.components', 'ComponentHardware'),
+            'ComponentMaterial': ('database.models.components', 'ComponentMaterial'),
 
-except ImportError as e:
-    logger.error(f"Import error in database module: {e}")
-    import traceback
+            # Initialization Functions
+            'initialize_database': ('initialize_database', 'initialize_database'),
+            'initialize_all_relationships': ('initialize_database', 'initialize_all_relationships'),
+            'add_sample_data': ('initialize_database', 'add_sample_data'),
+            'add_minimal_sample_data': ('initialize_database', 'add_minimal_sample_data'),
+            'add_extra_demo_data': ('initialize_database', 'add_extra_demo_data')
+        }
 
-    logger.error(traceback.format_exc())
+        # Enum mappings
+        self._enum_mappings = {
+            'LeatherType': ('database.models.enums', 'LeatherType'),
+            'MaterialType': ('database.models.enums', 'MaterialType'),
+            'SaleStatus': ('database.models.enums', 'SaleStatus'),
+            'ProjectStatus': ('database.models.enums', 'ProjectStatus'),
+            'PaymentStatus': ('database.models.enums', 'PaymentStatus'),
+            'CustomerStatus': ('database.models.enums', 'CustomerStatus'),
+            'InventoryStatus': ('database.models.enums', 'InventoryStatus'),
+        }
 
-# Register lazy imports for core models to facilitate circular import resolution
-register_lazy_import("database.models.customer.Customer", "database.models.customer", "Customer")
-register_lazy_import("database.models.hardware.Hardware", "database.models.hardware", "Hardware")
-register_lazy_import("database.models.leather.Leather", "database.models.leather", "Leather")
-register_lazy_import("database.models.material.Material", "database.models.material", "Material")
-register_lazy_import("database.models.pattern.Pattern", "database.models.pattern", "Pattern")
-register_lazy_import("database.models.product.Product", "database.models.product", "Product")
-register_lazy_import("database.models.project.Project", "database.models.project", "Project")
-register_lazy_import("database.models.sales.Sales", "database.models.sales", "Sales")
-register_lazy_import("database.models.supplier.Supplier", "database.models.supplier", "Supplier")
-register_lazy_import("database.models.transaction.Transaction", "database.models.transaction", "Transaction")
-register_lazy_import("database.models.transaction.MaterialTransaction", "database.models.transaction",
-                     "MaterialTransaction")
-register_lazy_import("database.models.transaction.LeatherTransaction", "database.models.transaction",
-                     "LeatherTransaction")
-register_lazy_import("database.models.transaction.HardwareTransaction", "database.models.transaction",
-                     "HardwareTransaction")
+    def __getattr__(self, name: str) -> Any:
+        """
+        Dynamic attribute access for lazy importing.
 
-# Lazily initialize relationships after all imports are complete
-try:
-    resolve_lazy_relationships()
-except Exception as e:
-    logger.warning(f"Error initializing lazy relationships: {e}")
+        Args:
+            name: Name of the attribute to import
 
-# Add logging to help debug import issues
-logger.debug("database package initialization complete")
+        Returns:
+            Imported model, enum, or function
+        """
+        # Check model mappings first
+        if name in self._import_mappings:
+            module_path, class_name = self._import_mappings[name]
+            return get_class(module_path, class_name)
+
+        # Check enum mappings
+        if name in self._enum_mappings:
+            module_path, class_name = self._enum_mappings[name]
+            return get_class(module_path, class_name)
+
+        # If not found, raise attribute error
+        raise AttributeError(f"Module 'database' has no attribute '{name}'")
+
+    def __dir__(self):
+        """
+        Provide a list of available attributes.
+
+        Returns:
+            List of available attribute names
+        """
+        return list(set(
+            list(self._import_mappings.keys()) +
+            list(self._enum_mappings.keys()) +
+            super().__dir__()
+        ))
+
+    def initialize_lazy_imports(self):
+        """
+        Initialize lazy imports and resolve relationships.
+        """
+        try:
+            # Register lazy imports
+            for name, (module_path, class_name) in {**self._import_mappings, **self._enum_mappings}.items():
+                register_lazy_import(name, module_path, class_name)
+
+            # Resolve lazy relationships
+            resolve_lazy_relationships()
+            logger.debug("Lazy imports and relationships initialized")
+        except Exception as e:
+            logger.error(f"Error initializing lazy imports: {e}")
+
+
+# Create and set up the database module
+database_module = DatabaseModule()
+
+# Replace the current module with the proxy module
+sys.modules[__name__] = database_module
+
+# Initialize lazy imports
+database_module.initialize_lazy_imports()
 
 # Module exports
 __all__ = [
@@ -116,3 +167,5 @@ __all__ = [
     'initialize_database', 'initialize_all_relationships',
     'add_sample_data', 'add_minimal_sample_data', 'add_extra_demo_data'
 ]
+
+

@@ -1,3 +1,4 @@
+from database.models.base import metadata
 # database/mapper_diagnostics.py
 import logging
 import sqlalchemy

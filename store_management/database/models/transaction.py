@@ -1,3 +1,5 @@
+from database.models.base import metadata
+from sqlalchemy.orm import declarative_base
 # database/models/transaction.py
 """
 Transaction models for tracking various types of transactions in the leatherworking application.
@@ -11,7 +13,7 @@ from datetime import datetime
 import enum
 import logging
 
-from database.models.base import Base, ModelValidationError
+from database.models.base import Base, ModelValidationError, metadata
 from database.models.base import (
     TimestampMixin,
     ValidationMixin,
@@ -44,8 +46,13 @@ register_lazy_import('HardwareInventory', 'database.models.hardware_inventory', 
 register_lazy_import('Project', 'database.models.project', 'Project')
 register_lazy_import('Purchase', 'database.models.purchase', 'Purchase')
 
+from sqlalchemy.orm import declarative_base
+TransactionBase = declarative_base()
+TransactionBase.metadata = metadata
+TransactionBase.metadata = metadata
+TransactionBase.metadata = metadata
 
-class Transaction(Base, TimestampMixin, ValidationMixin, TrackingMixin):
+class Transaction(TransactionBase):
     """
     Base Transaction model representing inventory adjustments and movements.
     """
@@ -230,6 +237,9 @@ class MaterialTransaction(Transaction):
     """
     __tablename__ = 'material_transactions'
 
+    # Link to parent table
+    id = Column(Integer, ForeignKey('transactions.id'), primary_key=True)
+
     # Material-specific references
     material_id: Mapped[int] = mapped_column(
         Integer,
@@ -298,6 +308,9 @@ class LeatherTransaction(Transaction):
     Transaction model for leather inventory movements.
     """
     __tablename__ = 'leather_transactions'
+
+    # Link to parent table
+    id = Column(Integer, ForeignKey('transactions.id'), primary_key=True)
 
     # Leather-specific attributes
     area_sqft: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
@@ -384,6 +397,9 @@ class HardwareTransaction(Transaction):
     Transaction model for hardware inventory movements.
     """
     __tablename__ = 'hardware_transactions'
+
+    # Link to parent table
+    id = Column(Integer, ForeignKey('transactions.id'), primary_key=True)
 
     # Hardware-specific references
     hardware_id: Mapped[int] = mapped_column(

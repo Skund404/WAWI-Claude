@@ -6,7 +6,7 @@ This package provides core SQLAlchemy functionality for the application,
 including the Base class for model definitions.
 """
 
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 
 # Create and export the declarative base
 Base = declarative_base()

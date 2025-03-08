@@ -1,3 +1,4 @@
+from database.models.base import metadata
 # database/models/metrics.py
 """
 Comprehensive Metrics Models for Leatherworking Management System

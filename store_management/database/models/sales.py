@@ -1,3 +1,5 @@
+from database.models.base import metadata
+from sqlalchemy.orm import declarative_base
 # database/models/sales.py
 """
 Enhanced Sales Model for Leatherworking Management System
@@ -16,7 +18,7 @@ from sqlalchemy.sql import sqltypes
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.exc import SQLAlchemyError
 
-from database.models.base import Base, ModelValidationError
+from database.models.base import Base, ModelValidationError, metadata
 from database.models.enums import SaleStatus, PaymentStatus
 from database.models.base import (
     TimestampMixin,
@@ -42,8 +44,12 @@ register_lazy_import('SalesItem', 'database.models.sales_item', 'SalesItem')
 register_lazy_import('PickingList', 'database.models.picking_list', 'PickingList')
 register_lazy_import('Project', 'database.models.project', 'Project')
 
+from sqlalchemy.orm import declarative_base
+SalesBase = declarative_base()
+SalesBase.metadata = metadata
+SalesBase.metadata = metadata
 
-class Sales(Base, apply_mixins(TimestampMixin, ValidationMixin, CostingMixin)):
+class Sales(SalesBase):
     """
     Sales model representing a complete sales transaction in the system.
 

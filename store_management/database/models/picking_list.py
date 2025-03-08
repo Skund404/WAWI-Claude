@@ -1,3 +1,5 @@
+from database.models.base import metadata
+from sqlalchemy.orm import declarative_base
 # database/models/picking_list.py
 """
 Comprehensive Picking List Models for Leatherworking Management System
@@ -17,7 +19,7 @@ from sqlalchemy import Column, Enum, Float, ForeignKey, Integer, String, Text, B
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.exc import SQLAlchemyError
 
-from database.models.base import Base, ModelValidationError
+from database.models.base import Base, ModelValidationError, metadata
 from database.models.enums import (
     PickingListStatus,
     TransactionType,
@@ -54,8 +56,13 @@ register_lazy_import('Hardware', 'database.models.hardware', 'Hardware')
 register_lazy_import('ProjectComponent', 'database.models.components', 'ProjectComponent')
 register_lazy_import('Transaction', 'database.models.transaction', 'Transaction')
 
+from sqlalchemy.orm import declarative_base
+PickingListBase = declarative_base()
+PickingListBase.metadata = metadata
+PickingListBase.metadata = metadata
+PickingListBase.metadata = metadata
 
-class PickingList(Base, apply_mixins(TimestampMixin, ValidationMixin, TrackingMixin)):  # Updated to use apply_mixins
+class PickingList(PickingListBase):  # Updated to use apply_mixins
     """
     PickingList model representing material and hardware picking lists for sales orders.
 
@@ -364,8 +371,13 @@ class PickingList(Base, apply_mixins(TimestampMixin, ValidationMixin, TrackingMi
             f"items={len(self.items) if hasattr(self, 'items') else 0})>"
         )
 
+from sqlalchemy.orm import declarative_base
+PickingListItemBase = declarative_base()
+PickingListItemBase.metadata = metadata
+PickingListItemBase.metadata = metadata
+PickingListItemBase.metadata = metadata
 
-class PickingListItem(Base, apply_mixins(TimestampMixin, ValidationMixin)):
+class PickingListItem(PickingListItemBase):
     """
     PickingListItem model representing an item in a picking list.
 

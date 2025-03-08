@@ -1,3 +1,5 @@
+from database.models.base import metadata
+from sqlalchemy.orm import declarative_base
 # database/models/product.py
 """
 Comprehensive Product Model for Leatherworking Management System
@@ -16,7 +18,7 @@ from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.sql import sqltypes  # Using sqltypes for Enum
 
-from database.models.base import Base, ModelValidationError
+from database.models.base import Base, ModelValidationError, metadata
 from database.models.enums import (
     MaterialType,
     SkillLevel,
@@ -50,9 +52,13 @@ register_lazy_import('ProjectComponent', 'database.models.components', 'ProjectC
 register_lazy_import('Supplier', 'database.models.supplier', 'Supplier')
 register_lazy_import('Storage', 'database.models.storage', 'Storage')
 
+from sqlalchemy.orm import declarative_base
+ProductBase = declarative_base()
+ProductBase.metadata = metadata
+ProductBase.metadata = metadata
 
 # Use apply_mixins directly in the class definition
-class Product(Base, apply_mixins(TimestampMixin, ValidationMixin, CostingMixin)):
+class Product(ProductBase):
     """
     Product model representing items that can be sold in the leatherworking system.
 

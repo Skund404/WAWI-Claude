@@ -1,3 +1,4 @@
+from database.models.base import metadata
 # database/models/factories.py
 """
 Advanced Factory Classes for Creating Model Instances in Leatherworking Management System

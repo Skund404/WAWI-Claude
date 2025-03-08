@@ -1,3 +1,5 @@
+from database.models.base import metadata
+from sqlalchemy.orm import declarative_base
 # database/models/sales_item.py
 """
 Sales Item Model for Leatherworking Management System
@@ -13,7 +15,7 @@ from sqlalchemy import Float, ForeignKey, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.exc import SQLAlchemyError
 
-from database.models.base import Base, ModelValidationError
+from database.models.base import Base, ModelValidationError, metadata
 from database.models.base import (
     TimestampMixin,
     ValidationMixin,
@@ -35,8 +37,12 @@ logger = logging.getLogger(__name__)
 register_lazy_import('Sales', 'database.models.sales', 'Sales')
 register_lazy_import('Product', 'database.models.product', 'Product')
 
+from sqlalchemy.orm import declarative_base
+SalesItemBase = declarative_base()
+SalesItemBase.metadata = metadata
+SalesItemBase.metadata = metadata
 
-class SalesItem(Base, apply_mixins(TimestampMixin, ValidationMixin)):  # Updated to use apply_mixins
+class SalesItem(SalesItemBase):  # Updated to use apply_mixins
     """
     Represents an individual item within a sales transaction.
 
