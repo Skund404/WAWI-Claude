@@ -23,15 +23,15 @@ from database.models.enums import (
     StorageLocationType,
     MaterialType
 )
-from database.models.mixins import (
+from database.models.base import (
     TimestampMixin,
     ValidationMixin,
-    TrackingMixin
+    TrackingMixin,
+    apply_mixins  # Import apply_mixins function
 )
 from utils.circular_import_resolver import (
     lazy_import,
-    register_lazy_import,
-    CircularImportResolver
+    register_lazy_import
 )
 from utils.enhanced_model_validator import (
     ModelValidator,
@@ -49,7 +49,7 @@ register_lazy_import('MaterialTransaction', 'database.models.transaction', 'Mate
 register_lazy_import('Storage', 'database.models.storage', 'Storage')
 
 
-class MaterialInventory(Base, TimestampMixin, ValidationMixin, TrackingMixin):
+class MaterialInventory(Base, apply_mixins(TimestampMixin, ValidationMixin, TrackingMixin)):
     """
     MaterialInventory model representing material stock quantities and locations.
 
@@ -447,6 +447,7 @@ class MaterialInventory(Base, TimestampMixin, ValidationMixin, TrackingMixin):
             # Find or create target inventory
             target_inventory = None
             if hasattr(self.material, 'inventories') and self.material.inventories:
+                # Find inventory by location if it exists
                 for inv in self.material.inventories:
                     if inv.storage_location == target_location and inv.id != self.id:
                         target_inventory = inv

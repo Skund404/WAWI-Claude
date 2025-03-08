@@ -17,9 +17,10 @@ from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.exc import SQLAlchemyError
 
 from database.models.base import Base, ModelValidationError
-from database.models.mixins import (
+from database.models.base import (
     TimestampMixin,
-    ValidationMixin
+    ValidationMixin,
+    apply_mixins
 )
 from utils.circular_import_resolver import (
     lazy_import,
@@ -39,7 +40,7 @@ register_lazy_import('Product', 'database.models.product', 'Product')
 register_lazy_import('Pattern', 'database.models.pattern', 'Pattern')
 
 
-class ProductPattern(Base, TimestampMixin, ValidationMixin):
+class ProductPattern(Base, apply_mixins(TimestampMixin, ValidationMixin)):
     """
     ProductPattern model representing the many-to-many relationship between
     Product and Pattern entities.

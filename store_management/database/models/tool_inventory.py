@@ -16,17 +16,18 @@ from typing import Dict, Any, Optional, List, Union
 from sqlalchemy import Column, Enum, Integer, ForeignKey, String, DateTime, Boolean
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.sql import sqltypes
 
 from database.models.base import Base, ModelValidationError
 from database.models.enums import (
     InventoryStatus,
-    InventoryAdjustmentType,
     StorageLocationType
 )
-from database.models.mixins import (
+from database.models.base import (
     TimestampMixin,
     ValidationMixin,
-    TrackingMixin
+    TrackingMixin,
+    apply_mixins
 )
 from utils.circular_import_resolver import (
     lazy_import,
@@ -35,8 +36,8 @@ from utils.circular_import_resolver import (
 from utils.enhanced_model_validator import (
     ModelValidator,
     ValidationError,
-    validate_not_empty,
-    validate_positive_number
+    validate_positive_number,
+    validate_not_empty
 )
 
 # Setup logger
@@ -46,7 +47,7 @@ logger = logging.getLogger(__name__)
 register_lazy_import('Tool', 'database.models.tool', 'Tool')
 
 
-class ToolInventory(Base, TimestampMixin, ValidationMixin, TrackingMixin):
+class ToolInventory(Base, apply_mixins(TimestampMixin, ValidationMixin, TrackingMixin)):
     """
     ToolInventory model representing tool stock quantities and locations.
 
@@ -55,20 +56,22 @@ class ToolInventory(Base, TimestampMixin, ValidationMixin, TrackingMixin):
     """
     __tablename__ = 'tool_inventories'
 
-    # Core attributes
+    # Explicit primary key
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+
+    # Core attributes
     tool_id: Mapped[int] = mapped_column(Integer, ForeignKey('tools.id'), nullable=False)
     quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
-    # Status and location
+    # Status and location using sqltypes for enum
     status: Mapped[InventoryStatus] = mapped_column(
-        Enum(InventoryStatus),
+        sqltypes.Enum(InventoryStatus),
         nullable=False,
         default=InventoryStatus.IN_STOCK
     )
     storage_location: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     location_type: Mapped[Optional[StorageLocationType]] = mapped_column(
-        Enum(StorageLocationType),
+        sqltypes.Enum(StorageLocationType),
         nullable=True
     )
 

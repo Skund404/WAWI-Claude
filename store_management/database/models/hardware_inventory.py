@@ -22,7 +22,7 @@ from database.models.enums import (
     InventoryAdjustmentType,
     StorageLocationType
 )
-from database.models.mixins import (
+from database.models.base import (
     TimestampMixin,
     ValidationMixin,
     TrackingMixin

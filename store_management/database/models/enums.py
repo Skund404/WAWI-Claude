@@ -28,7 +28,6 @@ class SaleStatus(Enum):
     CANCELLED = "cancelled"
     REFUNDED = "refunded"
 
-
 class PaymentStatus(Enum):
     """Payment status for orders and transactions."""
     PENDING = "pending"
@@ -37,7 +36,6 @@ class PaymentStatus(Enum):
     REFUNDED = "refunded"
     CANCELLED = "cancelled"
 
-
 class PurchaseStatus(Enum):
     """Status values for purchase orders from suppliers."""
     PENDING = "pending"
@@ -45,7 +43,6 @@ class PurchaseStatus(Enum):
     SHIPPED = "shipped"
     DELIVERED = "delivered"
     CANCELLED = "cancelled"
-
 
 # Customer-related Enums
 class CustomerStatus(Enum):
@@ -56,14 +53,12 @@ class CustomerStatus(Enum):
     ARCHIVED = "archived"
     POTENTIAL = "potential"
 
-
 class CustomerTier(Enum):
     """Represents different customer loyalty or spending tiers."""
     STANDARD = "standard"
     PREMIUM = "premium"
     VIP = "vip"
     NEW = "new"
-
 
 class CustomerSource(Enum):
     """Represents the source or channel through which the customer was acquired."""
@@ -77,7 +72,6 @@ class CustomerSource(Enum):
     EMAIL_CAMPAIGN = "email_campaign"
     OTHER = "other"
 
-
 # Inventory and Material Management Enums
 class InventoryStatus(Enum):
     """Enumeration of inventory status values."""
@@ -86,7 +80,6 @@ class InventoryStatus(Enum):
     OUT_OF_STOCK = "out_of_stock"
     DISCONTINUED = "discontinued"
     ON_ORDER = "on_order"
-
 
 class MaterialType(Enum):
     """Comprehensive material types for leatherworking."""
@@ -108,7 +101,6 @@ class MaterialType(Enum):
     PADDING = "padding"
     OTHER = "other"
 
-
 class MaterialQualityGrade(Enum):
     """Enumeration of material quality grades."""
     PREMIUM = "premium"
@@ -116,7 +108,6 @@ class MaterialQualityGrade(Enum):
     ECONOMY = "economy"
     SECONDS = "seconds"
     SCRAP = "scrap"
-
 
 # Hardware-related Enums
 class HardwareType(Enum):
@@ -133,7 +124,7 @@ class HardwareType(Enum):
     KEY_RING = "key_ring"
     CONCHO = "concho"
     EYELET = "eyelet"
-    GROMMET = "gromMET"
+    GROMMET = "grommet"
     HOOK = "hook"
     STUD = "stud"
     SCREW = "screw"
@@ -141,7 +132,6 @@ class HardwareType(Enum):
     PLATE = "plate"
     CORNER = "corner"
     OTHER = "other"
-
 
 class HardwareMaterial(Enum):
     """Materials that hardware items can be made of."""
@@ -163,7 +153,6 @@ class HardwareMaterial(Enum):
     WOOD = "wood"
     CERAMIC = "ceramic"
     OTHER = "other"
-
 
 class HardwareFinish(Enum):
     """Finishes that can be applied to hardware items."""
@@ -187,7 +176,6 @@ class HardwareFinish(Enum):
     GALVANIZED = "galvanized"
     ANODIZED = "anodized"
     OTHER = "other"
-
 
 # Leather-related Enums
 class LeatherType(Enum):
@@ -220,7 +208,6 @@ class LeatherType(Enum):
     BUFFALO = "buffalo"
     KANGAROO = "kangaroo"
 
-
 class LeatherFinish(Enum):
     """Detailed enumeration of leather finishing techniques."""
     ANILINE = "aniline"
@@ -232,7 +219,6 @@ class LeatherFinish(Enum):
     DISTRESSED = "distressed"
     PATENT = "patent"
     NAPPA = "nappa"
-
 
 # Product and Project Management Enums
 class ProjectType(Enum):
@@ -258,7 +244,6 @@ class ProjectType(Enum):
     CUSTOM = "custom"
     OTHER = "other"
 
-
 class ProjectStatus(Enum):
     """Detailed project status for custom leatherwork."""
     INITIAL_CONSULTATION = "initial_consultation"
@@ -283,7 +268,6 @@ class ProjectStatus(Enum):
     ON_HOLD = "on_hold"
     CANCELLED = "cancelled"
 
-
 class SkillLevel(Enum):
     """Skill levels for leatherworking techniques and projects."""
     BEGINNER = "beginner"
@@ -291,7 +275,6 @@ class SkillLevel(Enum):
     ADVANCED = "advanced"
     MASTER = "master"
     EXPERT = "expert"
-
 
 # Component-related Enums
 class ComponentType(Enum):
@@ -307,7 +290,6 @@ class ComponentType(Enum):
     TOOL = "tool"
     OTHER = "other"
 
-
 # Tool-related Enums
 class ToolCategory(Enum):
     """Categorization of leatherworking tools."""
@@ -321,7 +303,6 @@ class ToolCategory(Enum):
     CONDITIONING = "conditioning"
     HARDWARE_INSTALLATION = "hardware_installation"
     PATTERN_MAKING = "pattern_making"
-
 
 # Edge Finishing Enums
 class EdgeFinishType(Enum):
@@ -337,7 +318,6 @@ class EdgeFinishType(Enum):
     GLOSSY = "glossy"
     MATTE = "matte"
 
-
 # Transaction and Inventory Management Enums
 class TransactionType(Enum):
     """Enumeration of transaction types."""
@@ -349,7 +329,6 @@ class TransactionType(Enum):
     TRANSFER = "transfer"
     REVERSAL = "reversal"
 
-
 class InventoryAdjustmentType(Enum):
     """Types of inventory adjustments."""
     INITIAL_STOCK = "initial_stock"
@@ -360,7 +339,6 @@ class InventoryAdjustmentType(Enum):
     FOUND = "found"
     RETURN = "return"
 
-
 # Supplier-related Enums
 class SupplierStatus(Enum):
     """Enumeration of supplier status values."""
@@ -368,7 +346,6 @@ class SupplierStatus(Enum):
     INACTIVE = "inactive"
     PENDING = "pending"
     BLACKLISTED = "blacklisted"
-
 
 # Storage-related Enums
 class StorageLocationType(Enum):
@@ -380,7 +357,6 @@ class StorageLocationType(Enum):
     RACK = "rack"
     BOX = "box"
     OTHER = "other"
-
 
 # Measurement and Quality Enums
 class MeasurementUnit(Enum):
@@ -397,7 +373,6 @@ class MeasurementUnit(Enum):
     INCH = "inch"
     FOOT = "foot"
 
-
 class QualityGrade(Enum):
     """Detailed quality grading for leatherwork."""
     PREMIUM = "premium"
@@ -407,15 +382,27 @@ class QualityGrade(Enum):
     PROTOTYPE = "prototype"
     PRACTICE = "practice"
 
-class ToolListStatus(Enum):
-    """Status of tool list"""
-    ACTIVE = "active"
-    COMPLETED = "completed"
-    ARCHIVED = "archived"
 
 class PickingListStatus(Enum):
-    """Picking list statuses."""
-    DRAFT = "draft"
-    IN_PROGRESS = "in_progress"
-    COMPLETED = "completed"
-    CANCELLED = "cancelled"
+    """
+    Enumeration of picking list status values.
+    Represents the current state of a picking list in the workflow.
+    """
+    DRAFT = auto()
+    PENDING = auto()
+    IN_PROGRESS = auto()
+    COMPLETED = auto()
+    CANCELLED = auto()
+    ON_HOLD = auto()
+
+class ToolListStatus(Enum):
+    """
+    Enumeration of tool list status values.
+    Represents the current state of a tool list in the workflow.
+    """
+    DRAFT = auto()
+    PENDING = auto()
+    IN_PROGRESS = auto()
+    COMPLETED = auto()
+    CANCELLED = auto()
+    ON_HOLD = auto()

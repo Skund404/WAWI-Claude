@@ -25,10 +25,11 @@ from database.models.enums import (
     SkillLevel,
     MeasurementUnit
 )
-from database.models.mixins import (
+from database.models.base import (
     TimestampMixin,
     ValidationMixin,
-    CostingMixin
+    CostingMixin,
+    apply_mixins  # Added import for apply_mixins
 )
 from utils.circular_import_resolver import (
     lazy_import,
@@ -56,13 +57,16 @@ register_lazy_import('PickingListItem', 'database.models.picking_list', 'Picking
 register_lazy_import('Product', 'database.models.product', 'Product')
 
 
-class Component(Base, TimestampMixin, ValidationMixin):
+class Component(Base, apply_mixins(TimestampMixin, ValidationMixin)):  # Updated to use apply_mixins
     """
     Base Component model representing a fundamental building block for patterns and projects.
 
     This corresponds to the Component entity in the ER diagram.
     """
     __tablename__ = 'components'
+
+    # Primary key
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)  # Added explicit id column
 
     # Core attributes
     name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
@@ -263,7 +267,7 @@ class Component(Base, TimestampMixin, ValidationMixin):
         )
 
 
-class PatternComponent(Base, TimestampMixin, ValidationMixin):
+class PatternComponent(Base, apply_mixins(TimestampMixin, ValidationMixin)):  # Updated to use apply_mixins
     """
     Pattern-specific component junction table with enhanced attributes.
 
@@ -273,7 +277,7 @@ class PatternComponent(Base, TimestampMixin, ValidationMixin):
     __tablename__ = 'pattern_components'
 
     # Primary key
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)  # Added explicit id column
 
     # Foreign keys
     pattern_id: Mapped[int] = mapped_column(Integer, ForeignKey('patterns.id'), nullable=False)
@@ -362,7 +366,7 @@ class PatternComponent(Base, TimestampMixin, ValidationMixin):
         )
 
 
-class ProjectComponent(Base, TimestampMixin, ValidationMixin):
+class ProjectComponent(Base, apply_mixins(TimestampMixin, ValidationMixin)):  # Updated to use apply_mixins
     """
     Project-specific component junction table with enhanced attributes.
 
@@ -372,7 +376,7 @@ class ProjectComponent(Base, TimestampMixin, ValidationMixin):
     __tablename__ = 'project_components'
 
     # Primary key
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)  # Added explicit id column
 
     # Foreign keys
     project_id: Mapped[int] = mapped_column(Integer, ForeignKey('projects.id'), nullable=False)
@@ -459,6 +463,7 @@ class ProjectComponent(Base, TimestampMixin, ValidationMixin):
 
 
 # Junction tables for relationships from ER diagram
+# Junction tables for relationships from ER diagram
 class ComponentMaterial(Base):
     """
     Junction table linking Component to Material with quantity.
@@ -466,8 +471,14 @@ class ComponentMaterial(Base):
     """
     __tablename__ = 'component_materials'
 
-    component_id: Mapped[int] = mapped_column(Integer, ForeignKey('components.id'), primary_key=True)
-    material_id: Mapped[int] = mapped_column(Integer, ForeignKey('materials.id'), primary_key=True)
+    # Primary key approach - use a dedicated id column
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+
+    # Foreign keys with proper annotations
+    component_id: Mapped[int] = mapped_column(Integer, ForeignKey('components.id'), nullable=False)
+    material_id: Mapped[int] = mapped_column(Integer, ForeignKey('materials.id'), nullable=False)
+
+    # Other columns
     quantity: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
 
     # Relationships
@@ -525,8 +536,14 @@ class ComponentLeather(Base):
     """
     __tablename__ = 'component_leathers'
 
-    component_id: Mapped[int] = mapped_column(Integer, ForeignKey('components.id'), primary_key=True)
-    leather_id: Mapped[int] = mapped_column(Integer, ForeignKey('leathers.id'), primary_key=True)
+    # Primary key approach - use a dedicated id column
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+
+    # Foreign keys with proper annotations
+    component_id: Mapped[int] = mapped_column(Integer, ForeignKey('components.id'), nullable=False)
+    leather_id: Mapped[int] = mapped_column(Integer, ForeignKey('leathers.id'), nullable=False)
+
+    # Other columns
     quantity: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
 
     # Relationships
@@ -584,8 +601,14 @@ class ComponentHardware(Base):
     """
     __tablename__ = 'component_hardwares'
 
-    component_id: Mapped[int] = mapped_column(Integer, ForeignKey('components.id'), primary_key=True)
-    hardware_id: Mapped[int] = mapped_column(Integer, ForeignKey('hardwares.id'), primary_key=True)
+    # Primary key approach - use a dedicated id column
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+
+    # Foreign keys with proper annotations
+    component_id: Mapped[int] = mapped_column(Integer, ForeignKey('components.id'), nullable=False)
+    hardware_id: Mapped[int] = mapped_column(Integer, ForeignKey('hardwares.id'), nullable=False)
+
+    # Other columns
     quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
 
     # Relationships
@@ -643,8 +666,12 @@ class ComponentTool(Base):
     """
     __tablename__ = 'component_tools'
 
-    component_id: Mapped[int] = mapped_column(Integer, ForeignKey('components.id'), primary_key=True)
-    tool_id: Mapped[int] = mapped_column(Integer, ForeignKey('tools.id'), primary_key=True)
+    # Primary key approach - use a dedicated id column
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+
+    # Foreign keys with proper annotations
+    component_id: Mapped[int] = mapped_column(Integer, ForeignKey('components.id'), nullable=False)
+    tool_id: Mapped[int] = mapped_column(Integer, ForeignKey('tools.id'), nullable=False)
 
     # Relationships
     component = relationship("Component", back_populates="component_tools")

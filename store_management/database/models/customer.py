@@ -1,19 +1,18 @@
 # database/models/customer.py
 """
-Enhanced Customer Model with Comprehensive Validation and Relationship Management
+Customer Model for Leatherworking Management System
 
-This module defines the Customer model for the leatherworking management system,
-providing robust tracking of customer information and sales interactions.
+Implements detailed customer information tracking and relationship management.
 """
 
 import logging
 import re
 from datetime import datetime
-from typing import Dict, Any, Optional, List, Union
+from typing import Any, Dict, List, Optional, Union
 
-from sqlalchemy import String, Text, DateTime, Boolean, Integer, ForeignKey
-from sqlalchemy.orm import relationship, Mapped, mapped_column
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database.models.base import Base, ModelValidationError
 from database.models.enums import (
@@ -21,77 +20,85 @@ from database.models.enums import (
     CustomerTier,
     CustomerSource
 )
-from database.models.mixins import (
+from database.models.base import (
     TimestampMixin,
     ValidationMixin,
-    TrackingMixin
+    TrackingMixin,
+    apply_mixins
 )
 from utils.circular_import_resolver import (
-    CircularImportResolver,
-    lazy_import,
     register_lazy_import
 )
 from utils.enhanced_model_validator import (
-    ModelValidator,
-    ValidationError
+    ValidationError,
+    validate_email,
+    validate_phone_number
 )
 
 # Setup logger
 logger = logging.getLogger(__name__)
 
-# Lazy imports to resolve potential circular dependencies
+# Register lazy imports for related models
 register_lazy_import('Sales', 'database.models.sales', 'Sales')
 
 
-class Customer(Base, TimestampMixin, ValidationMixin, TrackingMixin):
+class Customer(Base, apply_mixins(TimestampMixin, ValidationMixin, TrackingMixin)):
     """
-    Comprehensive Customer model with advanced tracking and validation.
+    Customer model representing detailed customer information.
 
-    Represents customer information with detailed contact and interaction tracking.
+    Tracks customer data, preferences, history, and relationships with sales.
     """
     __tablename__ = 'customers'
 
-    # Personal Information
-    first_name: Mapped[str] = mapped_column(String(100), nullable=False)
-    last_name: Mapped[str] = mapped_column(String(100), nullable=False)
-    email: Mapped[Optional[str]] = mapped_column(String(255), unique=True, nullable=True)
+    # Primary key
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+
+    # Core customer information
+    first_name: Mapped[str] = mapped_column(String(50), nullable=False)
+    last_name: Mapped[str] = mapped_column(String(50), nullable=False)
+    email: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, unique=True)
     phone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
 
-    # Address Information
-    street_address: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    city: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    state: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    # Address information
+    address_line1: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    address_line2: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    city: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    state: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     postal_code: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
-    country: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    country: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
 
-    # Customer Status and Metadata
+    # Customer classification and metadata
     status: Mapped[CustomerStatus] = mapped_column(
-        String(50),
-        default=CustomerStatus.ACTIVE,
+        String(20),
+        default=CustomerStatus.ACTIVE.name,
         nullable=False
     )
-    tier: Mapped[Optional[CustomerTier]] = mapped_column(
-        String(50),
-        nullable=True
+    tier: Mapped[CustomerTier] = mapped_column(
+        String(20),
+        default=CustomerTier.STANDARD.name,
+        nullable=False
     )
     source: Mapped[Optional[CustomerSource]] = mapped_column(
-        String(50),
+        String(20),
         nullable=True
     )
 
-    # Notes and additional information
+    # Customer preferences and notes
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    preferences: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
-    # Customer Preferences
-    accepts_marketing: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    preferred_contact_method: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    # Marketing and communication preferences
+    marketing_consent: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
-    # Relationships with lazy loading and circular import resolution
-    sales_records: Mapped[List["Sales"]] = relationship(
+    # Timestamps for customer-specific events
+    last_purchase_date: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+    # Relationships
+    sales_records: Mapped[List['Sales']] = relationship(
         "Sales",
         back_populates="customer",
-        lazy="selectin",
-        cascade="save-update, merge"
+        cascade="all, delete-orphan",
+        lazy="selectin"
     )
 
     def __init__(self, **kwargs):
@@ -108,11 +115,11 @@ class Customer(Base, TimestampMixin, ValidationMixin, TrackingMixin):
             # Validate input data
             self._validate_customer_data(kwargs)
 
-            # Initialize base model
+            # Initialize base models
             super().__init__(**kwargs)
 
-            # Additional post-initialization validation
-            self._post_init_validation()
+            # Post-initialization processing
+            self._post_init_processing()
 
         except (ValidationError, SQLAlchemyError) as e:
             logger.error(f"Customer initialization failed: {e}")
@@ -121,198 +128,196 @@ class Customer(Base, TimestampMixin, ValidationMixin, TrackingMixin):
     @classmethod
     def _validate_customer_data(cls, data: Dict[str, Any]) -> None:
         """
-        Comprehensive validation of customer creation data.
+        Validate customer data before initialization.
 
         Args:
-            data (Dict[str, Any]): Customer creation data to validate
+            data: Customer data to validate
 
         Raises:
-            ValidationError: If validation fails
+            ValidationError: If data validation fails
         """
-        # Validate core required fields
-        if not data.get('first_name'):
-            raise ValidationError("First name is required", "first_name")
-
-        if not data.get('last_name'):
-            raise ValidationError("Last name is required", "last_name")
+        # Validate required fields
+        required_fields = ['first_name', 'last_name']
+        for field in required_fields:
+            if field not in data or not data[field]:
+                raise ValidationError(f"{field.replace('_', ' ').title()} is required", field)
 
         # Validate email if provided
-        if data.get('email'):
-            cls._validate_email(data['email'])
+        if 'email' in data and data['email']:
+            validate_email(data['email'])
 
-        # Validate phone number if provided
-        if data.get('phone'):
-            cls._validate_phone_number(data['phone'])
+        # Validate phone if provided
+        if 'phone' in data and data['phone']:
+            validate_phone_number(data['phone'])
 
-        # Validate customer status
-        if data.get('status'):
-            cls._validate_customer_status(data['status'])
-
-        # Validate customer tier if provided
-        if data.get('tier'):
-            cls._validate_customer_tier(data['tier'])
-
-        # Validate customer source if provided
-        if data.get('source'):
-            cls._validate_customer_source(data['source'])
-
-    def _post_init_validation(self) -> None:
-        """
-        Additional validation after instance creation.
-
-        Raises:
-            ValidationError: If post-initialization validation fails
-        """
-        # Validate total sales records
-        if hasattr(self, 'sales_records'):
-            total_sales = len(self.sales_records)
-            # Example business logic: Update tier based on sales
-            if total_sales > 10:
-                self.tier = CustomerTier.VIP
-            elif total_sales > 5:
-                self.tier = CustomerTier.PREMIUM
+        # Validate enums
+        cls._validate_customer_enums(data)
 
     @classmethod
-    def _validate_email(cls, email: str) -> None:
+    def _validate_customer_enums(cls, data: Dict[str, Any]) -> None:
         """
-        Validate email format using comprehensive regex.
+        Validate enum fields in customer data.
 
         Args:
-            email: Email address to validate
+            data: Customer data containing enum fields
 
         Raises:
-            ValidationError: If email is invalid
+            ValidationError: If enum validation fails
         """
-        email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-        if not re.match(email_regex, email):
-            raise ValidationError("Invalid email format", "email")
+        # Validate status
+        if 'status' in data and data['status']:
+            if isinstance(data['status'], str):
+                try:
+                    data['status'] = CustomerStatus[data['status'].upper()].name
+                except KeyError:
+                    raise ValidationError(
+                        f"Invalid customer status. Must be one of {[s.name for s in CustomerStatus]}",
+                        "status"
+                    )
 
-    @classmethod
-    def _validate_phone_number(cls, phone: str) -> None:
+        # Validate tier
+        if 'tier' in data and data['tier']:
+            if isinstance(data['tier'], str):
+                try:
+                    data['tier'] = CustomerTier[data['tier'].upper()].name
+                except KeyError:
+                    raise ValidationError(
+                        f"Invalid customer tier. Must be one of {[t.name for t in CustomerTier]}",
+                        "tier"
+                    )
+
+        # Validate source
+        if 'source' in data and data['source']:
+            if isinstance(data['source'], str):
+                try:
+                    data['source'] = CustomerSource[data['source'].upper()].name
+                except KeyError:
+                    raise ValidationError(
+                        f"Invalid customer source. Must be one of {[s.name for s in CustomerSource]}",
+                        "source"
+                    )
+
+    def _post_init_processing(self) -> None:
         """
-        Validate phone number format.
+        Perform post-initialization processing.
+
+        Sets defaults and performs any necessary data transformations.
+        """
+        # Set default status if not provided
+        if not hasattr(self, 'status') or self.status is None:
+            self.status = CustomerStatus.ACTIVE.name
+
+        # Set default tier if not provided
+        if not hasattr(self, 'tier') or self.tier is None:
+            self.tier = CustomerTier.STANDARD.name
+
+        # Format phone number if provided
+        if hasattr(self, 'phone') and self.phone:
+            self.phone = self._format_phone_number(self.phone)
+
+    @staticmethod
+    def _format_phone_number(phone: str) -> str:
+        """
+        Format phone number to standardized format.
 
         Args:
-            phone: Phone number to validate
+            phone: Phone number to format
 
-        Raises:
-            ValidationError: If phone number is invalid
+        Returns:
+            Formatted phone number
         """
-        # Robust phone number validation
-        phone_regex = r'^\+?1?\d{9,15}$'
-        cleaned_phone = re.sub(r'\D', '', phone)
+        # Remove all non-numeric characters
+        digits_only = re.sub(r'\D', '', phone)
 
-        if not re.match(phone_regex, cleaned_phone):
-            raise ValidationError("Invalid phone number format", "phone")
+        # Format based on length
+        if len(digits_only) == 10:  # US number without country code
+            return f"({digits_only[:3]}) {digits_only[3:6]}-{digits_only[6:]}"
+        elif len(digits_only) == 11 and digits_only[0] == '1':  # US number with country code
+            return f"+1 ({digits_only[1:4]}) {digits_only[4:7]}-{digits_only[7:]}"
+        else:
+            # Return original format for international numbers or other formats
+            return phone
 
-    @classmethod
-    def _validate_customer_status(cls, status: Union[str, CustomerStatus]) -> None:
+    def get_full_name(self) -> str:
         """
-        Validate customer status.
+        Get customer's full name.
+
+        Returns:
+            Customer's full name
+        """
+        return f"{self.first_name} {self.last_name}"
+
+    def get_address(self) -> str:
+        """
+        Get formatted complete address.
+
+        Returns:
+            Formatted address or empty string if no address
+        """
+        address_parts = []
+
+        if getattr(self, 'address_line1', None):
+            address_parts.append(self.address_line1)
+
+        if getattr(self, 'address_line2', None):
+            address_parts.append(self.address_line2)
+
+        city_state = []
+        if getattr(self, 'city', None):
+            city_state.append(self.city)
+
+        if getattr(self, 'state', None):
+            city_state.append(self.state)
+
+        if city_state:
+            address_parts.append(', '.join(city_state))
+
+        if getattr(self, 'postal_code', None):
+            address_parts.append(self.postal_code)
+
+        if getattr(self, 'country', None):
+            address_parts.append(self.country)
+
+        return '\n'.join(address_parts)
+
+    def update_status(self, new_status: Union[str, CustomerStatus]) -> None:
+        """
+        Update customer status.
 
         Args:
-            status: Customer status to validate
+            new_status: New status to set
 
         Raises:
             ValidationError: If status is invalid
         """
-        if isinstance(status, str):
+        if isinstance(new_status, str):
             try:
-                status = CustomerStatus[status.upper()]
+                new_status = CustomerStatus[new_status.upper()].name
             except KeyError:
-                raise ValidationError("Invalid customer status", "status")
+                raise ValidationError(
+                    f"Invalid customer status. Must be one of {[s.name for s in CustomerStatus]}",
+                    "status"
+                )
+        elif isinstance(new_status, CustomerStatus):
+            new_status = new_status.name
 
-    @classmethod
-    def _validate_customer_tier(cls, tier: Union[str, CustomerTier]) -> None:
-        """
-        Validate customer tier.
-
-        Args:
-            tier: Customer tier to validate
-
-        Raises:
-            ValidationError: If tier is invalid
-        """
-        if isinstance(tier, str):
-            try:
-                tier = CustomerTier[tier.upper()]
-            except KeyError:
-                raise ValidationError("Invalid customer tier", "tier")
-
-    @classmethod
-    def _validate_customer_source(cls, source: Union[str, CustomerSource]) -> None:
-        """
-        Validate customer source.
-
-        Args:
-            source: Customer source to validate
-
-        Raises:
-            ValidationError: If source is invalid
-        """
-        if isinstance(source, str):
-            try:
-                source = CustomerSource[source.upper()]
-            except KeyError:
-                raise ValidationError("Invalid customer source", "source")
-
-    def full_name(self) -> str:
-        """
-        Generate the customer's full name.
-
-        Returns:
-            str: Concatenated first and last name
-        """
-        return f"{self.first_name} {self.last_name}".strip()
-
-    def update_contact_preference(self, method: str) -> None:
-        """
-        Update customer's preferred contact method.
-
-        Args:
-            method: Preferred contact method
-
-        Raises:
-            ValidationError: If method is invalid
-        """
-        valid_methods = ['email', 'phone', 'mail', 'sms']
-        if method.lower() not in valid_methods:
-            raise ValidationError(
-                f"Invalid contact method. Must be one of {valid_methods}",
-                "preferred_contact_method"
-            )
-
-        self.preferred_contact_method = method.lower()
-        logger.info(f"Updated contact preference for {self.full_name()}")
-
-    def toggle_marketing_consent(self, consent: bool) -> None:
-        """
-        Toggle marketing communication consent.
-
-        Args:
-            consent: Whether to accept marketing communications
-        """
-        self.accepts_marketing = consent
-        logger.info(
-            f"Marketing consent for {self.full_name()} "
-            f"{'enabled' if consent else 'disabled'}"
-        )
+        self.status = new_status
+        logger.info(f"Customer {self.id} status updated to {new_status}")
 
     def __repr__(self) -> str:
         """
-        Provide a comprehensive string representation of the customer.
+        String representation of the customer.
 
         Returns:
-            str: Detailed customer representation
+            str: Customer representation
         """
         return (
-            f"<Customer("
+            f"Customer("
             f"id={self.id}, "
-            f"name='{self.full_name()}', "
+            f"name='{self.get_full_name()}', "
             f"email='{self.email or 'N/A'}', "
-            f"status={self.status.name}, "
-            f"tier={self.tier.name if self.tier else 'N/A'}"
-            f")>"
+            f"status={self.status}"
+            f")"
         )
 
 

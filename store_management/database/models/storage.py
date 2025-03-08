@@ -16,13 +16,15 @@ from typing import Dict, Any, Optional, List, Union
 from sqlalchemy import Column, Enum, String, Text, Boolean, Integer
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.sql import sqltypes
 
 from database.models.base import Base, ModelValidationError
 from database.models.enums import StorageLocationType
-from database.models.mixins import (
+from database.models.base import (
     TimestampMixin,
     ValidationMixin,
-    TrackingMixin
+    TrackingMixin,
+    apply_mixins
 )
 from utils.circular_import_resolver import (
     lazy_import,
@@ -45,7 +47,7 @@ register_lazy_import('Hardware', 'database.models.hardware', 'Hardware')
 register_lazy_import('Material', 'database.models.material', 'Material')
 
 
-class Storage(Base, TimestampMixin, ValidationMixin, TrackingMixin):
+class Storage(Base, apply_mixins(TimestampMixin, ValidationMixin, TrackingMixin)):
     """
     Storage model representing storage locations for leatherworking items.
 
@@ -54,13 +56,18 @@ class Storage(Base, TimestampMixin, ValidationMixin, TrackingMixin):
     """
     __tablename__ = 'storages'
 
-    # Basic attributes
+    # Explicit primary key
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+
+    # Basic attributes
     name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
-    # Location attributes
-    location_type: Mapped[StorageLocationType] = mapped_column(Enum(StorageLocationType), nullable=False)
+    # Location attributes using sqltypes for enum
+    location_type: Mapped[StorageLocationType] = mapped_column(
+        sqltypes.Enum(StorageLocationType),
+        nullable=False
+    )
     section: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     row: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     shelf: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
@@ -95,6 +102,9 @@ class Storage(Base, TimestampMixin, ValidationMixin, TrackingMixin):
 
             # Initialize base model
             super().__init__(**kwargs)
+
+            # Post-initialization processing
+            self._validate_instance()
 
         except (ValidationError, SQLAlchemyError) as e:
             logger.error(f"Storage initialization failed: {e}")
@@ -167,9 +177,7 @@ class Storage(Base, TimestampMixin, ValidationMixin, TrackingMixin):
             # Update full status
             self.is_full = is_full
 
-            logger.info(
-                f"Storage {self.id} {'marked as full' if is_full else 'marked as not full'}"
-            )
+            logger.info(f"Storage {self.id} automatically marked as full")
 
         except Exception as e:
             logger.error(f"Marking storage full status failed: {e}")
@@ -189,7 +197,7 @@ class Storage(Base, TimestampMixin, ValidationMixin, TrackingMixin):
         # Update full status
         if current_count >= self.capacity and not self.is_full:
             self.is_full = True
-            logger.info(f"Storage {self.id} automatically marked as full")
+            logger.info(f"Storage {self.id}automatically marked as full")
         elif current_count < self.capacity and self.is_full:
             self.is_full = False
             logger.info(f"Storage {self.id} automatically marked as not full")

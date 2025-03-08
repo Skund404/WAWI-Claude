@@ -26,16 +26,16 @@ from database.models.enums import (
     TransactionType,
     MeasurementUnit
 )
-from database.models.mixins import (
+from database.models.base import (
     TimestampMixin,
     ValidationMixin,
     CostingMixin,
-    TrackingMixin
+    TrackingMixin,
+    apply_mixins  # Import apply_mixins function
 )
 from utils.circular_import_resolver import (
     lazy_import,
-    register_lazy_import,
-    CircularImportResolver
+    register_lazy_import
 )
 from utils.enhanced_model_validator import (
     ModelValidator,
@@ -56,7 +56,7 @@ register_lazy_import('ComponentLeather', 'database.models.components', 'Componen
 register_lazy_import('ProjectComponent', 'database.models.components', 'ProjectComponent')
 
 
-class Leather(Base, TimestampMixin, ValidationMixin, CostingMixin, TrackingMixin):
+class Leather(Base, apply_mixins(TimestampMixin, ValidationMixin, CostingMixin, TrackingMixin)):
     """
     Leather model representing leather materials used in leatherworking projects.
 
@@ -64,6 +64,9 @@ class Leather(Base, TimestampMixin, ValidationMixin, CostingMixin, TrackingMixin
     attributes and relationship management.
     """
     __tablename__ = 'leathers'
+
+    # Primary key
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
 
     # Basic attributes
     name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
@@ -264,7 +267,7 @@ class Leather(Base, TimestampMixin, ValidationMixin, CostingMixin, TrackingMixin
                 inventory._update_status()
                 logger.info(f"Updated inventory for leather {self.id} at {location}")
             else:
-                # Create new inventory
+                # Create new inventory at target location
                 inventory = LeatherInventory(
                     leather_id=self.id,
                     quantity=quantity,

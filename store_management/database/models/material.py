@@ -2,16 +2,13 @@
 """
 Comprehensive Material Model for Leatherworking Management System
 
-This module defines the Material model with extensive validation,
-relationship management, and circular import resolution.
-
-Implements the Material entity from the ER diagram with all its
-relationships and attributes.
+Implements the Material entity with robust validation,
+relationship management, and inventory tracking.
 """
 
 import logging
 from datetime import datetime
-from typing import Dict, Any, Optional, List, Union, Type
+from typing import Dict, Any, Optional, List, Union
 
 from sqlalchemy import Column, Enum, Float, ForeignKey, Integer, String, Text, Boolean, DateTime, JSON
 from sqlalchemy.orm import relationship, Mapped, mapped_column
@@ -25,17 +22,16 @@ from database.models.enums import (
     MeasurementUnit,
     QualityGrade
 )
-from database.models.mixins import (
+from database.models.base import (
     TimestampMixin,
     ValidationMixin,
     CostingMixin,
-    TrackingMixin
+    TrackingMixin,
+    apply_mixins
 )
-from database.models.interfaces import IInventoryItem
 from utils.circular_import_resolver import (
     lazy_import,
-    register_lazy_import,
-    CircularImportResolver
+    register_lazy_import
 )
 from utils.enhanced_model_validator import (
     ModelValidator,
@@ -56,14 +52,19 @@ register_lazy_import('ComponentMaterial', 'database.models.components', 'Compone
 register_lazy_import('ProjectComponent', 'database.models.components', 'ProjectComponent')
 
 
-class Material(Base, TimestampMixin, ValidationMixin, CostingMixin, TrackingMixin, IInventoryItem):
+class Material(Base, apply_mixins(
+    TimestampMixin,
+    ValidationMixin,
+    CostingMixin,
+    TrackingMixin
+)):
     """
     Material model representing various materials used in leatherworking projects.
-
-    This implements the Material entity from the ER diagram with comprehensive
-    attributes and relationship management.
     """
     __tablename__ = 'materials'
+
+    # Primary key
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
 
     # Basic attributes
     name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
@@ -101,9 +102,9 @@ class Material(Base, TimestampMixin, ValidationMixin, CostingMixin, TrackingMixi
     supplier_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey('suppliers.id'), nullable=True)
 
     # Metadata attributes
-    metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
+    material_metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
 
-    # Relationships - following the ER diagram
+    # Relationships
     supplier = relationship("Supplier", back_populates="materials")
     purchase_items = relationship("PurchaseItem", back_populates="material")
     component_materials = relationship("ComponentMaterial", back_populates="material")
@@ -114,14 +115,12 @@ class Material(Base, TimestampMixin, ValidationMixin, CostingMixin, TrackingMixi
     def __init__(self, **kwargs):
         """
         Initialize a Material instance with comprehensive validation.
-
-        Args:
-            **kwargs: Keyword arguments for material attributes
-
-        Raises:
-            ModelValidationError: If validation fails
         """
         try:
+            # Handle metadata renaming consistently
+            if 'metadata' in kwargs:
+                kwargs['material_metadata'] = kwargs.pop('metadata')
+
             # Validate input data
             self._validate_material_data(kwargs)
 
@@ -139,12 +138,6 @@ class Material(Base, TimestampMixin, ValidationMixin, CostingMixin, TrackingMixi
     def _validate_material_data(cls, data: Dict[str, Any]) -> None:
         """
         Comprehensive validation of material creation data.
-
-        Args:
-            data: Material creation data to validate
-
-        Raises:
-            ValidationError: If validation fails
         """
         # Validate core required fields
         validate_not_empty(data, 'name', 'Material name is required')
@@ -156,22 +149,6 @@ class Material(Base, TimestampMixin, ValidationMixin, CostingMixin, TrackingMixi
                 data['material_type'],
                 MaterialType,
                 'material_type'
-            )
-
-        # Validate quality grade if provided
-        if 'quality_grade' in data and data['quality_grade'] is not None:
-            ModelValidator.validate_enum(
-                data['quality_grade'],
-                QualityGrade,
-                'quality_grade'
-            )
-
-        # Validate unit if provided
-        if 'unit' in data:
-            ModelValidator.validate_enum(
-                data['unit'],
-                MeasurementUnit,
-                'unit'
             )
 
         # Validate numeric fields
@@ -187,8 +164,6 @@ class Material(Base, TimestampMixin, ValidationMixin, CostingMixin, TrackingMixi
     def _post_init_processing(self) -> None:
         """
         Perform additional processing after instance creation.
-
-        Applies business logic and performs final validations.
         """
         # Initialize inventory status if not set
         if not hasattr(self, 'status') or self.status is None:
@@ -199,118 +174,22 @@ class Material(Base, TimestampMixin, ValidationMixin, CostingMixin, TrackingMixi
             self._generate_sku()
 
         # Initialize metadata if not provided
-        if not hasattr(self, 'metadata') or self.metadata is None:
-            self.metadata = {}
+        if not hasattr(self, 'material_metadata') or self.material_metadata is None:
+            self.material_metadata = {}
 
     def _generate_sku(self) -> None:
         """
         Generate a unique SKU for the material.
         """
-        # Simple implementation - in practice would have more complexity
         timestamp = datetime.utcnow().strftime('%Y%m%d%H%M%S')
         type_prefix = self.material_type.name[:3].upper()
         self.sku = f"MAT-{type_prefix}-{timestamp}"
         logger.debug(f"Generated SKU for material {self.id}: {self.sku}")
 
-    def update_inventory(self, quantity: float, location: str) -> "MaterialInventory":
-        """
-        Update or create an inventory record for this material.
-
-        Args:
-            quantity: The quantity to set
-            location: The storage location
-
-        Returns:
-            The updated or created inventory record
-        """
-        try:
-            # Import the MaterialInventory model
-            MaterialInventory = lazy_import('database.models.material_inventory', 'MaterialInventory')
-
-            # Find or create inventory record
-            inventory = None
-            if hasattr(self, 'inventories') and self.inventories:
-                # Find inventory by location if it exists
-                for inv in self.inventories:
-                    if inv.storage_location == location:
-                        inventory = inv
-                        break
-
-            if inventory:
-                # Update existing inventory
-                inventory.quantity = quantity
-                inventory._update_status()
-                logger.info(f"Updated inventory for material {self.id} at {location}")
-            else:
-                # Create new inventory
-                inventory = MaterialInventory(
-                    material_id=self.id,
-                    quantity=quantity,
-                    storage_location=location
-                )
-                if hasattr(self, 'inventories'):
-                    self.inventories.append(inventory)
-                logger.info(f"Created new inventory for material {self.id} at {location}")
-
-            # Update the main material status based on total inventory
-            self._update_status_from_inventory()
-
-            return inventory
-
-        except Exception as e:
-            logger.error(f"Failed to update inventory: {e}")
-            raise ModelValidationError(f"Inventory update failed: {str(e)}")
-
-    def calculate_total_inventory(self) -> float:
-        """
-        Calculate the total inventory quantity across all locations.
-
-        Returns:
-            Total quantity in inventory
-        """
-        try:
-            total = 0.0
-            if hasattr(self, 'inventories') and self.inventories:
-                total = sum(inv.quantity for inv in self.inventories)
-            return total
-        except Exception as e:
-            logger.error(f"Failed to calculate total inventory: {e}")
-            raise ModelValidationError(f"Inventory calculation failed: {str(e)}")
-
-    def _update_status_from_inventory(self) -> None:
-        """
-        Update status based on total inventory quantities.
-        """
-        try:
-            total = self.calculate_total_inventory()
-
-            if total <= 0:
-                self.status = InventoryStatus.OUT_OF_STOCK
-            elif total < self.min_quantity:
-                self.status = InventoryStatus.LOW_STOCK
-            else:
-                self.status = InventoryStatus.IN_STOCK
-
-            logger.info(f"Updated status for material {self.id} to {self.status}")
-
-        except Exception as e:
-            logger.error(f"Failed to update status: {e}")
-            raise ModelValidationError(f"Status update failed: {str(e)}")
-
     def adjust_quantity(self, quantity_change: float, transaction_type: Union[str, TransactionType],
                         notes: Optional[str] = None) -> None:
         """
-        Adjust the quantity of the inventory item.
-
-        Implementation of IInventoryItem interface method.
-
-        Args:
-            quantity_change: Amount to adjust (positive for addition, negative for reduction)
-            transaction_type: Type of transaction
-            notes: Optional notes about the transaction
-
-        Raises:
-            ValueError: If the resulting quantity would be negative
+        Adjust the inventory quantity for this material.
         """
         try:
             # Process transaction type
@@ -348,138 +227,125 @@ class Material(Base, TimestampMixin, ValidationMixin, CostingMixin, TrackingMixi
             logger.error(f"Failed to adjust quantity: {e}")
             raise ModelValidationError(f"Quantity adjustment failed: {str(e)}")
 
-    def get_stock_value(self) -> float:
+    def update_inventory(self, quantity: float, location: str) -> Any:
         """
-        Calculate the total stock value.
-
-        Implementation of IInventoryItem interface method.
-
-        Returns:
-            Total value of the item in stock
+        Update or create an inventory record for this material.
         """
         try:
-            total_quantity = self.calculate_total_inventory()
-            stock_value = total_quantity * self.price_per_unit
-            return stock_value
+            MaterialInventory = lazy_import('database.models.material_inventory', 'MaterialInventory')
+
+            # Find or create inventory record
+            inventory = next(
+                (inv for inv in self.inventories if inv.storage_location == location),
+                None
+            )
+
+            if inventory:
+                # Update existing inventory
+                inventory.quantity = quantity
+                if hasattr(inventory, '_update_status'):
+                    inventory._update_status()
+                logger.info(f"Updated inventory for material {self.id} at {location}")
+            else:
+                # Create new inventory at target location
+                inventory = MaterialInventory(
+                    material_id=self.id,
+                    quantity=quantity,
+                    storage_location=location
+                )
+                self.inventories.append(inventory)
+                logger.info(f"Created new inventory for material {self.id} at {location}")
+
+            # Update the main material status based on total inventory
+            self._update_status_from_inventory()
+
+            return inventory
+
         except Exception as e:
-            logger.error(f"Failed to calculate stock value: {e}")
-            raise ModelValidationError(f"Stock value calculation failed: {str(e)}")
+            logger.error(f"Failed to update inventory: {e}")
+            raise ModelValidationError(f"Inventory update failed: {str(e)}")
 
-    def update_status(self, new_status: Union[str, InventoryStatus]) -> None:
+    def calculate_total_inventory(self) -> float:
         """
-        Manually update the inventory status.
-
-        Implementation of IInventoryItem interface method.
-
-        Args:
-            new_status: New status for the inventory item
-
-        Raises:
-            ValueError: If the status is invalid
+        Calculate the total inventory quantity across all locations.
         """
         try:
-            # Process status value
-            if isinstance(new_status, str):
-                try:
-                    new_status = InventoryStatus[new_status.upper()]
-                except KeyError:
-                    raise ValidationError(f"Invalid inventory status: {new_status}")
+            return sum(inv.quantity for inv in self.inventories) if self.inventories else 0.0
+        except Exception as e:
+            logger.error(f"Failed to calculate total inventory: {e}")
+            raise ModelValidationError(f"Inventory calculation failed: {str(e)}")
 
-            # Validate status type
-            if not isinstance(new_status, InventoryStatus):
-                raise ValidationError("Status must be a valid InventoryStatus enum value")
+    def _update_status_from_inventory(self) -> None:
+        """
+        Update status based on total inventory quantities.
+        """
+        try:
+            total = self.calculate_total_inventory()
 
-            # Update status
-            self.status = new_status
-            logger.info(f"Manually updated status for material {self.id} to {new_status.name}")
+            if total <= 0:
+                self.status = InventoryStatus.OUT_OF_STOCK
+            elif total < self.min_quantity:
+                self.status = InventoryStatus.LOW_STOCK
+            else:
+                self.status = InventoryStatus.IN_STOCK
+
+            logger.info(f"Updated status for material {self.id} to {self.status}")
 
         except Exception as e:
             logger.error(f"Failed to update status: {e}")
             raise ModelValidationError(f"Status update failed: {str(e)}")
 
+    def get_stock_value(self) -> float:
+        """
+        Calculate the total stock value.
+        """
+        try:
+            total_quantity = self.calculate_total_inventory()
+            return total_quantity * self.price_per_unit
+        except Exception as e:
+            logger.error(f"Failed to calculate stock value: {e}")
+            raise ModelValidationError(f"Stock value calculation failed: {str(e)}")
+
     def needs_reorder(self) -> bool:
         """
         Check if the material needs to be reordered.
-
-        Implementation of IInventoryItem interface method.
-
-        Returns:
-            True if quantity is at or below reorder point
         """
         total_quantity = self.calculate_total_inventory()
-        return total_quantity <= self.min_quantity
-
-    def to_dict(self, exclude_fields: Optional[List[str]] = None) -> Dict[str, Any]:
-        """
-        Convert model instance to a dictionary representation.
-
-        Args:
-            exclude_fields: Optional list of fields to exclude
-
-        Returns:
-            Dictionary representation of the model
-        """
-        if exclude_fields is None:
-            exclude_fields = []
-
-        # Add standard fields to exclude
-        exclude_fields.extend(['_sa_instance_state'])
-
-        return {
-            column.name: getattr(self, column.name)
-            for column in self.__table__.columns
-            if column.name not in exclude_fields
-        }
-
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'Material':
-        """
-        Create a new Material instance from dictionary data.
-
-        Args:
-            data: Dictionary containing model attributes
-
-        Returns:
-            A new Material instance
-        """
-        return cls(**data)
+        return (
+            total_quantity <= self.min_quantity and
+            self.is_active and
+            self.status != InventoryStatus.DISCONTINUED
+        )
 
     def validate(self) -> Dict[str, List[str]]:
         """
         Validate the material instance.
-
-        Returns:
-            Dictionary mapping field names to validation errors,
-            or an empty dictionary if validation succeeds
         """
         errors = {}
 
         try:
             # Validate required fields
             if not self.name:
-                errors.setdefault('name', []).append("Name is required")
+                errors['name'] = ["Name is required"]
 
             if not self.material_type:
-                errors.setdefault('material_type', []).append("Material type is required")
+                errors['material_type'] = ["Material type is required"]
 
             # Validate numeric fields
-            if hasattr(self, 'price_per_unit') and self.price_per_unit < 0:
-                errors.setdefault('price_per_unit', []).append("Price per unit cannot be negative")
+            if self.price_per_unit < 0:
+                errors['price_per_unit'] = ["Price per unit cannot be negative"]
 
-            if hasattr(self, 'min_quantity') and self.min_quantity < 0:
-                errors.setdefault('min_quantity', []).append("Minimum quantity cannot be negative")
+            if self.min_quantity < 0:
+                errors['min_quantity'] = ["Minimum quantity cannot be negative"]
 
         except Exception as e:
-            errors.setdefault('general', []).append(f"Validation error: {str(e)}")
+            errors['general'] = [f"Validation error: {str(e)}"]
 
         return errors
 
     def is_valid(self) -> bool:
         """
         Check if the material instance is valid.
-
-        Returns:
-            True if the instance is valid, False otherwise
         """
         return len(self.validate()) == 0
 
@@ -503,15 +369,12 @@ class Material(Base, TimestampMixin, ValidationMixin, CostingMixin, TrackingMixi
     def __repr__(self) -> str:
         """
         String representation of the Material.
-
-        Returns:
-            Detailed material representation
         """
         return (
             f"<Material(id={self.id}, "
             f"name='{self.name}', "
-            f"type={self.material_type.name if self.material_type else 'None'}, "
-            f"status={self.status.name if self.status else 'None'})>"
+            f"type={self.material_type.name}, "
+            f"status={self.status.name})>"
         )
 
 

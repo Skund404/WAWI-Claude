@@ -15,13 +15,15 @@ from typing import Dict, Any, Optional, List, Union
 from sqlalchemy import Column, Enum, String, Text, Integer, ForeignKey, Boolean
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.sql import sqltypes
 
 from database.models.base import Base, ModelValidationError
 from database.models.enums import ToolCategory
-from database.models.mixins import (
+from database.models.base import (
     TimestampMixin,
     ValidationMixin,
-    TrackingMixin
+    TrackingMixin,
+    apply_mixins
 )
 from utils.circular_import_resolver import (
     lazy_import,
@@ -44,7 +46,7 @@ register_lazy_import('ToolListItem', 'database.models.tool_list', 'ToolListItem'
 register_lazy_import('PurchaseItem', 'database.models.purchase_item', 'PurchaseItem')
 
 
-class Tool(Base, TimestampMixin, ValidationMixin, TrackingMixin):
+class Tool(Base, apply_mixins(TimestampMixin, ValidationMixin, TrackingMixin)):
     """
     Tool model representing tools used in leatherworking projects.
 
@@ -53,11 +55,18 @@ class Tool(Base, TimestampMixin, ValidationMixin, TrackingMixin):
     """
     __tablename__ = 'tools'
 
-    # Basic attributes
+    # Explicit primary key
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+
+    # Basic attributes
     name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    type: Mapped[ToolCategory] = mapped_column(Enum(ToolCategory), nullable=False)
+
+    # Use sqltypes for enum column
+    model_type: Mapped[ToolCategory] = mapped_column(
+        sqltypes.Enum(ToolCategory),
+        nullable=False
+    )
 
     # Additional attributes
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
@@ -85,6 +94,10 @@ class Tool(Base, TimestampMixin, ValidationMixin, TrackingMixin):
             ModelValidationError: If validation fails
         """
         try:
+            # Handle potential type renaming
+            if 'type' in kwargs:
+                kwargs['model_type'] = kwargs.pop('type')
+
             # Validate input data
             self._validate_tool_data(kwargs)
 
@@ -108,14 +121,14 @@ class Tool(Base, TimestampMixin, ValidationMixin, TrackingMixin):
         """
         # Validate core required fields
         validate_not_empty(data, 'name', 'Tool name is required')
-        validate_not_empty(data, 'type', 'Tool type is required')
+        validate_not_empty(data, 'model_type', 'Tool type is required')
 
         # Validate tool type
-        if 'type' in data:
+        if 'model_type' in data:
             ModelValidator.validate_enum(
-                data['type'],
+                data['model_type'],
                 ToolCategory,
-                'type'
+                'model_type'
             )
 
     def mark_as_inactive(self) -> None:
@@ -162,70 +175,6 @@ class Tool(Base, TimestampMixin, ValidationMixin, TrackingMixin):
             logger.error(f"Failed to calculate total inventory: {e}")
             return 0
 
-    def to_dict(self, exclude_fields: Optional[List[str]] = None) -> Dict[str, Any]:
-        """
-        Convert model instance to a dictionary representation.
-
-        Args:
-            exclude_fields: Optional list of fields to exclude
-
-        Returns:
-            Dictionary representation of the model
-        """
-        if exclude_fields is None:
-            exclude_fields = []
-
-        # Add standard fields to exclude
-        exclude_fields.extend(['_sa_instance_state'])
-
-        result = {}
-        for column in self.__table__.columns:
-            if column.name not in exclude_fields:
-                value = getattr(self, column.name)
-
-                # Handle enum values
-                if isinstance(value, ToolCategory):
-                    result[column.name] = value.name
-                else:
-                    result[column.name] = value
-
-        # Add computed fields
-        result['total_inventory'] = self.total_inventory_quantity()
-
-        return result
-
-    def validate(self) -> Dict[str, List[str]]:
-        """
-        Validate the tool instance.
-
-        Returns:
-            Dictionary mapping field names to validation errors,
-            or an empty dictionary if validation succeeds
-        """
-        errors = {}
-
-        try:
-            # Validate required fields
-            if not self.name:
-                errors.setdefault('name', []).append("Name is required")
-
-            if not self.type:
-                errors.setdefault('type', []).append("Tool type is required")
-
-        except Exception as e:
-            errors.setdefault('general', []).append(f"Validation error: {str(e)}")
-
-        return errors
-
-    def is_valid(self) -> bool:
-        """
-        Check if the tool instance is valid.
-
-        Returns:
-            True if the instance is valid, False otherwise
-        """
-        return len(self.validate()) == 0
-
     def __repr__(self) -> str:
         """
         String representation of the Tool.
@@ -236,7 +185,7 @@ class Tool(Base, TimestampMixin, ValidationMixin, TrackingMixin):
         return (
             f"<Tool(id={self.id}, "
             f"name='{self.name}', "
-            f"type={self.type.name if self.type else 'None'}, "
+            f"type={self.model_type.name if self.model_type else 'None'}, "
             f"active={self.is_active})>"
         )
 

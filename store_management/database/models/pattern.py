@@ -3,27 +3,26 @@
 Comprehensive Pattern Model for Leatherworking Management System
 
 Implements the Pattern entity from the ER diagram with advanced
-relationship management, validation, and business logic.
+relationship management and validation strategies.
 """
 
 import logging
 from datetime import datetime
 from typing import Dict, Any, Optional, List, Union
 
-from sqlalchemy import Column, String, Text, Integer, JSON, Float, Boolean, DateTime, Enum
+from sqlalchemy import Boolean, Column, DateTime, Enum, Float, Integer, JSON, String, Text
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.exc import SQLAlchemyError
 
 from database.models.base import Base, ModelValidationError
 from database.models.enums import (
+    ProjectType,
     SkillLevel,
-    ComponentType,
-    MaterialType,
-    EdgeFinishType
 )
-from database.models.mixins import (
+from database.models.base import (
     TimestampMixin,
-    ValidationMixin
+    ValidationMixin,
+    apply_mixins  # Added import for apply_mixins
 )
 from utils.circular_import_resolver import (
     lazy_import,
@@ -40,61 +39,68 @@ from utils.enhanced_model_validator import (
 logger = logging.getLogger(__name__)
 
 # Register lazy imports to resolve potential circular dependencies
-register_lazy_import('ProductPattern', 'database.models.product_pattern', 'ProductPattern')
+register_lazy_import('Project', 'database.models.project', 'Project')
 register_lazy_import('PatternComponent', 'database.models.components', 'PatternComponent')
-register_lazy_import('Component', 'database.models.components', 'Component')
+register_lazy_import('ProductPattern', 'database.models.product_pattern', 'ProductPattern')
 
 
-class Pattern(Base, TimestampMixin, ValidationMixin):
+class Pattern(Base, apply_mixins(TimestampMixin, ValidationMixin)):  # Updated to use apply_mixins
     """
-    Pattern model representing design patterns for leatherworking projects.
+    Pattern model representing leatherworking patterns that can be used in projects.
 
-    Implements comprehensive tracking of pattern details,
-    relationships, and business logic.
+    Implements comprehensive pattern management with validations and relationships.
     """
     __tablename__ = 'patterns'
 
-    # Core pattern attributes
-    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    # Primary key
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)  # Added explicit id column
+
+    # Core attributes
+    name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
-    # Pattern classification and metadata
-    skill_level: Mapped[SkillLevel] = mapped_column(
-        Enum(SkillLevel),
-        nullable=False,
-        default=SkillLevel.INTERMEDIATE
+    # Pattern classification
+    project_type: Mapped[Optional[ProjectType]] = mapped_column(
+        Enum(ProjectType),
+        nullable=True
     )
-    version: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-
-    # Design and technical details
-    estimated_time_hours: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-
-    # Pattern status and publication
-    is_published: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    has_instructions: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-
-    # Detailed component specifications
-    components_metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
-
-    # Manufacturing and production details
-    cutting_complexity: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-    stitching_type: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-    edge_finish_type: Mapped[Optional[EdgeFinishType]] = mapped_column(
-        Enum(EdgeFinishType),
+    skill_level: Mapped[Optional[SkillLevel]] = mapped_column(
+        Enum(SkillLevel),
         nullable=True
     )
 
-    # Relationships with lazy loading and circular import resolution
-    products: Mapped[List['ProductPattern']] = relationship(
-        "ProductPattern",
-        back_populates="pattern",
-        cascade="all, delete-orphan"
-    )
+    # Version and status tracking
+    version: Mapped[str] = mapped_column(String(20), default="1.0", nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
+    # Design details
+    dimensions: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    design_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # References
+    source: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+
+    # Metadata - renamed to pattern_metadata to avoid conflicts with SQLAlchemy's metadata
+    pattern_metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
+
+    # Relationships with lazy loading and circular import resolution
     components: Mapped[List['PatternComponent']] = relationship(
         "PatternComponent",
         back_populates="pattern",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
+        lazy="selectin"
+    )
+
+    product_patterns: Mapped[List['ProductPattern']] = relationship(
+        "ProductPattern",
+        back_populates="pattern",
+        lazy="selectin"
+    )
+
+    projects: Mapped[List['Project']] = relationship(
+        "Project",
+        back_populates="pattern",
+        lazy="selectin"
     )
 
     def __init__(self, **kwargs):
@@ -108,7 +114,11 @@ class Pattern(Base, TimestampMixin, ValidationMixin):
             ModelValidationError: If validation fails
         """
         try:
-            # Validate and filter input data
+            # Handle metadata rename if present
+            if 'metadata' in kwargs:
+                kwargs['pattern_metadata'] = kwargs.pop('metadata')
+
+            # Validate input data
             self._validate_pattern_data(kwargs)
 
             # Initialize base model
@@ -135,22 +145,21 @@ class Pattern(Base, TimestampMixin, ValidationMixin):
         # Validate required fields
         validate_not_empty(data, 'name', 'Pattern name is required')
 
-        # Validate skill level
-        if 'skill_level' in data:
-            cls._validate_skill_level(data['skill_level'])
-
-        # Validate estimated time
-        if 'estimated_time_hours' in data and data['estimated_time_hours'] is not None:
-            validate_positive_number(
-                data,
-                'estimated_time_hours',
-                allow_zero=False,
-                message="Estimated time must be a positive number"
+        # Validate project type if provided
+        if 'project_type' in data and data['project_type'] is not None:
+            ModelValidator.validate_enum(
+                data['project_type'],
+                ProjectType,
+                'project_type'
             )
 
-        # Validate edge finish type if provided
-        if 'edge_finish_type' in data and data['edge_finish_type']:
-            cls._validate_edge_finish_type(data['edge_finish_type'])
+        # Validate skill level if provided
+        if 'skill_level' in data and data['skill_level'] is not None:
+            ModelValidator.validate_enum(
+                data['skill_level'],
+                SkillLevel,
+                'skill_level'
+            )
 
     def _post_init_processing(self) -> None:
         """
@@ -158,150 +167,72 @@ class Pattern(Base, TimestampMixin, ValidationMixin):
 
         Applies business logic and performs final validations.
         """
-        # Set default version if not provided
-        if not self.version:
+        # Initialize metadata if not provided
+        if not hasattr(self, 'pattern_metadata') or self.pattern_metadata is None:
+            self.pattern_metadata = {}
+
+        # Set default values if not specified
+        if not hasattr(self, 'version') or self.version is None:
             self.version = "1.0"
 
-        # Default instructions flag
-        if not hasattr(self, 'has_instructions'):
-            self.has_instructions = False
+        if not hasattr(self, 'is_active') or self.is_active is None:
+            self.is_active = True
 
-    @classmethod
-    def _validate_skill_level(cls, skill_level: Union[str, SkillLevel]) -> SkillLevel:
+    def add_component(self, component, quantity: int = 1, position: Optional[str] = None) -> 'PatternComponent':
         """
-        Validate skill level.
-
-        Args:
-            skill_level: Skill level to validate
-
-        Returns:
-            Validated SkillLevel
-
-        Raises:
-            ValidationError: If skill level is invalid
-        """
-        if isinstance(skill_level, str):
-            try:
-                return SkillLevel[skill_level.upper()]
-            except KeyError:
-                raise ValidationError(
-                    f"Invalid skill level. Must be one of {[l.name for l in SkillLevel]}",
-                    "skill_level"
-                )
-
-        if not isinstance(skill_level, SkillLevel):
-            raise ValidationError("Invalid skill level", "skill_level")
-
-        return skill_level
-
-    @classmethod
-    def _validate_edge_finish_type(cls, edge_finish_type: Union[str, EdgeFinishType]) -> EdgeFinishType:
-        """
-        Validate edge finish type.
-
-        Args:
-            edge_finish_type: Edge finish type to validate
-
-        Returns:
-            Validated EdgeFinishType
-
-        Raises:
-            ValidationError: If edge finish type is invalid
-        """
-        if isinstance(edge_finish_type, str):
-            try:
-                return EdgeFinishType[edge_finish_type.upper()]
-            except KeyError:
-                raise ValidationError(
-                    f"Invalid edge finish type. Must be one of {[t.name for t in EdgeFinishType]}",
-                    "edge_finish_type"
-                )
-
-        if not isinstance(edge_finish_type, EdgeFinishType):
-            raise ValidationError("Invalid edge finish type", "edge_finish_type")
-
-        return edge_finish_type
-
-    def add_component(self, component, quantity: float = 1.0, component_type: Optional[ComponentType] = None) -> None:
-        """
-        Add a component to the pattern.
+        Add a component to this pattern.
 
         Args:
             component: Component to add
-            quantity: Quantity of the component
-            component_type: Optional component type specification
-        """
-        # Lazy import to avoid circular dependencies
-        PatternComponent = lazy_import('database.models.components', 'PatternComponent')
-
-        # Create pattern component
-        pattern_component = PatternComponent(
-            pattern_id=self.id,
-            component_id=component.id,
-            quantity=quantity,
-            component_type=component_type or ComponentType.OTHER
-        )
-
-        if pattern_component not in self.components:
-            self.components.append(pattern_component)
-            logger.info(f"Component {component.id} added to Pattern {self.id}")
-
-    def publish(self) -> None:
-        """
-        Publish the pattern.
-        """
-        self.is_published = True
-        self.updated_at = datetime.utcnow()
-        logger.info(f"Pattern {self.id} published")
-
-    def unpublish(self) -> None:
-        """
-        Unpublish the pattern.
-        """
-        self.is_published = False
-        self.updated_at = datetime.utcnow()
-        logger.info(f"Pattern {self.id} unpublished")
-
-    def increment_version(self) -> None:
-        """
-        Increment the pattern version.
-        """
-        try:
-            # Parse current version
-            major, minor = (self.version or "1.0").split('.')
-
-            # Increment minor version
-            new_minor = int(minor) + 1
-
-            # Update version
-            self.version = f"{major}.{new_minor}"
-            self.updated_at = datetime.utcnow()
-
-            logger.info(f"Pattern {self.id} version updated to {self.version}")
-        except Exception as e:
-            logger.error(f"Error incrementing pattern version: {e}")
-            raise ModelValidationError(f"Failed to increment version: {str(e)}")
-
-    def generate_component_summary(self) -> Dict[str, Any]:
-        """
-        Generate a summary of components used in the pattern.
+            quantity: Number of this component needed
+            position: Optional position description
 
         Returns:
-            Dictionary summarizing component details
+            The created PatternComponent junction object
         """
-        component_summary = {
-            'total_components': len(self.components),
-            'component_types': {},
-            'material_breakdown': {}
-        }
+        try:
+            # Lazy import to avoid circular dependencies
+            PatternComponent = lazy_import('database.models.components', 'PatternComponent')
 
-        for pc in self.components:
-            # Count component types
-            component_type = pc.component_type or ComponentType.OTHER
-            component_summary['component_types'][component_type.name] = \
-                component_summary['component_types'].get(component_type.name, 0) + 1
+            pattern_component = PatternComponent(
+                pattern_id=self.id,
+                component_id=component.id,
+                quantity=quantity,
+                position=position
+            )
 
-        return component_summary
+            self.components.append(pattern_component)
+
+            logger.info(f"Added component {component.id} to pattern {self.id}")
+            return pattern_component
+
+        except Exception as e:
+            logger.error(f"Failed to add component to pattern: {e}")
+            raise ModelValidationError(f"Failed to add component: {str(e)}")
+
+    def deactivate(self) -> None:
+        """
+        Deactivate the pattern.
+        """
+        self.is_active = False
+        logger.info(f"Pattern {self.id} deactivated")
+
+    def activate(self) -> None:
+        """
+        Activate the pattern.
+        """
+        self.is_active = True
+        logger.info(f"Pattern {self.id} activated")
+
+    def update_version(self, new_version: str) -> None:
+        """
+        Update the pattern version.
+
+        Args:
+            new_version: New version string
+        """
+        self.version = new_version
+        logger.info(f"Pattern {self.id} version updated to {new_version}")
 
     def __repr__(self) -> str:
         """
@@ -314,9 +245,8 @@ class Pattern(Base, TimestampMixin, ValidationMixin):
             f"<Pattern("
             f"id={self.id}, "
             f"name='{self.name}', "
-            f"skill_level={self.skill_level.name}, "
-            f"version={self.version}, "
-            f"published={self.is_published}"
+            f"version='{self.version}', "
+            f"active={self.is_active}"
             f")>"
         )
 
@@ -328,8 +258,9 @@ def initialize_relationships():
     logger.debug("Initializing Pattern relationships")
     try:
         # Import necessary models
-        from database.models.product_pattern import ProductPattern
         from database.models.components import PatternComponent
+        from database.models.project import Project
+        from database.models.product_pattern import ProductPattern
 
         # Ensure relationships are properly configured
         logger.info("Pattern relationships initialized successfully")

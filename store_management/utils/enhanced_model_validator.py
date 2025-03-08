@@ -14,6 +14,24 @@ from sqlalchemy.orm import DeclarativeBase
 
 logger = logging.getLogger(__name__)
 
+import re
+
+def validate_email(email: str) -> bool:
+    """
+    Validate email address format.
+
+    Args:
+        email (str): Email address to validate
+
+    Returns:
+        bool: True if email is valid, False otherwise
+    """
+    if not email or not isinstance(email, str):
+        return False
+
+    # RFC 5322 Official Standard email regex
+    email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return re.match(email_regex, email) is not None
 
 class ValidationError(Exception):
     """Exception raised when validation fails."""
@@ -307,3 +325,58 @@ def validate_number(data: Dict[str, Any], field: str, min_value: Optional[Union[
 
     if field in data and data[field] is not None:
         ModelValidator.validate_number_range(data[field], min_value, max_value, field)
+
+
+def validate_phone_number(phone_number: str) -> bool:
+    """
+    Validate phone number format.
+
+    Supports various international and local phone number formats:
+    - US/Canada: (123) 456-7890, 123-456-7890, 1234567890
+    - International: +1 (123) 456-7890, +44 20 1234 5678
+
+    Args:
+        phone_number (str): Phone number to validate
+
+    Returns:
+        bool: True if phone number is valid, False otherwise
+    """
+    if not phone_number or not isinstance(phone_number, str):
+        return False
+
+    # Remove all non-digit characters
+    cleaned_number = re.sub(r'\D', '', phone_number)
+
+    # Check various phone number patterns
+    phone_patterns = [
+        r'^\+?1?\d{10,14}$',  # Global pattern for 10-14 digits
+        r'^\+?[1-9]\d{1,14}$'  # Flexible international format
+    ]
+
+    # Optional: More specific US/Canada pattern
+    us_canada_pattern = r'^(\+?1\s?)?(\(\d{3}\)|\d{3})[\s.-]?\d{3}[\s.-]?\d{4}$'
+
+    for pattern in phone_patterns:
+        if re.match(pattern, cleaned_number):
+            return True
+
+    # Additional check for formatted numbers
+    if re.match(us_canada_pattern, phone_number):
+        return True
+
+    return False
+
+# Convenience wrapper for use in validation contexts
+def validate_phone(phone_number: str) -> Optional[str]:
+    """
+    Validation function that returns an error message if invalid.
+
+    Args:
+        phone_number (str): Phone number to validate
+
+    Returns:
+        Optional error message
+    """
+    if not validate_phone_number(phone_number):
+        return "Invalid phone number format"
+    return None

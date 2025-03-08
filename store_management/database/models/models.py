@@ -1,346 +1,406 @@
-# database/models/models.py
+# database/models/product.py
 """
-Central Index for Leatherworking Management System Models
+Comprehensive Product Model for Leatherworking Management System
 
-This module serves as the central import and initialization point
-for all models in the application, providing convenient access and
-initialization of models and their relationships.
+Implements the Product entity from the ER diagram with advanced
+relationship management and validation strategies.
 """
 
 import logging
-from typing import Dict, Any, Type, List, Optional, Union, Set
+import uuid
+from datetime import datetime
+from typing import Dict, Any, Optional, List, Union
 
-# Import base classes and metadata
-from database.models.base import Base
-from database.models.model_metaclass import BaseModelMetaclass
+from sqlalchemy import Column, Float, Integer, String, Text, Boolean, ForeignKey, JSON
+from sqlalchemy.orm import relationship, Mapped, mapped_column
+from sqlalchemy.exc import SQLAlchemyError
 
-# Import interfaces
-from database.models.interfaces import IModel, IProject, IInventoryItem, ISalesItem
-
-# Import primary models
-from database.models.customer import Customer
-from database.models.sales import Sales
-from database.models.sales_item import SalesItem
-from database.models.product import Product
-from database.models.pattern import Pattern
-from database.models.project import Project
-from database.models.components import (
-    Component,
-    ProjectComponent,
-    ComponentMaterial,
-    ComponentLeather,
-    ComponentHardware,
-    ComponentTool
-)
-# Note: PatternComponent is actually missing from components.py and should be implemented there
-
-# Import inventory models
-from database.models.material import Material
-from database.models.material_inventory import MaterialInventory
-from database.models.leather import Leather
-from database.models.leather_inventory import LeatherInventory
-from database.models.hardware import Hardware
-from database.models.hardware_inventory import HardwareInventory
-from database.models.tool import Tool
-from database.models.inventory import Inventory
-
-# Import support models
-from database.models.supplier import Supplier
-from database.models.purchase import Purchase
-from database.models.purchase_item import PurchaseItem  # Corrected import
-from database.models.storage import Storage
-from database.models.picking_list import PickingList, PickingListItem
-from database.models.tool_list import ToolList, ToolListItem
-from database.models.metrics import MetricSnapshot, MaterialUsageLog, EfficiencyReport
-from database.models.transaction import (
-    Transaction,
-    MaterialTransaction,
-    LeatherTransaction,
-    HardwareTransaction
-)
-
-# Import enums for convenience
+from database.models.base import Base, ModelValidationError
 from database.models.enums import (
-    SaleStatus,
-    PaymentStatus,
-    ProjectStatus,
-    ProjectType,
-    ComponentType,
-    InventoryStatus,
     MaterialType,
-    LeatherType,
-    HardwareType,
-    TransactionType,
-    InventoryAdjustmentType,
     SkillLevel,
-    QualityGrade,
-    MeasurementUnit
+    ProjectType
 )
-
-# Import model factories
-from database.models.factories import (
-    ProjectFactory,
-    PatternFactory,
-    ComponentFactory,
-    SalesFactory,
-    HardwareFactory,
-    MaterialFactory,
-    LeatherFactory,
-    ToolFactory,        # Added missing factory
-    SupplierFactory,    # Added missing factory
-    ProductFactory      # Added missing factory
+from database.models.base import (
+    TimestampMixin,
+    ValidationMixin,
+    CostingMixin,
+    apply_mixins  # Added import for apply_mixins
+)
+from utils.circular_import_resolver import (
+    lazy_import,
+    register_lazy_import
+)
+from utils.enhanced_model_validator import (
+    ModelValidator,
+    ValidationError,
+    validate_not_empty,
+    validate_positive_number
 )
 
 # Setup logger
 logger = logging.getLogger(__name__)
 
+# Register lazy imports to resolve potential circular dependencies
+register_lazy_import('ProductPattern', 'database.models.product_pattern', 'ProductPattern')
+register_lazy_import('ProductInventory', 'database.models.product_inventory', 'ProductInventory')
+register_lazy_import('SalesItem', 'database.models.sales_item', 'SalesItem')
+register_lazy_import('ProjectComponent', 'database.models.components', 'ProjectComponent')
+register_lazy_import('Supplier', 'database.models.supplier', 'Supplier')
+register_lazy_import('Storage', 'database.models.storage', 'Storage')
 
-class ModelRegistry:
+
+class Product(Base, apply_mixins(TimestampMixin, ValidationMixin, CostingMixin)):  # Updated to use apply_mixins
     """
-    Central registry for model management and initialization.
+    Product model representing items that can be sold in the leatherworking system.
 
-    This class provides utility methods for working with models, including
-    initialization, registration tracking, and relationship management.
+    Implements comprehensive tracking of product details,
+    relationships, and business logic.
     """
+    __tablename__ = 'products'
 
-    # Track models for easy lookup
-    _models: Dict[str, Type] = {}
-    _model_instances: Dict[str, Dict[int, Any]] = {}
+    # Core product attributes
+    name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
-    @classmethod
-    def initialize(cls) -> None:
+    # Pricing and financial attributes
+    price: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+
+    # Tracking and identification
+    sku: Mapped[Optional[str]] = mapped_column(
+        String(50),
+        nullable=True,
+        unique=True,
+        default=lambda: f"PROD-{uuid.uuid4().hex[:8].upper()}"
+    )
+    barcode: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, unique=True)
+
+    # Product characteristics
+    material_type: Mapped[Optional[MaterialType]] = mapped_column(
+        Enum(MaterialType),
+        nullable=True
+    )
+    skill_level: Mapped[Optional[SkillLevel]] = mapped_column(
+        Enum(SkillLevel),
+        nullable=True
+    )
+    project_type: Mapped[Optional[ProjectType]] = mapped_column(
+        Enum(ProjectType),
+        nullable=True
+    )
+
+    # Visibility and status
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    is_featured: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+    # Physical attributes
+    weight: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    dimensions: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+
+    # Metadata and additional information
+    extra_metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
+
+    # Foreign keys
+    supplier_id: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        ForeignKey('suppliers.id'),
+        nullable=True
+    )
+    storage_id: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        ForeignKey('storages.id'),
+        nullable=True
+    )
+
+    # Relationships with lazy loading and circular import resolution
+    patterns: Mapped[List['ProductPattern']] = relationship(
+        "ProductPattern",
+        back_populates="product",
+        cascade="all, delete-orphan"
+    )
+
+    inventories: Mapped[List['ProductInventory']] = relationship(
+        "ProductInventory",
+        back_populates="product",
+        cascade="all, delete-orphan"
+    )
+
+    sales_items: Mapped[List['SalesItem']] = relationship(
+        "SalesItem",
+        back_populates="product"
+    )
+
+    components: Mapped[List['ProjectComponent']] = relationship(
+        "ProjectComponent",
+        back_populates="product",
+        foreign_keys="[ProjectComponent.product_id]"
+    )
+
+    supplier: Mapped[Optional['Supplier']] = relationship(
+        "Supplier",
+        back_populates="products"
+    )
+
+    storage: Mapped[Optional['Storage']] = relationship(
+        "Storage",
+        back_populates="product_items"
+    )
+
+    def __init__(self, **kwargs):
         """
-        Initialize all models and their relationships.
+        Initialize a Product instance with comprehensive validation.
 
-        This method should be called during application startup to ensure
-        all models and their relationships are properly initialized.
+        Args:
+            **kwargs: Keyword arguments for product attributes
+
+        Raises:
+            ModelValidationError: If validation fails
         """
         try:
-            logger.info("Initializing model registry...")
+            # Validate and filter input data
+            self._validate_product_data(kwargs)
 
-            # Register primary models
-            cls._register_models()
+            # Initialize base model
+            super().__init__(**kwargs)
 
-            # Initialize all relationships
-            cls._initialize_relationships()
+            # Post-initialization processing
+            self._post_init_processing()
 
-            logger.info("Model registry initialization completed successfully")
-        except Exception as e:
-            logger.error(f"Error initializing model registry: {e}")
-            raise
-
-    @classmethod
-    def _register_models(cls) -> None:
-        """
-        Register all models in the central registry.
-        """
-        # Collect all model classes from BaseModelMetaclass registry
-        if hasattr(BaseModelMetaclass, '_registered_models'):
-            cls._models.update(BaseModelMetaclass._registered_models)
-            logger.debug(f"Registered {len(cls._models)} models from metaclass registry")
-        else:
-            # Register models manually if metaclass registry not available
-            models = [
-                Customer, Sales, SalesItem, Product, Pattern, Project,
-                Component, ProjectComponent,
-                ComponentMaterial, ComponentLeather, ComponentHardware, ComponentTool,
-                Material, MaterialInventory, Leather, LeatherInventory,
-                Hardware, HardwareInventory, Tool, Inventory,
-                Supplier, Purchase, PurchaseItem, Storage,
-                PickingList, PickingListItem, ToolList, ToolListItem,
-                MetricSnapshot, MaterialUsageLog, EfficiencyReport,
-                Transaction, MaterialTransaction, LeatherTransaction, HardwareTransaction
-            ]
-
-            for model in models:
-                cls._models[model.__name__] = model
-
-            logger.debug(f"Manually registered {len(cls._models)} models")
+        except (ValidationError, SQLAlchemyError) as e:
+            logger.error(f"Product initialization failed: {e}")
+            raise ModelValidationError(f"Failed to create Product: {str(e)}") from e
 
     @classmethod
-    def _initialize_relationships(cls) -> None:
+    def _validate_product_data(cls, data: Dict[str, Any]) -> None:
         """
-        Initialize all model relationships.
-        """
-        # Use metaclass relationship initialization if available
-        if hasattr(BaseModelMetaclass, 'initialize_all_relationships'):
-            BaseModelMetaclass.initialize_all_relationships()
-            logger.debug("Initialized relationships using metaclass")
-        else:
-            # Otherwise, call individual relationship initializers
-            for model_name, model_class in cls._models.items():
-                if hasattr(model_class, 'initialize_relationships'):
-                    try:
-                        model_class.initialize_relationships()
-                        logger.debug(f"Initialized relationships for {model_name}")
-                    except Exception as e:
-                        logger.error(f"Error initializing relationships for {model_name}: {e}")
-
-    @classmethod
-    def get_model(cls, model_name: str) -> Optional[Type]:
-        """
-        Get a model class by name.
+        Comprehensive validation of product creation data.
 
         Args:
-            model_name: Name of the model to retrieve
+            data (Dict[str, Any]): Product creation data to validate
+
+        Raises:
+            ValidationError: If validation fails
+        """
+        # Validate required fields
+        validate_not_empty(data, 'name', 'Product name is required')
+
+        # Validate price
+        if 'price' in data:
+            validate_positive_number(
+                data,
+                'price',
+                allow_zero=False,
+                message="Price must be a positive number"
+            )
+
+        # Validate optional fields
+        if 'material_type' in data and data['material_type']:
+            cls._validate_material_type(data['material_type'])
+
+        if 'skill_level' in data and data['skill_level']:
+            cls._validate_skill_level(data['skill_level'])
+
+        if 'project_type' in data and data['project_type']:
+            cls._validate_project_type(data['project_type'])
+
+        # Validate weight if provided
+        if 'weight' in data and data['weight'] is not None:
+            validate_positive_number(
+                data,
+                'weight',
+                allow_zero=False,
+                message="Weight must be a positive number"
+            )
+
+    def _post_init_processing(self) -> None:
+        """
+        Perform additional processing after instance creation.
+
+        Applies business logic and performs final validations.
+        """
+        # Generate SKU if not provided
+        if not self.sku:
+            self.sku = f"PROD-{uuid.uuid4().hex[:8].upper()}"
+
+        # Set default status
+        if not hasattr(self, 'is_active'):
+            self.is_active = True
+
+    @classmethod
+    def _validate_material_type(cls, material_type: Union[str, MaterialType]) -> MaterialType:
+        """
+        Validate material type.
+
+        Args:
+            material_type: Material type to validate
 
         Returns:
-            The model class or None if not found
+            Validated MaterialType
+
+        Raises:
+            ValidationError: If material type is invalid
         """
-        return cls._models.get(model_name)
+        if isinstance(material_type, str):
+            try:
+                return MaterialType[material_type.upper()]
+            except KeyError:
+                raise ValidationError(
+                    f"Invalid material type. Must be one of {[t.name for t in MaterialType]}",
+                    "material_type"
+                )
+
+        if not isinstance(material_type, MaterialType):
+            raise ValidationError("Invalid material type", "material_type")
+
+        return material_type
 
     @classmethod
-    def get_instance(cls, model_name: str, instance_id: int) -> Optional[Any]:
+    def _validate_skill_level(cls, skill_level: Union[str, SkillLevel]) -> SkillLevel:
         """
-        Get a cached model instance by name and ID.
-
-        Note: This is primarily used for in-memory caching during
-        application runtime, not for database retrieval.
+        Validate skill level.
 
         Args:
-            model_name: Name of the model
-            instance_id: ID of the instance
+            skill_level: Skill level to validate
 
         Returns:
-            The model instance or None if not found
+            Validated SkillLevel
+
+        Raises:
+            ValidationError: If skill level is invalid
         """
-        return cls._model_instances.get(model_name, {}).get(instance_id)
+        if isinstance(skill_level, str):
+            try:
+                return SkillLevel[skill_level.upper()]
+            except KeyError:
+                raise ValidationError(
+                    f"Invalid skill level. Must be one of {[l.name for l in SkillLevel]}",
+                    "skill_level"
+                )
+
+        if not isinstance(skill_level, SkillLevel):
+            raise ValidationError("Invalid skill level", "skill_level")
+
+        return skill_level
 
     @classmethod
-    def cache_instance(cls, instance: Any) -> None:
+    def _validate_project_type(cls, project_type: Union[str, ProjectType]) -> ProjectType:
         """
-        Cache a model instance for later retrieval.
+        Validate project type.
 
         Args:
-            instance: The model instance to cache
-        """
-        if not hasattr(instance, 'id') or not hasattr(instance, '__class__'):
-            return
-
-        model_name = instance.__class__.__name__
-
-        if model_name not in cls._model_instances:
-            cls._model_instances[model_name] = {}
-
-        cls._model_instances[model_name][instance.id] = instance
-
-    @classmethod
-    def clear_cache(cls) -> None:
-        """
-        Clear the instance cache.
-        """
-        cls._model_instances.clear()
-
-    @classmethod
-    def get_model_dependencies(cls, model_name: str) -> Set[str]:
-        """
-        Get all models that depend on the specified model.
-
-        Args:
-            model_name: Name of the model
+            project_type: Project type to validate
 
         Returns:
-            Set of model names that depend on the specified model
+            Validated ProjectType
+
+        Raises:
+            ValidationError: If project type is invalid
         """
-        dependencies = set()
+        if isinstance(project_type, str):
+            try:
+                return ProjectType[project_type.upper()]
+            except KeyError:
+                raise ValidationError(
+                    f"Invalid project type. Must be one of {[t.name for t in ProjectType]}",
+                    "project_type"
+                )
 
-        # Check each model for relationships to the target model
-        for name, model in cls._models.items():
-            if hasattr(model, '__mapper__') and hasattr(model.__mapper__, 'relationships'):
-                for relationship in model.__mapper__.relationships:
-                    if relationship.target.name == model_name:
-                        dependencies.add(name)
+        if not isinstance(project_type, ProjectType):
+            raise ValidationError("Invalid project type", "project_type")
 
-        return dependencies
+        return project_type
 
+    def deactivate(self) -> None:
+        """
+        Deactivate the product.
+        """
+        self.is_active = False
+        logger.info(f"Product {self.id} deactivated")
 
-# Initialize model registry during module import
-# This ensures models are registered but relationships
-# will be initialized when explicitly called
-ModelRegistry._register_models()
+    def activate(self) -> None:
+        """
+        Activate the product.
+        """
+        self.is_active = True
+        logger.info(f"Product {self.id} activated")
 
-# Convenience exports
-__all__ = [
-    # Base classes
-    'Base',
-    'IModel',
-    'IProject',
-    'IInventoryItem',
-    'ISalesItem',
+    def update_price(self, new_price: float) -> None:
+        """
+        Update the product price.
 
-    # Primary models
-    'Customer',
-    'Sales',
-    'SalesItem',
-    'Product',
-    'Pattern',
-    'Project',
-    'Component',
-    'ProjectComponent',
-    # 'PatternComponent', # Removed as it doesn't exist in components.py
+        Args:
+            new_price: New product price
 
-    # Inventory models
-    'Material',
-    'MaterialInventory',
-    'Leather',
-    'LeatherInventory',
-    'Hardware',
-    'HardwareInventory',
-    'Tool',
-    'Inventory',
+        Raises:
+            ValidationError: If price is invalid
+        """
+        validate_positive_number(
+            {'price': new_price},
+            'price',
+            allow_zero=False,
+            message="Price must be a positive number"
+        )
 
-    # Support models
-    'Supplier',
-    'Purchase',
-    'PurchaseItem',
-    'Storage',
-    'PickingList',
-    'PickingListItem',
-    'ToolList',
-    'ToolListItem',
-    'MetricSnapshot',
-    'MaterialUsageLog',
-    'EfficiencyReport',
-    'Transaction',
-    'MaterialTransaction',
-    'LeatherTransaction',
-    'HardwareTransaction',
+        self.price = new_price
+        logger.info(f"Product {self.id} price updated to {new_price}")
 
-    # Factories
-    'ProjectFactory',
-    'PatternFactory',
-    'ComponentFactory',
-    'SalesFactory',
-    'HardwareFactory',
-    'MaterialFactory',
-    'LeatherFactory',
-    'ToolFactory',        # Added missing factory
-    'SupplierFactory',    # Added missing factory
-    'ProductFactory',     # Added missing factory
+    def add_pattern(self, pattern) -> None:
+        """
+        Add a pattern to the product.
 
-    # Enums
-    'SaleStatus',
-    'PaymentStatus',
-    'ProjectStatus',
-    'ProjectType',
-    'ComponentType',
-    'InventoryStatus',
-    'MaterialType',
-    'LeatherType',
-    'HardwareType',
-    'TransactionType',
-    'InventoryAdjustmentType',
-    'SkillLevel',
-    'QualityGrade',
-    'MeasurementUnit',
+        Args:
+            pattern: Pattern to add
+        """
+        # Lazy import to avoid circular dependencies
+        ProductPattern = lazy_import('database.models.product_pattern', 'ProductPattern')
 
-    # Registry
-    'ModelRegistry'
-]
+        # Create product pattern association if not exists
+        product_pattern = ProductPattern(
+            product_id=self.id,
+            pattern_id=pattern.id
+        )
+
+        if product_pattern not in self.patterns:
+            self.patterns.append(product_pattern)
+            logger.info(f"Pattern {pattern.id} added to Product {self.id}")
+
+    def __repr__(self) -> str:
+        """
+        String representation of the product.
+
+        Returns:
+            str: Detailed product representation
+        """
+        return (
+            f"<Product("
+            f"id={self.id}, "
+            f"name='{self.name}', "
+            f"price={self.price}, "
+            f"active={self.is_active}, "
+            f"sku='{self.sku}'"
+            f")>"
+        )
 
 
-def initialize_models() -> None:
+def initialize_relationships():
     """
-    Convenience function to initialize all models during application startup.
+    Initialize relationships to resolve potential circular imports.
     """
-    ModelRegistry.initialize()
+    logger.debug("Initializing Product relationships")
+    try:
+        # Import necessary models
+        from database.models.product_pattern import ProductPattern
+        from database.models.product_inventory import ProductInventory
+        from database.models.sales_item import SalesItem
+        from database.models.supplier import Supplier
+        from database.models.storage import Storage
+
+        # Ensure relationships are properly configured
+        logger.info("Product relationships initialized successfully")
+    except Exception as e:
+        logger.error(f"Error setting up Product relationships: {e}")
+        logger.error(str(e))
+
+
+# Register for lazy import resolution
+register_lazy_import('Product', 'database.models.product', 'Product')

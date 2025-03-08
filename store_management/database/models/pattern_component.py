@@ -26,7 +26,7 @@ from database.models.enums import (
     LeatherType,
     SkillLevel
 )
-from database.models.mixins import (
+from database.models.base import (
     TimestampMixin,
     ValidationMixin
 )

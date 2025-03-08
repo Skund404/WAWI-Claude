@@ -23,10 +23,11 @@ from database.models.enums import (
     TransactionType,
     InventoryStatus
 )
-from database.models.mixins import (
+from database.models.base import (
     TimestampMixin,
     ValidationMixin,
-    TrackingMixin
+    TrackingMixin,
+    apply_mixins  # Added import for apply_mixins
 )
 from utils.circular_import_resolver import (
     lazy_import,
@@ -54,7 +55,7 @@ register_lazy_import('ProjectComponent', 'database.models.components', 'ProjectC
 register_lazy_import('Transaction', 'database.models.transaction', 'Transaction')
 
 
-class PickingList(Base, TimestampMixin, ValidationMixin, TrackingMixin):
+class PickingList(Base, apply_mixins(TimestampMixin, ValidationMixin, TrackingMixin)):  # Updated to use apply_mixins
     """
     PickingList model representing material and hardware picking lists for sales orders.
 
@@ -86,7 +87,7 @@ class PickingList(Base, TimestampMixin, ValidationMixin, TrackingMixin):
     assigned_to: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
 
     # Metadata
-    metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
+    picking_metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)  # Renamed from metadata
 
     # Relationships
     sales = relationship("Sales", back_populates="picking_list")
@@ -104,6 +105,10 @@ class PickingList(Base, TimestampMixin, ValidationMixin, TrackingMixin):
             ModelValidationError: If validation fails
         """
         try:
+            # Handle metadata rename if present
+            if 'metadata' in kwargs:
+                kwargs['picking_metadata'] = kwargs.pop('metadata')
+
             # Set created_at if not provided
             if 'created_at' not in kwargs:
                 kwargs['created_at'] = datetime.utcnow()
@@ -155,8 +160,8 @@ class PickingList(Base, TimestampMixin, ValidationMixin, TrackingMixin):
         Applies business logic and performs final validations.
         """
         # Initialize metadata if not provided
-        if not hasattr(self, 'metadata') or self.metadata is None:
-            self.metadata = {}
+        if not hasattr(self, 'picking_metadata') or self.picking_metadata is None:
+            self.picking_metadata = {}
 
         # Ensure tracking ID is set
         if not hasattr(self, 'tracking_id') or not self.tracking_id:
@@ -360,7 +365,7 @@ class PickingList(Base, TimestampMixin, ValidationMixin, TrackingMixin):
         )
 
 
-class PickingListItem(Base, TimestampMixin, ValidationMixin):
+class PickingListItem(Base, apply_mixins(TimestampMixin, ValidationMixin)):
     """
     PickingListItem model representing an item in a picking list.
 

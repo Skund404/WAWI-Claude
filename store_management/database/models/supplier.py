@@ -16,13 +16,15 @@ from typing import Dict, Any, Optional, List, Union
 from sqlalchemy import Column, Enum, String, Text, Boolean, Integer
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.sql import sqltypes
 
 from database.models.base import Base, ModelValidationError
 from database.models.enums import SupplierStatus
-from database.models.mixins import (
+from database.models.base import (
     TimestampMixin,
     ValidationMixin,
-    TrackingMixin
+    TrackingMixin,
+    apply_mixins
 )
 from utils.circular_import_resolver import (
     lazy_import,
@@ -46,7 +48,7 @@ register_lazy_import('Purchase', 'database.models.purchase', 'Purchase')
 register_lazy_import('Product', 'database.models.product', 'Product')
 
 
-class Supplier(Base, TimestampMixin, ValidationMixin, TrackingMixin):
+class Supplier(Base, apply_mixins(TimestampMixin, ValidationMixin, TrackingMixin)):
     """
     Supplier model representing vendors and suppliers for leatherworking materials.
 
@@ -55,12 +57,16 @@ class Supplier(Base, TimestampMixin, ValidationMixin, TrackingMixin):
     """
     __tablename__ = 'suppliers'
 
-    # Basic attributes
+    # Explicit primary key
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+
+    # Basic attributes
     name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     contact_email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+
+    # Use sqltypes for enum column
     status: Mapped[SupplierStatus] = mapped_column(
-        Enum(SupplierStatus),
+        sqltypes.Enum(SupplierStatus),
         nullable=False,
         default=SupplierStatus.ACTIVE
     )
@@ -241,8 +247,7 @@ class Supplier(Base, TimestampMixin, ValidationMixin, TrackingMixin):
             # Validate email format if provided
             if self.contact_email:
                 email_pattern = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
-                if not re.match(email_pattern, self.contact_email):
-                    errors.setdefault('contact_email', []).append("Invalid email format")
+                if not re.match(email_pattern, self.contact_email):errors.setdefault('contact_email', []).append("Invalid email format")
 
             # Validate website format if provided
             if self.website:

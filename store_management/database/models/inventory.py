@@ -25,12 +25,12 @@ from database.models.enums import (
     TransactionType,
     QualityGrade
 )
-from database.models.mixins import (
+from database.models.base import (
     TimestampMixin,
     ValidationMixin,
     TrackingMixin
 )
-from database.models.interfaces import IInventoryItem
+
 from utils.circular_import_resolver import (
     lazy_import,
     register_lazy_import,

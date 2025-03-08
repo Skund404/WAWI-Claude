@@ -10,23 +10,26 @@ relationships and attributes.
 """
 
 import logging
+import uuid
 from datetime import datetime
 from typing import Dict, Any, Optional, List, Union, Type
 
 from sqlalchemy import Column, Enum, Float, ForeignKey, Integer, String, Text, Boolean, DateTime, JSON
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.sql import sqltypes
 
 from database.models.base import Base, ModelValidationError
 from database.models.enums import (
     PurchaseStatus,
     TransactionType
 )
-from database.models.mixins import (
+from database.models.base import (
     TimestampMixin,
     ValidationMixin,
     CostingMixin,
-    TrackingMixin
+    TrackingMixin,
+    apply_mixins
 )
 from utils.circular_import_resolver import (
     lazy_import,
@@ -49,7 +52,7 @@ register_lazy_import('PurchaseItem', 'database.models.purchase_item', 'PurchaseI
 register_lazy_import('Transaction', 'database.models.transaction', 'Transaction')
 
 
-class Purchase(Base, TimestampMixin, ValidationMixin, CostingMixin, TrackingMixin):
+class Purchase(Base, apply_mixins(TimestampMixin, ValidationMixin, CostingMixin, TrackingMixin)):
     """
     Purchase model representing orders from suppliers.
 
@@ -58,7 +61,7 @@ class Purchase(Base, TimestampMixin, ValidationMixin, CostingMixin, TrackingMixi
     """
     __tablename__ = 'purchases'
 
-    # Core attributes
+    # Explicit primary key
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
 
     # Supplier relationship
@@ -66,7 +69,13 @@ class Purchase(Base, TimestampMixin, ValidationMixin, CostingMixin, TrackingMixi
 
     # Purchase details
     total_amount: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
-    status: Mapped[PurchaseStatus] = mapped_column(Enum(PurchaseStatus), nullable=False, default=PurchaseStatus.PENDING)
+
+    # Use sqltypes for enum column
+    status: Mapped[PurchaseStatus] = mapped_column(
+        sqltypes.Enum(PurchaseStatus),
+        nullable=False,
+        default=PurchaseStatus.PENDING
+    )
 
     # Date tracking
     order_date: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
@@ -84,7 +93,7 @@ class Purchase(Base, TimestampMixin, ValidationMixin, CostingMixin, TrackingMixi
     payment_reference: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
 
     # Metadata
-    metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
+    model_metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
 
     # Relationships
     supplier = relationship("Supplier", back_populates="purchases")
@@ -102,6 +111,10 @@ class Purchase(Base, TimestampMixin, ValidationMixin, CostingMixin, TrackingMixi
             ModelValidationError: If validation fails
         """
         try:
+            # Handle potential metadata renaming
+            if 'metadata' in kwargs:
+                kwargs['model_metadata'] = kwargs.pop('metadata')
+
             # Set created_at if not provided
             if 'created_at' not in kwargs:
                 kwargs['created_at'] = datetime.utcnow()
@@ -168,197 +181,22 @@ class Purchase(Base, TimestampMixin, ValidationMixin, CostingMixin, TrackingMixi
         Applies business logic and performs final validations.
         """
         # Initialize metadata if not provided
-        if not hasattr(self, 'metadata') or self.metadata is None:
-            self.metadata = {}
+        if not hasattr(self, 'model_metadata') or self.model_metadata is None:
+            self.model_metadata = {}
 
         # Ensure tracking ID is set
         if not hasattr(self, 'tracking_id') or not self.tracking_id:
             self.generate_tracking_id()
 
-    def add_item(self, item: 'PurchaseItem') -> None:
+    def generate_tracking_id(self) -> str:
         """
-        Add an item to the purchase.
-
-        Args:
-            item: Purchase item to add
-        """
-        if not hasattr(self, 'items'):
-            self.items = []
-
-        self.items.append(item)
-        self.update_total()
-
-    def update_total(self) -> None:
-        """
-        Update the total amount based on purchase items.
-        """
-        if hasattr(self, 'items') and self.items:
-            self.total_amount = sum(item.price * item.quantity for item in self.items)
-        else:
-            self.total_amount = 0.0
-
-        logger.info(f"Purchase {self.id} total updated to {self.total_amount}")
-
-    def update_status(self, new_status: Union[str, PurchaseStatus], notes: Optional[str] = None) -> None:
-        """
-        Update the purchase status with validation.
-
-        Args:
-            new_status: New status for the purchase
-            notes: Optional notes about the status change
-
-        Raises:
-            ValidationError: If status is invalid
-        """
-        # Process status value
-        if isinstance(new_status, str):
-            try:
-                new_status = PurchaseStatus[new_status.upper()]
-            except KeyError:
-                raise ValidationError(f"Invalid purchase status: {new_status}", "status")
-
-        # Validate status value
-        if not isinstance(new_status, PurchaseStatus):
-            raise ValidationError("Status must be a valid PurchaseStatus enum value", "status")
-
-        # Update status
-        old_status = self.status
-        self.status = new_status
-
-        # Add notes about status change
-        if notes:
-            existing_notes = self.notes or ""
-            status_note = f"[{datetime.utcnow().strftime('%Y-%m-%d %H:%M')}] Status changed from {old_status.name} to {new_status.name}: {notes}"
-            self.notes = f"{existing_notes}\n\n{status_note}" if existing_notes else status_note
-
-        logger.info(f"Purchase {self.id} status updated from {old_status.name} to {new_status.name}")
-
-        # Handle status-specific updates
-        if new_status == PurchaseStatus.DELIVERED and not self.delivery_date:
-            self.delivery_date = datetime.utcnow()
-
-    def mark_as_ordered(self, reference_number: Optional[str] = None) -> None:
-        """
-        Mark the purchase as ordered.
-
-        Args:
-            reference_number: Optional reference number for the order
-        """
-        if reference_number:
-            self.reference_number = reference_number
-
-        self.update_status(PurchaseStatus.PROCESSING, "Order placed with supplier")
-
-    def mark_as_shipped(self, expected_delivery_date: Optional[datetime] = None) -> None:
-        """
-        Mark the purchase as shipped.
-
-        Args:
-            expected_delivery_date: Optional expected delivery date
-        """
-        if expected_delivery_date:
-            self.expected_delivery_date = expected_delivery_date
-
-        self.update_status(PurchaseStatus.SHIPPED, "Order shipped by supplier")
-
-    def mark_as_delivered(self, create_transactions: bool = True) -> List[Optional['Transaction']]:
-        """
-        Mark the purchase as delivered and optionally create inventory transactions.
-
-        Args:
-            create_transactions: Whether to create inventory transactions for items
+        Generate a unique tracking ID for the purchase.
 
         Returns:
-            List of created transactions (if create_transactions is True)
+            Unique tracking ID
         """
-        self.update_status(PurchaseStatus.DELIVERED, "Order received")
-        self.delivery_date = datetime.utcnow()
-
-        transactions = []
-
-        if create_transactions and hasattr(self, 'items'):
-            for item in self.items:
-                if not item.is_received:
-                    try:
-                        # Mark the item as received
-                        transaction = item.mark_as_received(
-                            received_date=self.delivery_date,
-                            create_transaction=True,
-                            notes=f"Received as part of purchase {self.id}"
-                        )
-
-                        if transaction:
-                            transactions.append(transaction)
-                    except Exception as e:
-                        logger.error(f"Error processing item {item.id} receipt: {e}")
-
-        return transactions
-
-    def mark_as_paid(self, payment_reference: Optional[str] = None) -> None:
-        """
-        Mark the purchase as paid.
-
-        Args:
-            payment_reference: Optional payment reference number
-        """
-        self.is_paid = True
-        self.payment_date = datetime.utcnow()
-
-        if payment_reference:
-            self.payment_reference = payment_reference
-
-        logger.info(f"Purchase {self.id} marked as paid")
-
-    def cancel(self, reason: Optional[str] = None) -> None:
-        """
-        Cancel the purchase.
-
-        Args:
-            reason: Optional reason for cancellation
-        """
-        self.update_status(PurchaseStatus.CANCELLED, reason or "Purchase cancelled")
-
-    def to_dict(self, exclude_fields: Optional[List[str]] = None, include_items: bool = False) -> Dict[str, Any]:
-        """
-        Convert purchase to a dictionary representation.
-
-        Args:
-            exclude_fields: Optional list of fields to exclude
-            include_items: Whether to include purchase items
-
-        Returns:
-            Dictionary representation of the purchase
-        """
-        if exclude_fields is None:
-            exclude_fields = []
-
-        # Add standard fields to exclude
-        exclude_fields.extend(['_sa_instance_state'])
-
-        # Special handling for dates and enums
-        result = {}
-        for column in self.__table__.columns:
-            if column.name not in exclude_fields:
-                value = getattr(self, column.name)
-
-                # Convert datetime to ISO format
-                if isinstance(value, datetime):
-                    result[column.name] = value.isoformat()
-                # Convert enum to string
-                elif isinstance(value, PurchaseStatus):
-                    result[column.name] = value.name
-                else:
-                    result[column.name] = value
-
-        # Add items if requested
-        if include_items and hasattr(self, 'items') and self.items:
-            result['items'] = [item.to_dict() for item in self.items]
-
-        # Add supplier name if available
-        if hasattr(self, 'supplier') and self.supplier:
-            result['supplier_name'] = getattr(self.supplier, 'name', 'Unknown Supplier')
-
-        return result
+        self.tracking_id = f"PURCH-{uuid.uuid4().hex[:8].upper()}"
+        return self.tracking_id
 
     def __repr__(self) -> str:
         """
@@ -375,7 +213,24 @@ class Purchase(Base, TimestampMixin, ValidationMixin, CostingMixin, TrackingMixi
         )
 
 
+# Optional function to initialize relationships and resolve circular imports
+def initialize_relationships():
+    """
+    Initialize relationships to resolve potential circular imports.
+    """
+    logger.debug("Initializing Purchase relationships")
+    try:
+        # Import necessary models
+        from database.models.supplier import Supplier
+        from database.models.purchase_item import PurchaseItem
+        from database.models.transaction import Transaction
+
+        # Ensure relationships are properly configured
+        logger.info("Purchase relationships initialized successfully")
+    except Exception as e:
+        logger.error(f"Error setting up Purchase relationships: {e}")
+        logger.error(str(e))
+
+
 # Register for lazy import resolution
 register_lazy_import('Purchase', 'database.models.purchase', 'Purchase')
-
-

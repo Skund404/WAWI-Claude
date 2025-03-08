@@ -14,9 +14,10 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.exc import SQLAlchemyError
 
 from database.models.base import Base, ModelValidationError
-from database.models.mixins import (
+from database.models.base import (
     TimestampMixin,
-    ValidationMixin
+    ValidationMixin,
+    apply_mixins  # Added import for apply_mixins
 )
 from utils.circular_import_resolver import (
     lazy_import,
@@ -35,7 +36,7 @@ register_lazy_import('Sales', 'database.models.sales', 'Sales')
 register_lazy_import('Product', 'database.models.product', 'Product')
 
 
-class SalesItem(Base, TimestampMixin, ValidationMixin):
+class SalesItem(Base, apply_mixins(TimestampMixin, ValidationMixin)):  # Updated to use apply_mixins
     """
     Represents an individual item within a sales transaction.
 
@@ -43,6 +44,9 @@ class SalesItem(Base, TimestampMixin, ValidationMixin):
     including quantity, pricing, and relationships.
     """
     __tablename__ = 'sales_items'
+
+    # Primary key
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)  # Added explicit id column
 
     # Foreign keys
     sales_id: Mapped[int] = mapped_column(

@@ -17,7 +17,7 @@ from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.exc import SQLAlchemyError
 
 from database.models.base import Base, ModelValidationError
-from database.models.mixins import (
+from database.models.base import (
     TimestampMixin,
     ValidationMixin
 )

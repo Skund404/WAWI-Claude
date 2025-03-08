@@ -22,10 +22,11 @@ from database.models.enums import (
     MaterialType,
     ComponentType
 )
-from database.models.mixins import (
+from database.models.base import (
     TimestampMixin,
     ValidationMixin,
-    CostingMixin
+    CostingMixin,
+    apply_mixins
 )
 from utils.circular_import_resolver import (
     lazy_import,
@@ -50,7 +51,7 @@ register_lazy_import('ToolList', 'database.models.tool_list', 'ToolList')
 register_lazy_import('Production', 'database.models.production', 'Production')
 
 
-class Project(Base, TimestampMixin, ValidationMixin, CostingMixin):
+class Project(Base, apply_mixins(TimestampMixin, ValidationMixin, CostingMixin)):
     """
     Project model representing a comprehensive leatherworking project.
 
@@ -58,6 +59,9 @@ class Project(Base, TimestampMixin, ValidationMixin, CostingMixin):
     relationships, and business logic.
     """
     __tablename__ = 'projects'
+
+    # Primary key
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
 
     # Core project attributes
     name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -106,6 +110,7 @@ class Project(Base, TimestampMixin, ValidationMixin, CostingMixin):
 
     # Additional metadata
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # Renamed to project_metadata to avoid conflicts with SQLAlchemy's metadata
     project_metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
 
     # Relationships with lazy loading and circular import resolution
@@ -158,6 +163,10 @@ class Project(Base, TimestampMixin, ValidationMixin, CostingMixin):
             ModelValidationError: If validation fails
         """
         try:
+            # Handle metadata rename if present
+            if 'metadata' in kwargs:
+                kwargs['project_metadata'] = kwargs.pop('metadata')
+
             # Validate and filter input data
             self._validate_project_data(kwargs)
 
@@ -220,6 +229,10 @@ class Project(Base, TimestampMixin, ValidationMixin, CostingMixin):
             self.labor_cost = 0.0
         if not hasattr(self, 'overhead_cost'):
             self.overhead_cost = 0.0
+
+        # Initialize project_metadata if not provided
+        if not hasattr(self, 'project_metadata') or self.project_metadata is None:
+            self.project_metadata = {}
 
     @classmethod
     def _validate_project_type(cls, project_type: Union[str, ProjectType]) -> ProjectType:
@@ -443,8 +456,7 @@ class Project(Base, TimestampMixin, ValidationMixin, CostingMixin):
             f"id={self.id}, "
             f"name='{self.name}', "
             f"type={self.project_type.name}, "
-            f"status={self.status.name}, "
-            f"total_cost={self.calculate_total_cost()}"
+            f"status={self.status.name}"
             f")>"
         )
 

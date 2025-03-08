@@ -22,7 +22,7 @@ from database.models.enums import (
     ProjectStatus,
     ProjectType
 )
-from database.models.mixins import (
+from database.models.base import (
     TimestampMixin,
     ValidationMixin,
     CostingMixin,
