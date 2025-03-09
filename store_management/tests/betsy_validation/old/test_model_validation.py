@@ -14,7 +14,7 @@ from database import ComponentMaterial, ProjectComponent
 from database.models.base import ModelValidationError
 
 from database.models import (
-    Customer, Sales, Product, Material, Leather, Hardware,
+    Customer, Sales, Product, material, Leather, Hardware,
     Tool, Pattern, Component, Project, Supplier
 )
 from database.models.enums import (

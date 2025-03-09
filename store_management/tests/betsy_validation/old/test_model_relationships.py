@@ -11,7 +11,7 @@ from typing import Dict, Any
 from database.models import (
     Customer, Sales, SalesItem, Product, ProductPattern, Pattern,
     Project, Component, ProjectComponent, PickingList, PickingListItem,
-    ToolList, ToolListItem, Tool, Material, Leather, Hardware,
+    ToolList, ToolListItem, Tool, material, Leather, Hardware,
     ComponentMaterial, ComponentLeather, ComponentHardware, ComponentTool,
     Supplier, Purchase, PurchaseItem, ProductInventory, MaterialInventory,
     LeatherInventory, HardwareInventory, ToolInventory, Storage

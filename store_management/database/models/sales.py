@@ -1,199 +1,107 @@
-from database.models.base import metadata
-from sqlalchemy.orm import declarative_base
 # database/models/sales.py
-"""
-Enhanced Sales Model for Leatherworking Management System
-
-Represents sales transactions with comprehensive tracking,
-validation, and relationship management.
-"""
-
-import logging
-import uuid
-from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
-
-from sqlalchemy import DateTime, ForeignKey, Float, Integer, String, Text
-from sqlalchemy.sql import sqltypes
+from sqlalchemy import Column, Enum, Float, ForeignKey, Integer, String, DateTime, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.exc import SQLAlchemyError
+from typing import List, Optional
+from datetime import datetime
 
-from database.models.base import Base, ModelValidationError, metadata
+from database.models.base import AbstractBase, ValidationMixin, ModelValidationError, CostingMixin
 from database.models.enums import SaleStatus, PaymentStatus
-from database.models.base import (
-    TimestampMixin,
-    ValidationMixin,
-    CostingMixin,
-    apply_mixins
-)
-from utils.circular_import_resolver import (
-    register_lazy_import,
-    lazy_import
-)
-from utils.enhanced_model_validator import (
-    ModelValidator,
-    ValidationError
-)
 
-# Setup logger
-logger = logging.getLogger(__name__)
 
-# Lazy imports to resolve potential circular dependencies
-register_lazy_import('Customer', 'database.models.customer', 'Customer')
-register_lazy_import('SalesItem', 'database.models.sales_item', 'SalesItem')
-register_lazy_import('PickingList', 'database.models.picking_list', 'PickingList')
-register_lazy_import('Project', 'database.models.project', 'Project')
-
-from sqlalchemy.orm import declarative_base
-SalesBase = declarative_base()
-SalesBase.metadata = metadata
-SalesBase.metadata = metadata
-
-class Sales(SalesBase):
+class Sales(AbstractBase, ValidationMixin, CostingMixin):
     """
-    Sales model representing a complete sales transaction in the system.
+    Sales represents a customer purchase.
 
-    Tracks comprehensive details of sales, including status,
-    payment, and associated entities.
+    Attributes:
+        customer_id: Foreign key to the customer
+        total_amount: Total sale amount
+        status: Sale status
+        payment_status: Payment status
+        notes: Additional notes
     """
     __tablename__ = 'sales'
 
-    # Primary key (explicitly defined)
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-
-    # Customer relationship
-    customer_id: Mapped[int] = mapped_column(
-        Integer,
-        ForeignKey('customers.id'),
-        nullable=False
-    )
-
-    # Relationships with lazy loading and circular import resolution
-    customer: Mapped['Customer'] = relationship(
-        "Customer",
-        back_populates="sales_records",
-        lazy="selectin"
-    )
-
-    # Sales details
-    total_amount: Mapped[float] = mapped_column(
-        Float,
-        default=0.0,
-        nullable=False
-    )
-
-    # Status tracking - use sqltypes.Enum explicitly to avoid potential conflicts
-    status: Mapped[SaleStatus] = mapped_column(
-        sqltypes.Enum(SaleStatus),
-        default=SaleStatus.QUOTE_REQUEST,
-        nullable=False
-    )
-
-    payment_status: Mapped[PaymentStatus] = mapped_column(
-        sqltypes.Enum(PaymentStatus),
-        default=PaymentStatus.PENDING,
-        nullable=False
-    )
-
-    # Additional fields
+    customer_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey('customers.id'), nullable=True)
+    total_amount: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    status: Mapped[SaleStatus] = mapped_column(Enum(SaleStatus), nullable=False, default=SaleStatus.DRAFT)
+    payment_status: Mapped[PaymentStatus] = mapped_column(Enum(PaymentStatus), nullable=False,
+                                                          default=PaymentStatus.PENDING)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    reference_number: Mapped[Optional[str]] = mapped_column(
-        String(50),
-        unique=True,
-        nullable=True,
-        default=lambda: Sales._generate_reference_number()
-    )
 
-    # Related entities
-    items: Mapped[List['SalesItem']] = relationship(
-        "SalesItem",
-        back_populates="sale",
-        cascade="all, delete-orphan",
-        lazy="selectin"
-    )
+    # Payment tracking
+    amount_paid: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    payment_date: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
-    picking_list: Mapped[Optional['PickingList']] = relationship(
-        "PickingList",
-        back_populates="sale",
-        uselist=False,
-        cascade="all, delete-orphan"
-    )
+    # Shipping information
+    shipping_address: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    tracking_number: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    shipped_date: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
-    project: Mapped[Optional['Project']] = relationship(
-        "Project",
-        back_populates="sale",
-        uselist=False
-    )
-
-    @classmethod
-    def _generate_reference_number(cls) -> str:
-        """
-        Generate a unique reference number for the sale.
-
-        Returns:
-            str: Unique reference number
-        """
-        # Use UUID to generate a unique reference number
-        # Prefix with 'S-' for Sales and truncate to 50 characters
-        return f"S-{str(uuid.uuid4())[:8]}"
+    # Relationships
+    customer = relationship("Customer", back_populates="sales")
+    items = relationship("SalesItem", back_populates="sales", cascade="all, delete-orphan")
+    projects = relationship("Project", back_populates="sales")
+    picking_list = relationship("PickingList", back_populates="sales", uselist=False)
 
     def __init__(self, **kwargs):
+        """Initialize a Sales instance with validation."""
+        super().__init__(**kwargs)
+        self.validate()
+
+    def validate(self):
+        """Validate sales data."""
+        if self.total_amount < 0:
+            raise ModelValidationError("Total amount cannot be negative")
+
+        if self.amount_paid < 0:
+            raise ModelValidationError("Amount paid cannot be negative")
+
+        if self.amount_paid > self.total_amount:
+            raise ModelValidationError("Amount paid cannot exceed total amount")
+
+    def update_total_amount(self) -> None:
+        """Recalculate the total amount based on the linked sales items."""
+        if not hasattr(self, 'items') or not self.items:
+            self.total_amount = 0.0
+            return
+
+        self.total_amount = sum(item.price * item.quantity for item in self.items)
+
+    def update_status(self, new_status: SaleStatus, notes: Optional[str] = None) -> None:
         """
-        Initialize a Sales instance with comprehensive validation.
+        Update the sales status and add notes.
 
         Args:
-            **kwargs: Keyword arguments for sales attributes
-
-        Raises:
-            ModelValidationError: If validation fails
+            new_status: New sales status
+            notes: Optional notes about the status change
         """
-        try:
-            # Validate required fields
-            self._validate_sales_data(kwargs)
+        old_status = self.status
+        self.status = new_status
 
-            # Initialize the base model
-            super().__init__(**kwargs)
+        if notes:
+            status_note = f"[STATUS CHANGE] {old_status.name} -> {new_status.name}: {notes}"
+            if self.notes:
+                self.notes += f"\n{status_note}"
+            else:
+                self.notes = status_note
 
-            # Post-initialization processing
-            self._post_init_processing()
+    def update_payment_status(self, new_status: PaymentStatus, amount: Optional[float] = None) -> None:
+        """
+        Update the payment status and record payment if applicable.
 
-        except (ValidationError, SQLAlchemyError) as e:
-            logger.error(f"Sales initialization failed: {e}")
-            raise ModelValidationError(f"Failed to create Sales: {str(e)}") from e
+        Args:
+            new_status: New payment status
+            amount: Optional payment amount
+        """
+        old_status = self.payment_status
+        self.payment_status = new_status
 
-    # ... (rest of the methods remain the same as in the previous version)
+        if amount is not None and amount > 0:
+            self.amount_paid += amount
+            self.payment_date = datetime.now()
 
-
-def initialize_relationships():
-    """
-    Initialize relationships for Sales model.
-
-    This method is used by the centralized relationship initialization process.
-    """
-    logger.info("Initializing Sales relationships...")
-    from utils.circular_import_resolver import register_relationship
-
-    # Define relationships to register
-    relationships = {
-        'items': {
-            'secondary': 'SalesItem',
-            'back_populates': 'sale',
-            'cascade': 'all, delete-orphan',
-            'lazy': 'selectin'
-        },
-        'customer': {
-            'secondary': 'Customer',
-            'back_populates': 'sales_records',
-            'lazy': 'selectin'
-        }
-    }
-
-    # Register each relationship
-    for rel_name, rel_config in relationships.items():
-        register_relationship('Sales', rel_name, rel_config)
-
-    logger.info("Sales relationships registered successfully")
-
-
-# Register for lazy import resolution
-register_lazy_import('Sales', 'database.models.sales', 'Sales')
+            # Update payment status based on amount
+            if self.amount_paid >= self.total_amount:
+                self.payment_status = PaymentStatus.PAID
+            elif self.amount_paid > 0:
+                self.payment_status = PaymentStatus.PARTIALLY_PAID

@@ -1,377 +1,281 @@
-from database.models.base import metadata
 # database/models/inventory.py
-"""
-Enhanced Inventory Model for Leatherworking Management System
-
-Provides a comprehensive and flexible inventory tracking system
-with advanced validation, relationship management, and business logic.
-"""
-
-import logging
 from datetime import datetime
-from typing import Dict, Any, Optional, List, Union, Type, ClassVar, Callable
+from sqlalchemy import Column, Enum, Float, ForeignKey, Integer, String, UniqueConstraint, and_, JSON, Text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from typing import Optional, List, Dict, Any
 
-from sqlalchemy import Column, Enum, Float, ForeignKey, Integer, String, Text, Boolean, DateTime
-from sqlalchemy.orm import relationship, Mapped, mapped_column
-from sqlalchemy.exc import SQLAlchemyError
-
-from database.models.base import (
-    Base,
-    ModelValidationError,
-    ModelFactory,
-    metadata
-)
-from database.models.base import (
-    TrackingMixin,
-    ComplianceMixin,
-    CostingMixin
-)
-from database.models.enums import (
-    InventoryStatus,
-    MaterialType,
-    MeasurementUnit,
-    InventoryAdjustmentType,
-    StorageLocationType,
-    TransactionType,
-    QualityGrade
-)
-
-from utils.circular_import_resolver import (
-    register_lazy_import,
-    resolve_lazy_import
-)
-from utils.enhanced_model_validator import (
-    ModelValidator,
-    ValidationError,
-    validate_not_empty,
-    validate_positive_number
-)
-
-# Setup logger
-logger = logging.getLogger(__name__)
-
-# Lazy import registration for potential circular dependencies
-register_lazy_import('Material', 'database.models.material', 'Material')
-register_lazy_import('Leather', 'database.models.leather', 'Leather')
-register_lazy_import('Hardware', 'database.models.hardware', 'Hardware')
-register_lazy_import('Product', 'database.models.product', 'Product')
-register_lazy_import('Storage', 'database.models.storage', 'Storage')
-register_lazy_import('Transaction', 'database.models.transaction', 'Transaction')
+from database.models.base import AbstractBase, ValidationMixin, ModelValidationError, AuditMixin, TrackingMixin
+from database.models.enums import InventoryStatus, TransactionType, InventoryAdjustmentType
 
 
-class Inventory(Base, TrackingMixin, ComplianceMixin, CostingMixin):
+class Inventory(AbstractBase, ValidationMixin, AuditMixin, TrackingMixin):
     """
-    Enhanced Inventory model with comprehensive tracking and management capabilities.
-    Inherits from Base model and applies multiple mixins for advanced functionality.
+    Unified inventory tracking for all item types with enhanced movement tracking.
+
+    Attributes:
+        item_type: Type discriminator ('material', 'product', 'tool')
+        item_id: Foreign key to the corresponding item
+        quantity: Current quantity in stock
+        status: Inventory status
+        min_stock_level: Threshold for low stock warning
+        reorder_point: Quantity at which to reorder
+        reorder_quantity: Standard quantity to reorder
+        storage_location: Physical storage location
+        location_details: Additional location information (aisle, shelf, bin, etc.)
+        last_count_date: Date of last physical inventory count
+        last_movement_date: Date of last inventory movement
+        transaction_history: Log of recent transactions (limited entries kept in model)
+        unit_cost: Current unit cost for valuation
+        notes: Additional notes about the inventory item
     """
-    __tablename__ = 'inventories'
+    __tablename__ = 'inventory'
 
-    # Core inventory attributes
-    item_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
-    item_type: Mapped[MaterialType] = mapped_column(
-        Enum(MaterialType),
-        nullable=False,
-        default=MaterialType.OTHER
-    )
+    item_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    item_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    quantity: Mapped[float] = mapped_column(Float, nullable=False, default=0)
+    status: Mapped[InventoryStatus] = mapped_column(Enum(InventoryStatus), nullable=False)
 
-    # Quantity and measurement tracking
-    quantity: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
-    unit: Mapped[MeasurementUnit] = mapped_column(
-        Enum(MeasurementUnit),
-        nullable=False,
-        default=MeasurementUnit.PIECE
-    )
+    # Enhanced inventory management fields
+    min_stock_level: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    reorder_point: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    reorder_quantity: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
 
-    # Reorder management
-    reorder_point: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
-    reorder_quantity: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    storage_location: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    location_details: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
 
-    # Item references with lazy loading
-    material_id: Mapped[Optional[int]] = mapped_column(
-        Integer,
-        ForeignKey("materials.id"),
-        nullable=True
-    )
-    leather_id: Mapped[Optional[int]] = mapped_column(
-        Integer,
-        ForeignKey("leathers.id"),
-        nullable=True
-    )
-    hardware_id: Mapped[Optional[int]] = mapped_column(
-        Integer,
-        ForeignKey("hardwares.id"),
-        nullable=True
-    )
-    product_id: Mapped[Optional[int]] = mapped_column(
-        Integer,
-        ForeignKey("products.id"),
-        nullable=True
+    last_count_date: Mapped[Optional[datetime]] = mapped_column(nullable=True)
+    last_movement_date: Mapped[Optional[datetime]] = mapped_column(nullable=True)
+
+    # Store recent transactions in the model (limited history)
+    transaction_history: Mapped[Optional[List[Dict[str, Any]]]] = mapped_column(JSON, nullable=True, default=list)
+
+    unit_cost: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint('item_type', 'item_id', name='uix_inventory_item'),
     )
 
-    # Storage relationship
-    storage_id: Mapped[Optional[int]] = mapped_column(
-        Integer,
-        ForeignKey("storages.id"),
-        nullable=True
-    )
-    storage_location: Mapped[Optional[str]] = mapped_column(
-        String(100),
-        nullable=True
-    )
-    location_type: Mapped[Optional[StorageLocationType]] = mapped_column(
-        Enum(StorageLocationType),
-        nullable=True
-    )
-
-    # Relationships with lazy loading
-    material: Mapped[Optional["Material"]] = relationship(
+    # Relationships - maintain compatibility with ER diagram
+    material = relationship(
         "Material",
-        lazy="selectin",
-        foreign_keys=[material_id]
+        primaryjoin="and_(Inventory.item_id==Material.id, Inventory.item_type=='material')",
+        foreign_keys="[Inventory.item_id]",
+        uselist=False,
+        back_populates="inventory"
     )
-    leather: Mapped[Optional["Leather"]] = relationship(
-        "Leather",
-        lazy="selectin",
-        foreign_keys=[leather_id]
-    )
-    hardware: Mapped[Optional["Hardware"]] = relationship(
-        "Hardware",
-        lazy="selectin",
-        foreign_keys=[hardware_id]
-    )
-    product: Mapped[Optional["Product"]] = relationship(
+
+    product = relationship(
         "Product",
-        lazy="selectin",
-        foreign_keys=[product_id]
-    )
-    storage: Mapped[Optional["Storage"]] = relationship(
-        "Storage",
-        lazy="selectin",
-        foreign_keys=[storage_id]
-    )
-    transactions: Mapped[List["Transaction"]] = relationship(
-        "Transaction",
-        back_populates="inventory",
-        cascade="all, delete-orphan",
-        lazy="selectin"
+        primaryjoin="and_(Inventory.item_id==Product.id, Inventory.item_type=='product')",
+        foreign_keys="[Inventory.item_id]",
+        uselist=False,
+        back_populates="inventory"
     )
 
-    # Class-level validators
-    _inventory_validators: ClassVar[List[Callable]] = []
+    tool = relationship(
+        "Tool",
+        primaryjoin="and_(Inventory.item_id==Tool.id, Inventory.item_type=='tool')",
+        foreign_keys="[Inventory.item_id]",
+        uselist=False,
+        back_populates="inventory"
+    )
 
-    @classmethod
-    def register_inventory_validator(
-            cls,
-            validator_func: Callable[['Inventory'], Optional[str]]
-    ) -> None:
-        """
-        Register a custom inventory-level validator.
+    def __init__(self, **kwargs):
+        """Initialize an Inventory instance with validation."""
+        if 'transaction_history' not in kwargs:
+            kwargs['transaction_history'] = []
 
-        Args:
-            validator_func: Function that validates the entire inventory
-        """
-        cls._inventory_validators.append(validator_func)
+        super().__init__(**kwargs)
 
-    def validate_inventory(self) -> Dict[str, List[str]]:
-        """
-        Perform comprehensive inventory-specific validation.
-
-        Returns:
-            Dictionary of validation errors
-        """
-        errors: Dict[str, List[str]] = {}
-
-        # Validate quantity cannot be negative
-        if self.quantity < 0:
-            errors['quantity'] = ["Quantity cannot be negative"]
-
-        # Validate reorder points
-        if self.reorder_point < 0:
-            errors['reorder_point'] = ["Reorder point cannot be negative"]
-
-        if self.reorder_quantity < 0:
-            errors['reorder_quantity'] = ["Reorder quantity cannot be negative"]
-
-        # Validate at least one item reference
-        if not any([
-            self.material_id,
-            self.leather_id,
-            self.hardware_id,
-            self.product_id
-        ]):
-            errors['item_reference'] = [
-                "At least one of material_id, leather_id, hardware_id, or product_id must be specified"
-            ]
-
-        # Run custom inventory validators
-        for validator in self._inventory_validators:
-            try:
-                result = validator(self)
-                if result:
-                    errors.setdefault('custom_validation', []).append(result)
-            except Exception as e:
-                errors.setdefault('custom_validation', []).append(str(e))
-
-        return errors
-
-    def adjust_quantity(
-            self,
-            quantity_change: float,
-            transaction_type: Union[str, TransactionType, InventoryAdjustmentType],
-            notes: Optional[str] = None
-    ) -> None:
-        """
-        Adjust inventory quantity with comprehensive validation and logging.
-
-        Args:
-            quantity_change: Amount to change (positive or negative)
-            transaction_type: Type of transaction
-            notes: Optional transaction notes
-
-        Raises:
-            ModelValidationError: If adjustment is invalid
-        """
-        try:
-            # Validate quantity change
-            ModelValidator.validate_positive_number(
-                abs(quantity_change),
-                allow_zero=True,
-                message="Quantity change must be a non-negative number"
-            )
-
-            # Process transaction type
-            if isinstance(transaction_type, str):
-                try:
-                    transaction_type = (
-                        TransactionType[transaction_type.upper()]
-                        if transaction_type.upper() in TransactionType.__members__
-                        else InventoryAdjustmentType[transaction_type.upper()]
-                    )
-                except KeyError:
-                    raise ValidationError(
-                        f"Invalid transaction type: {transaction_type}",
-                        "transaction_type"
-                    )
-
-            # Calculate new quantity
-            new_quantity = self.quantity + quantity_change
-
-            # Validate new quantity
-            if new_quantity < 0:
-                raise ValidationError(
-                    f"Cannot reduce quantity below zero. "
-                    f"Current: {self.quantity}, Change: {quantity_change}",
-                    "quantity"
-                )
-
-            # Update quantity and status
-            self.quantity = new_quantity
+        # Set default status based on quantity
+        if 'status' not in kwargs:
             self._update_status()
 
-            # Log transaction
-            self._log_transaction(quantity_change, transaction_type, notes)
+        # Initialize location_details if not provided
+        if not self.location_details:
+            self.location_details = {}
 
-            logger.info(
-                f"Adjusted quantity for inventory {self.id}: "
-                f"{quantity_change} ({transaction_type.name})"
-            )
+        self.validate()
 
-        except Exception as e:
-            logger.error(f"Inventory adjustment failed: {e}")
-            raise ModelValidationError(f"Inventory adjustment failed: {str(e)}")
+    def validate(self):
+        """Validate inventory data."""
+        if self.quantity < 0:
+            raise ModelValidationError("Inventory quantity cannot be negative")
+
+        if not self.item_type:
+            raise ModelValidationError("Item type must be specified")
+
+        if self.item_type not in ('material', 'product', 'tool'):
+            raise ModelValidationError("Invalid item type")
+
+        if self.min_stock_level is not None and self.min_stock_level < 0:
+            raise ModelValidationError("Minimum stock level cannot be negative")
+
+        if self.reorder_point is not None and self.reorder_point < 0:
+            raise ModelValidationError("Reorder point cannot be negative")
+
+        if self.reorder_quantity is not None and self.reorder_quantity <= 0:
+            raise ModelValidationError("Reorder quantity must be positive")
 
     def _update_status(self) -> None:
-        """
-        Update inventory status based on current quantity and thresholds.
-        """
-        old_status = self.inventory_status
-
-        # Update status based on quantity
+        """Update inventory status based on current quantity and thresholds."""
         if self.quantity <= 0:
-            self.inventory_status = InventoryStatus.OUT_OF_STOCK
-        elif self.quantity <= self.reorder_point:
-            self.inventory_status = InventoryStatus.LOW_STOCK
+            self.status = InventoryStatus.OUT_OF_STOCK
+        elif self.min_stock_level is not None and self.quantity <= self.min_stock_level:
+            self.status = InventoryStatus.LOW_STOCK
+        elif self.reorder_point is not None and self.quantity <= self.reorder_point:
+            self.status = InventoryStatus.PENDING_REORDER
         else:
-            self.inventory_status = InventoryStatus.IN_STOCK
+            self.status = InventoryStatus.IN_STOCK
 
-        # Log status change if different
-        if old_status != self.inventory_status:
-            logger.info(
-                f"Inventory {self.id} status changed from "
-                f"{old_status.name} to {self.inventory_status.name}"
-            )
-
-    def _log_transaction(
-            self,
-            quantity_change: float,
-            transaction_type: Union[TransactionType, InventoryAdjustmentType],
-            notes: Optional[str] = None
-    ) -> None:
+    def update_quantity(self, change: float, transaction_type: TransactionType,
+                        reference_type: Optional[str] = None, reference_id: Optional[int] = None,
+                        notes: Optional[str] = None) -> None:
         """
-        Create and log a transaction record for quantity changes.
+        Update inventory quantity and status with transaction tracking.
 
         Args:
-            quantity_change: Amount of quantity change
-            transaction_type: Type of transaction
-            notes: Optional transaction notes
+            change: The amount to add (positive) or subtract (negative)
+            transaction_type: Type of transaction causing the quantity change
+            reference_type: Type of reference document (e.g., 'purchase', 'sales')
+            reference_id: ID of the reference document
+            notes: Optional notes about the transaction
         """
-        try:
-            # Lazy import Transaction model to avoid circular imports
-            Transaction = resolve_lazy_import('Transaction')
+        if self.quantity + change < 0:
+            raise ModelValidationError(f"Cannot reduce quantity by {abs(change)} as only {self.quantity} available")
 
-            if Transaction:
-                transaction = Transaction(
-                    inventory_id=self.id,
-                    quantity=quantity_change,
-                    transaction_type=transaction_type,
-                    notes=notes
-                )
-                # Note: This assumes the session will be used to add the transaction
-                # In a real implementation, you'd pass the session or use a service layer
-        except Exception as e:
-            logger.warning(f"Failed to log transaction: {e}")
+        previous_quantity = self.quantity
+        self.quantity += change
+        self.last_movement_date = datetime.now()
+
+        # Update status based on new quantity
+        self._update_status()
+
+        # Record the transaction
+        transaction = {
+            'date': datetime.now().isoformat(),
+            'previous_quantity': previous_quantity,
+            'new_quantity': self.quantity,
+            'change': change,
+            'transaction_type': transaction_type.name,
+            'reference_type': reference_type,
+            'reference_id': reference_id,
+            'notes': notes
+        }
+
+        # Keep the 10 most recent transactions in the history
+        if not self.transaction_history:
+            self.transaction_history = []
+
+        self.transaction_history.append(transaction)
+        if len(self.transaction_history) > 10:
+            self.transaction_history = self.transaction_history[-10:]
+
+    def record_adjustment(self, quantity_change: float, adjustment_type: InventoryAdjustmentType,
+                          reason: str, authorized_by: Optional[str] = None) -> None:
+        """
+        Record a manual inventory adjustment.
+
+        Args:
+            quantity_change: The amount to adjust (positive or negative)
+            adjustment_type: Type of adjustment
+            reason: Reason for the adjustment
+            authorized_by: Person who authorized the adjustment
+        """
+        self.update_quantity(
+            change=quantity_change,
+            transaction_type=TransactionType.ADJUSTMENT,
+            reference_type='adjustment',
+            notes=f"Type: {adjustment_type.name}, Reason: {reason}, Auth: {authorized_by}"
+        )
+
+    def transfer_location(self, new_location: str, new_details: Optional[Dict[str, Any]] = None,
+                          notes: Optional[str] = None) -> None:
+        """
+        Transfer inventory to a new storage location.
+
+        Args:
+            new_location: New storage location
+            new_details: New location details (will be merged with existing)
+            notes: Optional notes about the transfer
+        """
+        old_location = self.storage_location
+        old_details = self.location_details or {}
+
+        self.storage_location = new_location
+
+        if new_details:
+            # Merge new details with existing details
+            if not self.location_details:
+                self.location_details = {}
+            self.location_details.update(new_details)
+
+        # Record the transaction
+        transaction = {
+            'date': datetime.now().isoformat(),
+            'transaction_type': TransactionType.TRANSFER.name,
+            'from_location': old_location,
+            'to_location': new_location,
+            'from_details': old_details,
+            'to_details': self.location_details,
+            'notes': notes
+        }
+
+        if not self.transaction_history:
+            self.transaction_history = []
+
+        self.transaction_history.append(transaction)
+        if len(self.transaction_history) > 10:
+            self.transaction_history = self.transaction_history[-10:]
+
+    def record_physical_count(self, counted_quantity: float, adjustment_notes: Optional[str] = None,
+                              counted_by: Optional[str] = None) -> None:
+        """
+        Record a physical inventory count and adjust as needed.
+
+        Args:
+            counted_quantity: The actual quantity counted
+            adjustment_notes: Notes about any discrepancy
+            counted_by: Person who performed the count
+        """
+        quantity_difference = counted_quantity - self.quantity
+
+        if quantity_difference != 0:
+            adjustment_type = (InventoryAdjustmentType.FOUND if quantity_difference > 0
+                               else InventoryAdjustmentType.LOST)
+
+            self.record_adjustment(
+                quantity_change=quantity_difference,
+                adjustment_type=adjustment_type,
+                reason=f"Physical count adjustment. {adjustment_notes or ''}",
+                authorized_by=counted_by
+            )
+
+        self.last_count_date = datetime.now()
+
+    def calculate_value(self) -> float:
+        """Calculate the current value of this inventory item."""
+        if self.unit_cost is None:
+            return 0.0
+        return self.quantity * self.unit_cost
 
     def needs_reorder(self) -> bool:
-        """
-        Check if inventory needs reordering.
-
-        Returns:
-            True if quantity is at or below reorder point
-        """
+        """Check if this item needs to be reordered based on reorder point."""
+        if self.reorder_point is None:
+            return False
         return self.quantity <= self.reorder_point
 
+    def days_since_last_count(self) -> Optional[int]:
+        """Calculate days since last physical count."""
+        if self.last_count_date is None:
+            return None
+        delta = datetime.now() - self.last_count_date
+        return delta.days
 
-# Factory method for creating inventory instances
-def create_inventory(
-        item_name: str,
-        item_type: MaterialType,
-        quantity: float = 0.0,
-        unit: MeasurementUnit = MeasurementUnit.PIECE,
-        **kwargs
-) -> Inventory:
-    """
-    Factory method to create an Inventory instance with validation.
-
-    Args:
-        item_name: Name of the inventory item
-        item_type: Type of the item
-        quantity: Initial quantity (default 0.0)
-        unit: Measurement unit (default PIECE)
-        **kwargs: Additional inventory attributes
-
-    Returns:
-        Validated Inventory instance
-    """
-    inventory_data = {
-        'item_name': item_name,
-        'item_type': item_type,
-        'quantity': quantity,
-        'unit': unit,
-        **kwargs
-    }
-
-    return Inventory(**inventory_data)
-
-
-# Register for lazy import resolution
-register_lazy_import('Inventory', 'database.models.inventory', 'Inventory')
+    def days_since_last_movement(self) -> Optional[int]:
+        """Calculate days since last movement."""
+        if self.last_movement_date is None:
+            return None
+        delta = datetime.now() - self.last_movement_date
+        return delta.days

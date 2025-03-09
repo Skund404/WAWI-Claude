@@ -15,7 +15,7 @@ from sqlalchemy import func, inspect
 from sqlalchemy.orm import joinedload
 
 from database.models import (
-    Customer, Sales, SalesItem, Product, Supplier, Material,
+    Customer, Sales, SalesItem, Product, Supplier, material,
     Project, Component, ProjectComponent
 )
 from database.models.enums import (

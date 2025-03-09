@@ -27,6 +27,15 @@ class SaleStatus(Enum):
     COMPLETED = "completed"
     CANCELLED = "cancelled"
     REFUNDED = "refunded"
+    # Additional statuses for backward compatibility
+    DRAFT = "draft"
+    CONFIRMED = "confirmed"
+    IN_PROGRESS = "in_progress"
+
+
+# Alias for SaleStatus to maintain compatibility with existing code
+SalesStatus = SaleStatus
+
 
 class PaymentStatus(Enum):
     """Payment status for orders and transactions."""
@@ -36,6 +45,7 @@ class PaymentStatus(Enum):
     REFUNDED = "refunded"
     CANCELLED = "cancelled"
 
+
 class PurchaseStatus(Enum):
     """Status values for purchase orders from suppliers."""
     PENDING = "pending"
@@ -43,6 +53,12 @@ class PurchaseStatus(Enum):
     SHIPPED = "shipped"
     DELIVERED = "delivered"
     CANCELLED = "cancelled"
+    # Additional statuses for backward compatibility
+    DRAFT = "draft"
+    ORDERED = "ordered"
+    PARTIALLY_RECEIVED = "partially_received"
+    RECEIVED = "received"
+
 
 # Customer-related Enums
 class CustomerStatus(Enum):
@@ -52,6 +68,10 @@ class CustomerStatus(Enum):
     SUSPENDED = "suspended"
     ARCHIVED = "archived"
     POTENTIAL = "potential"
+    # Additional status for backward compatibility
+    BLOCKED = "blocked"
+    LEAD = "lead"
+
 
 class CustomerTier(Enum):
     """Represents different customer loyalty or spending tiers."""
@@ -59,6 +79,9 @@ class CustomerTier(Enum):
     PREMIUM = "premium"
     VIP = "vip"
     NEW = "new"
+    # Additional tiers for backward compatibility
+    WHOLESALE = "wholesale"
+
 
 class CustomerSource(Enum):
     """Represents the source or channel through which the customer was acquired."""
@@ -71,6 +94,10 @@ class CustomerSource(Enum):
     WORD_OF_MOUTH = "word_of_mouth"
     EMAIL_CAMPAIGN = "email_campaign"
     OTHER = "other"
+    # Additional sources for backward compatibility
+    EXHIBITION = "exhibition"
+    DIRECT = "direct"
+
 
 # Inventory and Material Management Enums
 class InventoryStatus(Enum):
@@ -80,6 +107,13 @@ class InventoryStatus(Enum):
     OUT_OF_STOCK = "out_of_stock"
     DISCONTINUED = "discontinued"
     ON_ORDER = "on_order"
+    # Additional statuses for backward compatibility
+    AVAILABLE = "available"
+    RESERVED = "reserved"
+    DAMAGED = "damaged"
+    PENDING_ARRIVAL = "pending_arrival"
+    QUARANTINE = "quarantine"
+
 
 class MaterialType(Enum):
     """Comprehensive material types for leatherworking."""
@@ -100,14 +134,19 @@ class MaterialType(Enum):
     ELASTIC = "elastic"
     PADDING = "padding"
     OTHER = "other"
+    # Additional types for backward compatibility
+    EDGE_COAT = "edge_coat"
 
-class MaterialQualityGrade(Enum):
-    """Enumeration of material quality grades."""
-    PREMIUM = "premium"
-    STANDARD = "standard"
-    ECONOMY = "economy"
-    SECONDS = "seconds"
-    SCRAP = "scrap"
+
+# For backward compatibility
+MaterialQualityGrade = Enum('MaterialQualityGrade', [
+    ('PREMIUM', 'premium'),
+    ('STANDARD', 'standard'),
+    ('ECONOMY', 'economy'),
+    ('SECONDS', 'seconds'),
+    ('SCRAP', 'scrap')
+])
+
 
 # Hardware-related Enums
 class HardwareType(Enum):
@@ -132,6 +171,9 @@ class HardwareType(Enum):
     PLATE = "plate"
     CORNER = "corner"
     OTHER = "other"
+    # Additional types for backward compatibility
+    CORNER_PROTECTOR = "corner_protector"
+
 
 class HardwareMaterial(Enum):
     """Materials that hardware items can be made of."""
@@ -153,6 +195,7 @@ class HardwareMaterial(Enum):
     WOOD = "wood"
     CERAMIC = "ceramic"
     OTHER = "other"
+
 
 class HardwareFinish(Enum):
     """Finishes that can be applied to hardware items."""
@@ -176,6 +219,7 @@ class HardwareFinish(Enum):
     GALVANIZED = "galvanized"
     ANODIZED = "anodized"
     OTHER = "other"
+
 
 # Leather-related Enums
 class LeatherType(Enum):
@@ -208,6 +252,10 @@ class LeatherType(Enum):
     BUFFALO = "buffalo"
     KANGAROO = "kangaroo"
 
+    # Additional types for backward compatibility
+    SYNTHETIC = "synthetic"
+
+
 class LeatherFinish(Enum):
     """Detailed enumeration of leather finishing techniques."""
     ANILINE = "aniline"
@@ -219,6 +267,7 @@ class LeatherFinish(Enum):
     DISTRESSED = "distressed"
     PATENT = "patent"
     NAPPA = "nappa"
+
 
 # Product and Project Management Enums
 class ProjectType(Enum):
@@ -243,6 +292,12 @@ class ProjectType(Enum):
     GUITAR_STRAP = "guitar_strap"
     CUSTOM = "custom"
     OTHER = "other"
+    # Additional types for backward compatibility
+    PRODUCTION = "production"
+    PROTOTYPE = "prototype"
+    REPAIR = "repair"
+    SAMPLE = "sample"
+
 
 class ProjectStatus(Enum):
     """Detailed project status for custom leatherwork."""
@@ -267,6 +322,11 @@ class ProjectStatus(Enum):
     COMPLETED = "completed"
     ON_HOLD = "on_hold"
     CANCELLED = "cancelled"
+    # Additional statuses for backward compatibility
+    PLANNED = "planned"
+    MATERIALS_READY = "materials_ready"
+    IN_PROGRESS = "in_progress"
+
 
 class SkillLevel(Enum):
     """Skill levels for leatherworking techniques and projects."""
@@ -275,6 +335,7 @@ class SkillLevel(Enum):
     ADVANCED = "advanced"
     MASTER = "master"
     EXPERT = "expert"
+
 
 # Component-related Enums
 class ComponentType(Enum):
@@ -290,19 +351,34 @@ class ComponentType(Enum):
     TOOL = "tool"
     OTHER = "other"
 
+
 # Tool-related Enums
-class ToolCategory(Enum):
+class ToolCategory(enum.Enum):
     """Categorization of leatherworking tools."""
-    CUTTING = "cutting"
-    PUNCHING = "punching"
-    STITCHING = "stitching"
-    MEASURING = "measuring"
-    FINISHING = "finishing"
-    EDGE_WORK = "edge_work"
-    DYEING = "dyeing"
-    CONDITIONING = "conditioning"
-    HARDWARE_INSTALLATION = "hardware_installation"
-    PATTERN_MAKING = "pattern_making"
+    CUTTING = "CUTTING"
+    PUNCHING = "PUNCHING"
+    STITCHING = "STITCHING"
+    MEASURING = "MEASURING"
+    FINISHING = "FINISHING"
+    EDGE_WORK = "EDGE_WORK"
+    DYEING = "DYEING"
+    CONDITIONING = "CONDITIONING"
+    HARDWARE_INSTALLATION = "HARDWARE_INSTALLATION"
+    PATTERN_MAKING = "PATTERN_MAKING"
+
+
+# For backward compatibility - ToolCategory is used in uppercase in some places and lowercase in others
+ToolType = Enum('ToolType', [
+    ('cutting', 'cutting'),
+    ('punching', 'punching'),
+    ('stitching', 'stitching'),
+    ('edge_finishing', 'edge_finishing'),
+    ('stamping', 'stamping'),
+    ('measurement', 'measurement'),
+    ('assembly', 'assembly'),
+    ('other', 'other')
+])
+
 
 # Edge Finishing Enums
 class EdgeFinishType(Enum):
@@ -318,6 +394,7 @@ class EdgeFinishType(Enum):
     GLOSSY = "glossy"
     MATTE = "matte"
 
+
 # Transaction and Inventory Management Enums
 class TransactionType(Enum):
     """Enumeration of transaction types."""
@@ -329,6 +406,7 @@ class TransactionType(Enum):
     TRANSFER = "transfer"
     REVERSAL = "reversal"
 
+
 class InventoryAdjustmentType(Enum):
     """Types of inventory adjustments."""
     INITIAL_STOCK = "initial_stock"
@@ -339,6 +417,7 @@ class InventoryAdjustmentType(Enum):
     FOUND = "found"
     RETURN = "return"
 
+
 # Supplier-related Enums
 class SupplierStatus(Enum):
     """Enumeration of supplier status values."""
@@ -346,6 +425,9 @@ class SupplierStatus(Enum):
     INACTIVE = "inactive"
     PENDING = "pending"
     BLACKLISTED = "blacklisted"
+    # Additional statuses for backward compatibility
+    ON_HOLD = "on_hold"
+
 
 # Storage-related Enums
 class StorageLocationType(Enum):
@@ -357,6 +439,7 @@ class StorageLocationType(Enum):
     RACK = "rack"
     BOX = "box"
     OTHER = "other"
+
 
 # Measurement and Quality Enums
 class MeasurementUnit(Enum):
@@ -372,6 +455,14 @@ class MeasurementUnit(Enum):
     YARD = "yard"
     INCH = "inch"
     FOOT = "foot"
+    # Additional units for backward compatibility
+    CENTIMETER = "centimeter"
+    INCHES = "inches"
+    FEET = "feet"
+    OUNCE = "ounce"
+    POUND = "pound"
+    OTHER = "other"
+
 
 class QualityGrade(Enum):
     """Detailed quality grading for leatherwork."""
@@ -381,6 +472,10 @@ class QualityGrade(Enum):
     WORKSHOP = "workshop"
     PROTOTYPE = "prototype"
     PRACTICE = "practice"
+    # Additional grades for backward compatibility
+    ECONOMY = "economy"
+    SECONDS = "seconds"
+    DAMAGED = "damaged"
 
 
 class PickingListStatus(Enum):
@@ -388,21 +483,65 @@ class PickingListStatus(Enum):
     Enumeration of picking list status values.
     Represents the current state of a picking list in the workflow.
     """
-    DRAFT = auto()
-    PENDING = auto()
-    IN_PROGRESS = auto()
-    COMPLETED = auto()
-    CANCELLED = auto()
-    ON_HOLD = auto()
+    DRAFT = "draft"
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+    ON_HOLD = "on_hold"
+
 
 class ToolListStatus(Enum):
     """
     Enumeration of tool list status values.
     Represents the current state of a tool list in the workflow.
     """
-    DRAFT = auto()
-    PENDING = auto()
-    IN_PROGRESS = auto()
-    COMPLETED = auto()
-    CANCELLED = auto()
-    ON_HOLD = auto()
+    DRAFT = "draft"
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+    ON_HOLD = "on_hold"
+    ACTIVE = "active"
+    READY = "ready"
+    IN_USE = "in_use"
+
+
+class ComponentType(Enum):
+    """
+    Enumeration of component types used in patterns and projects.
+
+    Represents the different categories of components that can be used
+    in leatherworking patterns and project compositions.
+    """
+    # Basic material components
+    LEATHER = auto()
+    HARDWARE = auto()
+    THREAD = auto()
+    LINING = auto()
+    REINFORCEMENT = auto()
+
+    # Structural components
+    TEMPLATE = auto()
+    PATTERN_PIECE = auto()
+    CUTOUT = auto()
+
+    # Functional components
+    FASTENER = auto()
+    EDGE_FINISH = auto()
+    STRAP = auto()
+    POCKET = auto()
+    CLOSURE = auto()
+
+    # Decorative components
+    EMBELLISHMENT = auto()
+    LOGO = auto()
+    TRIM = auto()
+
+    # Specialized components
+    PADDING = auto()
+    REINFORCEMENT_STRIP = auto()
+    BINDING = auto()
+
+    # Catch-all for unique or custom components
+    OTHER = auto()

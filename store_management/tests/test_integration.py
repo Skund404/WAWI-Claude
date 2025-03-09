@@ -7,7 +7,7 @@ from main import create_app
 from database.session import get_db_session
 from database.models.base import Base
 from database.models import (
-    Material,
+    material,
     MaterialTransaction,
     Project,
     ProjectComponent,

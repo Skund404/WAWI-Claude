@@ -20,7 +20,7 @@ from database.models.base import Base, initialize_all_model_relationships
 from database.models import (
     Customer, Sales, SalesItem, Product, ProductPattern, Purchase, PurchaseItem,
     Supplier, ProductInventory, MaterialInventory, LeatherInventory, HardwareInventory,
-    ToolInventory, Project, Pattern, Component, Material, Leather, Hardware, Tool,
+    ToolInventory, Project, Pattern, Component, material, Leather, Hardware, Tool,
     ComponentMaterial, ComponentLeather, ComponentHardware, ComponentTool,
     ProjectComponent, PickingList, PickingListItem, ToolList, ToolListItem
 )

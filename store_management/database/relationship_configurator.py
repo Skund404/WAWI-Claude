@@ -17,6 +17,24 @@ from database.relationship_registration import initialize_relationships
 logger = logging.getLogger(__name__)
 
 
+def configure_polymorphic_relationship(model_cls, target_cls_name, id_column, type_discriminator, discriminator_value):
+    """
+    Configure a polymorphic relationship with proper SQLAlchemy annotations.
+
+    Args:
+        model_cls: The model class that will have the relationship
+        target_cls_name: The name of the target class as a string
+        id_column: The column from the model class to join with
+        type_discriminator: The discriminator column name in the target table
+        discriminator_value: The value of the discriminator that identifies this model type
+
+    Returns:
+        A properly configured SQLAlchemy relationship
+    """
+
+
+
+
 def import_all_models():
     """
     Dynamically import all models to ensure they are registered.

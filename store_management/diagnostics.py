@@ -13,7 +13,7 @@ from database.models import (
     Purchase, PurchaseItem, Supplier,
     ProductInventory, MaterialInventory,
     LeatherInventory, HardwareInventory, ToolInventory,
-    Project, Component, Material,
+    Project, Component, material,
     Leather, Hardware, Tool,
     PickingList, PickingListItem,
     ToolList, ToolListItem,
