@@ -4,12 +4,16 @@
 import logging
 from typing import Any, Dict, List, Optional, Union, Tuple
 
-from sqlalchemy import and_, or_, func
+from sqlalchemy import and_, or_, func, select
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.exc import SQLAlchemyError
 
+from database.models.component import Component
+from database.models.component_material import ComponentMaterial
 from database.models.enums import ComponentType
-from database.models.components import Component, ComponentMaterial, ComponentLeather, ComponentHardware, ComponentTool
+from database.models.material import Material, Leather, Hardware
+from database.models.tool import Tool
+
 from database.repositories.base_repository import BaseRepository
 from database.exceptions import DatabaseError, ModelNotFoundError
 
@@ -18,7 +22,8 @@ class ComponentRepository(BaseRepository[Component]):
     """Repository for component management operations."""
 
     def __init__(self, session: Session):
-        """Initialize the Component Repository.
+        """
+        Initialize the Component Repository.
 
         Args:
             session (Session): SQLAlchemy database session
@@ -27,7 +32,8 @@ class ComponentRepository(BaseRepository[Component]):
         self.logger = logging.getLogger(__name__)
 
     def get_by_name(self, name: str) -> List[Component]:
-        """Retrieve components by name.
+        """
+        Retrieve components by name.
 
         Args:
             name: Component name to search for
@@ -39,16 +45,18 @@ class ComponentRepository(BaseRepository[Component]):
             DatabaseError: If a database error occurs
         """
         try:
-            query = self.session.query(Component).filter(
+            statement = select(Component).where(
                 Component.name.ilike(f"%{name}%")
             )
-            return query.all()
+            result = self.session.execute(statement).scalars().all()
+            return list(result)
         except SQLAlchemyError as e:
             self.logger.error(f"Error getting components by name: {str(e)}")
             raise DatabaseError(f"Database error retrieving components: {str(e)}")
 
     def get_by_type(self, component_type: ComponentType) -> List[Component]:
-        """Retrieve components by component type.
+        """
+        Retrieve components by component type.
 
         Args:
             component_type: Component type to filter by
@@ -60,16 +68,18 @@ class ComponentRepository(BaseRepository[Component]):
             DatabaseError: If a database error occurs
         """
         try:
-            query = self.session.query(Component).filter(
-                Component.type == component_type
+            statement = select(Component).where(
+                Component.component_type == component_type
             )
-            return query.all()
+            result = self.session.execute(statement).scalars().all()
+            return list(result)
         except SQLAlchemyError as e:
             self.logger.error(f"Error getting components by type: {str(e)}")
             raise DatabaseError(f"Database error retrieving components by type: {str(e)}")
 
     def get_with_materials(self) -> List[Component]:
-        """Retrieve components with their associated materials.
+        """
+        Retrieve components with their associated materials.
 
         Returns:
             List of components with material relationships loaded
@@ -78,91 +88,18 @@ class ComponentRepository(BaseRepository[Component]):
             DatabaseError: If a database error occurs
         """
         try:
-            query = self.session.query(Component).options(
-                joinedload(Component.materials)
+            statement = select(Component).options(
+                joinedload(Component.component_materials)
             )
-            return query.all()
+            result = self.session.execute(statement).scalars().unique().all()
+            return list(result)
         except SQLAlchemyError as e:
             self.logger.error(f"Error getting components with materials: {str(e)}")
             raise DatabaseError(f"Database error retrieving components with materials: {str(e)}")
 
-    def get_with_leathers(self) -> List[Component]:
-        """Retrieve components with their associated leathers.
-
-        Returns:
-            List of components with leather relationships loaded
-
-        Raises:
-            DatabaseError: If a database error occurs
-        """
-        try:
-            query = self.session.query(Component).options(
-                joinedload(Component.leathers)
-            )
-            return query.all()
-        except SQLAlchemyError as e:
-            self.logger.error(f"Error getting components with leathers: {str(e)}")
-            raise DatabaseError(f"Database error retrieving components with leathers: {str(e)}")
-
-    def get_with_hardware(self) -> List[Component]:
-        """Retrieve components with their associated hardware.
-
-        Returns:
-            List of components with hardware relationships loaded
-
-        Raises:
-            DatabaseError: If a database error occurs
-        """
-        try:
-            query = self.session.query(Component).options(
-                joinedload(Component.hardware)
-            )
-            return query.all()
-        except SQLAlchemyError as e:
-            self.logger.error(f"Error getting components with hardware: {str(e)}")
-            raise DatabaseError(f"Database error retrieving components with hardware: {str(e)}")
-
-    def get_with_tools(self) -> List[Component]:
-        """Retrieve components with their associated tools.
-
-        Returns:
-            List of components with tool relationships loaded
-
-        Raises:
-            DatabaseError: If a database error occurs
-        """
-        try:
-            query = self.session.query(Component).options(
-                joinedload(Component.tools)
-            )
-            return query.all()
-        except SQLAlchemyError as e:
-            self.logger.error(f"Error getting components with tools: {str(e)}")
-            raise DatabaseError(f"Database error retrieving components with tools: {str(e)}")
-
-    def get_complete_components(self) -> List[Component]:
-        """Retrieve components with all their associated resources loaded.
-
-        Returns:
-            List of components with all relationships loaded
-
-        Raises:
-            DatabaseError: If a database error occurs
-        """
-        try:
-            query = self.session.query(Component).options(
-                joinedload(Component.materials),
-                joinedload(Component.leathers),
-                joinedload(Component.hardware),
-                joinedload(Component.tools)
-            )
-            return query.all()
-        except SQLAlchemyError as e:
-            self.logger.error(f"Error getting complete components: {str(e)}")
-            raise DatabaseError(f"Database error retrieving complete components: {str(e)}")
-
     def add_material_to_component(self, component_id: int, material_id: int, quantity: float) -> ComponentMaterial:
-        """Add a material to a component.
+        """
+        Add a material to a component.
 
         Args:
             component_id: ID of the component
@@ -177,15 +114,23 @@ class ComponentRepository(BaseRepository[Component]):
             DatabaseError: If a database error occurs
         """
         try:
+            # Verify component exists
             component = self.get_by_id(component_id)
             if not component:
                 raise ModelNotFoundError(f"Component with ID {component_id} not found")
 
-            # Check if relationship already exists
-            existing = self.session.query(ComponentMaterial).filter(
-                ComponentMaterial.component_id == component_id,
-                ComponentMaterial.material_id == material_id
-            ).first()
+            # Verify material exists
+            material = self.session.get(Material, material_id)
+            if not material:
+                raise ModelNotFoundError(f"Material with ID {material_id} not found")
+
+            # Check for existing relationship
+            existing = self.session.execute(
+                select(ComponentMaterial).where(
+                    ComponentMaterial.component_id == component_id,
+                    ComponentMaterial.material_id == material_id
+                )
+            ).scalar_one_or_none()
 
             if existing:
                 existing.quantity = quantity
@@ -202,147 +147,15 @@ class ComponentRepository(BaseRepository[Component]):
             self.session.add(component_material)
             self.session.commit()
             return component_material
+
         except SQLAlchemyError as e:
             self.session.rollback()
             self.logger.error(f"Error adding material to component: {str(e)}")
             raise DatabaseError(f"Database error adding material to component: {str(e)}")
 
-    def add_leather_to_component(self, component_id: int, leather_id: int, quantity: float) -> ComponentLeather:
-        """Add a leather to a component.
-
-        Args:
-            component_id: ID of the component
-            leather_id: ID of the leather to add
-            quantity: Quantity of the leather needed
-
-        Returns:
-            The created ComponentLeather relationship
-
-        Raises:
-            ModelNotFoundError: If the component is not found
-            DatabaseError: If a database error occurs
-        """
-        try:
-            component = self.get_by_id(component_id)
-            if not component:
-                raise ModelNotFoundError(f"Component with ID {component_id} not found")
-
-            # Check if relationship already exists
-            existing = self.session.query(ComponentLeather).filter(
-                ComponentLeather.component_id == component_id,
-                ComponentLeather.leather_id == leather_id
-            ).first()
-
-            if existing:
-                existing.quantity = quantity
-                self.session.commit()
-                return existing
-
-            # Create new relationship
-            component_leather = ComponentLeather(
-                component_id=component_id,
-                leather_id=leather_id,
-                quantity=quantity
-            )
-
-            self.session.add(component_leather)
-            self.session.commit()
-            return component_leather
-        except SQLAlchemyError as e:
-            self.session.rollback()
-            self.logger.error(f"Error adding leather to component: {str(e)}")
-            raise DatabaseError(f"Database error adding leather to component: {str(e)}")
-
-    def add_hardware_to_component(self, component_id: int, hardware_id: int, quantity: int) -> ComponentHardware:
-        """Add hardware to a component.
-
-        Args:
-            component_id: ID of the component
-            hardware_id: ID of the hardware to add
-            quantity: Quantity of the hardware needed
-
-        Returns:
-            The created ComponentHardware relationship
-
-        Raises:
-            ModelNotFoundError: If the component is not found
-            DatabaseError: If a database error occurs
-        """
-        try:
-            component = self.get_by_id(component_id)
-            if not component:
-                raise ModelNotFoundError(f"Component with ID {component_id} not found")
-
-            # Check if relationship already exists
-            existing = self.session.query(ComponentHardware).filter(
-                ComponentHardware.component_id == component_id,
-                ComponentHardware.hardware_id == hardware_id
-            ).first()
-
-            if existing:
-                existing.quantity = quantity
-                self.session.commit()
-                return existing
-
-            # Create new relationship
-            component_hardware = ComponentHardware(
-                component_id=component_id,
-                hardware_id=hardware_id,
-                quantity=quantity
-            )
-
-            self.session.add(component_hardware)
-            self.session.commit()
-            return component_hardware
-        except SQLAlchemyError as e:
-            self.session.rollback()
-            self.logger.error(f"Error adding hardware to component: {str(e)}")
-            raise DatabaseError(f"Database error adding hardware to component: {str(e)}")
-
-    def add_tool_to_component(self, component_id: int, tool_id: int) -> ComponentTool:
-        """Add a tool to a component.
-
-        Args:
-            component_id: ID of the component
-            tool_id: ID of the tool to add
-
-        Returns:
-            The created ComponentTool relationship
-
-        Raises:
-            ModelNotFoundError: If the component is not found
-            DatabaseError: If a database error occurs
-        """
-        try:
-            component = self.get_by_id(component_id)
-            if not component:
-                raise ModelNotFoundError(f"Component with ID {component_id} not found")
-
-            # Check if relationship already exists
-            existing = self.session.query(ComponentTool).filter(
-                ComponentTool.component_id == component_id,
-                ComponentTool.tool_id == tool_id
-            ).first()
-
-            if existing:
-                return existing
-
-            # Create new relationship
-            component_tool = ComponentTool(
-                component_id=component_id,
-                tool_id=tool_id
-            )
-
-            self.session.add(component_tool)
-            self.session.commit()
-            return component_tool
-        except SQLAlchemyError as e:
-            self.session.rollback()
-            self.logger.error(f"Error adding tool to component: {str(e)}")
-            raise DatabaseError(f"Database error adding tool to component: {str(e)}")
-
     def remove_material_from_component(self, component_id: int, material_id: int) -> bool:
-        """Remove a material from a component.
+        """
+        Remove a material from a component.
 
         Args:
             component_id: ID of the component
@@ -355,92 +168,91 @@ class ComponentRepository(BaseRepository[Component]):
             DatabaseError: If a database error occurs
         """
         try:
-            result = self.session.query(ComponentMaterial).filter(
-                ComponentMaterial.component_id == component_id,
-                ComponentMaterial.material_id == material_id
-            ).delete()
+            # Delete the specific component-material relationship
+            result = self.session.execute(
+                select(ComponentMaterial).where(
+                    ComponentMaterial.component_id == component_id,
+                    ComponentMaterial.material_id == material_id
+                ).delete()
+            )
 
             self.session.commit()
-            return result > 0
+            return result.rowcount > 0
+
         except SQLAlchemyError as e:
             self.session.rollback()
             self.logger.error(f"Error removing material from component: {str(e)}")
             raise DatabaseError(f"Database error removing material from component: {str(e)}")
 
-    def remove_leather_from_component(self, component_id: int, leather_id: int) -> bool:
-        """Remove a leather from a component.
+    def get_component_materials(self, component_id: int) -> List[ComponentMaterial]:
+        """
+        Retrieve all materials associated with a specific component.
 
         Args:
             component_id: ID of the component
-            leather_id: ID of the leather to remove
 
         Returns:
-            True if the leather was removed, False otherwise
+            List of ComponentMaterial relationships
 
         Raises:
             DatabaseError: If a database error occurs
         """
         try:
-            result = self.session.query(ComponentLeather).filter(
-                ComponentLeather.component_id == component_id,
-                ComponentLeather.leather_id == leather_id
-            ).delete()
+            statement = select(ComponentMaterial).where(
+                ComponentMaterial.component_id == component_id
+            ).options(
+                joinedload(ComponentMaterial.material)
+            )
 
-            self.session.commit()
-            return result > 0
+            result = self.session.execute(statement).scalars().all()
+            return list(result)
+
         except SQLAlchemyError as e:
-            self.session.rollback()
-            self.logger.error(f"Error removing leather from component: {str(e)}")
-            raise DatabaseError(f"Database error removing leather from component: {str(e)}")
+            self.logger.error(f"Error retrieving component materials: {str(e)}")
+            raise DatabaseError(f"Database error retrieving component materials: {str(e)}")
 
-    def remove_hardware_from_component(self, component_id: int, hardware_id: int) -> bool:
-        """Remove hardware from a component.
+    def search_components(
+            self,
+            name: Optional[str] = None,
+            component_type: Optional[ComponentType] = None,
+            min_weight: Optional[float] = None,
+            max_weight: Optional[float] = None
+    ) -> List[Component]:
+        """
+        Advanced search for components with multiple optional filters.
 
         Args:
-            component_id: ID of the component
-            hardware_id: ID of the hardware to remove
+            name: Partial name match
+            component_type: Specific component type
+            min_weight: Minimum component weight
+            max_weight: Maximum component weight
 
         Returns:
-            True if the hardware was removed, False otherwise
+            List of components matching the search criteria
 
         Raises:
             DatabaseError: If a database error occurs
         """
         try:
-            result = self.session.query(ComponentHardware).filter(
-                ComponentHardware.component_id == component_id,
-                ComponentHardware.hardware_id == hardware_id
-            ).delete()
+            # Start with base query
+            statement = select(Component)
 
-            self.session.commit()
-            return result > 0
+            # Apply filters
+            filters = []
+            if name:
+                filters.append(Component.name.ilike(f"%{name}%"))
+
+            if component_type:
+                filters.append(Component.component_type == component_type)
+
+            # Add filters to query if they exist
+            if filters:
+                statement = statement.where(and_(*filters))
+
+            # Execute query
+            result = self.session.execute(statement).scalars().all()
+            return list(result)
+
         except SQLAlchemyError as e:
-            self.session.rollback()
-            self.logger.error(f"Error removing hardware from component: {str(e)}")
-            raise DatabaseError(f"Database error removing hardware from component: {str(e)}")
-
-    def remove_tool_from_component(self, component_id: int, tool_id: int) -> bool:
-        """Remove a tool from a component.
-
-        Args:
-            component_id: ID of the component
-            tool_id: ID of the tool to remove
-
-        Returns:
-            True if the tool was removed, False otherwise
-
-        Raises:
-            DatabaseError: If a database error occurs
-        """
-        try:
-            result = self.session.query(ComponentTool).filter(
-                ComponentTool.component_id == component_id,
-                ComponentTool.tool_id == tool_id
-            ).delete()
-
-            self.session.commit()
-            return result > 0
-        except SQLAlchemyError as e:
-            self.session.rollback()
-            self.logger.error(f"Error removing tool from component: {str(e)}")
-            raise DatabaseError(f"Database error removing tool from component: {str(e)}")
+            self.logger.error(f"Error searching components: {str(e)}")
+            raise DatabaseError(f"Database error searching components: {str(e)}")

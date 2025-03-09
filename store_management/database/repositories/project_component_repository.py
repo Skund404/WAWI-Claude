@@ -4,11 +4,11 @@
 import logging
 from typing import Any, Dict, List, Optional, Union, Tuple
 
-from sqlalchemy import and_, or_, func
+from sqlalchemy import and_, or_, func, select, delete
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.exc import SQLAlchemyError
 
-from database.models.components import ProjectComponent
+from database.models.project_component import ProjectComponent
 from database.models.project import Project
 from database.repositories.base_repository import BaseRepository
 from database.exceptions import DatabaseError, ModelNotFoundError
@@ -39,10 +39,11 @@ class ProjectComponentRepository(BaseRepository[ProjectComponent]):
             DatabaseError: If a database error occurs
         """
         try:
-            query = self.session.query(ProjectComponent).filter(
+            query = select(ProjectComponent).filter(
                 ProjectComponent.project_id == project_id
             ).options(joinedload(ProjectComponent.component))
-            return query.all()
+            result = self.session.execute(query).scalars().all()
+            return result
         except SQLAlchemyError as e:
             self.logger.error(f"Error getting project components by project_id: {str(e)}")
             raise DatabaseError(f"Database error retrieving project components: {str(e)}")
@@ -60,10 +61,11 @@ class ProjectComponentRepository(BaseRepository[ProjectComponent]):
             DatabaseError: If a database error occurs
         """
         try:
-            query = self.session.query(ProjectComponent).filter(
+            query = select(ProjectComponent).filter(
                 ProjectComponent.component_id == component_id
             ).options(joinedload(ProjectComponent.project))
-            return query.all()
+            result = self.session.execute(query).scalars().all()
+            return result
         except SQLAlchemyError as e:
             self.logger.error(f"Error getting project components by component_id: {str(e)}")
             raise DatabaseError(f"Database error retrieving project components: {str(e)}")
@@ -81,10 +83,11 @@ class ProjectComponentRepository(BaseRepository[ProjectComponent]):
             DatabaseError: If a database error occurs
         """
         try:
-            query = self.session.query(ProjectComponent).filter(
+            query = select(ProjectComponent).filter(
                 ProjectComponent.picking_list_item_id == picking_list_item_id
             )
-            return query.first()
+            result = self.session.execute(query).scalar_one_or_none()
+            return result
         except SQLAlchemyError as e:
             self.logger.error(f"Error getting project component by picking_list_item_id: {str(e)}")
             raise DatabaseError(f"Database error retrieving project component: {str(e)}")
@@ -106,15 +109,16 @@ class ProjectComponentRepository(BaseRepository[ProjectComponent]):
         """
         try:
             # Check if project exists
-            project = self.session.query(Project).get(project_id)
+            project = self.session.get(Project, project_id)
             if not project:
                 raise ModelNotFoundError(f"Project with ID {project_id} not found")
 
             # Check if relationship already exists
-            existing = self.session.query(ProjectComponent).filter(
+            stmt = select(ProjectComponent).filter(
                 ProjectComponent.project_id == project_id,
                 ProjectComponent.component_id == component_id
-            ).first()
+            )
+            existing = self.session.execute(stmt).scalar_one_or_none()
 
             if existing:
                 existing.quantity = quantity
@@ -150,13 +154,14 @@ class ProjectComponentRepository(BaseRepository[ProjectComponent]):
             DatabaseError: If a database error occurs
         """
         try:
-            result = self.session.query(ProjectComponent).filter(
+            stmt = delete(ProjectComponent).filter(
                 ProjectComponent.project_id == project_id,
                 ProjectComponent.component_id == component_id
-            ).delete()
+            )
+            result = self.session.execute(stmt)
 
             self.session.commit()
-            return result > 0
+            return result.rowcount > 0
         except SQLAlchemyError as e:
             self.session.rollback()
             self.logger.error(f"Error removing component from project: {str(e)}")
@@ -178,10 +183,11 @@ class ProjectComponentRepository(BaseRepository[ProjectComponent]):
             DatabaseError: If a database error occurs
         """
         try:
-            project_component = self.session.query(ProjectComponent).filter(
+            stmt = select(ProjectComponent).filter(
                 ProjectComponent.project_id == project_id,
                 ProjectComponent.component_id == component_id
-            ).first()
+            )
+            project_component = self.session.execute(stmt).scalar_one_or_none()
 
             if not project_component:
                 return None
@@ -234,9 +240,10 @@ class ProjectComponentRepository(BaseRepository[ProjectComponent]):
             DatabaseError: If a database error occurs
         """
         try:
-            result = self.session.query(func.count(ProjectComponent.id)).filter(
+            stmt = select(func.count(ProjectComponent.id)).filter(
                 ProjectComponent.project_id == project_id
-            ).scalar()
+            )
+            result = self.session.execute(stmt).scalar_one_or_none()
             return int(result) if result else 0
         except SQLAlchemyError as e:
             self.logger.error(f"Error counting project components: {str(e)}")
@@ -255,9 +262,10 @@ class ProjectComponentRepository(BaseRepository[ProjectComponent]):
             DatabaseError: If a database error occurs
         """
         try:
-            result = self.session.query(func.sum(ProjectComponent.quantity)).filter(
+            stmt = select(func.sum(ProjectComponent.quantity)).filter(
                 ProjectComponent.project_id == project_id
-            ).scalar()
+            )
+            result = self.session.execute(stmt).scalar_one_or_none()
             return int(result) if result else 0
         except SQLAlchemyError as e:
             self.logger.error(f"Error calculating total component quantity: {str(e)}")

@@ -4,7 +4,7 @@
 import logging
 from typing import Any, Dict, List, Optional, Union, Tuple
 
-from sqlalchemy import and_, or_, func
+from sqlalchemy import and_, or_, func, select
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -38,7 +38,7 @@ class PurchaseItemRepository(BaseRepository[PurchaseItem]):
             DatabaseError: If a database error occurs
         """
         try:
-            query = self.session.query(PurchaseItem).filter(
+            query = select(PurchaseItem).filter(
                 PurchaseItem.purchase_id == purchase_id
             )
             return query.all()
@@ -59,7 +59,7 @@ class PurchaseItemRepository(BaseRepository[PurchaseItem]):
             DatabaseError: If a database error occurs
         """
         try:
-            query = self.session.query(PurchaseItem).filter(
+            query = select(PurchaseItem).filter(
                 PurchaseItem.material_id == material_id
             ).options(joinedload(PurchaseItem.purchase))
             return query.all()
@@ -80,7 +80,7 @@ class PurchaseItemRepository(BaseRepository[PurchaseItem]):
             DatabaseError: If a database error occurs
         """
         try:
-            query = self.session.query(PurchaseItem).filter(
+            query = select(PurchaseItem).filter(
                 PurchaseItem.leather_id == leather_id
             ).options(joinedload(PurchaseItem.purchase))
             return query.all()
@@ -101,7 +101,7 @@ class PurchaseItemRepository(BaseRepository[PurchaseItem]):
             DatabaseError: If a database error occurs
         """
         try:
-            query = self.session.query(PurchaseItem).filter(
+            query = select(PurchaseItem).filter(
                 PurchaseItem.hardware_id == hardware_id
             ).options(joinedload(PurchaseItem.purchase))
             return query.all()
@@ -122,7 +122,7 @@ class PurchaseItemRepository(BaseRepository[PurchaseItem]):
             DatabaseError: If a database error occurs
         """
         try:
-            query = self.session.query(PurchaseItem).filter(
+            query = select(PurchaseItem).filter(
                 PurchaseItem.tool_id == tool_id
             ).options(joinedload(PurchaseItem.purchase))
             return query.all()
@@ -220,7 +220,7 @@ class PurchaseItemRepository(BaseRepository[PurchaseItem]):
             DatabaseError: If a database error occurs
         """
         try:
-            query = self.session.query(PurchaseItem).filter(
+            query = select(PurchaseItem).filter(
                 PurchaseItem.purchase_id == purchase_id,
                 PurchaseItem.material_id.isnot(None)
             ).options(joinedload(PurchaseItem.material))
@@ -242,7 +242,7 @@ class PurchaseItemRepository(BaseRepository[PurchaseItem]):
             DatabaseError: If a database error occurs
         """
         try:
-            query = self.session.query(PurchaseItem).filter(
+            query = select(PurchaseItem).filter(
                 PurchaseItem.purchase_id == purchase_id,
                 PurchaseItem.leather_id.isnot(None)
             ).options(joinedload(PurchaseItem.leather))
@@ -264,7 +264,7 @@ class PurchaseItemRepository(BaseRepository[PurchaseItem]):
             DatabaseError: If a database error occurs
         """
         try:
-            query = self.session.query(PurchaseItem).filter(
+            query = select(PurchaseItem).filter(
                 PurchaseItem.purchase_id == purchase_id,
                 PurchaseItem.hardware_id.isnot(None)
             ).options(joinedload(PurchaseItem.hardware))
@@ -286,7 +286,7 @@ class PurchaseItemRepository(BaseRepository[PurchaseItem]):
             DatabaseError: If a database error occurs
         """
         try:
-            query = self.session.query(PurchaseItem).filter(
+            query = select(PurchaseItem).filter(
                 PurchaseItem.purchase_id == purchase_id,
                 PurchaseItem.tool_id.isnot(None)
             ).options(joinedload(PurchaseItem.tool))

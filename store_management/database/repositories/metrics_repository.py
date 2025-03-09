@@ -8,7 +8,7 @@ material usage logs, and related performance metrics.
 
 from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
-from sqlalchemy import and_
+from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 import logging
@@ -86,7 +86,7 @@ class MetricsRepository:
         """
         try:
             return (
-                self.session.query(MetricSnapshot)
+                select(MetricSnapshot)
                 .filter(MetricSnapshot.metric_type == metric_type)
                 .order_by(MetricSnapshot.timestamp.desc())
                 .first()
@@ -120,7 +120,7 @@ class MetricsRepository:
                 end_date = datetime.utcnow()
 
             return (
-                self.session.query(MetricSnapshot)
+                select(MetricSnapshot)
                 .filter(
                     and_(
                         MetricSnapshot.metric_type == metric_type,
@@ -189,7 +189,7 @@ class MetricsRepository:
             List[MaterialUsageLog]: List of material usage logs
         """
         try:
-            query = self.session.query(MaterialUsageLog)
+            query = select(MaterialUsageLog)
 
             if material_id:
                 query = query.filter(MaterialUsageLog.material_id == material_id)
@@ -225,7 +225,7 @@ class MetricsRepository:
 
             query = (
                 self.session.query(
-                    self.session.query(MaterialUsageLog)
+                    select(MaterialUsageLog)
                     .filter(MaterialUsageLog.timestamp >= start_date)
                 )
             )
@@ -269,7 +269,7 @@ class MetricsRepository:
             cutoff_date = datetime.utcnow() - timedelta(days=days_to_keep)
 
             deleted = (
-                self.session.query(MetricSnapshot)
+                select(MetricSnapshot)
                 .filter(MetricSnapshot.timestamp < cutoff_date)
                 .delete(synchronize_session=False)
             )

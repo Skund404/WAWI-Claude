@@ -158,7 +158,7 @@ class AdvancedTestOrchestrator:
         material_service = self.services['material_service']
         return material_service.create({
             'name': f'Distributed Material {uuid.uuid4()}',
-            'material_type': random.choice(['LEATHER', 'HARDWARE', 'THREAD']),
+            'material_type': random.choice(['LEATHER', 'HARDWARE', 'SUPPLIES']),
             'quantity': random.uniform(10, 500)
         })
 
@@ -265,7 +265,7 @@ class TestUltimateIntegration:
             """
             return material_service.create({
                 'name': f'Concurrent Material {uuid.uuid4()}',
-                'material_type': random.choice(['LEATHER', 'HARDWARE', 'THREAD']),
+                'material_type': random.choice(['LEATHER', 'HARDWARE', 'SUPPLIES']),
                 'quantity': random.uniform(10, 500)
             })
 

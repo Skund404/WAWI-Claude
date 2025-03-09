@@ -9,7 +9,7 @@ including creation, retrieval, update, and deletion of sales item records.
 import logging
 from typing import Any, Dict, List, Optional, Union
 
-from sqlalchemy import and_, or_, func
+from sqlalchemy import and_, or_, func, select
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -45,7 +45,7 @@ class SalesItemRepository(BaseRepository[SalesItem]):
             List[SalesItem]: List of items for the sale
         """
         try:
-            query = self.session.query(SalesItem).filter(
+            query = select(SalesItem).filter(
                 SalesItem.sales_id == sales_id
             )
 
@@ -68,7 +68,7 @@ class SalesItemRepository(BaseRepository[SalesItem]):
             List[SalesItem]: List of sales items for the product
         """
         try:
-            query = self.session.query(SalesItem).filter(
+            query = select(SalesItem).filter(
                 SalesItem.product_id == product_id
             )
 
@@ -91,7 +91,7 @@ class SalesItemRepository(BaseRepository[SalesItem]):
             Optional[SalesItem]: The sales item with product if found, None otherwise
         """
         try:
-            query = self.session.query(SalesItem).filter(
+            query = select(SalesItem).filter(
                 SalesItem.id == item_id
             ).options(
                 joinedload(SalesItem.product)

@@ -1,11 +1,15 @@
 # database/models/inventory.py
+"""
+This module defines the Inventory model for the leatherworking application.
+"""
 from datetime import datetime
-from sqlalchemy import Column, Enum, Float, ForeignKey, Integer, String, UniqueConstraint, and_, JSON, Text
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from typing import Optional, List, Dict, Any
+from typing import Any, Dict, List, Optional
 
-from database.models.base import AbstractBase, ValidationMixin, ModelValidationError, AuditMixin, TrackingMixin
-from database.models.enums import InventoryStatus, TransactionType, InventoryAdjustmentType
+from sqlalchemy import Column, Enum, Float, ForeignKey, Integer, JSON, String, Text, UniqueConstraint, and_
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from database.models.base import AbstractBase, AuditMixin, ModelValidationError, TrackingMixin, ValidationMixin
+from database.models.enums import InventoryAdjustmentType, InventoryStatus, TransactionType
 
 
 class Inventory(AbstractBase, ValidationMixin, AuditMixin, TrackingMixin):
@@ -29,7 +33,12 @@ class Inventory(AbstractBase, ValidationMixin, AuditMixin, TrackingMixin):
         notes: Additional notes about the inventory item
     """
     __tablename__ = 'inventory'
+    __table_args__ = (
+        UniqueConstraint('item_type', 'item_id', name='uix_inventory_item'),
+        {"extend_existing": True}
+    )
 
+    # Basic attributes
     item_type: Mapped[str] = mapped_column(String(50), nullable=False)
     item_id: Mapped[int] = mapped_column(Integer, nullable=False)
     quantity: Mapped[float] = mapped_column(Float, nullable=False, default=0)
@@ -47,42 +56,46 @@ class Inventory(AbstractBase, ValidationMixin, AuditMixin, TrackingMixin):
     last_movement_date: Mapped[Optional[datetime]] = mapped_column(nullable=True)
 
     # Store recent transactions in the model (limited history)
-    transaction_history: Mapped[Optional[List[Dict[str, Any]]]] = mapped_column(JSON, nullable=True, default=list)
+    transaction_history: Mapped[Optional[List[Dict[str, Any]]]] = mapped_column(JSON, nullable=True)
 
     unit_cost: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-
-    __table_args__ = (
-        UniqueConstraint('item_type', 'item_id', name='uix_inventory_item'),
-    )
 
     # Relationships - maintain compatibility with ER diagram
     material = relationship(
         "Material",
         primaryjoin="and_(Inventory.item_id==Material.id, Inventory.item_type=='material')",
         foreign_keys="[Inventory.item_id]",
+        back_populates="inventory",
         uselist=False,
-        back_populates="inventory"
+        lazy="selectin"
     )
 
     product = relationship(
         "Product",
         primaryjoin="and_(Inventory.item_id==Product.id, Inventory.item_type=='product')",
         foreign_keys="[Inventory.item_id]",
+        back_populates="inventory",
         uselist=False,
-        back_populates="inventory"
+        lazy="selectin"
     )
 
     tool = relationship(
         "Tool",
         primaryjoin="and_(Inventory.item_id==Tool.id, Inventory.item_type=='tool')",
         foreign_keys="[Inventory.item_id]",
+        back_populates="inventory",
         uselist=False,
-        back_populates="inventory"
+        lazy="selectin"
     )
 
     def __init__(self, **kwargs):
-        """Initialize an Inventory instance with validation."""
+        """
+        Initialize an Inventory instance with validation.
+
+        Args:
+            **kwargs: Keyword arguments for Inventory initialization
+        """
         if 'transaction_history' not in kwargs:
             kwargs['transaction_history'] = []
 
@@ -98,8 +111,13 @@ class Inventory(AbstractBase, ValidationMixin, AuditMixin, TrackingMixin):
 
         self.validate()
 
-    def validate(self):
-        """Validate inventory data."""
+    def validate(self) -> None:
+        """
+        Validate inventory data.
+
+        Raises:
+            ModelValidationError: If validation fails
+        """
         if self.quantity < 0:
             raise ModelValidationError("Inventory quantity cannot be negative")
 
@@ -118,8 +136,12 @@ class Inventory(AbstractBase, ValidationMixin, AuditMixin, TrackingMixin):
         if self.reorder_quantity is not None and self.reorder_quantity <= 0:
             raise ModelValidationError("Reorder quantity must be positive")
 
+        return self
+
     def _update_status(self) -> None:
-        """Update inventory status based on current quantity and thresholds."""
+        """
+        Update inventory status based on current quantity and thresholds.
+        """
         if self.quantity <= 0:
             self.status = InventoryStatus.OUT_OF_STOCK
         elif self.min_stock_level is not None and self.quantity <= self.min_stock_level:
@@ -148,6 +170,7 @@ class Inventory(AbstractBase, ValidationMixin, AuditMixin, TrackingMixin):
         previous_quantity = self.quantity
         self.quantity += change
         self.last_movement_date = datetime.now()
+        self.updated_at = datetime.now()
 
         # Update status based on new quantity
         self._update_status()
@@ -204,6 +227,7 @@ class Inventory(AbstractBase, ValidationMixin, AuditMixin, TrackingMixin):
         old_details = self.location_details or {}
 
         self.storage_location = new_location
+        self.updated_at = datetime.now()
 
         if new_details:
             # Merge new details with existing details
@@ -253,28 +277,49 @@ class Inventory(AbstractBase, ValidationMixin, AuditMixin, TrackingMixin):
             )
 
         self.last_count_date = datetime.now()
+        self.updated_at = datetime.now()
 
     def calculate_value(self) -> float:
-        """Calculate the current value of this inventory item."""
+        """
+        Calculate the current value of this inventory item.
+
+        Returns:
+            float: The calculated value (quantity * unit_cost)
+        """
         if self.unit_cost is None:
             return 0.0
         return self.quantity * self.unit_cost
 
     def needs_reorder(self) -> bool:
-        """Check if this item needs to be reordered based on reorder point."""
+        """
+        Check if this item needs to be reordered based on reorder point.
+
+        Returns:
+            bool: True if the item needs to be reordered, False otherwise
+        """
         if self.reorder_point is None:
             return False
         return self.quantity <= self.reorder_point
 
     def days_since_last_count(self) -> Optional[int]:
-        """Calculate days since last physical count."""
+        """
+        Calculate days since last physical count.
+
+        Returns:
+            Optional[int]: Days since last count, or None if never counted
+        """
         if self.last_count_date is None:
             return None
         delta = datetime.now() - self.last_count_date
         return delta.days
 
     def days_since_last_movement(self) -> Optional[int]:
-        """Calculate days since last movement."""
+        """
+        Calculate days since last movement.
+
+        Returns:
+            Optional[int]: Days since last movement, or None if no movement recorded
+        """
         if self.last_movement_date is None:
             return None
         delta = datetime.now() - self.last_movement_date

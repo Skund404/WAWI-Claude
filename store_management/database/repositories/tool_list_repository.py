@@ -1,9 +1,11 @@
 # database/repositories/tool_list_repository.py
-from database.models.tool_list import ToolList, ToolListItem
+from database.models.tool_list import ToolList
+
 from database.models.enums import ToolListStatus
+from database.models.tool_list_item import ToolListItem
 from database.repositories.base_repository import BaseRepository
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import and_
+from sqlalchemy import and_, select
 from typing import Optional, List, Dict, Any
 import logging
 
@@ -61,7 +63,7 @@ class ToolListRepository(BaseRepository):
             List of tool lists matching the status
         """
         try:
-            return self.session.query(ToolList).filter(ToolList.status == status).all()
+            return self.session.execute(select(ToolList).filter(ToolList.status == status)).scalars().all()
         except Exception as e:
             self.logger.error(f"Error finding tool lists by status: {e}")
             raise
@@ -80,7 +82,7 @@ class ToolListRepository(BaseRepository):
             List of tool lists with their items
         """
         try:
-            query = self.session.query(ToolList).options(joinedload(ToolList.items))
+            query = select(ToolList).options(joinedload(ToolList.items))
 
             # Build filter conditions
             conditions = []
@@ -110,7 +112,7 @@ class ToolListRepository(BaseRepository):
             Updated ToolList instance
         """
         try:
-            tool_list = self.session.query(ToolList).filter(ToolList.id == tool_list_id).first()
+            tool_list = self.session.execute(select(ToolList).filter(ToolList.id == tool_list_id)).scalar_one_or_none()
 
             if not tool_list:
                 raise ValueError(f"Tool list with ID {tool_list_id} not found")

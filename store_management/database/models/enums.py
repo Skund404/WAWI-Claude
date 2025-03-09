@@ -117,8 +117,9 @@ class InventoryStatus(Enum):
 
 class MaterialType(Enum):
     """Comprehensive material types for leatherworking."""
+    THREAD = 'thread'
     LEATHER = "leather"
-    THREAD = "thread"
+    SUPPLIES = "thread"
     HARDWARE = "hardware"
     LINING = "lining"
     INTERFACING = "interfacing"

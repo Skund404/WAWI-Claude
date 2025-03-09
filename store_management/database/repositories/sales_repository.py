@@ -10,7 +10,7 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Union, Tuple
 
-from sqlalchemy import and_, or_, func
+from sqlalchemy import and_, or_, func, select
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -48,7 +48,7 @@ class SalesRepository(BaseRepository[Sales]):
             List[Sales]: List of sales for the customer
         """
         try:
-            query = self.session.query(Sales).filter(
+            query = select(Sales).filter(
                 Sales.customer_id == customer_id
             ).order_by(Sales.created_at.desc())
 
@@ -71,7 +71,7 @@ class SalesRepository(BaseRepository[Sales]):
             List[Sales]: List of sales with the specified status
         """
         try:
-            query = self.session.query(Sales).filter(
+            query = select(Sales).filter(
                 Sales.status == status
             ).order_by(Sales.created_at.desc())
 
@@ -94,7 +94,7 @@ class SalesRepository(BaseRepository[Sales]):
             List[Sales]: List of sales with the specified payment status
         """
         try:
-            query = self.session.query(Sales).filter(
+            query = select(Sales).filter(
                 Sales.payment_status == payment_status
             ).order_by(Sales.created_at.desc())
 
@@ -131,8 +131,8 @@ class SalesRepository(BaseRepository[Sales]):
         """
         try:
             # Start with base query
-            query = self.session.query(Sales)
-            count_query = self.session.query(func.count(Sales.id))
+            query = select(Sales)
+            count_query = select(func.count(Sales.id))
 
             # Apply filters
             if customer_id is not None:
@@ -183,7 +183,7 @@ class SalesRepository(BaseRepository[Sales]):
             Optional[Sales]: The sale with items if found, None otherwise
         """
         try:
-            query = self.session.query(Sales).filter(
+            query = select(Sales).filter(
                 Sales.id == sales_id
             ).options(
                 joinedload(Sales.items).joinedload(SalesItem.product)

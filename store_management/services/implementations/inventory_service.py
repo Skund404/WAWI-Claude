@@ -105,7 +105,7 @@ class InventoryService(BaseService, IInventoryService):
             Corresponding inventory repository
         """
         repositories = {
-            MaterialType.THREAD: self.material_inventory_repo,
+            MaterialType.SUPPLIES: self.material_inventory_repo,
             MaterialType.LEATHER: self.leather_inventory_repo,
             MaterialType.HARDWARE: self.hardware_inventory_repo,
             MaterialType.OTHER: self.material_inventory_repo,
@@ -123,7 +123,7 @@ class InventoryService(BaseService, IInventoryService):
             Corresponding inventory model class
         """
         models = {
-            MaterialType.THREAD: MaterialInventory,
+            MaterialType.SUPPLIES: MaterialInventory,
             MaterialType.LEATHER: LeatherInventory,
             MaterialType.HARDWARE: HardwareInventory,
             MaterialType.OTHER: MaterialInventory,

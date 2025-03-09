@@ -1,107 +1,115 @@
 # database/models/sales.py
-from sqlalchemy import Column, Enum, Float, ForeignKey, Integer, String, DateTime, Text
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from typing import List, Optional
+"""
+This module defines the Sales model for the leatherworking application.
+"""
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 
-from database.models.base import AbstractBase, ValidationMixin, ModelValidationError, CostingMixin
-from database.models.enums import SaleStatus, PaymentStatus
+from sqlalchemy import Column, DateTime, Enum, Float, ForeignKey, Integer, String, Text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from database.models.base import AbstractBase, CostingMixin, ModelValidationError, ValidationMixin
+from database.models.enums import PaymentStatus, SaleStatus
 
 
 class Sales(AbstractBase, ValidationMixin, CostingMixin):
     """
-    Sales represents a customer purchase.
+    Sales model representing a sale transaction.
 
-    Attributes:
-        customer_id: Foreign key to the customer
-        total_amount: Total sale amount
-        status: Sale status
-        payment_status: Payment status
-        notes: Additional notes
+    A sale can have multiple sales items and can be associated with a customer.
+    It can also generate picking lists and projects.
     """
     __tablename__ = 'sales'
+    __table_args__ = {"extend_existing": True}
 
-    customer_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey('customers.id'), nullable=True)
+    # Basic attributes
     total_amount: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
-    status: Mapped[SaleStatus] = mapped_column(Enum(SaleStatus), nullable=False, default=SaleStatus.DRAFT)
-    payment_status: Mapped[PaymentStatus] = mapped_column(Enum(PaymentStatus), nullable=False,
-                                                          default=PaymentStatus.PENDING)
-    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    status: Mapped[SaleStatus] = mapped_column(
+        Enum(SaleStatus),
+        nullable=False,
+        default=SaleStatus.QUOTE_REQUEST
+    )
+    payment_status: Mapped[PaymentStatus] = mapped_column(
+        Enum(PaymentStatus),
+        nullable=False,
+        default=PaymentStatus.PENDING
+    )
 
-    # Payment tracking
-    amount_paid: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
-    payment_date: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-
-    # Shipping information
-    shipping_address: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
-    tracking_number: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    shipped_date: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    # Foreign keys
+    customer_id: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        ForeignKey("customers.id", ondelete="SET NULL"),
+        nullable=True
+    )
 
     # Relationships
-    customer = relationship("Customer", back_populates="sales")
-    items = relationship("SalesItem", back_populates="sales", cascade="all, delete-orphan")
-    projects = relationship("Project", back_populates="sales")
-    picking_list = relationship("PickingList", back_populates="sales", uselist=False)
+    customer = relationship(
+        "Customer",
+        back_populates="sales",
+        lazy="selectin"
+    )
+
+    sales_items = relationship(
+        "SalesItem",
+        back_populates="sales",
+        cascade="all, delete-orphan",
+        lazy="selectin"
+    )
+
+    # Break the circular dependency using string-based primaryjoin
+    projects = relationship(
+        "Project",
+        primaryjoin="Sales.id==Project.sales_id",
+        lazy="selectin",
+        viewonly=True  # Use viewonly to break circular references
+    )
+
+    # These will be implemented later
+    # picking_lists = relationship(
+    #     "PickingList",
+    #     back_populates="sales",
+    #     cascade="all, delete-orphan",
+    #     lazy="selectin"
+    # )
 
     def __init__(self, **kwargs):
-        """Initialize a Sales instance with validation."""
+        """
+        Initialize a Sales instance with validation.
+
+        Args:
+            **kwargs: Keyword arguments for Sales initialization
+        """
         super().__init__(**kwargs)
         self.validate()
 
-    def validate(self):
-        """Validate sales data."""
+    def validate(self) -> None:
+        """
+        Validate sales data.
+
+        Raises:
+            ModelValidationError: If validation fails
+        """
+        # Total amount validation
         if self.total_amount < 0:
             raise ModelValidationError("Total amount cannot be negative")
 
-        if self.amount_paid < 0:
-            raise ModelValidationError("Amount paid cannot be negative")
+        # Status validation
+        if not self.status:
+            raise ModelValidationError("Sales status must be specified")
 
-        if self.amount_paid > self.total_amount:
-            raise ModelValidationError("Amount paid cannot exceed total amount")
+        # Payment status validation
+        if not self.payment_status:
+            raise ModelValidationError("Payment status must be specified")
 
-    def update_total_amount(self) -> None:
-        """Recalculate the total amount based on the linked sales items."""
-        if not hasattr(self, 'items') or not self.items:
-            self.total_amount = 0.0
-            return
+        return self
 
-        self.total_amount = sum(item.price * item.quantity for item in self.items)
-
-    def update_status(self, new_status: SaleStatus, notes: Optional[str] = None) -> None:
+    def calculate_total(self) -> float:
         """
-        Update the sales status and add notes.
+        Calculate the total amount based on sales items.
 
-        Args:
-            new_status: New sales status
-            notes: Optional notes about the status change
+        Returns:
+            float: The calculated total amount
         """
-        old_status = self.status
-        self.status = new_status
-
-        if notes:
-            status_note = f"[STATUS CHANGE] {old_status.name} -> {new_status.name}: {notes}"
-            if self.notes:
-                self.notes += f"\n{status_note}"
-            else:
-                self.notes = status_note
-
-    def update_payment_status(self, new_status: PaymentStatus, amount: Optional[float] = None) -> None:
-        """
-        Update the payment status and record payment if applicable.
-
-        Args:
-            new_status: New payment status
-            amount: Optional payment amount
-        """
-        old_status = self.payment_status
-        self.payment_status = new_status
-
-        if amount is not None and amount > 0:
-            self.amount_paid += amount
-            self.payment_date = datetime.now()
-
-            # Update payment status based on amount
-            if self.amount_paid >= self.total_amount:
-                self.payment_status = PaymentStatus.PAID
-            elif self.amount_paid > 0:
-                self.payment_status = PaymentStatus.PARTIALLY_PAID
+        total = sum(item.price * item.quantity for item in self.sales_items) if self.sales_items else 0
+        self.total_amount = total
+        return total

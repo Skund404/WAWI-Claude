@@ -3,7 +3,7 @@ from database.models.customer import Customer
 from database.models.enums import CustomerStatus, CustomerTier
 from database.repositories.base_repository import BaseRepository
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, or_, select
 from typing import Optional, List, Dict, Any
 import logging
 
@@ -30,7 +30,7 @@ class CustomerRepository(BaseRepository):
             List of customers matching the status
         """
         try:
-            return self.session.query(Customer).filter(Customer.status == status).all()
+            return self.session.execute(select(Customer).filter(Customer.status == status)).scalars().all()
         except Exception as e:
             self.logger.error(f"Error finding customers by status: {e}")
             raise
@@ -46,7 +46,7 @@ class CustomerRepository(BaseRepository):
             List of customers matching the tier
         """
         try:
-            return self.session.query(Customer).filter(Customer.tier == tier).all()
+            return self.session.execute(select(Customer).filter(Customer.tier == tier)).scalars().all()
         except Exception as e:
             self.logger.error(f"Error finding customers by tier: {e}")
             raise
@@ -89,7 +89,7 @@ class CustomerRepository(BaseRepository):
             List of customers matching the search criteria
         """
         try:
-            query = self.session.query(Customer)
+            query = select(Customer)
 
             # Build filter conditions
             conditions = []

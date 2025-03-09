@@ -71,7 +71,7 @@ class CostEstimator(tk.Frame):
         # Item category
         ttk.Label(self.input_frame, text="Category:").grid(row=0, column=2, padx=5, pady=5, sticky="w")
         self.category_var = tk.StringVar()
-        categories = ["Leather", "Hardware", "Thread", "Tools", "Labor", "Other"]
+        categories = ["Leather", "Hardware", "Supplies", "Tools", "Labor", "Other"]
         ttk.Combobox(self.input_frame, textvariable=self.category_var, values=categories).grid(row=0, column=3, padx=5,
                                                                                                pady=5, sticky="ew")
 
@@ -261,7 +261,7 @@ class CostEstimator(tk.Frame):
         values = list(category_totals.values())
 
         # Use custom colors for categories
-        colors = {'Leather': '#8B4513', 'Hardware': '#A9A9A9', 'Thread': '#4682B4',
+        colors = {'Leather': '#8B4513', 'Hardware': '#A9A9A9', 'Supplies': '#4682B4',
                   'Tools': '#556B2F', 'Labor': '#CD5C5C', 'Other': '#9932CC'}
 
         plot_colors = [colors.get(category, '#1f77b4') for category in labels]
@@ -310,7 +310,7 @@ class CostEstimator(tk.Frame):
         sample_items = [
             {"description": "Veg-Tan Leather (2-3 oz)", "category": "Leather", "cost": 25.99, "quantity": 1},
             {"description": "Solid Brass Buckle", "category": "Hardware", "cost": 4.50, "quantity": 2},
-            {"description": "Waxed Thread (25 yards)", "category": "Thread", "cost": 8.75, "quantity": 1},
+            {"description": "Waxed Supplies (25 yards)", "category": "Supplies", "cost": 8.75, "quantity": 1},
             {"description": "Edge Beveler Tool", "category": "Tools", "cost": 15.00, "quantity": 1},
             {"description": "Construction Time (2 hours)", "category": "Labor", "cost": 30.00, "quantity": 2}
         ]

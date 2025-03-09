@@ -142,7 +142,7 @@ def add_sample_data(session=None) -> None:
                 rating=4.5
             ),
             Supplier(
-                name="Craftsman's Thread",
+                name="Craftsman's Supplies",
                 contact_name="Lisa Wong",
                 email="lwong@craftsmanthread.com",
                 phone="555-987-6543",
@@ -198,11 +198,11 @@ def add_sample_data(session=None) -> None:
                 notes="Organized by hardware type and size"
             ),
             Storage(
-                name="Thread Drawer C",
+                name="Supplies Drawer C",
                 location_type=StorageLocationType.DRAWER,
                 capacity=50.0,
                 current_usage=35.0,
-                description="Thread storage organized by color and weight",
+                description="Supplies storage organized by color and weight",
                 notes="Keep drawer closed to prevent dust"
             ),
             Storage(
@@ -465,11 +465,11 @@ def add_sample_data(session=None) -> None:
         session.flush()
         logger.info(f"Added {len(hardware_items)} hardware items")
 
-        # 5. Create materials - Thread, Adhesives, etc.
+        # 5. Create materials - Supplies, Adhesives, etc.
         other_materials = [
             Material(
-                name="Ritza Tiger Thread",
-                material_type=MaterialType.THREAD,
+                name="Ritza Tiger Supplies",
+                material_type=MaterialType.SUPPLIES,
                 supplier_id=suppliers[2].id,
                 price_per_unit=29.99,
                 units_in_stock=15,
@@ -480,8 +480,8 @@ def add_sample_data(session=None) -> None:
                 notes="Premium hand-stitching thread"
             ),
             Material(
-                name="Black Waxed Thread",
-                material_type=MaterialType.THREAD,
+                name="Black Waxed Supplies",
+                material_type=MaterialType.SUPPLIES,
                 supplier_id=suppliers[2].id,
                 price_per_unit=24.99,
                 units_in_stock=12,
@@ -1181,8 +1181,8 @@ def add_sample_data(session=None) -> None:
             ),
             ShoppingListItem(
                 shopping_list_id=shopping_lists[0].id,
-                name="Thread Restock",
-                description="Various colors of Tiger Thread",
+                name="Supplies Restock",
+                description="Various colors of Tiger Supplies",
                 quantity=5.0,  # spools
                 estimated_cost=125.00,
                 priority=Priority.MEDIUM,

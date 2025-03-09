@@ -1,0 +1,355 @@
+{
+    "suppliers": [
+        {
+            "name": "Wickett & Craig",
+            "contact_name": "Thomas Wilson",
+            "contact_email": "sales@wickettandcraig.com",
+            "phone": "555-789-1234",
+            "address": "120 Tannery Lane, Curwensville, PA 16833",
+            "status": "ACTIVE",
+            "notes": "Premium vegetable tanned leather supplier, specializing in bridle and harness leathers"
+        },
+        {
+            "name": "Buckleguy Hardware",
+            "contact_name": "Sarah Johnson",
+            "contact_email": "orders@buckleguy.com",
+            "phone": "555-456-7890",
+            "address": "45 Hardware Blvd, Boston, MA 02108",
+            "status": "ACTIVE",
+            "notes": "Specialized leather hardware supplier with premium solid brass fittings"
+        },
+        {
+            "name": "Maine Supplies Company",
+            "contact_name": "Michael Taylor",
+            "contact_email": "info@mainethread.com",
+            "phone": "555-123-4567",
+            "address": "68 Industrial Way, Lewiston, ME 04240",
+            "status": "ACTIVE",
+            "notes": "High-quality waxed thread for leather stitching"
+        },
+        {
+            "name": "Horween Leather Co.",
+            "contact_name": "Elizabeth Davis",
+            "contact_email": "sales@horween.com",
+            "phone": "555-987-6543",
+            "address": "2015 N. Elston Ave, Chicago, IL 60614",
+            "status": "ACTIVE",
+            "notes": "Premium Chromexcel and Shell Cordovan leather supplier"
+        },
+        {
+            "name": "Weaver Leathercraft Supply",
+            "contact_name": "Robert Chen",
+            "contact_email": "support@weaverleathercraft.com",
+            "phone": "555-234-5678",
+            "address": "3900 Weaver Rd, Mt. Hope, OH 44660",
+            "status": "ACTIVE",
+            "notes": "Comprehensive leatherworking tools and supplies"
+        }
+    ],
+    "customers": [
+        {
+            "first_name": "Alice",
+            "last_name": "Johnson",
+            "email": "alice.johnson@example.com",
+            "phone": "555-111-2222",
+            "address": "789 Crafting Street, Portland, OR 97210",
+            "status": "ACTIVE",
+            "customer_tier": "STANDARD",
+            "customer_source": "WEBSITE",
+            "notes": "Repeat customer, prefers vegetable tanned products"
+        },
+        {
+            "first_name": "Bob",
+            "last_name": "Williams",
+            "email": "bob.williams@example.com",
+            "phone": "555-333-4444",
+            "address": "101 Artisan Avenue, Seattle, WA 98104",
+            "status": "ACTIVE",
+            "customer_tier": "PREMIUM",
+            "customer_source": "REFERRAL",
+            "notes": "Orders custom pieces quarterly, prefers Horween leather"
+        },
+        {
+            "first_name": "Carol",
+            "last_name": "Martinez",
+            "email": "carol.martinez@example.com",
+            "phone": "555-555-6666",
+            "address": "222 Maker Street, San Francisco, CA 94110",
+            "status": "ACTIVE",
+            "customer_tier": "VIP",
+            "customer_source": "TRADE_SHOW",
+            "notes": "Professional saddle maker, bulk orders"
+        },
+        {
+            "first_name": "David",
+            "last_name": "Brown",
+            "email": "david.brown@example.com",
+            "phone": "555-777-8888",
+            "address": "333 Design Drive, Austin, TX 78704",
+            "status": "ACTIVE",
+            "customer_tier": "STANDARD",
+            "customer_source": "WEBSITE",
+            "notes": "New to leatherworking, attending our beginner workshop"
+        },
+        {
+            "first_name": "Emily",
+            "last_name": "Garcia",
+            "email": "emily.garcia@example.com",
+            "phone": "555-999-0000",
+            "address": "444 Creative Court, Chicago, IL 60607",
+            "status": "ACTIVE",
+            "customer_tier": "PREMIUM",
+            "customer_source": "SOCIAL_MEDIA",
+            "notes": "Fashion designer, orders exotic leathers for accessories"
+        }
+    ],
+    "leathers": [
+        {
+            "name": "Wickett & Craig English Bridle",
+            "type": "VEGETABLE_TANNED",
+            "quality": "PREMIUM",
+            "color": "Chestnut",
+            "thickness": 3.5,
+            "origin": "USA",
+            "cost_per_unit": 14.99,
+            "unit": "SQUARE_FOOT"
+        },
+        {
+            "name": "Horween Chromexcel",
+            "type": "OIL_PULL_UP",
+            "quality": "PREMIUM",
+            "color": "Brown",
+            "thickness": 2.0,
+            "origin": "USA",
+            "cost_per_unit": 12.50,
+            "unit": "SQUARE_FOOT"
+        },
+        {
+            "name": "Horween Shell Cordovan",
+            "type": "SHELL_CORDOVAN",
+            "quality": "PREMIUM",
+            "color": "Color #8",
+            "thickness": 1.5,
+            "origin": "USA",
+            "cost_per_unit": 75.00,
+            "unit": "SQUARE_FOOT"
+        },
+        {
+            "name": "Chevre Goatskin",
+            "type": "CHROME_TANNED",
+            "quality": "PREMIUM",
+            "color": "Navy",
+            "thickness": 1.0,
+            "origin": "France",
+            "cost_per_unit": 18.75,
+            "unit": "SQUARE_FOOT"
+        },
+        {
+            "name": "Pueblo Veg Tan",
+            "type": "VEGETABLE_TANNED",
+            "quality": "PREMIUM",
+            "color": "Olive",
+            "thickness": 2.2,
+            "origin": "Italy",
+            "cost_per_unit": 16.50,
+            "unit": "SQUARE_FOOT"
+        }
+    ],
+    "hardware": [
+        {
+            "name": "Solid Brass Buckle",
+            "type": "BUCKLE",
+            "material": "BRASS",
+            "finish": "POLISHED",
+            "size": "1.5 inch",
+            "cost_per_unit": 5.75,
+            "unit": "PIECE",
+            "quality": "PREMIUM"
+        },
+        {
+            "name": "Double Cap Rivets",
+            "type": "RIVET",
+            "material": "BRASS",
+            "finish": "ANTIQUE",
+            "size": "Medium 9mm",
+            "cost_per_unit": 0.35,
+            "unit": "PIECE",
+            "quality": "PREMIUM"
+        },
+        {
+            "name": "Heavy Duty Magnetic Snap",
+            "type": "MAGNETIC_CLOSURE",
+            "material": "NICKEL",
+            "finish": "BRUSHED",
+            "size": "20mm",
+            "cost_per_unit": 2.25,
+            "unit": "PIECE",
+            "quality": "PREMIUM"
+        },
+        {
+            "name": "Cast D-Rings",
+            "type": "D_RING",
+            "material": "STAINLESS_STEEL",
+            "finish": "POLISHED",
+            "size": "1 inch",
+            "cost_per_unit": 1.50,
+            "unit": "PIECE",
+            "quality": "PREMIUM"
+        },
+        {
+            "name": "Western Flower Concho",
+            "type": "CONCHO",
+            "material": "SILVER",
+            "finish": "ANTIQUE",
+            "size": "1.25 inch",
+            "cost_per_unit": 6.25,
+            "unit": "PIECE",
+            "quality": "PREMIUM"
+        }
+    ],
+    "supplies": [
+        {
+            "name": "Tiger Thread",
+            "type": "SUPPLIES",
+            "color": "Natural",
+            "thickness": 0.6,
+            "material_composition": "Polyester",
+            "cost_per_unit": 24.99,
+            "unit": "PIECE",
+            "quality": "PREMIUM"
+        },
+        {
+            "name": "Pure Beeswax",
+            "type": "WAX",
+            "color": "Yellow",
+            "material_composition": "100% Beeswax",
+            "cost_per_unit": 9.75,
+            "unit": "PIECE",
+            "quality": "PREMIUM"
+        },
+        {
+            "name": "Barge Cement",
+            "type": "ADHESIVE",
+            "color": "Tan",
+            "material_composition": "Neoprene",
+            "cost_per_unit": 14.50,
+            "unit": "PIECE",
+            "quality": "PREMIUM"
+        },
+        {
+            "name": "Uniters Edge Paint",
+            "type": "EDGE_PAINT",
+            "color": "Dark Brown",
+            "material_composition": "Acrylic",
+            "cost_per_unit": 22.95,
+            "unit": "PIECE",
+            "quality": "PREMIUM"
+        },
+        {
+            "name": "Soft Pigskin Lining",
+            "type": "LINING",
+            "color": "Tan",
+            "thickness": 0.5,
+            "material_composition": "Pigskin",
+            "cost_per_unit": 8.50,
+            "unit": "SQUARE_FOOT",
+            "quality": "PREMIUM"
+        }
+    ],
+    "tools": [
+        {
+            "name": "Kevin Lee French Pricking Irons",
+            "description": "3mm spacing, 2+8 teeth set for precision stitching",
+            "category": "PUNCHING",
+            "cost": 149.95
+        },
+        {
+            "name": "Japanese Skiving Knife",
+            "description": "Blue steel #2 leather skiving knife with ebony handle",
+            "category": "CUTTING",
+            "cost": 85.00
+        },
+        {
+            "name": "Vergez Blanchard Edge Beveler",
+            "description": "Size 2 professional edge beveling tool",
+            "category": "EDGE_WORK",
+            "cost": 42.75
+        },
+        {
+            "name": "Craftool Pro Stitching Pony",
+            "description": "Heavy duty stitching clamp with wooden jaws",
+            "category": "STITCHING",
+            "cost": 89.95
+        },
+        {
+            "name": "KS Blade Punch Set",
+            "description": "Set of 6 precision round hole punches in graduated sizes",
+            "category": "PUNCHING",
+            "cost": 68.50
+        }
+    ],
+    "products": [
+        {
+            "name": "Bifold Wallet",
+            "description": "Handcrafted full-grain leather wallet with 6 card slots and cash pocket",
+            "price": 125.00,
+            "cost": 45.75,
+            "sku": "BFW-001"
+        },
+        {
+            "name": "Card Holder",
+            "description": "Minimalist card holder with 3 pockets, hand stitched with Tiger thread",
+            "price": 65.00,
+            "cost": 22.50,
+            "sku": "CH-001"
+        },
+        {
+            "name": "Market Tote",
+            "description": "Large vegetable-tanned leather tote with reinforced handles and interior pocket",
+            "price": 295.00,
+            "cost": 110.25,
+            "sku": "MT-001"
+        },
+        {
+            "name": "Bridle Belt",
+            "description": "1.5 inch English bridle leather belt with solid brass buckle",
+            "price": 135.00,
+            "cost": 48.50,
+            "sku": "BBT-001"
+        },
+        {
+            "name": "Journal Cover",
+            "description": "A5 leather journal cover with pen holder, fits standard notebooks",
+            "price": 95.00,
+            "cost": 36.75,
+            "sku": "JC-001"
+        }
+    ],
+    "patterns": [
+        {
+            "name": "Classic Bifold Wallet Pattern",
+            "description": "Traditional 6-card slot bifold with detailed construction notes",
+            "skill_level": "INTERMEDIATE"
+        },
+        {
+            "name": "Vertical Card Holder Pattern",
+            "description": "Space-efficient 3-pocket vertical card holder, suitable for beginners",
+            "skill_level": "BEGINNER"
+        },
+        {
+            "name": "Market Tote Pattern",
+            "description": "Large capacity tote with reinforced handles and optional interior pocket",
+            "skill_level": "ADVANCED"
+        },
+        {
+            "name": "Dress Belt Pattern",
+            "description": "1.5 inch dress belt with detailed sizing guide and hole placement template",
+            "skill_level": "BEGINNER"
+        },
+        {
+            "name": "A5 Journal Wrap Pattern",
+            "description": "Adjustable journal cover designed for standard A5 notebooks",
+            "skill_level": "INTERMEDIATE"
+        }
+    ]
+}

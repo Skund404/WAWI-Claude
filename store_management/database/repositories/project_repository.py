@@ -3,17 +3,18 @@ from typing import List, Optional, Dict, Any
 import logging
 from datetime import datetime, timedelta
 
-from sqlalchemy import and_, or_, func, distinct
+from sqlalchemy import and_, or_, func, distinct, select
 from sqlalchemy.orm import joinedload, Session
 from sqlalchemy.exc import SQLAlchemyError
 
 from contextlib import contextmanager
+
+from database.models.project_component import ProjectComponent
 from database.sqlalchemy.session import get_db_session
 
 
 from database.repositories.base_repository import BaseRepository
 from database.models.project import Project
-from database.models.components import ProjectComponent  # Update this import
 from database.models.enums import ProjectType, ProjectStatus, SkillLevel
 from database.exceptions import DatabaseError
 from utils.error_handler import (
@@ -70,7 +71,7 @@ class ProjectRepository(BaseRepository):
             with self.session_scope() as session:
                 # Case-insensitive search across name and description
                 results = (
-                    session.query(Project)
+                    select(Project)
                     .filter(
                         or_(
                             func.lower(Project.name).like(f"%{query.lower()}%"),
@@ -109,7 +110,7 @@ class ProjectRepository(BaseRepository):
 
             with self.session_scope() as session:
                 # Prepare base query
-                query = session.query(Project).filter(Project.updated_at < cutoff_date)
+                query = select(Project).filter(Project.updated_at < cutoff_date)
 
                 # Add status filter if provided
                 if status_filter:
@@ -172,7 +173,7 @@ class ProjectRepository(BaseRepository):
 
                 # Query projects by status with pagination
                 projects = (
-                    session.query(Project)
+                    select(Project)
                     .filter(Project.status == status)
                     .order_by(Project.created_at.desc())
                     .offset(offset)
@@ -181,7 +182,7 @@ class ProjectRepository(BaseRepository):
                 )
 
                 # Get total count for logging
-                total_count = session.query(Project).filter(Project.status == status).count()
+                total_count = session.execute(select(func.count()).select_from(Project).filter(Project.status == status)).scalar_one()
 
                 self.logger.info(
                     f"Retrieved {len(projects)} projects with status {status} "
@@ -215,7 +216,7 @@ class ProjectRepository(BaseRepository):
             with self.session_scope() as session:
                 # Subquery to count components for each project
                 subquery = (
-                    session.query(ProjectComponent.project_id, func.count().label('component_count'))
+                    select(ProjectComponent.project_id, func.count().label('component_count'))
                     .group_by(ProjectComponent.project_id)
                     .having(func.count() >= min_components)
                     .subquery()
@@ -223,7 +224,7 @@ class ProjectRepository(BaseRepository):
 
                 # Query complex projects with pagination
                 projects = (
-                    session.query(Project)
+                    select(Project)
                     .join(subquery, Project.id == subquery.c.project_id)
                     .order_by(subquery.c.component_count.desc())
                     .offset((page - 1) * per_page)
@@ -233,7 +234,7 @@ class ProjectRepository(BaseRepository):
 
                 # Get total count of complex projects
                 total_count = (
-                    session.query(func.count(distinct(subquery.c.project_id)))
+                    select(func.count(distinct(subquery.c.project_id)))
                     .scalar()
                 )
 
@@ -270,7 +271,7 @@ class ProjectRepository(BaseRepository):
         try:
             with self.session_scope() as session:
                 # Prepare query
-                query = session.query(Project)
+                query = select(Project)
 
                 # Apply deadline filters
                 if before_date:
@@ -315,7 +316,7 @@ class ProjectRepository(BaseRepository):
         try:
             with self.session_scope() as session:
                 # Start with base query
-                query = session.query(Project)
+                query = select(Project)
 
                 # Apply filters based on provided criteria
                 for key, value in filters.items():

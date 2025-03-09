@@ -123,7 +123,7 @@ class TestComplexQueries:
             supplier_id = supplier1.id if i % 2 == 0 else supplier2.id
             material = Material(
                 name=f"Material {i}",
-                type=MaterialType.LEATHER if i % 3 == 0 else MaterialType.HARDWARE if i % 3 == 1 else MaterialType.THREAD,
+                type=MaterialType.LEATHER if i % 3 == 0 else MaterialType.HARDWARE if i % 3 == 1 else MaterialType.SUPPLIES,
                 supplier_id=supplier_id
             )
             materials.append(material)

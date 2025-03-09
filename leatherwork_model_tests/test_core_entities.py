@@ -128,5 +128,5 @@ class TestSupplierModel(unittest.TestCase):
         self.assertTrue(hasattr(supplier, 'materials'), "Supplier should have 'materials' relationship")
         self.assertTrue(hasattr(supplier, 'purchases'), "Supplier should have 'purchases' relationship")
 
-# Additional test classes for Material, Leather, Hardware, and Thread would follow...
+# Additional test classes for Material, Leather, Hardware, and Supplies would follow...
 # (Truncated for brevity)

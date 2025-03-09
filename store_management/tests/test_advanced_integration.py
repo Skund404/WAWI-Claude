@@ -286,7 +286,7 @@ class TestAdvancedLeatherworkingIntegration:
         for supplier in suppliers:
             material = material_service.create({
                 'name': f'Material from {supplier.name}',
-                'material_type': random.choice(['LEATHER', 'HARDWARE', 'THREAD']),
+                'material_type': random.choice(['LEATHER', 'HARDWARE', 'SUPPLIES']),
                 'quantity': random.uniform(50, 500),
                 'supplier_id': supplier.id
             })

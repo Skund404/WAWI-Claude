@@ -1,357 +1,720 @@
-# database/services/implementations/material_service.py
+# services/implementations/material_service.py
 """
-Service implementation for managing Material entities and their relationships.
+Implementation of the material service interface.
+Provides business logic for material management in the leatherworking application.
 """
 
 from typing import Any, Dict, List, Optional, Union
-import uuid
-import logging
+from datetime import datetime
 
 from database.models.enums import (
-    MaterialType,
-    MaterialQualityGrade,
-    InventoryStatus,
-    TransactionType
+    InventoryStatus, MaterialType, LeatherType, HardwareType,
+    TransactionType, QualityGrade
 )
-from database.models.material import Material
-from database.models.transaction import MaterialTransaction
-from database.models.material_inventory import MaterialInventory
-from database.repositories.material_repository import MaterialRepository
-from database.repositories.material_inventory_repository import MaterialInventoryRepository
-from database.repositories.transaction_repository import TransactionRepository
-from database.sqlalchemy.session import get_db_session
-
-from services.base_service import BaseService, NotFoundError, ValidationError
+from database.models.material import Material, Leather, Hardware
+from database.models.base import ModelValidationError
+from database.exceptions import ModelNotFoundError, RepositoryError
+from database.repositories.repository_factory import RepositoryFactory
 from services.interfaces.material_service import IMaterialService
+from services.base_service import BaseService, ServiceError, NotFoundError, ValidationError
+from utils.logger import get_logger
+from di.core import inject
+
+logger = get_logger(__name__)
 
 
-class MaterialService(BaseService[Material], IMaterialService):
+class MaterialService(BaseService, IMaterialService):
     """
-    Service for managing Material-related operations.
+    Implementation of the material service interface.
 
-    Handles creation, retrieval, updating, and deletion of materials,
-    along with inventory and transaction management.
+    Provides business logic for material management in the leatherworking application.
     """
 
-    def __init__(
-            self,
-            session=None,
-            material_repository: Optional[MaterialRepository] = None,
-            material_inventory_repository: Optional[MaterialInventoryRepository] = None,
-            transaction_repository: Optional[TransactionRepository] = None
-    ):
+    @inject
+    def __init__(self, repository_factory: RepositoryFactory):
         """
-        Initialize the Material Service.
+        Initialize the material service.
 
         Args:
-            session: SQLAlchemy database session
-            material_repository: Repository for material data access
-            material_inventory_repository: Repository for material inventory
-            transaction_repository: Repository for material transactions
+            repository_factory: Factory for creating repositories
         """
-        self.session = session or get_db_session()
-        self.material_repository = material_repository or MaterialRepository(self.session)
-        self.material_inventory_repository = (
-                material_inventory_repository or
-                MaterialInventoryRepository(self.session)
-        )
-        self.transaction_repository = (
-                transaction_repository or
-                TransactionRepository(self.session)
-        )
-        self.logger = logging.getLogger(__name__)
+        super().__init__()
+        self._repository_factory = repository_factory
+        self._leather_repository = repository_factory.get_leather_repository()
+        self._hardware_repository = repository_factory.get_hardware_repository()
+        self._supplies_repository = repository_factory.get_supplies_repository()
+        self._material_repository = repository_factory.get_material_repository()
+        logger.debug("Initialized MaterialService")
 
-    def create_material(
-            self,
-            name: str,
-            material_type: MaterialType,
-            quality_grade: MaterialQualityGrade,
-            supplier_id: Optional[str] = None,
-            **kwargs
-    ) -> Material:
+    def get_all_materials(self,
+                          include_deleted: bool = False,
+                          status: Optional[InventoryStatus] = None,
+                          material_type: Optional[MaterialType] = None) -> List[Material]:
+        """
+        Get all materials with optional filtering.
+
+        Args:
+            include_deleted: Whether to include soft-deleted materials
+            status: Filter by inventory status
+            material_type: Filter by material type
+
+        Returns:
+            List of material objects
+        """
+        try:
+            # Use general material repository for all materials
+            return self._material_repository.get_all_materials(
+                include_deleted=include_deleted,
+                status=status,
+                material_type=material_type
+            )
+        except RepositoryError as e:
+            logger.error(f"Error getting materials: {str(e)}")
+            raise ServiceError(f"Failed to get materials: {str(e)}")
+
+    def get_material_by_id(self, material_id: int) -> Optional[Material]:
+        """
+        Get material by ID.
+
+        Args:
+            material_id: ID of the material
+
+        Returns:
+            Material object or None if not found
+        """
+        try:
+            # Get material from the appropriate repository based on type
+            material = self._material_repository.get_material_with_inventory(material_id)
+
+            if not material:
+                return None
+
+            # Return the material
+            return material
+
+        except RepositoryError as e:
+            logger.error(f"Error getting material by ID {material_id}: {str(e)}")
+            raise ServiceError(f"Failed to get material: {str(e)}")
+
+    def create_material(self, material_data: Dict[str, Any]) -> Material:
         """
         Create a new material.
 
         Args:
-            name: Material name
-            material_type: Type of material
-            quality_grade: Quality grade of the material
-            supplier_id: Optional supplier identifier
-            **kwargs: Additional material attributes
+            material_data: Material data dictionary
 
         Returns:
-            Created Material instance
-
-        Raises:
-            ValidationError: If material creation fails validation
+            Created material object
         """
         try:
-            # Validate required fields
-            if not name or not material_type or not quality_grade:
-                raise ValidationError("Missing required material attributes")
+            # Determine material type and use appropriate repository
+            material_type = material_data.get('material_type')
 
-            # Generate a unique identifier
-            material_id = str(uuid.uuid4())
+            if not material_type:
+                raise ValidationError("Material type is required")
 
-            # Create material
-            material_data = {
-                'id': material_id,
-                'name': name,
-                'type': material_type,
-                'quality': quality_grade,
-                'supplier_id': supplier_id,
-                **kwargs
-            }
+            # Route to appropriate repository based on material type
+            if material_type == MaterialType.LEATHER.value:
+                return self._create_leather(material_data)
+            elif material_type == MaterialType.HARDWARE.value:
+                return self._create_hardware(material_data)
+            elif material_type in [t.value for t in self._supplies_repository.SUPPLY_MATERIAL_TYPES]:
+                return self._create_supply(material_data)
+            else:
+                # Use general material repository for other types
+                return self._material_repository.create_material(material_data)
 
-            material = Material(**material_data)
+        except ModelValidationError as e:
+            logger.error(f"Validation error creating material: {str(e)}")
+            raise ValidationError(str(e))
+        except RepositoryError as e:
+            logger.error(f"Error creating material: {str(e)}")
+            raise ServiceError(f"Failed to create material: {str(e)}")
 
-            # Save material
-            with self.session:
-                self.session.add(material)
-                self.session.commit()
-                self.session.refresh(material)
+    def _create_leather(self, leather_data: Dict[str, Any]) -> Leather:
+        """Create a new leather material."""
+        try:
+            # Use leather repository for leather-specific creation
+            leather = self._leather_repository.create(leather_data)
+            logger.info(f"Created new leather material: {leather.name} (ID: {leather.id})")
+            return leather
+        except ModelValidationError as e:
+            raise ValidationError(str(e))
+        except RepositoryError as e:
+            raise ServiceError(f"Failed to create leather material: {str(e)}")
 
-            self.logger.info(f"Created material: {material.name}")
-            return material
+    def _create_hardware(self, hardware_data: Dict[str, Any]) -> Hardware:
+        """Create a new hardware material."""
+        try:
+            # Use hardware repository for hardware-specific creation
+            hardware = self._hardware_repository.create(hardware_data)
+            logger.info(f"Created new hardware material: {hardware.name} (ID: {hardware.id})")
+            return hardware
+        except ModelValidationError as e:
+            raise ValidationError(str(e))
+        except RepositoryError as e:
+            raise ServiceError(f"Failed to create hardware material: {str(e)}")
 
-        except Exception as e:
-            self.logger.error(f"Error creating material: {str(e)}")
-            raise ValidationError(f"Material creation failed: {str(e)}")
+    def _create_supply(self, supply_data: Dict[str, Any]) -> Material:
+        """Create a new supply material."""
+        try:
+            # Use supplies repository for supply-specific creation
+            supply = self._supplies_repository.create_supply(supply_data)
+            logger.info(f"Created new supply material: {supply.name} (ID: {supply.id})")
+            return supply
+        except ModelValidationError as e:
+            raise ValidationError(str(e))
+        except RepositoryError as e:
+            raise ServiceError(f"Failed to create supply material: {str(e)}")
 
-    def get_material_by_id(self, material_id: str) -> Material:
+    def update_material(self, material_id: int, update_data: Dict[str, Any]) -> Material:
         """
-        Retrieve a material by its ID.
+        Update existing material.
 
         Args:
-            material_id: Unique identifier of the material
+            material_id: ID of the material
+            update_data: Updated material data
 
         Returns:
-            Material instance
-
-        Raises:
-            NotFoundError: If material is not found
+            Updated material object
         """
         try:
-            material = self.material_repository.get(material_id)
+            # Get the material to determine its type
+            material = self.get_material_by_id(material_id)
+
             if not material:
                 raise NotFoundError(f"Material with ID {material_id} not found")
-            return material
-        except Exception as e:
-            self.logger.error(f"Error retrieving material: {str(e)}")
-            raise NotFoundError(f"Material retrieval failed: {str(e)}")
 
-    def update_material(
-            self,
-            material_id: str,
-            **update_data: Dict[str, Any]
-    ) -> Material:
+            # Route to appropriate repository based on material type
+            if material.material_type == MaterialType.LEATHER.value:
+                return self._update_leather(material_id, update_data)
+            elif material.material_type == MaterialType.HARDWARE.value:
+                return self._update_hardware(material_id, update_data)
+            elif material.material_type in [t.value for t in self._supplies_repository.SUPPLY_MATERIAL_TYPES]:
+                return self._update_supply(material_id, update_data)
+            else:
+                # Use general material repository for other types
+                return self._material_repository.batch_update([{**update_data, 'id': material_id}])[0]
+
+        except ModelValidationError as e:
+            logger.error(f"Validation error updating material {material_id}: {str(e)}")
+            raise ValidationError(str(e))
+        except ModelNotFoundError as e:
+            logger.error(f"Material {material_id} not found: {str(e)}")
+            raise NotFoundError(str(e))
+        except RepositoryError as e:
+            logger.error(f"Error updating material {material_id}: {str(e)}")
+            raise ServiceError(f"Failed to update material: {str(e)}")
+
+    def _update_leather(self, leather_id: int, update_data: Dict[str, Any]) -> Leather:
+        """Update an existing leather material."""
+        try:
+            leathers = self._leather_repository.batch_update([{**update_data, 'id': leather_id}])
+            if not leathers:
+                raise NotFoundError(f"Leather with ID {leather_id} not found")
+
+            logger.info(f"Updated leather material: {leathers[0].name} (ID: {leather_id})")
+            return leathers[0]
+        except ModelValidationError as e:
+            raise ValidationError(str(e))
+        except ModelNotFoundError as e:
+            raise NotFoundError(str(e))
+        except RepositoryError as e:
+            raise ServiceError(f"Failed to update leather material: {str(e)}")
+
+    def _update_hardware(self, hardware_id: int, update_data: Dict[str, Any]) -> Hardware:
+        """Update an existing hardware material."""
+        try:
+            hardware_items = self._hardware_repository.batch_update([{**update_data, 'id': hardware_id}])
+            if not hardware_items:
+                raise NotFoundError(f"Hardware with ID {hardware_id} not found")
+
+            logger.info(f"Updated hardware material: {hardware_items[0].name} (ID: {hardware_id})")
+            return hardware_items[0]
+        except ModelValidationError as e:
+            raise ValidationError(str(e))
+        except ModelNotFoundError as e:
+            raise NotFoundError(str(e))
+        except RepositoryError as e:
+            raise ServiceError(f"Failed to update hardware material: {str(e)}")
+
+    def _update_supply(self, supply_id: int, update_data: Dict[str, Any]) -> Material:
+        """Update an existing supply material."""
+        try:
+            supplies = self._supplies_repository.batch_update([{**update_data, 'id': supply_id}])
+            if not supplies:
+                raise NotFoundError(f"Supply with ID {supply_id} not found")
+
+            logger.info(f"Updated supply material: {supplies[0].name} (ID: {supply_id})")
+            return supplies[0]
+        except ModelValidationError as e:
+            raise ValidationError(str(e))
+        except ModelNotFoundError as e:
+            raise NotFoundError(str(e))
+        except RepositoryError as e:
+            raise ServiceError(f"Failed to update supply material: {str(e)}")
+
+    def delete_material(self, material_id: int) -> bool:
         """
-        Update an existing material.
+        Soft delete a material.
 
         Args:
-            material_id: Unique identifier of the material
-            update_data: Dictionary of fields to update
+            material_id: ID of the material
 
         Returns:
-            Updated Material instance
-
-        Raises:
-            NotFoundError: If material is not found
-            ValidationError: If update fails validation
+            Success status
         """
         try:
-            # Retrieve existing material
+            # Get the material to determine its type
             material = self.get_material_by_id(material_id)
 
-            # Validate update data
-            if 'type' in update_data and not isinstance(update_data['type'], MaterialType):
-                raise ValidationError("Invalid material type")
+            if not material:
+                raise NotFoundError(f"Material with ID {material_id} not found")
 
-            if 'quality' in update_data and not isinstance(update_data['quality'], MaterialQualityGrade):
-                raise ValidationError("Invalid material quality grade")
+            # Soft delete by updating is_deleted flag
+            update_data = {'is_deleted': True}
 
-            # Update material attributes
-            for key, value in update_data.items():
-                setattr(material, key, value)
+            # Route to appropriate repository based on material type
+            if material.material_type == MaterialType.LEATHER.value:
+                self._update_leather(material_id, update_data)
+            elif material.material_type == MaterialType.HARDWARE.value:
+                self._update_hardware(material_id, update_data)
+            elif material.material_type in [t.value for t in self._supplies_repository.SUPPLY_MATERIAL_TYPES]:
+                self._update_supply(material_id, update_data)
+            else:
+                # Use general material repository for other types
+                self._material_repository.batch_update([{**update_data, 'id': material_id}])
 
-            # Save updates
-            with self.session:
-                self.session.add(material)
-                self.session.commit()
-                self.session.refresh(material)
-
-            self.logger.info(f"Updated material: {material.name}")
-            return material
-
-        except Exception as e:
-            self.logger.error(f"Error updating material: {str(e)}")
-            raise ValidationError(f"Material update failed: {str(e)}")
-
-    def delete_material(self, material_id: str) -> bool:
-        """
-        Delete a material.
-
-        Args:
-            material_id: Unique identifier of the material
-
-        Returns:
-            Boolean indicating successful deletion
-
-        Raises:
-            NotFoundError: If material is not found
-        """
-        try:
-            # Retrieve material
-            material = self.get_material_by_id(material_id)
-
-            # Delete material
-            with self.session:
-                self.session.delete(material)
-                self.session.commit()
-
-            self.logger.info(f"Deleted material: {material_id}")
+            logger.info(f"Soft deleted material ID {material_id}")
             return True
 
+        except NotFoundError:
+            # Re-raise not found errors
+            raise
         except Exception as e:
-            self.logger.error(f"Error deleting material: {str(e)}")
-            raise NotFoundError(f"Material deletion failed: {str(e)}")
+            logger.error(f"Error deleting material {material_id}: {str(e)}")
+            raise ServiceError(f"Failed to delete material: {str(e)}")
 
-    def get_materials_by_type(
-            self,
-            material_type: Optional[MaterialType] = None,
-            quality_grade: Optional[MaterialQualityGrade] = None
-    ) -> List[Material]:
+    def search_materials(self, search_term: str) -> List[Material]:
         """
-        Retrieve materials filtered by type and quality grade.
+        Search for materials matching a search term.
 
         Args:
-            material_type: Optional material type to filter materials
-            quality_grade: Optional quality grade to filter materials
+            search_term: Text to search for
 
         Returns:
-            List of Material instances
+            List of matching materials
         """
         try:
-            # Use repository method to filter materials
-            materials = self.material_repository.get_by_type_and_quality(
-                material_type,
-                quality_grade
-            )
-            return materials
-        except Exception as e:
-            self.logger.error(f"Error retrieving materials: {str(e)}")
-            return []
+            # Search in all material repositories
+            leather_results = self._leather_repository.search_leathers(search_term)
+            hardware_results = self._hardware_repository.search_hardware(search_term)
+            supplies_results = self._supplies_repository.search_supplies(search_term)
 
-    def add_material_inventory(
-            self,
-            material_id: str,
-            quantity: float,
-            storage_location: Optional[str] = None,
-            inventory_status: InventoryStatus = InventoryStatus.IN_STOCK
-    ) -> MaterialInventory:
+            # Combine results
+            all_results = leather_results + hardware_results + supplies_results
+
+            logger.debug(f"Search for '{search_term}' returned {len(all_results)} materials")
+            return all_results
+
+        except RepositoryError as e:
+            logger.error(f"Error searching materials: {str(e)}")
+            raise ServiceError(f"Failed to search materials: {str(e)}")
+
+    def update_inventory_quantity(self,
+                                  material_id: int,
+                                  quantity_change: float,
+                                  transaction_type: TransactionType,
+                                  notes: Optional[str] = None) -> bool:
         """
-        Add inventory for a specific material.
+        Update material inventory quantity.
 
         Args:
-            material_id: Unique identifier of the material
-            quantity: Quantity to add to inventory
-            storage_location: Optional storage location
-            inventory_status: Inventory status (default: IN_STOCK)
-
-        Returns:
-            MaterialInventory instance
-
-        Raises:
-            NotFoundError: If material is not found
-            ValidationError: If inventory addition fails
-        """
-        try:
-            # Verify material exists
-            material = self.get_material_by_id(material_id)
-
-            # Create inventory entry
-            inventory_data = {
-                'material_id': material_id,
-                'quantity': quantity,
-                'storage_location': storage_location,
-                'status': inventory_status
-            }
-
-            material_inventory = MaterialInventory(**inventory_data)
-
-            # Save inventory
-            with self.session:
-                self.session.add(material_inventory)
-                self.session.commit()
-                self.session.refresh(material_inventory)
-
-            self.logger.info(f"Added inventory for material: {material_id}")
-            return material_inventory
-
-        except Exception as e:
-            self.logger.error(f"Error adding material inventory: {str(e)}")
-            raise ValidationError(f"Material inventory addition failed: {str(e)}")
-
-    def record_material_transaction(
-            self,
-            material_id: str,
-            quantity: float,
-            transaction_type: TransactionType,
-            description: Optional[str] = None,
-            related_entity_id: Optional[str] = None
-    ) -> MaterialTransaction:
-        """
-        Record a transaction for a material.
-
-        Args:
-            material_id: Unique identifier of the material
-            quantity: Transaction quantity
+            material_id: ID of the material
+            quantity_change: Amount to adjust (positive or negative)
             transaction_type: Type of transaction
-            description: Optional transaction description
-            related_entity_id: Optional ID of related entity (e.g., purchase, project)
+            notes: Optional notes about the transaction
 
         Returns:
-            MaterialTransaction instance
-
-        Raises:
-            NotFoundError: If material is not found
-            ValidationError: If transaction recording fails
+            Success status
         """
         try:
-            # Verify material exists
+            # Get the material to determine its type
             material = self.get_material_by_id(material_id)
 
-            # Create transaction
-            transaction_data = {
-                'material_id': material_id,
-                'quantity': quantity,
-                'transaction_type': transaction_type,
-                'description': description,
-                'related_entity_id': related_entity_id
+            if not material:
+                raise NotFoundError(f"Material with ID {material_id} not found")
+
+            # Route to appropriate repository based on material type
+            if material.material_type == MaterialType.LEATHER.value:
+                self._leather_repository.update_inventory_quantity(
+                    material_id, quantity_change, transaction_type, notes=notes
+                )
+            elif material.material_type == MaterialType.HARDWARE.value:
+                self._hardware_repository.update_inventory_quantity(
+                    material_id, quantity_change, transaction_type, notes=notes
+                )
+            elif material.material_type in [t.value for t in self._supplies_repository.SUPPLY_MATERIAL_TYPES]:
+                self._supplies_repository.update_inventory_quantity(
+                    material_id, quantity_change, transaction_type, notes=notes
+                )
+            else:
+                # Use material repository for other types
+                self._material_repository.update_inventory_quantity(
+                    material_id, quantity_change, transaction_type, notes=notes
+                )
+
+            logger.info(f"Updated inventory for material ID {material_id}: {quantity_change} units")
+            return True
+
+        except ModelValidationError as e:
+            logger.error(f"Validation error updating inventory for material {material_id}: {str(e)}")
+            raise ValidationError(str(e))
+        except ModelNotFoundError as e:
+            logger.error(f"Material {material_id} or inventory not found: {str(e)}")
+            raise NotFoundError(str(e))
+        except RepositoryError as e:
+            logger.error(f"Error updating inventory for material {material_id}: {str(e)}")
+            raise ServiceError(f"Failed to update inventory: {str(e)}")
+
+    # Leather-specific methods
+    def get_all_leathers(self,
+                         include_deleted: bool = False,
+                         status: Optional[InventoryStatus] = None,
+                         leather_type: Optional[LeatherType] = None,
+                         quality: Optional[QualityGrade] = None) -> List[Leather]:
+        """
+        Get all leather materials with optional filtering.
+
+        Args:
+            include_deleted: Whether to include soft-deleted leathers
+            status: Filter by inventory status
+            leather_type: Filter by leather type
+            quality: Filter by quality grade
+
+        Returns:
+            List of leather objects
+        """
+        try:
+            return self._leather_repository.get_all_leathers(
+                include_deleted=include_deleted,
+                status=status,
+                leather_type=leather_type,
+                quality=quality
+            )
+        except RepositoryError as e:
+            logger.error(f"Error getting leathers: {str(e)}")
+            raise ServiceError(f"Failed to get leathers: {str(e)}")
+
+    def get_leather_by_id(self, leather_id: int) -> Optional[Leather]:
+        """
+        Get leather by ID.
+
+        Args:
+            leather_id: ID of the leather
+
+        Returns:
+            Leather object or None if not found
+        """
+        try:
+            return self._leather_repository.get_leather_with_inventory(leather_id)
+        except RepositoryError as e:
+            logger.error(f"Error getting leather by ID {leather_id}: {str(e)}")
+            raise ServiceError(f"Failed to get leather: {str(e)}")
+
+    # Hardware-specific methods
+    def get_all_hardware(self,
+                         include_deleted: bool = False,
+                         status: Optional[InventoryStatus] = None,
+                         hardware_type: Optional[HardwareType] = None) -> List[Hardware]:
+        """
+        Get all hardware materials with optional filtering.
+
+        Args:
+            include_deleted: Whether to include soft-deleted hardware
+            status: Filter by inventory status
+            hardware_type: Filter by hardware type
+
+        Returns:
+            List of hardware objects
+        """
+        try:
+            return self._hardware_repository.get_all_hardware(
+                include_deleted=include_deleted,
+                status=status,
+                hardware_type=hardware_type
+            )
+        except RepositoryError as e:
+            logger.error(f"Error getting hardware: {str(e)}")
+            raise ServiceError(f"Failed to get hardware: {str(e)}")
+
+    def get_hardware_by_id(self, hardware_id: int) -> Optional[Hardware]:
+        """
+        Get hardware by ID.
+
+        Args:
+            hardware_id: ID of the hardware
+
+        Returns:
+            Hardware object or None if not found
+        """
+        try:
+            return self._hardware_repository.get_hardware_with_inventory(hardware_id)
+        except RepositoryError as e:
+            logger.error(f"Error getting hardware by ID {hardware_id}: {str(e)}")
+            raise ServiceError(f"Failed to get hardware: {str(e)}")
+
+    # Supplies-specific methods
+    def get_all_supplies(self,
+                         include_deleted: bool = False,
+                         status: Optional[InventoryStatus] = None,
+                         material_type: Optional[MaterialType] = None) -> List[Material]:
+        """
+        Get all supply materials with optional filtering.
+
+        Args:
+            include_deleted: Whether to include soft-deleted supplies
+            status: Filter by inventory status
+            material_type: Filter by specific material type
+
+        Returns:
+            List of supply objects
+        """
+        try:
+            return self._supplies_repository.get_all_supplies(
+                include_deleted=include_deleted,
+                status=status,
+                material_type=material_type
+            )
+        except RepositoryError as e:
+            logger.error(f"Error getting supplies: {str(e)}")
+            raise ServiceError(f"Failed to get supplies: {str(e)}")
+
+    def get_supply_by_id(self, supply_id: int) -> Optional[Material]:
+        """
+        Get supply by ID.
+
+        Args:
+            supply_id: ID of the supply
+
+        Returns:
+            Supply object or None if not found
+        """
+        try:
+            return self._supplies_repository.get_supply_with_inventory(supply_id)
+        except RepositoryError as e:
+            logger.error(f"Error getting supply by ID {supply_id}: {str(e)}")
+            raise ServiceError(f"Failed to get supply: {str(e)}")
+
+    def get_supplies_by_type(self, material_type: MaterialType) -> List[Material]:
+        """
+        Get supplies by material type.
+
+        Args:
+            material_type: Type of material to filter by
+
+        Returns:
+            List of supply objects matching the type
+        """
+        try:
+            # Check if the material type is valid for supplies
+            if material_type not in self._supplies_repository.SUPPLY_MATERIAL_TYPES:
+                logger.warning(f"Material type {material_type} is not a valid supply type")
+                return []
+
+            return self._supplies_repository.get_supplies_by_material_type(material_type)
+        except RepositoryError as e:
+            logger.error(f"Error getting supplies by type {material_type}: {str(e)}")
+            raise ServiceError(f"Failed to get supplies by type: {str(e)}")
+
+    # Inventory statistics methods
+    def get_low_stock_materials(self) -> Dict[str, List[Material]]:
+        """
+        Get all materials with low stock, grouped by category.
+
+        Returns:
+            Dictionary of low stock materials by category
+            (leather, hardware, supplies)
+        """
+        try:
+            # Get low stock materials from each repository
+            low_stock_leathers = self._leather_repository.get_low_stock_leathers()
+            low_stock_hardware = self._hardware_repository.get_low_stock_hardware()
+            low_stock_supplies = self._supplies_repository.get_low_stock_supplies()
+
+            # Group results
+            result = {
+                "leather": low_stock_leathers,
+                "hardware": low_stock_hardware,
+                "supplies": low_stock_supplies
             }
 
-            material_transaction = MaterialTransaction(**transaction_data)
+            logger.debug(
+                f"Found low stock materials: {len(low_stock_leathers)} leathers, "
+                f"{len(low_stock_hardware)} hardware items, {len(low_stock_supplies)} supplies"
+            )
+            return result
 
-            # Save transaction
-            with self.session:
-                self.session.add(material_transaction)
+        except RepositoryError as e:
+            logger.error(f"Error getting low stock materials: {str(e)}")
+            raise ServiceError(f"Failed to get low stock materials: {str(e)}")
 
-                # Update inventory based on transaction type
-                inventory = self.material_inventory_repository.get_by_material_id(material_id)
-                if inventory:
-                    if transaction_type in [TransactionType.PURCHASE, TransactionType.RETURN]:
-                        inventory.quantity += quantity
-                    elif transaction_type in [TransactionType.USAGE, TransactionType.WASTE]:
-                        inventory.quantity -= quantity
+    def get_out_of_stock_materials(self) -> Dict[str, List[Material]]:
+        """
+        Get all materials that are out of stock, grouped by category.
 
-                    self.session.add(inventory)
+        Returns:
+            Dictionary of out of stock materials by category
+            (leather, hardware, supplies)
+        """
+        try:
+            # Get out of stock materials from each repository
+            out_of_stock_leathers = self._leather_repository.get_out_of_stock_leathers()
+            out_of_stock_hardware = self._hardware_repository.get_out_of_stock_hardware()
+            out_of_stock_supplies = self._supplies_repository.get_out_of_stock_supplies()
 
-                self.session.commit()
-                self.session.refresh(material_transaction)
+            # Group results
+            result = {
+                "leather": out_of_stock_leathers,
+                "hardware": out_of_stock_hardware,
+                "supplies": out_of_stock_supplies
+            }
 
-            self.logger.info(f"Recorded material transaction: {transaction_type} for material {material_id}")
-            return material_transaction
+            logger.debug(
+                f"Found out of stock materials: {len(out_of_stock_leathers)} leathers, "
+                f"{len(out_of_stock_hardware)} hardware items, {len(out_of_stock_supplies)} supplies"
+            )
+            return result
 
-        except Exception as e:
-            self.logger.error(f"Error recording material transaction: {str(e)}")
-            raise ValidationError(f"Material transaction recording failed: {str(e)}")
+        except RepositoryError as e:
+            logger.error(f"Error getting out of stock materials: {str(e)}")
+            raise ServiceError(f"Failed to get out of stock materials: {str(e)}")
+
+    def get_inventory_value_report(self) -> Dict[str, Any]:
+        """
+        Get comprehensive inventory value report.
+
+        Returns:
+            Dictionary with inventory value statistics
+        """
+        try:
+            # Get inventory values from each repository
+            leather_value = self._leather_repository.get_leather_inventory_value()
+            hardware_value = self._hardware_repository.get_hardware_inventory_value()
+            supplies_value = self._supplies_repository.get_supplies_inventory_value()
+
+            # Calculate total value
+            total_value = (
+                    leather_value.get("total_value", 0) +
+                    hardware_value.get("total_value", 0) +
+                    supplies_value.get("total_value", 0)
+            )
+
+            # Construct the report
+            report = {
+                "total_value": total_value,
+                "leather_value": leather_value.get("total_value", 0),
+                "hardware_value": hardware_value.get("total_value", 0),
+                "supplies_value": supplies_value.get("total_value", 0),
+                "by_category": {
+                    "leather": leather_value,
+                    "hardware": hardware_value,
+                    "supplies": supplies_value
+                },
+                "date_generated": datetime.now().isoformat()
+            }
+
+            logger.info(f"Generated inventory value report: total value = {total_value:.2f}")
+            return report
+
+        except RepositoryError as e:
+            logger.error(f"Error generating inventory value report: {str(e)}")
+            raise ServiceError(f"Failed to generate inventory value report: {str(e)}")
+
+    def get_materials_by_supplier(self, supplier_id: int) -> Dict[str, List[Material]]:
+        """
+        Get all materials from a specific supplier, grouped by category.
+
+        Args:
+            supplier_id: ID of the supplier
+
+        Returns:
+            Dictionary of materials by category
+            (leather, hardware, supplies)
+        """
+        try:
+            # Get materials from each repository
+            leathers = self._leather_repository.get_materials_by_supplier(supplier_id)
+            hardware = self._hardware_repository.get_hardware_by_supplier(supplier_id)
+            supplies = self._supplies_repository.get_supplies_by_supplier(supplier_id)
+
+            # Group results
+            result = {
+                "leather": leathers,
+                "hardware": hardware,
+                "supplies": supplies
+            }
+
+            logger.debug(
+                f"Found materials from supplier {supplier_id}: {len(leathers)} leathers, "
+                f"{len(hardware)} hardware items, {len(supplies)} supplies"
+            )
+            return result
+
+        except RepositoryError as e:
+            logger.error(f"Error getting materials by supplier {supplier_id}: {str(e)}")
+            raise ServiceError(f"Failed to get materials by supplier: {str(e)}")
+
+    # Additional utility methods
+
+    def get_thread_inventory(self) -> List[Material]:
+        """
+        Get all thread materials with inventory information.
+
+        Returns:
+            List of thread materials
+        """
+        try:
+            return self._supplies_repository.get_threads()
+        except RepositoryError as e:
+            logger.error(f"Error getting thread inventory: {str(e)}")
+            raise ServiceError(f"Failed to get thread inventory: {str(e)}")
+
+    def get_adhesive_inventory(self) -> List[Material]:
+        """
+        Get all adhesive materials with inventory information.
+
+        Returns:
+            List of adhesive materials
+        """
+        try:
+            return self._supplies_repository.get_adhesives()
+        except RepositoryError as e:
+            logger.error(f"Error getting adhesive inventory: {str(e)}")
+            raise ServiceError(f"Failed to get adhesive inventory: {str(e)}")
+
+    def get_dye_inventory(self) -> List[Material]:
+        """
+        Get all dye materials with inventory information.
+
+        Returns:
+            List of dye materials
+        """
+        try:
+            return self._supplies_repository.get_dyes()
+        except RepositoryError as e:
+            logger.error(f"Error getting dye inventory: {str(e)}")
+            raise ServiceError(f"Failed to get dye inventory: {str(e)}")
+
+    def get_edge_paint_inventory(self) -> List[Material]:
+        """
+        Get all edge paint materials with inventory information.
+
+        Returns:
+            List of edge paint materials
+        """
+        try:
+            return self._supplies_repository.get_edge_paints()
+        except RepositoryError as e:
+            logger.error(f"Error getting edge paint inventory: {str(e)}")
+            raise ServiceError(f"Failed to get edge paint inventory: {str(e)}")

@@ -1,48 +1,122 @@
 # database/models/supplier.py
+from typing import Any, Dict, List, Optional
+
 from sqlalchemy import Column, Enum, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from typing import List, Optional
 
+# Fix relative imports to use absolute imports
 from database.models.base import AbstractBase, ValidationMixin, ModelValidationError
 from database.models.enums import SupplierStatus
 
 
 class Supplier(AbstractBase, ValidationMixin):
     """
-    Supplier entity for material and tool vendors.
+    Supplier model representing vendors that provide materials and tools.
 
     Attributes:
-        name: Supplier name
-        contact_email: Primary contact email
-        phone: Contact phone number
-        address: Physical address
-        status: Supplier status
+        name (str): Supplier name
+        contact_email (str): Contact email address
+        contact_phone (Optional[str]): Contact phone number
+        address (Optional[str]): Supplier address
+        status (SupplierStatus): Current supplier status
+        notes (Optional[str]): Additional notes about the supplier
     """
     __tablename__ = 'suppliers'
 
-    name: Mapped[str] = mapped_column(String(255), nullable=False)
-    contact_email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    phone: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-    address: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
-    status: Mapped[SupplierStatus] = mapped_column(Enum(SupplierStatus), nullable=False, default=SupplierStatus.ACTIVE)
+    # SQLAlchemy 2.0 type annotated columns
+    name: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+        index=True
+    )
+    contact_email: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+        index=True
+    )
+    contact_phone: Mapped[Optional[str]] = mapped_column(
+        String(50),
+        nullable=True
+    )
+    address: Mapped[Optional[str]] = mapped_column(
+        String(500),
+        nullable=True
+    )
+    status: Mapped[SupplierStatus] = mapped_column(
+        Enum(SupplierStatus),
+        nullable=False,
+        default=SupplierStatus.ACTIVE,
+        index=True
+    )
+    notes: Mapped[Optional[str]] = mapped_column(
+        String(1000),
+        nullable=True
+    )
 
     # Relationships
-    materials = relationship("Material", back_populates="supplier")
-    tools = relationship("Tool", back_populates="supplier")
-    purchases = relationship("Purchase", back_populates="supplier")
+    materials: Mapped[List[object]] = relationship(
+        "Material",
+        back_populates="supplier",
+        lazy="selectin"
+    )
+
+    tools: Mapped[List[object]] = relationship(
+        "Tool",
+        back_populates="supplier",
+        lazy="selectin"
+    )
+
+    # Restore the relationship to Purchase
+    purchases: Mapped[List["Purchase"]] = relationship(
+        "Purchase",
+        back_populates="supplier",
+        lazy="selectin"
+    )
 
     def __init__(self, **kwargs):
-        """Initialize a Supplier instance with validation."""
+        """
+        Initialize a Supplier instance with validation.
+
+        Args:
+            **kwargs: Keyword arguments for Supplier initialization
+        """
         super().__init__(**kwargs)
         self.validate()
 
-    def validate(self):
-        """Validate supplier data."""
-        if not self.name:
-            raise ModelValidationError("Supplier name cannot be empty")
+    def validate(self) -> None:
+        """
+        Validate supplier data.
+
+        Raises:
+            ModelValidationError: If validation fails
+        """
+        # Name validation
+        if not self.name or not isinstance(self.name, str):
+            raise ModelValidationError("Supplier name must be a non-empty string")
 
         if len(self.name) > 255:
             raise ModelValidationError("Supplier name cannot exceed 255 characters")
 
-        if self.contact_email and '@' not in self.contact_email:
-            raise ModelValidationError("Invalid email format for supplier contact")
+        # Email validation
+        if not self.contact_email or not isinstance(self.contact_email, str):
+            raise ModelValidationError("Supplier contact email must be a non-empty string")
+
+        if len(self.contact_email) > 255:
+            raise ModelValidationError("Supplier contact email cannot exceed 255 characters")
+
+        if '@' not in self.contact_email:
+            raise ModelValidationError("Supplier contact email must be a valid email address")
+
+        # Phone validation
+        if self.contact_phone and len(self.contact_phone) > 50:
+            raise ModelValidationError("Phone number cannot exceed 50 characters")
+
+        # Address validation
+        if self.address and len(self.address) > 500:
+            raise ModelValidationError("Address cannot exceed 500 characters")
+
+        # Notes validation
+        if self.notes and len(self.notes) > 1000:
+            raise ModelValidationError("Notes cannot exceed 1000 characters")
+
+        return self

@@ -130,7 +130,7 @@ class SkillLevel(enum.Enum):
 class ComponentType(enum.Enum):
     LEATHER = "LEATHER"
     HARDWARE = "HARDWARE"
-    THREAD = "THREAD"
+    THREAD = "SUPPLIES"
     LINING = "LINING"
 
 
@@ -935,7 +935,7 @@ class TestMaterialModels(unittest.TestCase):
     def test_thread_create(self):
         """Test creating a thread material."""
         thread = Thread(
-            name="Waxed Linen Thread",
+            name="Waxed Linen Supplies",
             thread_thickness=1.0,  # Using the renamed column
             thread_color="Black",  # Using the renamed column
             material_composition="Linen",
@@ -948,7 +948,7 @@ class TestMaterialModels(unittest.TestCase):
         self.session.add(thread)
         self.session.commit()
 
-        saved_thread = self.session.query(Thread).filter_by(name="Waxed Linen Thread").first()
+        saved_thread = self.session.query(Thread).filter_by(name="Waxed Linen Supplies").first()
         self.assertIsNotNone(saved_thread)
         self.assertEqual(saved_thread.thread_color, "Black")
         self.assertEqual(saved_thread.thread_thickness, 1.0)

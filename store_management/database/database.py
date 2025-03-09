@@ -34,7 +34,7 @@ from database.models.tool_list import ToolList
 from database.models.tool_list_item import ToolListItem
 
 # Newly implemented models
-from database.models.material import Material, Leather, Hardware, Thread
+from database.models.material import Material, Leather, Hardware, Supplies
 from database.models.inventory import MaterialInventory, LeatherInventory, HardwareInventory, ProductInventory
 from database.models.component import (
     Component, ComponentMaterial, ComponentLeather,

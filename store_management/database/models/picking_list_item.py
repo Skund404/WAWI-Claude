@@ -1,9 +1,11 @@
 # database/models/picking_list_item.py
+from datetime import datetime
 from sqlalchemy import Column, ForeignKey, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from typing import Optional
 
+from typing import Any, Dict, List, Optional
 from database.models.base import AbstractBase, ValidationMixin, ModelValidationError
+from database.models.enums import TransactionType
 
 
 class PickingListItem(AbstractBase, ValidationMixin):
@@ -26,9 +28,9 @@ class PickingListItem(AbstractBase, ValidationMixin):
     quantity_picked: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     # Relationships
-    picking_list = relationship("PickingList", back_populates="items")
-    component = relationship("Component", back_populates="picking_list_items")
-    material = relationship("Material", back_populates="picking_list_items")
+    picking_list: Mapped["PickingList"] = relationship(back_populates="items")
+    component: Mapped[Optional["Component"]] = relationship(back_populates="picking_list_items")
+    material: Mapped[Optional["Material"]] = relationship(back_populates="picking_list_items")
 
     def __init__(self, **kwargs):
         """Initialize a PickingListItem instance with validation."""
@@ -52,20 +54,92 @@ class PickingListItem(AbstractBase, ValidationMixin):
         """Check if the item has been fully picked."""
         return self.quantity_picked >= self.quantity_ordered
 
-    def pick(self, quantity: int) -> None:
+    def pick(self, quantity: int, user: Optional[str] = None) -> None:
         """
-        Record picked quantity.
+        Record picked quantity and update inventory.
 
         Args:
             quantity: Quantity picked
+            user: User who performed the picking
+
+        Raises:
+            ValueError: If quantity is not positive or exceeds available inventory
         """
         if quantity <= 0:
             raise ValueError("Picked quantity must be positive")
 
-        self.quantity_picked += quantity
+        # Calculate the remaining quantity to pick
+        remaining_to_pick = self.quantity_ordered - self.quantity_picked
+        if quantity > remaining_to_pick:
+            raise ValueError(f"Cannot pick {quantity} units; only {remaining_to_pick} remaining to pick")
 
-        # Update inventory - simplified version
-        # In a full implementation, this would use a service to update inventory
+        self.quantity_picked += quantity
+        self.updated_at = datetime.now()
+        if user:
+            self.updated_by = user
+
+        # Update inventory
         if self.material_id and hasattr(self, 'material') and self.material and hasattr(self.material,
                                                                                         'inventory') and self.material.inventory:
-            self.material.inventory.update_quantity(-quantity)
+            try:
+                # Get reference information from the picking list
+                reference_type = 'picking_list'
+                reference_id = self.picking_list_id
+                sales_id = self.picking_list.sales_id if hasattr(self.picking_list, 'sales_id') else None
+
+                # Prepare notes for the inventory transaction
+                notes = f"Picked for picking list #{self.picking_list_id}"
+                if sales_id:
+                    notes += f" (Sales #{sales_id})"
+
+                # Update the inventory with proper transaction tracking
+                self.material.inventory.update_quantity(
+                    change=-quantity,
+                    transaction_type=TransactionType.USAGE,
+                    reference_type=reference_type,
+                    reference_id=reference_id,
+                    notes=notes
+                )
+            except ModelValidationError as e:
+                # Revert the picked quantity if inventory update fails
+                self.quantity_picked -= quantity
+                raise ValueError(f"Cannot pick {quantity} units: {str(e)}")
+
+    def return_to_inventory(self, quantity: int, user: Optional[str] = None, reason: Optional[str] = None) -> None:
+        """
+        Return picked items to inventory.
+
+        Args:
+            quantity: Quantity to return
+            user: User who performed the return
+            reason: Reason for returning items
+
+        Raises:
+            ValueError: If quantity is not positive or exceeds picked quantity
+        """
+        if quantity <= 0:
+            raise ValueError("Return quantity must be positive")
+
+        if quantity > self.quantity_picked:
+            raise ValueError(f"Cannot return {quantity} units; only {self.quantity_picked} were picked")
+
+        self.quantity_picked -= quantity
+        self.updated_at = datetime.now()
+        if user:
+            self.updated_by = user
+
+        # Update inventory
+        if self.material_id and hasattr(self, 'material') and self.material and hasattr(self.material,
+                                                                                        'inventory') and self.material.inventory:
+            notes = f"Returned to inventory from picking list #{self.picking_list_id}"
+            if reason:
+                notes += f" - Reason: {reason}"
+
+            # Update the inventory with proper transaction tracking
+            self.material.inventory.update_quantity(
+                change=quantity,
+                transaction_type=TransactionType.RETURN,
+                reference_type='picking_list',
+                reference_id=self.picking_list_id,
+                notes=notes
+            )

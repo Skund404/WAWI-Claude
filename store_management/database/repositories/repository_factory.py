@@ -1,278 +1,161 @@
 # database/repositories/repository_factory.py
-"""Factory for creating and managing repository instances."""
+"""
+Factory for creating repository instances.
+Centralizes repository instantiation and session management.
+"""
 
 import logging
 from typing import Dict, Optional, Type
-
 from sqlalchemy.orm import Session
 
 from .base_repository import BaseRepository
+from .leather_repository import LeatherRepository
+from .hardware_repository import HardwareRepository
+from .supplies_repository import SuppliesRepository
+from .material_repository import MaterialRepository
 from .component_repository import ComponentRepository
 from .customer_repository import CustomerRepository
-from .hardware_repository import HardwareRepository
-from .hardware_inventory_repository import HardwareInventoryRepository
 from .inventory_repository import InventoryRepository
-from .leather_repository import LeatherRepository
-from .leather_inventory_repository import LeatherInventoryRepository
-from .material_repository import MaterialRepository
-from .material_inventory_repository import MaterialInventoryRepository
 from .pattern_repository import PatternRepository
 from .picking_list_repository import PickingListRepository
 from .product_repository import ProductRepository
-from .product_inventory_repository import ProductInventoryRepository
-from .product_pattern_repository import ProductPatternRepository
-from .project_repository import ProjectRepository
 from .project_component_repository import ProjectComponentRepository
-from .purchase_repository import PurchaseRepository
+from .project_repository import ProjectRepository
 from .purchase_item_repository import PurchaseItemRepository
-from .sales_repository import SalesRepository
+from .purchase_repository import PurchaseRepository
 from .sales_item_repository import SalesItemRepository
+from .sales_repository import SalesRepository
 
-from .storage_repository import StorageRepository
 from .supplier_repository import SupplierRepository
-from .tool_repository import ToolRepository
-from .tool_inventory_repository import ToolInventoryRepository
 from .tool_list_repository import ToolListRepository
-from .transaction_repository import TransactionRepository
+from .tool_repository import ToolRepository
+from utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class RepositoryFactory:
-    """Factory class for creating repository instances.
+    """
+    Factory for creating repository instances.
 
-    This factory manages the creation and caching of repository instances
-    to ensure consistent access to repositories throughout the application.
+    Provides centralized repository creation, caching, and session management.
     """
 
     def __init__(self, session: Session):
-        """Initialize the repository factory.
+        """
+        Initialize the repository factory.
 
         Args:
             session: SQLAlchemy database session
         """
         self.session = session
-        self.logger = logging.getLogger(__name__)
         self._repositories: Dict[str, BaseRepository] = {}
+        logger.debug("Initialized RepositoryFactory")
 
-    def get_component_repository(self) -> ComponentRepository:
-        """Get or create a ComponentRepository instance.
-
-        Returns:
-            ComponentRepository instance
+    def get_repository(self, repository_class: Type[BaseRepository]) -> BaseRepository:
         """
-        return self._get_repository('component', ComponentRepository)
-
-    def get_customer_repository(self) -> CustomerRepository:
-        """Get or create a CustomerRepository instance.
-
-        Returns:
-            CustomerRepository instance
-        """
-        return self._get_repository('customer', CustomerRepository)
-
-    def get_hardware_repository(self) -> HardwareRepository:
-        """Get or create a HardwareRepository instance.
-
-        Returns:
-            HardwareRepository instance
-        """
-        return self._get_repository('hardware', HardwareRepository)
-
-    def get_hardware_inventory_repository(self) -> HardwareInventoryRepository:
-        """Get or create a HardwareInventoryRepository instance.
-
-        Returns:
-            HardwareInventoryRepository instance
-        """
-        return self._get_repository('hardware_inventory', HardwareInventoryRepository)
-
-    def get_inventory_repository(self) -> InventoryRepository:
-        """Get or create an InventoryRepository instance.
-
-        Returns:
-            InventoryRepository instance
-        """
-        return self._get_repository('inventory', InventoryRepository)
-
-    def get_leather_repository(self) -> LeatherRepository:
-        """Get or create a LeatherRepository instance.
-
-        Returns:
-            LeatherRepository instance
-        """
-        return self._get_repository('leather', LeatherRepository)
-
-    def get_leather_inventory_repository(self) -> LeatherInventoryRepository:
-        """Get or create a LeatherInventoryRepository instance.
-
-        Returns:
-            LeatherInventoryRepository instance
-        """
-        return self._get_repository('leather_inventory', LeatherInventoryRepository)
-
-    def get_material_repository(self) -> MaterialRepository:
-        """Get or create a MaterialRepository instance.
-
-        Returns:
-            MaterialRepository instance
-        """
-        return self._get_repository('material', MaterialRepository)
-
-    def get_material_inventory_repository(self) -> MaterialInventoryRepository:
-        """Get or create a MaterialInventoryRepository instance.
-
-        Returns:
-            MaterialInventoryRepository instance
-        """
-        return self._get_repository('material_inventory', MaterialInventoryRepository)
-
-    def get_pattern_repository(self) -> PatternRepository:
-        """Get or create a PatternRepository instance.
-
-        Returns:
-            PatternRepository instance
-        """
-        return self._get_repository('pattern', PatternRepository)
-
-    def get_picking_list_repository(self) -> PickingListRepository:
-        """Get or create a PickingListRepository instance.
-
-        Returns:
-            PickingListRepository instance
-        """
-        return self._get_repository('picking_list', PickingListRepository)
-
-    def get_product_repository(self) -> ProductRepository:
-        """Get or create a ProductRepository instance.
-
-        Returns:
-            ProductRepository instance
-        """
-        return self._get_repository('product', ProductRepository)
-
-    def get_product_inventory_repository(self) -> ProductInventoryRepository:
-        """Get or create a ProductInventoryRepository instance.
-
-        Returns:
-            ProductInventoryRepository instance
-        """
-        return self._get_repository('product_inventory', ProductInventoryRepository)
-
-    def get_product_pattern_repository(self) -> ProductPatternRepository:
-        """Get or create a ProductPatternRepository instance.
-
-        Returns:
-            ProductPatternRepository instance
-        """
-        return self._get_repository('product_pattern', ProductPatternRepository)
-
-    def get_project_repository(self) -> ProjectRepository:
-        """Get or create a ProjectRepository instance.
-
-        Returns:
-            ProjectRepository instance
-        """
-        return self._get_repository('project', ProjectRepository)
-
-    def get_project_component_repository(self) -> ProjectComponentRepository:
-        """Get or create a ProjectComponentRepository instance.
-
-        Returns:
-            ProjectComponentRepository instance
-        """
-        return self._get_repository('project_component', ProjectComponentRepository)
-
-    def get_purchase_repository(self) -> PurchaseRepository:
-        """Get or create a PurchaseRepository instance.
-
-        Returns:
-            PurchaseRepository instance
-        """
-        return self._get_repository('purchase', PurchaseRepository)
-
-    def get_purchase_item_repository(self) -> PurchaseItemRepository:
-        """Get or create a PurchaseItemRepository instance.
-
-        Returns:
-            PurchaseItemRepository instance
-        """
-        return self._get_repository('purchase_item', PurchaseItemRepository)
-
-    def get_sales_repository(self) -> SalesRepository:
-        """Get or create a SalesRepository instance.
-
-        Returns:
-            SalesRepository instance
-        """
-        return self._get_repository('sales', SalesRepository)
-
-    def get_sales_item_repository(self) -> SalesItemRepository:
-        """Get or create a SalesItemRepository instance.
-
-        Returns:
-            SalesItemRepository instance
-        """
-        return self._get_repository('sales_item', SalesItemRepository)
-
-
-    def get_storage_repository(self) -> StorageRepository:
-        """Get or create a StorageRepository instance.
-
-        Returns:
-            StorageRepository instance
-        """
-        return self._get_repository('storage', StorageRepository)
-
-    def get_supplier_repository(self) -> SupplierRepository:
-        """Get or create a SupplierRepository instance.
-
-        Returns:
-            SupplierRepository instance
-        """
-        return self._get_repository('supplier', SupplierRepository)
-
-    def get_tool_repository(self) -> ToolRepository:
-        """Get or create a ToolRepository instance.
-
-        Returns:
-            ToolRepository instance
-        """
-        return self._get_repository('tool', ToolRepository)
-
-    def get_tool_inventory_repository(self) -> ToolInventoryRepository:
-        """Get or create a ToolInventoryRepository instance.
-
-        Returns:
-            ToolInventoryRepository instance
-        """
-        return self._get_repository('tool_inventory', ToolInventoryRepository)
-
-    def get_tool_list_repository(self) -> ToolListRepository:
-        """Get or create a ToolListRepository instance.
-
-        Returns:
-            ToolListRepository instance
-        """
-        return self._get_repository('tool_list', ToolListRepository)
-
-    def get_transaction_repository(self) -> TransactionRepository:
-        """Get or create a TransactionRepository instance.
-
-        Returns:
-            TransactionRepository instance
-        """
-        return self._get_repository('transaction', TransactionRepository)
-
-    def _get_repository(self, key: str, repository_class: Type) -> BaseRepository:
-        """Get an existing repository or create a new one.
+        Get or create a repository instance of the specified type.
 
         Args:
-            key: Repository key for caching
             repository_class: Repository class to instantiate
 
         Returns:
-            Repository instance
+            BaseRepository: Repository instance
         """
-        if key not in self._repositories:
-            self._repositories[key] = repository_class(self.session)
-            self.logger.debug(f"Created new {key} repository")
-        return self._repositories[key]
+        repository_name = repository_class.__name__
+
+        # Return cached repository if exists
+        if repository_name in self._repositories:
+            return self._repositories[repository_name]
+
+        # Create new repository instance
+        repository = repository_class(self.session)
+        self._repositories[repository_name] = repository
+        logger.debug(f"Created new {repository_name} instance")
+
+        return repository
+
+    def get_leather_repository(self) -> LeatherRepository:
+        """Get the leather repository."""
+        return self.get_repository(LeatherRepository)
+
+    def get_hardware_repository(self) -> HardwareRepository:
+        """Get the hardware repository."""
+        return self.get_repository(HardwareRepository)
+
+    def get_supplies_repository(self) -> SuppliesRepository:
+        """Get the supplies repository."""
+        return self.get_repository(SuppliesRepository)
+
+    def get_material_repository(self) -> MaterialRepository:
+        """Get the general material repository."""
+        return self.get_repository(MaterialRepository)
+
+    def get_component_repository(self) -> ComponentRepository:
+        """Get the component repository."""
+        return self.get_repository(ComponentRepository)
+
+    def get_customer_repository(self) -> CustomerRepository:
+        """Get the customer repository."""
+        return self.get_repository(CustomerRepository)
+
+    def get_inventory_repository(self) -> InventoryRepository:
+        """Get the inventory repository."""
+        return self.get_repository(InventoryRepository)
+
+    def get_pattern_repository(self) -> PatternRepository:
+        """Get the pattern repository."""
+        return self.get_repository(PatternRepository)
+
+    def get_picking_list_repository(self) -> PickingListRepository:
+        """Get the picking list repository."""
+        return self.get_repository(PickingListRepository)
+
+    def get_product_repository(self) -> ProductRepository:
+        """Get the product repository."""
+        return self.get_repository(ProductRepository)
+
+    def get_project_repository(self) -> ProjectRepository:
+        """Get the project repository."""
+        return self.get_repository(ProjectRepository)
+
+    def get_project_component_repository(self) -> ProjectComponentRepository:
+        """Get the project component repository."""
+        return self.get_repository(ProjectComponentRepository)
+
+    def get_purchase_repository(self) -> PurchaseRepository:
+        """Get the purchase repository."""
+        return self.get_repository(PurchaseRepository)
+
+    def get_purchase_item_repository(self) -> PurchaseItemRepository:
+        """Get the purchase item repository."""
+        return self.get_repository(PurchaseItemRepository)
+
+    def get_sales_repository(self) -> SalesRepository:
+        """Get the sales repository."""
+        return self.get_repository(SalesRepository)
+
+    def get_sales_item_repository(self) -> SalesItemRepository:
+        """Get the sales item repository."""
+        return self.get_repository(SalesItemRepository)
+
+    def get_supplier_repository(self) -> SupplierRepository:
+        """Get the supplier repository."""
+        return self.get_repository(SupplierRepository)
+
+    def get_tool_repository(self) -> ToolRepository:
+        """Get the tool repository."""
+        return self.get_repository(ToolRepository)
+
+    def get_tool_list_repository(self) -> ToolListRepository:
+        """Get the tool list repository."""
+        return self.get_repository(ToolListRepository)
+
+    def clear_cache(self) -> None:
+        """
+        Clear the repository cache.
+
+        Useful for testing or when repository instances need to be refreshed.
+        """
+        self._repositories.clear()
+        logger.debug("Cleared repository cache")

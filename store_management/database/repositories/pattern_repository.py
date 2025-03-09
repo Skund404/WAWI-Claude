@@ -9,7 +9,7 @@ creation, retrieval, update, and deletion of patterns.
 import logging
 from typing import Any, Dict, List, Optional, Union, Tuple
 
-from sqlalchemy import and_, or_, func
+from sqlalchemy import and_, or_, func, select
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -46,7 +46,7 @@ class PatternRepository(BaseRepository[Pattern]):
             Optional[Pattern]: The pattern if found, None otherwise
         """
         try:
-            pattern = self.session.query(Pattern).filter(Pattern.name == name).first()
+            pattern = self.session.execute(select(Pattern).filter(Pattern.name == name)).scalar_one_or_none()
             return pattern
         except SQLAlchemyError as e:
             error_msg = f"Error retrieving pattern by name '{name}': {str(e)}"
@@ -64,7 +64,7 @@ class PatternRepository(BaseRepository[Pattern]):
             List[Pattern]: List of patterns matching the skill level
         """
         try:
-            query = self.session.query(Pattern).filter(Pattern.skill_level == skill_level)
+            query = select(Pattern).filter(Pattern.skill_level == skill_level)
             patterns = query.all()
             logger.debug(f"Retrieved {len(patterns)} patterns with skill level {skill_level.name}")
             return patterns
@@ -94,8 +94,8 @@ class PatternRepository(BaseRepository[Pattern]):
         """
         try:
             # Start with base query
-            query = self.session.query(Pattern)
-            count_query = self.session.query(func.count(Pattern.id))
+            query = select(Pattern)
+            count_query = select(func.count(Pattern.id))
 
             # Apply filters
             if search_term:
@@ -141,7 +141,7 @@ class PatternRepository(BaseRepository[Pattern]):
             List[Pattern]: List of patterns with products loaded
         """
         try:
-            query = self.session.query(Pattern)
+            query = select(Pattern)
 
             if not include_inactive:
                 query = query.filter(Pattern.is_active == True)

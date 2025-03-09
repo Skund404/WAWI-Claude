@@ -123,8 +123,8 @@ class MaterialManagementService:
                 'available_quantity': 25.5
             },
             {
-                'id': 'THREAD-001',
-                'type': MaterialType.THREAD,
+                'id': 'SUPPLIES-001',
+                'type': MaterialType.SUPPLIES,
                 'quality': MaterialQualityGrade.STANDARD,
                 'color': 'Black',
                 'material': 'Polyester',

@@ -1,89 +1,100 @@
 # database/models/customer.py
-from sqlalchemy import Column, Enum, String, Text, Boolean
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from typing import List, Optional
-import re
+"""
+This module defines the Customer model for the leatherworking application.
+"""
+from __future__ import annotations  # For forward references
+from typing import Any, Dict, List, Optional
 
-from database.models.base import AbstractBase, ValidationMixin, ModelValidationError
+from sqlalchemy import Enum, JSON, String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from database.models.base import AbstractBase, ModelValidationError, ValidationMixin
 from database.models.enums import CustomerStatus, CustomerTier, CustomerSource
 
 
 class Customer(AbstractBase, ValidationMixin):
     """
-    Customer represents a person or organization that purchases products.
+    Customer model representing a client who makes purchases.
 
     Attributes:
-        name: Customer name
-        email: Contact email
-        phone: Contact phone number
-        address: Physical address
-        status: Customer status
-        tier: Customer loyalty tier
-        source: How the customer was acquired
-        notes: Additional notes
+        name (str): Customer's name
+        email (str): Customer's email address
+        status (CustomerStatus): Current status of the customer
+        tier (Optional[CustomerTier]): Customer loyalty tier
+        source (Optional[CustomerSource]): How the customer was acquired
+        notes (Optional[Dict[str, Any]]): Additional notes about the customer
     """
     __tablename__ = 'customers'
+    __table_args__ = {"extend_existing": True}
 
+    # Basic information
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    phone: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-    address: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
-    status: Mapped[CustomerStatus] = mapped_column(Enum(CustomerStatus), nullable=False, default=CustomerStatus.ACTIVE)
-    tier: Mapped[CustomerTier] = mapped_column(Enum(CustomerTier), nullable=False, default=CustomerTier.STANDARD)
-    source: Mapped[Optional[CustomerSource]] = mapped_column(Enum(CustomerSource), nullable=True)
-    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    is_business: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    email: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    status: Mapped[CustomerStatus] = mapped_column(
+        Enum(CustomerStatus),
+        nullable=False,
+        default=CustomerStatus.ACTIVE
+    )
+
+    # Optional attributes
+    tier: Mapped[Optional[CustomerTier]] = mapped_column(
+        Enum(CustomerTier),
+        nullable=True
+    )
+    source: Mapped[Optional[CustomerSource]] = mapped_column(
+        Enum(CustomerSource),
+        nullable=True
+    )
+    notes: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
 
     # Relationships
-    sales = relationship("Sales", back_populates="customer")
+    sales = relationship(
+        "Sales",
+        back_populates="customer",
+        cascade="all, delete-orphan",
+        lazy="selectin"
+    )
 
     def __init__(self, **kwargs):
-        """Initialize a Customer instance with validation."""
+        """
+        Initialize a Customer instance with validation.
+
+        Args:
+            **kwargs: Keyword arguments for Customer initialization
+        """
         super().__init__(**kwargs)
         self.validate()
 
-    def validate(self):
-        """Validate customer data."""
-        if not self.name:
-            raise ModelValidationError("Customer name cannot be empty")
+    def validate(self) -> None:
+        """
+        Validate customer data.
+
+        Raises:
+            ModelValidationError: If validation fails
+        """
+        # Name validation
+        if not self.name or not isinstance(self.name, str):
+            raise ModelValidationError("Customer name must be a non-empty string")
 
         if len(self.name) > 255:
             raise ModelValidationError("Customer name cannot exceed 255 characters")
 
-        if self.email and not self._is_valid_email(self.email):
-            raise ModelValidationError("Invalid email format")
+        # Email validation
+        if not self.email or not isinstance(self.email, str):
+            raise ModelValidationError("Customer email must be a non-empty string")
 
-    def _is_valid_email(self, email: str) -> bool:
-        """Check if the email is valid."""
-        pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-        return re.match(pattern, email) is not None
+        if len(self.email) > 255:
+            raise ModelValidationError("Customer email cannot exceed 255 characters")
 
-    def upgrade_tier(self, new_tier: CustomerTier, reason: Optional[str] = None) -> None:
-        """
-        Upgrade customer to a higher tier.
+        if '@' not in self.email:
+            raise ModelValidationError("Customer email must be a valid email address")
 
-        Args:
-            new_tier: New customer tier
-            reason: Optional reason for the upgrade
-        """
-        # Ensure new tier is an upgrade
-        tier_order = {
-            CustomerTier.NEW: 0,
-            CustomerTier.STANDARD: 1,
-            CustomerTier.PREMIUM: 2,
-            CustomerTier.VIP: 3
-        }
+        # Status validation
+        if not self.status:
+            raise ModelValidationError("Customer status must be specified")
 
-        current_tier_value = tier_order.get(self.tier, 0)
-        new_tier_value = tier_order.get(new_tier, 0)
+        # Notes validation
+        if self.notes and not isinstance(self.notes, dict):
+            raise ModelValidationError("Customer notes must be a dictionary")
 
-        if new_tier_value <= current_tier_value:
-            raise ValueError(f"New tier ({new_tier.name}) is not an upgrade from current tier ({self.tier.name})")
-
-        self.tier = new_tier
-
-        if reason:
-            if self.notes:
-                self.notes += f"\n[TIER UPGRADE] {reason}"
-            else:
-                self.notes = f"[TIER UPGRADE] {reason}"
+        return self

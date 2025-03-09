@@ -1,6 +1,6 @@
 # database/repositories/product_repository.py
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, or_, select
 from sqlalchemy.exc import SQLAlchemyError
 
 from database.models.product import Product
@@ -42,7 +42,7 @@ class ProductRepository(BaseRepository):
             Optional[Product]: Product instance if found, None otherwise
         """
         try:
-            product = self.session.query(Product).filter_by(sku=sku).first()
+            product = self.session.execute(select(Product).filter_by(sku=sku)).scalar_one_or_none()
             return product
         except SQLAlchemyError as e:
             self.logger.error(f"Error retrieving product by SKU: {str(e)}", extra={
@@ -71,7 +71,7 @@ class ProductRepository(BaseRepository):
             List[Product]: List of products matching the search criteria
         """
         try:
-            query = self.session.query(Product)
+            query = select(Product)
 
             # Name/description search
             if search_term:

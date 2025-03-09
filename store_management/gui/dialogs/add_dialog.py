@@ -155,7 +155,7 @@ if __name__ == "__main__":
             "name": "type",
             "type": "choice",
             "label": "Material Type",
-            "choices": ["Leather", "Hardware", "Thread", "Adhesive", "Other"],
+            "choices": ["Leather", "Hardware", "Supplies", "Adhesive", "Other"],
             "required": True
         },
         {

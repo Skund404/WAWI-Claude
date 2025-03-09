@@ -1,80 +1,99 @@
 # database/models/project.py
-from sqlalchemy import Column, Enum, ForeignKey, Integer, String, DateTime, Text, Float
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from typing import Optional
+"""
+This module defines the Project model for the leatherworking application.
+"""
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 
-from database.models.base import AbstractBase, ValidationMixin, ModelValidationError
-from database.models.enums import ProjectType, ProjectStatus
+from sqlalchemy import Column, DateTime, Enum, Float, ForeignKey, Integer, String, Text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from database.models.base import AbstractBase, ModelValidationError, ValidationMixin
+from database.models.enums import ProjectStatus, ProjectType
 
 
 class Project(AbstractBase, ValidationMixin):
     """
-    Project represents a production job, typically tied to a customer order.
+    Project model representing a leatherworking project.
 
-    Attributes:
-        name: Project name
-        description: Detailed description
-        type: Project type
-        status: Project status
-        start_date: Planned or actual start date
-        end_date: Planned or actual end date
-        sales_id: Optional foreign key to the sales order
+    Projects can be associated with a sales record and contain multiple components.
     """
     __tablename__ = 'projects'
+    __table_args__ = {"extend_existing": True}
 
+    # Basic attributes
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     type: Mapped[ProjectType] = mapped_column(Enum(ProjectType), nullable=False)
     status: Mapped[ProjectStatus] = mapped_column(Enum(ProjectStatus), nullable=False, default=ProjectStatus.PLANNED)
     start_date: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     end_date: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    estimated_hours: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    actual_hours: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    sales_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey('sales.id'), nullable=True)
+
+    # Make sales_id nullable to avoid initialization issues
+    # Use string ForeignKey to avoid import-time resolution which causes circular dependency
+    sales_id: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        ForeignKey("sales.id", name="fk_project_sales", use_alter=True, ondelete="SET NULL"),
+        nullable=True
+    )
 
     # Relationships
-    sales = relationship("Sales", back_populates="projects")
-    components = relationship("ProjectComponent", back_populates="project", cascade="all, delete-orphan")
-    tool_list = relationship("ToolList", back_populates="project", uselist=False)
+    project_components = relationship(
+        "ProjectComponent",
+        back_populates="project",
+        cascade="all, delete-orphan",
+        lazy="selectin"
+    )
+
+    # Use a string reference to avoid circular import dependencies
+    sales = relationship(
+        "Sales",
+        foreign_keys=[sales_id],
+        lazy="selectin",
+        # This is important to break the circular dependency during initialization
+        post_update=True,
+        # Back-reference without circular loading
+        primaryjoin="Project.sales_id==Sales.id"
+    )
+
+    # Additional relationships will be added here later:
+    # - tool_lists
+    # - picking_lists
 
     def __init__(self, **kwargs):
-        """Initialize a Project instance with validation."""
+        """
+        Initialize a Project instance with validation.
+
+        Args:
+            **kwargs: Keyword arguments for Project initialization
+        """
         super().__init__(**kwargs)
         self.validate()
 
-    def validate(self):
-        """Validate project data."""
-        if not self.name:
-            raise ModelValidationError("Project name cannot be empty")
+    def validate(self) -> None:
+        """
+        Validate project data.
+
+        Raises:
+            ModelValidationError: If validation fails
+        """
+        # Name validation
+        if not self.name or not isinstance(self.name, str):
+            raise ModelValidationError("Project name must be a non-empty string")
 
         if len(self.name) > 255:
             raise ModelValidationError("Project name cannot exceed 255 characters")
 
-        if self.end_date and self.start_date and self.end_date < self.start_date:
-            raise ModelValidationError("End date cannot be before start date")
+        # Type validation
+        if not self.type:
+            raise ModelValidationError("Project type must be specified")
 
-    def update_status(self, new_status: ProjectStatus, notes: Optional[str] = None) -> None:
-        """
-        Update the project status and add notes.
+        # Status validation
+        if not self.status:
+            raise ModelValidationError("Project status must be specified")
 
-        Args:
-            new_status: New project status
-            notes: Optional notes about the status change
-        """
-        old_status = self.status
-        self.status = new_status
+        # Date validation
+        if self.start_date and self.end_date and self.start_date > self.end_date:
+            raise ModelValidationError("Project end date cannot be before start date")
 
-        # Update related dates based on status
-        if (new_status == ProjectStatus.IN_PROGRESS and not self.start_date):
-            self.start_date = datetime.now()
-        elif (new_status == ProjectStatus.COMPLETED and not self.end_date):
-            self.end_date = datetime.now()
-
-        if notes:
-            status_note = f"[STATUS CHANGE] {old_status.name} -> {new_status.name}: {notes}"
-            if self.notes:
-                self.notes += f"\n{status_note}"
-            else:
-                self.notes = status_note
+        return self

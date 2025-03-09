@@ -128,7 +128,7 @@ class SkillLevel(enum.Enum):
 class ComponentType(enum.Enum):
     LEATHER = "LEATHER"
     HARDWARE = "HARDWARE"
-    THREAD = "THREAD"
+    THREAD = "SUPPLIES"
     LINING = "LINING"
 
 
@@ -995,7 +995,7 @@ class TestMaterialModels(unittest.TestCase):
     def test_thread_create(self):
         """Test creating a thread material."""
         thread = Thread(
-            name="Waxed Linen Thread",
+            name="Waxed Linen Supplies",
             thread_thickness=1.0,  # Using the renamed column
             color="Black",
             material_composition="Linen",
@@ -1008,7 +1008,7 @@ class TestMaterialModels(unittest.TestCase):
         self.session.add(thread)
         self.session.commit()
 
-        saved_thread = self.session.query(Thread).filter_by(name="Waxed Linen Thread").first()
+        saved_thread = self.session.query(Thread).filter_by(name="Waxed Linen Supplies").first()
         self.assertIsNotNone(saved_thread)
         self.assertEqual(saved_thread.color, "Black")
         self.assertEqual(saved_thread.thread_thickness, 1.0)
@@ -1261,7 +1261,7 @@ class TestFullERDiagram(unittest.TestCase):
         )
 
         thread = Thread(
-            name="Workflow Thread",
+            name="Workflow Supplies",
             color="Brown",
             thread_thickness=1.0,  # Using the renamed column
             supplier_id=supplier.id,
@@ -1509,7 +1509,7 @@ class TestFullERDiagram(unittest.TestCase):
         self.assertEqual(len(exterior_materials), 2)
         material_names = [m.name for m in exterior_materials]
         self.assertIn("Workflow Leather", material_names)
-        self.assertIn("Workflow Thread", material_names)
+        self.assertIn("Workflow Supplies", material_names)
 
         # Test 7: Project -> Sales
         self.assertEqual(project.sale.id, sale.id)

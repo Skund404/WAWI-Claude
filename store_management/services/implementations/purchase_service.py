@@ -223,7 +223,7 @@ class PurchaseService(BaseService[Purchase], IPurchaseService):
                 item = self.leather_repository.get(item_id)
             elif item_type == MaterialType.HARDWARE:
                 item = self.hardware_repository.get(item_id)
-            elif item_type == MaterialType.THREAD:
+            elif item_type == MaterialType.SUPPLIES:
                 item = self.material_repository.get(item_id)
             elif item_type == MaterialType.TOOL:
                 item = self.tool_repository.get(item_id)

@@ -4,7 +4,7 @@ from database.models.purchase_item import PurchaseItem
 from database.models.enums import PurchaseStatus
 from database.repositories.base_repository import BaseRepository
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import and_, func
+from sqlalchemy import and_, func, select
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 import logging
@@ -62,7 +62,7 @@ class PurchaseRepository(BaseRepository):
             List of purchases matching the status
         """
         try:
-            return self.session.query(Purchase).filter(Purchase.status == status).all()
+            return self.session.execute(select(Purchase).filter(Purchase.status == status)).scalars().all()
         except Exception as e:
             self.logger.error(f"Error finding purchases by status: {e}")
             raise
@@ -83,7 +83,7 @@ class PurchaseRepository(BaseRepository):
             List of purchases with their items
         """
         try:
-            query = self.session.query(Purchase).options(joinedload(Purchase.items))
+            query = select(Purchase).options(joinedload(Purchase.items))
 
             # Build filter conditions
             conditions = []
@@ -117,7 +117,7 @@ class PurchaseRepository(BaseRepository):
             Total purchase value
         """
         try:
-            query = self.session.query(func.sum(Purchase.total_amount))
+            query = select(func.sum(Purchase.total_amount))
 
             # Build filter conditions
             conditions = []
