@@ -1,127 +1,52 @@
-# services/interfaces/supplier_service.py
-from typing import Any, Dict, List, Optional, Protocol
+from typing import Protocol, List, Optional, Dict, Any
+from datetime import datetime
 
 
 class ISupplierService(Protocol):
-    """Protocol defining the supplier service interface."""
+    """Interface for supplier-related operations."""
 
-    def get_all_suppliers(self) -> List[Dict[str, Any]]:
-        """Get all suppliers.
-
-        Returns:
-            List[Dict[str, Any]]: List of supplier dictionaries
-        """
+    def get_by_id(self, supplier_id: int) -> Dict[str, Any]:
+        """Get supplier by ID."""
         ...
 
-    def get_supplier_by_id(self, supplier_id: int) -> Dict[str, Any]:
-        """Get supplier by ID.
-
-        Args:
-            supplier_id: ID of the supplier
-
-        Returns:
-            Dict[str, Any]: Supplier dictionary
-
-        Raises:
-            NotFoundError: If supplier not found
-        """
+    def get_all(self, filters: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+        """Get all suppliers, optionally filtered."""
         ...
 
-    def create_supplier(self, supplier_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Create a new supplier.
-
-        Args:
-            supplier_data: Supplier data dictionary
-
-        Returns:
-            Dict[str, Any]: Created supplier dictionary
-
-        Raises:
-            ValidationError: If validation fails
-        """
+    def create(self, supplier_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a new supplier."""
         ...
 
-    def update_supplier(self, supplier_id: int, supplier_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Update an existing supplier.
-
-        Args:
-            supplier_id: ID of the supplier to update
-            supplier_data: Updated supplier data
-
-        Returns:
-            Dict[str, Any]: Updated supplier dictionary
-
-        Raises:
-            NotFoundError: If supplier not found
-            ValidationError: If validation fails
-        """
+    def update(self, supplier_id: int, supplier_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update an existing supplier."""
         ...
 
-    def delete_supplier(self, supplier_id: int) -> bool:
-        """Delete a supplier.
-
-        Args:
-            supplier_id: ID of the supplier to delete
-
-        Returns:
-            bool: True if successful
-
-        Raises:
-            NotFoundError: If supplier not found
-        """
+    def delete(self, supplier_id: int) -> bool:
+        """Delete a supplier by ID."""
         ...
 
-    def get_supplier_materials(self, supplier_id: int) -> List[Dict[str, Any]]:
-        """Get materials supplied by a specific supplier.
-
-        Args:
-            supplier_id: ID of the supplier
-
-        Returns:
-            List[Dict[str, Any]]: List of material dictionaries
-
-        Raises:
-            NotFoundError: If supplier not found
-        """
+    def search(self, query: str) -> List[Dict[str, Any]]:
+        """Search for suppliers by name or other properties."""
         ...
 
-    def get_supplier_purchase_history(self, supplier_id: int) -> List[Dict[str, Any]]:
-        """Get purchase history for a specific supplier.
-
-        Args:
-            supplier_id: ID of the supplier
-
-        Returns:
-            List[Dict[str, Any]]: List of purchase dictionaries
-
-        Raises:
-            NotFoundError: If supplier not found
-        """
+    def get_by_status(self, status: str) -> List[Dict[str, Any]]:
+        """Get suppliers by status."""
         ...
 
-    def search_suppliers(self, query: str) -> List[Dict[str, Any]]:
-        """Search for suppliers by name or contact information.
-
-        Args:
-            query: Search query string
-
-        Returns:
-            List[Dict[str, Any]]: List of matching supplier dictionaries
-        """
+    def get_materials_from_supplier(self, supplier_id: int) -> List[Dict[str, Any]]:
+        """Get all materials supplied by a specific supplier."""
         ...
 
-    def update_supplier_status(self, supplier_id: int, status: str) -> Dict[str, Any]:
-        """Update the status of a supplier.
+    def get_tools_from_supplier(self, supplier_id: int) -> List[Dict[str, Any]]:
+        """Get all tools supplied by a specific supplier."""
+        ...
 
-        Args:
-            supplier_id: ID of the supplier
-            status: New status value
+    def get_purchase_history(self, supplier_id: int,
+                             start_date: Optional[datetime] = None,
+                             end_date: Optional[datetime] = None) -> List[Dict[str, Any]]:
+        """Get purchase history for a supplier."""
+        ...
 
-        Returns:
-            Dict[str, Any]: Updated supplier dictionary
-
-        Raises:
-            NotFoundError: If supplier not found
-            ValidationError: If validation fails
-        """
+    def get_supplier_performance(self, supplier_id: int) -> Dict[str, Any]:
+        """Get performance metrics for a supplier."""
         ...

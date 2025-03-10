@@ -1,553 +1,657 @@
-# services/implementations/component_service.py
-import logging
-from typing import Dict, List, Any, Optional, Union, cast
+"""
+services/implementations/component_service.py
+
+Implementation of the component service for managing components in leatherworking projects.
+"""
+from typing import List, Optional, Dict, Any
 from datetime import datetime
-from contextlib import contextmanager
-
+import logging
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import SQLAlchemyError
 
-from database.models.component import Component
-from database.models.component_material import ComponentMaterial
-from database.models.material import Material
 from database.models.enums import ComponentType
 from database.repositories.component_repository import ComponentRepository
 from database.repositories.material_repository import MaterialRepository
+from database.repositories.pattern_repository import PatternRepository
 
-from services.base_service import BaseService, ValidationError, NotFoundError, ServiceError
-from services.interfaces.component_service import IComponentService
-from services.interfaces.material_service import IMaterialService
+from services.base_service import BaseService
+from services.exceptions import (
+    ValidationError,
+    NotFoundError,
+    BusinessRuleError
+)
+from services.dto.component_dto import ComponentDTO, ComponentMaterialDTO
 
-from di.core import inject
+from di.inject import inject
 
 
-class ComponentService(BaseService, IComponentService):
-    """Implementation of the Component Service interface.
-
-    This service provides functionality for managing components used in
-    leatherworking projects, including their materials and attributes.
+class ComponentService(BaseService):
+    """
+    Service for managing components, their materials, and relationships.
     """
 
     @inject
-    def __init__(self,
-                 session: Session,
-                 repository: Optional[ComponentRepository] = None,
-                 material_service: Optional[IMaterialService] = None):
-        """Initialize the Component Service.
+    def __init__(
+            self,
+            session: Session,
+            component_repository: Optional[ComponentRepository] = None,
+            material_repository: Optional[MaterialRepository] = None,
+            pattern_repository: Optional[PatternRepository] = None
+    ):
+        """
+        Initialize the component service with necessary repositories.
 
         Args:
-            session: SQLAlchemy database session
-            repository: Optional ComponentRepository instance (will be created if not provided)
-            material_service: Optional MaterialService for cost calculations
+            session: Database session
+            component_repository: Repository for component operations
+            material_repository: Repository for material operations
+            pattern_repository: Repository for pattern operations
         """
         super().__init__(session)
-        self.repository = repository or ComponentRepository(session)
-        self.material_service = material_service
+        self.component_repository = component_repository or ComponentRepository(session)
+        self.material_repository = material_repository or MaterialRepository(session)
+        self.pattern_repository = pattern_repository or PatternRepository(session)
         self.logger = logging.getLogger(__name__)
 
-    def get_by_id(self, component_id: int) -> Dict[str, Any]:
-        """Retrieve a component by its ID.
+    def _validate_component_data(
+            self,
+            component_data: Dict[str, Any],
+            update: bool = False
+    ) -> None:
+        """
+        Validate component data before creation or update.
 
         Args:
-            component_id: The ID of the component to retrieve
-
-        Returns:
-            A dictionary representation of the component
+            component_data: Data to validate
+            update: Whether this is an update operation
 
         Raises:
-            NotFoundError: If the component does not exist
+            ValidationError: If validation fails
+        """
+        # Validate required fields for new components
+        if not update:
+            required_fields = ['name', 'component_type']
+            for field in required_fields:
+                if field not in component_data or not component_data[field]:
+                    raise ValidationError(f"Missing required field: {field}")
+
+        # Validate component type
+        if 'component_type' in component_data:
+            component_type = component_data['component_type']
+            if not hasattr(ComponentType, component_type):
+                raise ValidationError(f"Invalid component type: {component_type}")
+
+        # Validate attributes if provided
+        if 'attributes' in component_data:
+            attributes = component_data['attributes']
+            if not isinstance(attributes, dict):
+                raise ValidationError("Attributes must be a dictionary")
+
+        # Validate materials if provided
+        if 'materials' in component_data:
+            materials = component_data['materials']
+            if not isinstance(materials, list):
+                raise ValidationError("Materials must be a list")
+
+            for material_data in materials:
+                if not isinstance(material_data, dict):
+                    raise ValidationError("Each material entry must be a dictionary")
+
+                if 'material_id' not in material_data:
+                    raise ValidationError("Missing material_id in material entry")
+
+                # Validate quantity if provided
+                if 'quantity' in material_data and material_data['quantity'] <= 0:
+                    raise ValidationError("Material quantity must be greater than zero")
+
+    def get_by_id(self, component_id: int) -> Dict[str, Any]:
+        """
+        Retrieve a component by its ID.
+
+        Args:
+            component_id: ID of the component to retrieve
+
+        Returns:
+            Component data as a dictionary
         """
         try:
-            component = self.repository.get_by_id(component_id)
+            component = self.component_repository.get_by_id(component_id)
             if not component:
                 raise NotFoundError(f"Component with ID {component_id} not found")
-            return self._to_dict(component)
+
+            return ComponentDTO.from_model(
+                component,
+                include_patterns=True
+            ).to_dict()
+
         except NotFoundError:
             raise
+
         except Exception as e:
             self.logger.error(f"Error retrieving component {component_id}: {str(e)}")
-            raise ServiceError(f"Failed to retrieve component: {str(e)}")
+            raise
 
     def get_all(self, filters: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
-        """Retrieve all components with optional filtering.
+        """
+        Retrieve all components, optionally filtered.
 
         Args:
-            filters: Optional filters to apply to the component query
+            filters: Optional dictionary of filter criteria
 
         Returns:
-            List of dictionaries representing components
+            List of component data dictionaries
         """
         try:
-            components = self.repository.get_all(filters)
-            return [self._to_dict(component) for component in components]
+            components = self.component_repository.get_all(filters=filters)
+            return [
+                ComponentDTO.from_model(component).to_dict()
+                for component in components
+            ]
         except Exception as e:
             self.logger.error(f"Error retrieving components: {str(e)}")
-            raise ServiceError(f"Failed to retrieve components: {str(e)}")
+            raise
 
     def create(self, component_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Create a new component.
+        """
+        Create a new component.
 
         Args:
-            component_data: Dictionary containing component data
+            component_data: Data for creating the component
 
         Returns:
-            Dictionary representation of the created component
-
-        Raises:
-            ValidationError: If the component data is invalid
+            Created component data
         """
         try:
-            # Validate the component data
+            # Validate component data
             self._validate_component_data(component_data)
 
-            # Create the component within a transaction
+            # Separate materials if provided
+            materials = component_data.pop('materials', [])
+
+            # Add timestamps
+            component_data['created_at'] = datetime.now()
+            component_data['updated_at'] = datetime.now()
+
             with self.transaction():
-                component = Component(**component_data)
-                created_component = self.repository.create(component)
+                # Create component
+                component = self.component_repository.create(component_data)
 
                 # Add materials if provided
-                if 'materials' in component_data and isinstance(component_data['materials'], list):
-                    for material_entry in component_data['materials']:
-                        if isinstance(material_entry,
-                                      dict) and 'material_id' in material_entry and 'quantity' in material_entry:
-                            self.repository.add_material(
-                                created_component.id,
-                                material_entry['material_id'],
-                                material_entry['quantity']
-                            )
+                for material_data in materials:
+                    material_id = material_data.get('material_id')
+                    quantity = material_data.get('quantity', 1.0)
 
-                return self._to_dict(created_component)
-        except ValidationError:
+                    # Verify material exists
+                    material = self.material_repository.get_by_id(material_id)
+                    if not material:
+                        self.logger.warning(
+                            f"Material with ID {material_id} not found, skipping association"
+                        )
+                        continue
+
+                    # Add material to component
+                    self.component_repository.add_material(
+                        component.id,
+                        material_id,
+                        quantity
+                    )
+
+                # Retrieve updated component with materials
+                result = self.component_repository.get_by_id(component.id)
+                return ComponentDTO.from_model(
+                    result,
+                    include_materials=True,
+                    include_patterns=True
+                ).to_dict()
+
+        except (ValidationError, NotFoundError):
             raise
         except Exception as e:
             self.logger.error(f"Error creating component: {str(e)}")
-            raise ServiceError(f"Failed to create component: {str(e)}")
+            raise
 
     def update(self, component_id: int, component_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Update an existing component.
+        """
+        Update an existing component.
 
         Args:
             component_id: ID of the component to update
-            component_data: Dictionary containing updated component data
+            component_data: Updated data for the component
 
         Returns:
-            Dictionary representation of the updated component
-
-        Raises:
-            NotFoundError: If the component does not exist
-            ValidationError: If the updated data is invalid
+            Updated component data
         """
         try:
-            # Verify component exists
-            component = self.repository.get_by_id(component_id)
-            if not component:
+            # Check if component exists
+            existing_component = self.component_repository.get_by_id(component_id)
+            if not existing_component:
                 raise NotFoundError(f"Component with ID {component_id} not found")
 
             # Validate component data
             self._validate_component_data(component_data, update=True)
 
-            # Update the component within a transaction
+            # Add update timestamp
+            component_data['updated_at'] = datetime.now()
+
             with self.transaction():
-                updated_component = self.repository.update(component_id, component_data)
+                # Update component
+                updated_component = self.component_repository.update(
+                    component_id,
+                    component_data
+                )
 
-                # Update materials if provided
-                if 'materials' in component_data and isinstance(component_data['materials'], list):
-                    # Optional: clear existing materials if specified
-                    if component_data.get('replace_materials', False):
-                        self.repository.clear_materials(component_id)
+                # Handle materials if provided
+                if 'materials' in component_data:
+                    # First remove existing materials
+                    existing_materials = self.component_repository.get_materials(component_id)
+                    for material_rel in existing_materials:
+                        self.component_repository.remove_material(
+                            component_id,
+                            material_rel.material_id
+                        )
 
-                    for material_entry in component_data['materials']:
-                        if isinstance(material_entry,
-                                      dict) and 'material_id' in material_entry and 'quantity' in material_entry:
-                            self.repository.add_material(
-                                component_id,
-                                material_entry['material_id'],
-                                material_entry['quantity']
+                    # Add new materials
+                    for material_data in component_data['materials']:
+                        material_id = material_data.get('material_id')
+                        quantity = material_data.get('quantity', 1.0)
+
+                        # Verify material exists
+                        material = self.material_repository.get_by_id(material_id)
+                        if not material:
+                            self.logger.warning(
+                                f"Material with ID {material_id} not found, skipping association"
                             )
+                            continue
 
-                return self._to_dict(updated_component)
-        except (ValidationError, NotFoundError):
+                        # Add material to component
+                        self.component_repository.add_material(
+                            component_id,
+                            material_id,
+                            quantity
+                        )
+
+                return ComponentDTO.from_model(
+                    updated_component,
+                    include_materials=True,
+                    include_patterns=True
+                ).to_dict()
+
+        except (NotFoundError, ValidationError):
             raise
         except Exception as e:
             self.logger.error(f"Error updating component {component_id}: {str(e)}")
-            raise ServiceError(f"Failed to update component: {str(e)}")
+            raise
 
     def delete(self, component_id: int) -> bool:
-        """Delete a component by its ID.
+        """
+        Delete a component.
 
         Args:
             component_id: ID of the component to delete
 
         Returns:
-            True if the component was successfully deleted
-
-        Raises:
-            NotFoundError: If the component does not exist
-            ServiceError: If the component cannot be deleted (e.g., in use)
+            True if deletion was successful
         """
         try:
-            # Verify component exists
-            component = self.repository.get_by_id(component_id)
+            # Check if component exists
+            component = self.component_repository.get_by_id(component_id)
             if not component:
                 raise NotFoundError(f"Component with ID {component_id} not found")
 
-            # Check if component is used in any projects
-            project_components = self.repository.get_project_usage(component_id)
-            if project_components and len(project_components) > 0:
-                project_ids = [pc.project_id for pc in project_components]
-                raise ServiceError(f"Cannot delete component {component_id} as it is used in projects: {project_ids}")
+            # Check if component is used in any patterns
+            patterns = self.pattern_repository.get_by_component(component_id)
+            if patterns:
+                pattern_names = ", ".join([p.name for p in patterns])
+                raise BusinessRuleError(
+                    f"Cannot delete component with ID {component_id} because it is used in patterns: {pattern_names}"
+                )
 
-            # Delete the component within a transaction
             with self.transaction():
-                # First remove all material relationships
-                self.repository.clear_materials(component_id)
+                # First remove all material associations
+                materials = self.component_repository.get_materials(component_id)
+                for material_relationship in materials:
+                    material_id = getattr(material_relationship, 'material_id', None)
+                    if material_id:
+                        self.component_repository.remove_material(component_id, material_id)
 
                 # Then delete the component
-                self.repository.delete(component_id)
-                return True
-        except (NotFoundError, ServiceError):
+                return self.component_repository.delete(component_id)
+
+        except (NotFoundError, BusinessRuleError):
             raise
         except Exception as e:
             self.logger.error(f"Error deleting component {component_id}: {str(e)}")
-            raise ServiceError(f"Failed to delete component: {str(e)}")
+            raise
 
-    def find_by_name(self, name: str) -> List[Dict[str, Any]]:
-        """Find components by name (partial match).
-
-        Args:
-            name: Name or partial name to search for
-
-        Returns:
-            List of dictionaries representing matching components
+    def get_by_type(self, component_type: str) -> List[Dict[str, Any]]:
         """
-        try:
-            components = self.repository.find_by_name(name)
-            return [self._to_dict(component) for component in components]
-        except Exception as e:
-            self.logger.error(f"Error finding components by name '{name}': {str(e)}")
-            raise ServiceError(f"Failed to find components by name: {str(e)}")
-
-    def find_by_type(self, component_type: str) -> List[Dict[str, Any]]:
-        """Find components by type.
+        Retrieve components by their type.
 
         Args:
-            component_type: Component type to filter by
+            component_type: Type of components to retrieve
 
         Returns:
-            List of dictionaries representing components of the specified type
+            List of components matching the specified type
         """
         try:
             # Validate component type
-            self._validate_component_type(component_type)
+            if not hasattr(ComponentType, component_type):
+                raise ValidationError(f"Invalid component type: {component_type}")
 
-            components = self.repository.find_by_type(component_type)
-            return [self._to_dict(component) for component in components]
+            # Retrieve components
+            components = self.component_repository.get_by_type(component_type)
+
+            return [
+                ComponentDTO.from_model(component).to_dict()
+                for component in components
+            ]
         except ValidationError:
             raise
         except Exception as e:
-            self.logger.error(f"Error finding components by type '{component_type}': {str(e)}")
-            raise ServiceError(f"Failed to find components by type: {str(e)}")
+            self.logger.error(
+                f"Error retrieving components of type '{component_type}': {str(e)}"
+            )
+            raise
 
     def get_materials(self, component_id: int) -> List[Dict[str, Any]]:
-        """Get all materials used by a component.
+        """
+        Retrieve materials used by a component.
 
         Args:
             component_id: ID of the component
 
         Returns:
-            List of dictionaries representing materials with quantities
-
-        Raises:
-            NotFoundError: If the component does not exist
+            List of materials used by the component
         """
         try:
-            # Verify component exists
-            component = self.repository.get_by_id(component_id)
+            # Check if component exists
+            component = self.component_repository.get_by_id(component_id)
             if not component:
                 raise NotFoundError(f"Component with ID {component_id} not found")
 
-            # Get component materials with quantities
-            component_materials = self.repository.get_materials(component_id)
+            # Get materials
+            material_relationships = self.component_repository.get_materials(component_id)
 
-            result = []
-            for cm in component_materials:
-                material_dict = self._to_dict(cm.material)
-                material_dict['quantity'] = cm.quantity
-                result.append(material_dict)
-
-            return result
+            return [
+                ComponentMaterialDTO.from_relationship(
+                    relationship,
+                    include_material_details=True
+                ).to_dict()
+                for relationship in material_relationships
+            ]
         except NotFoundError:
             raise
         except Exception as e:
-            self.logger.error(f"Error getting materials for component {component_id}: {str(e)}")
-            raise ServiceError(f"Failed to get materials: {str(e)}")
+            self.logger.error(
+                f"Error retrieving materials for component {component_id}: {str(e)}"
+            )
+            raise
 
-    def add_material(self,
-                     component_id: int,
-                     material_id: int,
-                     quantity: float) -> Dict[str, Any]:
-        """Add a material to a component or update its quantity.
+    def add_material(
+            self,
+            component_id: int,
+            material_id: int,
+            quantity: float = 1.0
+    ) -> Dict[str, Any]:
+        """
+        Add a material to a component.
 
         Args:
             component_id: ID of the component
             material_id: ID of the material to add
-            quantity: Quantity of the material needed
+            quantity: Quantity of the material (default 1.0)
 
         Returns:
-            Dictionary representing the component-material relationship
-
-        Raises:
-            NotFoundError: If the component or material does not exist
-            ValidationError: If the quantity is invalid
+            Updated component data
         """
-        if quantity <= 0:
-            raise ValidationError("Quantity must be greater than zero")
-
         try:
-            # Verify component exists
-            component = self.repository.get_by_id(component_id)
+            # Check if component exists
+            component = self.component_repository.get_by_id(component_id)
             if not component:
                 raise NotFoundError(f"Component with ID {component_id} not found")
 
-            # Verify material exists (using material repository)
-            material_repo = MaterialRepository(self.session)
-            material = material_repo.get_by_id(material_id)
+            # Check if material exists
+            material = self.material_repository.get_by_id(material_id)
             if not material:
                 raise NotFoundError(f"Material with ID {material_id} not found")
 
-            # Add or update material within a transaction
+            # Validate quantity
+            if quantity <= 0:
+                raise ValidationError("Quantity must be greater than zero")
+
             with self.transaction():
-                component_material = self.repository.add_material(component_id, material_id, quantity)
+                # Check if material is already associated
+                existing = self.component_repository.get_material_relationship(
+                    component_id,
+                    material_id
+                )
 
-                result = {
-                    'component_id': component_id,
-                    'material_id': material_id,
-                    'material_name': material.name,
-                    'quantity': quantity
-                }
+                if existing:
+                    # Update existing relationship
+                    self.component_repository.update_material_relationship(
+                        component_id,
+                        material_id,
+                        {'quantity': quantity}
+                    )
+                else:
+                    # Add new material relationship
+                    self.component_repository.add_material(
+                        component_id,
+                        material_id,
+                        quantity
+                    )
 
-                return result
+                # Retrieve updated component
+                updated_component = self.component_repository.get_by_id(component_id)
+
+                return ComponentDTO.from_model(
+                    updated_component,
+                    include_materials=True
+                ).to_dict()
+
         except (NotFoundError, ValidationError):
             raise
         except Exception as e:
-            self.logger.error(f"Error adding material {material_id} to component {component_id}: {str(e)}")
-            raise ServiceError(f"Failed to add material: {str(e)}")
+            self.logger.error(
+                f"Error adding material {material_id} to component {component_id}: {str(e)}"
+            )
+            raise
 
-    def remove_material(self, component_id: int, material_id: int) -> bool:
-        """Remove a material from a component.
+    def remove_material(
+            self,
+            component_id: int,
+            material_id: int
+    ) -> bool:
+        """
+        Remove a material from a component.
 
         Args:
             component_id: ID of the component
             material_id: ID of the material to remove
 
         Returns:
-            True if the material was successfully removed
-
-        Raises:
-            NotFoundError: If the component or material relationship does not exist
+            True if material was successfully removed
         """
         try:
-            # Verify component exists
-            component = self.repository.get_by_id(component_id)
+            # Check if component exists
+            component = self.component_repository.get_by_id(component_id)
             if not component:
                 raise NotFoundError(f"Component with ID {component_id} not found")
 
-            # Remove the material within a transaction
-            with self.transaction():
-                result = self.repository.remove_material(component_id, material_id)
-                if not result:
-                    raise NotFoundError(f"Material {material_id} not found in component {component_id}")
-
-                return True
-        except NotFoundError:
-            raise
-        except Exception as e:
-            self.logger.error(f"Error removing material {material_id} from component {component_id}: {str(e)}")
-            raise ServiceError(f"Failed to remove material: {str(e)}")
-
-    def get_components_using_material(self, material_id: int) -> List[Dict[str, Any]]:
-        """Find all components that use a specific material.
-
-        Args:
-            material_id: ID of the material
-
-        Returns:
-            List of dictionaries representing components that use the material
-
-        Raises:
-            NotFoundError: If the material does not exist
-        """
-        try:
-            # Verify material exists
-            material_repo = MaterialRepository(self.session)
-            material = material_repo.get_by_id(material_id)
+            # Check if material exists
+            material = self.material_repository.get_by_id(material_id)
             if not material:
                 raise NotFoundError(f"Material with ID {material_id} not found")
 
-            # Get components using the material
-            components = self.repository.get_components_using_material(material_id)
+            # Check if material is associated with component
+            existing = self.component_repository.get_material_relationship(
+                component_id,
+                material_id
+            )
+            if not existing:
+                raise NotFoundError(
+                    f"Material {material_id} is not associated with component {component_id}"
+                )
 
-            result = []
-            for component, quantity in components:
-                component_dict = self._to_dict(component)
-                component_dict['material_quantity'] = quantity
-                result.append(component_dict)
+            with self.transaction():
+                # Remove material from component
+                return self.component_repository.remove_material(
+                    component_id,
+                    material_id
+                )
 
-            return result
         except NotFoundError:
             raise
         except Exception as e:
-            self.logger.error(f"Error finding components using material {material_id}: {str(e)}")
-            raise ServiceError(f"Failed to find components using material: {str(e)}")
+            self.logger.error(
+                f"Error removing material {material_id} from component {component_id}: {str(e)}"
+            )
+            raise
 
-    def calculate_component_cost(self, component_id: int) -> Dict[str, float]:
-        """Calculate the cost of a component based on its materials.
+    def search(self, query: str) -> List[Dict[str, Any]]:
+        """
+        Search for components by name or other properties.
+
+        Args:
+            query: Search query string
+
+        Returns:
+            List of components matching the search query
+        """
+        try:
+            components = self.component_repository.search(query)
+            return [
+                ComponentDTO.from_model(component).to_dict()
+                for component in components
+            ]
+        except Exception as e:
+            self.logger.error(f"Error searching components with query '{query}': {str(e)}")
+            raise
+
+    def get_patterns_using_component(self, component_id: int) -> List[Dict[str, Any]]:
+        """
+        Retrieve patterns that use a specific component.
 
         Args:
             component_id: ID of the component
 
         Returns:
-            Dictionary with cost details (material_cost, labor_cost, total_cost)
-
-        Raises:
-            NotFoundError: If the component does not exist
+            List of patterns using the component
         """
         try:
-            # Verify component exists
-            component = self.repository.get_by_id(component_id)
+            # Check if component exists
+            component = self.component_repository.get_by_id(component_id)
             if not component:
                 raise NotFoundError(f"Component with ID {component_id} not found")
 
-            # Get component materials
-            component_materials = self.repository.get_materials(component_id)
+            # Retrieve patterns
+            patterns = self.pattern_repository.get_by_component(component_id)
 
-            # Calculate material cost
-            material_cost = 0.0
-            for cm in component_materials:
-                material = cm.material
-                # Get the material unit cost
-                unit_cost = getattr(material, 'unit_cost', 0.0)
-                # Calculate cost based on quantity
-                material_cost += unit_cost * cm.quantity
+            result = []
+            for pattern in patterns:
+                pattern_data = {
+                    'id': pattern.id,
+                    'name': pattern.name,
+                    'skill_level': getattr(pattern, 'skill_level', None),
+                    'project_type': getattr(pattern, 'project_type', None)
+                }
 
-            # Calculate labor cost - can be enhanced with more sophisticated calculations
-            # For now, use a simple calculation based on material cost and component type
-            labor_multiplier = 0.5  # Default multiplier
+                # Get quantity if available
+                if hasattr(pattern, 'components'):
+                    for component_relationship in pattern.components:
+                        if getattr(component_relationship, 'component_id', None) == component_id:
+                            pattern_data['quantity'] = getattr(
+                                component_relationship,
+                                'quantity',
+                                1
+                            )
+                            break
 
-            # Adjust labor multiplier based on component type if applicable
-            if hasattr(component, 'component_type'):
-                if component.component_type == ComponentType.LEATHER:
-                    labor_multiplier = 0.7  # Leather components require more labor
-                elif component.component_type == ComponentType.HARDWARE:
-                    labor_multiplier = 0.3  # Hardware components require less labor
+                result.append(pattern_data)
 
-            labor_cost = material_cost * labor_multiplier
+            return result
 
-            # Calculate total cost
-            total_cost = material_cost + labor_cost
-
-            return {
-                'material_cost': round(material_cost, 2),
-                'labor_cost': round(labor_cost, 2),
-                'total_cost': round(total_cost, 2)
-            }
         except NotFoundError:
             raise
         except Exception as e:
-            self.logger.error(f"Error calculating cost for component {component_id}: {str(e)}")
-            raise ServiceError(f"Failed to calculate component cost: {str(e)}")
+            self.logger.error(
+                f"Error retrieving patterns using component {component_id}: {str(e)}"
+            )
+            raise
 
-    def _validate_component_data(self, data: Dict[str, Any], update: bool = False) -> None:
-        """Validate component data.
-
-        Args:
-            data: Component data to validate
-            update: Whether this is an update operation
-
-        Raises:
-            ValidationError: If validation fails
+    def calculate_component_cost(self, component_id: int) -> Dict[str, Any]:
         """
-        # Required fields for new components
-        if not update:
-            required_fields = ['name', 'component_type']
-            for field in required_fields:
-                if field not in data:
-                    raise ValidationError(f"Missing required field: {field}")
-
-        # Validate component type if provided
-        if 'component_type' in data:
-            self._validate_component_type(data['component_type'])
-
-        # Validate materials if provided
-        if 'materials' in data:
-            if not isinstance(data['materials'], list):
-                raise ValidationError("Materials must be a list")
-
-            for material in data['materials']:
-                if not isinstance(material, dict):
-                    raise ValidationError("Each material entry must be a dictionary")
-
-                if 'material_id' not in material:
-                    raise ValidationError("Missing material_id in material entry")
-
-                if 'quantity' not in material:
-                    raise ValidationError("Missing quantity in material entry")
-
-                if material.get('quantity', 0) <= 0:
-                    raise ValidationError("Material quantity must be greater than zero")
-
-    def _validate_component_type(self, component_type: str) -> None:
-        """Validate that the component type is a valid enum value.
+        Calculate the total cost of a component based on its materials.
 
         Args:
-            component_type: Component type to validate
-
-        Raises:
-            ValidationError: If the component type is invalid
-        """
-        try:
-            # Check if the type is a valid enum value
-            ComponentType[component_type]
-        except (KeyError, ValueError):
-            valid_types = [t.name for t in ComponentType]
-            raise ValidationError(f"Invalid component type: {component_type}. Valid types are: {valid_types}")
-
-    def _to_dict(self, obj) -> Dict[str, Any]:
-        """Convert a model object to a dictionary representation.
-
-        Args:
-            obj: Model object to convert
+            component_id: ID of the component
 
         Returns:
-            Dictionary representation of the object
+            Detailed cost breakdown for the component
         """
-        if isinstance(obj, Component):
-            result = {
-                'id': obj.id,
-                'name': obj.name,
-                'description': getattr(obj, 'description', None),
-                'component_type': obj.component_type.name if hasattr(obj, 'component_type') else None,
-                'created_at': obj.created_at.isoformat() if hasattr(obj, 'created_at') and obj.created_at else None,
-                'updated_at': obj.updated_at.isoformat() if hasattr(obj, 'updated_at') and obj.updated_at else None,
+        try:
+            # Check if component exists
+            component = self.component_repository.get_by_id(component_id)
+            if not component:
+                raise NotFoundError(f"Component with ID {component_id} not found")
+
+            # Get materials
+            material_relationships = self.component_repository.get_materials(component_id)
+
+            total_material_cost = 0
+            material_breakdown = []
+
+            # Calculate material costs
+            for relationship in material_relationships:
+                material = getattr(relationship, 'material', None)
+                if not material:
+                    continue
+
+                quantity = getattr(relationship, 'quantity', 0)
+                cost_per_unit = getattr(material, 'cost_price', 0) or 0
+                material_cost = quantity * cost_per_unit
+
+                total_material_cost += material_cost
+
+                material_breakdown.append({
+                    'material_id': material.id,
+                    'material_name': material.name,
+                    'quantity': quantity,
+                    'unit': material.unit,
+                    'cost_per_unit': cost_per_unit,
+                    'total_material_cost': material_cost
+                })
+
+            # Estimated labor cost (simplified)
+            # This could be more complex based on component complexity
+            complexity_factor = getattr(component, 'complexity_factor', 1)
+            labor_rate = 20  # Assumed hourly rate
+            labor_hours = complexity_factor
+            labor_cost = labor_hours * labor_rate
+
+            # Overhead calculation
+            overhead_percentage = 0.15  # 15% overhead
+            overhead_cost = (total_material_cost + labor_cost) * overhead_percentage
+
+            # Total cost calculation
+            total_cost = total_material_cost + labor_cost + overhead_cost
+
+            return {
+                'component_id': component_id,
+                'component_name': component.name,
+                'total_material_cost': total_material_cost,
+                'labor_cost': labor_cost,
+                'labor_hours': labor_hours,
+                'overhead_cost': overhead_cost,
+                'total_cost': total_cost,
+                'material_breakdown': material_breakdown,
+                'overhead_percentage': overhead_percentage * 100,
+                'complexity_factor': complexity_factor
             }
 
-            # Include attributes if present
-            if hasattr(obj, 'attributes') and obj.attributes:
-                result['attributes'] = obj.attributes
-
-            return result
-        elif isinstance(obj, Material):
-            result = {
-                'id': obj.id,
-                'name': obj.name,
-                'material_type': obj.material_type.name if hasattr(obj, 'material_type') else None,
-                'unit_cost': getattr(obj, 'unit_cost', None),
-                'unit': getattr(obj, 'unit', None)
-            }
-            return result
-        elif hasattr(obj, '__dict__'):
-            # Generic conversion for other model types
-            return {k: v for k, v in obj.__dict__.items() if not k.startswith('_')}
-        else:
-            # If not a model object, return as is
-            return obj
+        except NotFoundError:
+            raise
+        except Exception as e:
+            self.logger.error(
+                f"Error calculating cost for component {component_id}: {str(e)}"
+            )
+            raise

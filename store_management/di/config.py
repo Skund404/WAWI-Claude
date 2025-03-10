@@ -11,22 +11,25 @@ SERVICE_MAPPINGS = {
     # Real implementations (uncomment when implemented)
     # 'IPatternService': 'services.implementations.pattern_service.PatternService',
     # 'IToolListService': 'services.implementations.tool_list_service.ToolListService',
-    # 'IMaterialService': 'services.implementations.material_service.MaterialService',
-    # 'ICustomerService': 'services.implementations.customer_service.CustomerService',
-    # 'IProjectService': 'services.implementations.project_service.ProjectService',
-    # 'IInventoryService': 'services.implementations.inventory_service.InventoryService',
-    # 'ISalesService': 'services.implementations.sales_service.SalesService',
+    'IMaterialService': 'services.implementations.material_service.MaterialService',
+    'ICustomerService': 'services.implementations.customer_service.CustomerService',
+    'IProjectService': 'services.implementations.project_service.ProjectService',
+    'IInventoryService': 'services.implementations.inventory_service.InventoryService',
+    'ISalesService': 'services.implementations.sales_service.SalesService',
     # 'ISupplierService': 'services.implementations.supplier_service.SupplierService',
 
     # Using mocks (remove these lines when real implementations are ready)
     'IPatternService': None,  # Using mock implementation
     'IToolListService': None,  # Using mock implementation
-    'IMaterialService': None,  # Using mock implementation
-    'ICustomerService': None,  # Using mock implementation
-    'IProjectService': None,  # Using mock implementation
-    'IInventoryService': None,  # Using mock implementation
-    'ISalesService': None,  # Using mock implementation
     'ISupplierService': None,  # Using mock implementation
+    'ILeatherService': None,  # Using mock implementation
+    'IHardwareService': None,  # Using mock implementation
+    'ISuppliesService': None,  # Using mock implementation
+    'IComponentService': None,  # Using mock implementation
+    'IProductService': None,  # Using mock implementation
+    'IPurchaseService': None,  # Using mock implementation
+    'IPickingListService': None,  # Using mock implementation
+    'IToolService': None,  # Using mock implementation
 }
 
 # Repository mappings - keep what we know exists
@@ -53,6 +56,7 @@ REPOSITORY_MAPPINGS = [
 
     # Component repositories
     'database.repositories.component_repository.ComponentRepository',
+    'database.repositories.project_component_repository.ProjectComponentRepository',
 
     # Transaction item repositories
     'database.repositories.sales_item_repository.SalesItemRepository',

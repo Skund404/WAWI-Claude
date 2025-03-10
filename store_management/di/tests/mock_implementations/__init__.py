@@ -1,32 +1,29 @@
-"""
-Mock Implementations Package
-
-This package contains mock implementations of service interfaces for testing purposes.
-These mocks should NOT be used in production.
-"""
-
-from di.tests.mock_implementations.base_service import MockBaseService
-from di.tests.mock_implementations.pattern_service import MockPatternService
-from di.tests.mock_implementations.tool_list_service import MockToolListService
-from di.tests.mock_implementations.material_service import MockMaterialService
-from di.tests.mock_implementations.inventory_service import MockInventoryService
-
-__all__ = [
-    'MockBaseService',
-    'MockPatternService',
-    'MockToolListService',
-    'MockMaterialService',
-    'MockInventoryService',
-]
-
-# Mock services map for easy access
+# Mapping of service names to mock implementations
 MOCK_SERVICES = {
-    'IPatternService': MockPatternService,
-    'IToolListService': MockToolListService,
-    'IMaterialService': MockMaterialService,
-    'IInventoryService': MockInventoryService,
-    'ICustomerService': MockBaseService,
-    'IProjectService': MockBaseService,
-    'ISalesService': MockBaseService,
+    'IPatternService': MockBaseService,
+    'IToolListService': MockBaseService,
     'ISupplierService': MockBaseService,
+    'ILeatherService': MockBaseService,
+    'IHardwareService': MockBaseService,
+    'ISuppliesService': MockBaseService,
+    'IComponentService': MockBaseService,
+    'IProductService': MockBaseService,
+    'IPurchaseService': MockBaseService,
+    'IPickingListService': MockBaseService,
+    'IToolService': MockBaseService,
 }
+
+
+def get_mock_service(service_name):
+    """Get a mock service implementation.
+
+    Args:
+        service_name: Name of the service interface
+
+    Returns:
+        Mock service instance or None if not implemented
+    """
+    service_class = MOCK_SERVICES.get(service_name)
+    if service_class:
+        return service_class()
+    return None

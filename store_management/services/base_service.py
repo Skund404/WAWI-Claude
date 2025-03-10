@@ -6,6 +6,9 @@ from typing import Generator, Any, Dict, List, Optional, TypeVar, Generic
 from sqlalchemy.orm import Session
 import logging
 
+# Import the exceptions here
+from services.exceptions import ValidationError, NotFoundError
+
 T = TypeVar('T')
 
 
@@ -57,7 +60,7 @@ class BaseService:
         """
         if not update:  # Only require fields for new entities
             for field in required_fields:
-                if field not in data:
+                if field not in data or not data[field]:
                     raise ValidationError(f"Missing required field: {field}")
 
     def _validate_enum_value(self, enum_class: Any, value: str, field_name: str) -> None:

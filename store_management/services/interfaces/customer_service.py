@@ -1,165 +1,155 @@
-from typing import Protocol, Dict, List, Optional, Union
-from datetime import datetime
+# services/interfaces/customer_service.py
+# Protocol definition for customer service
 
-from database.models.enums import (
-    CustomerStatus,
-    CustomerTier,
-    CustomerSource,
-    SaleStatus,
-    PaymentStatus
-)
+from typing import Protocol, List, Optional, Dict, Any
+from datetime import datetime
 
 
 class ICustomerService(Protocol):
-    """
-    Comprehensive interface for Customer Service operations.
-    Defines the contract for customer-related business logic across the system.
-    """
+    """Interface for customer-related operations."""
 
-    def create_customer(self, **kwargs) -> Dict:
-        """
-        Create a new customer with comprehensive details.
+    def get_by_id(self, customer_id: int) -> Dict[str, Any]:
+        """Get customer by ID.
 
         Args:
-            **kwargs: Detailed customer information
+            customer_id: ID of the customer to retrieve
 
         Returns:
-            Dict: Created customer information
+            Dict representing the customer
+
+        Raises:
+            NotFoundError: If customer not found
         """
         ...
 
-    def update_customer(self, customer_id: int, **kwargs) -> Dict:
-        """
-        Update an existing customer's information.
+    def get_all(self, filters: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+        """Get all customers, optionally filtered.
 
         Args:
-            customer_id: Unique identifier for the customer
-            **kwargs: Customer details to update
+            filters: Optional filters to apply
 
         Returns:
-            Dict: Updated customer information
+            List of dicts representing customers
         """
         ...
 
-    def get_customer_by_id(self, customer_id: int) -> Optional[Dict]:
-        """
-        Retrieve comprehensive customer details by ID.
+    def create(self, customer_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a new customer.
 
         Args:
-            customer_id: Unique identifier for the customer
+            customer_data: Dict containing customer properties
 
         Returns:
-            Detailed customer information including sales history, projects, etc.
+            Dict representing the created customer
+
+        Raises:
+            ValidationError: If validation fails
         """
         ...
 
-    def list_customers(
-            self,
-            status: Optional[CustomerStatus] = None,
-            tier: Optional[CustomerTier] = None,
-            source: Optional[CustomerSource] = None,
-            min_total_sales: Optional[float] = None,
-            date_range: Optional[tuple[datetime, datetime]] = None
-    ) -> List[Dict]:
-        """
-        Advanced customer listing with multiple filtering options.
+    def update(self, customer_id: int, customer_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update an existing customer.
 
         Args:
-            status: Filter by customer status
-            tier: Filter by customer tier
-            source: Filter by customer source
-            min_total_sales: Minimum total sales amount
-            date_range: Date range for customer activity
+            customer_id: ID of the customer to update
+            customer_data: Dict containing updated customer properties
 
         Returns:
-            List of customer details with advanced filtering
+            Dict representing the updated customer
+
+        Raises:
+            NotFoundError: If customer not found
+            ValidationError: If validation fails
         """
         ...
 
-    def delete_customer(self, customer_id: int) -> bool:
-        """
-        Soft or hard delete a customer.
+    def delete(self, customer_id: int) -> bool:
+        """Delete a customer by ID.
 
         Args:
-            customer_id: Unique identifier for the customer
+            customer_id: ID of the customer to delete
 
         Returns:
-            Boolean indicating successful deletion
+            True if successful
+
+        Raises:
+            NotFoundError: If customer not found
         """
         ...
 
-    def validate_customer_data(self, customer_data: Dict) -> bool:
-        """
-        Comprehensive validation of customer data.
+    def search(self, query: str) -> List[Dict[str, Any]]:
+        """Search for customers by name, email, or other properties.
 
         Args:
-            customer_data: Customer information to validate
+            query: Search query string
 
         Returns:
-            Boolean indicating data validity
+            List of customers matching the search query
         """
         ...
 
-    def get_customer_sales_history(
-            self,
-            customer_id: int,
-            start_date: Optional[datetime] = None,
-            end_date: Optional[datetime] = None,
-            status: Optional[SaleStatus] = None,
-            payment_status: Optional[PaymentStatus] = None
-    ) -> List[Dict]:
-        """
-        Retrieve a customer's sales history with detailed filtering.
+    def get_sales_history(self, customer_id: int) -> List[Dict[str, Any]]:
+        """Get sales history for a customer.
 
         Args:
-            customer_id: Unique identifier for the customer
-            start_date: Optional start date for sales history
-            end_date: Optional end date for sales history
-            status: Optional sales status filter
-            payment_status: Optional payment status filter
+            customer_id: ID of the customer
 
         Returns:
-            List of sales records for the customer
+            List of sales for the customer
+
+        Raises:
+            NotFoundError: If customer not found
         """
         ...
 
-    def calculate_customer_lifetime_value(self, customer_id: int) -> float:
-        """
-        Calculate the total lifetime value of a customer.
+    def get_project_history(self, customer_id: int) -> List[Dict[str, Any]]:
+        """Get project history for a customer.
 
         Args:
-            customer_id: Unique identifier for the customer
+            customer_id: ID of the customer
 
         Returns:
-            Total lifetime sales value
+            List of projects for the customer
+
+        Raises:
+            NotFoundError: If customer not found
         """
         ...
 
-    def update_customer_tier(self, customer_id: int) -> CustomerTier:
-        """
-        Automatically update customer tier based on sales history.
+    def update_status(self, customer_id: int, status: str) -> Dict[str, Any]:
+        """Update customer status.
 
         Args:
-            customer_id: Unique identifier for the customer
+            customer_id: ID of the customer
+            status: New status
 
         Returns:
-            Updated customer tier
+            Dict representing the updated customer
+
+        Raises:
+            NotFoundError: If customer not found
+            ValidationError: If validation fails
         """
         ...
 
-    def get_customer_projects(
-            self,
-            customer_id: int,
-            include_completed: bool = False
-    ) -> List[Dict]:
-        """
-        Retrieve projects associated with a customer.
+    def get_by_status(self, status: str) -> List[Dict[str, Any]]:
+        """Get customers by status.
 
         Args:
-            customer_id: Unique identifier for the customer
-            include_completed: Whether to include completed projects
+            status: Status to filter by
 
         Returns:
-            List of customer's projects
+            List of customers with the specified status
+        """
+        ...
+
+    def get_by_tier(self, tier: str) -> List[Dict[str, Any]]:
+        """Get customers by tier.
+
+        Args:
+            tier: Tier to filter by
+
+        Returns:
+            List of customers with the specified tier
         """
         ...

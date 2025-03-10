@@ -1,368 +1,272 @@
-# services/implementations/supplier_service.py
-import re
+from typing import List, Optional, Dict, Any
+from datetime import datetime, timedelta
 import logging
-from datetime import datetime
-from typing import Any, Dict, List, Optional
-
-from di.inject import inject
 from sqlalchemy.orm import Session
 
-from database.models.enums import InventoryStatus, SupplierStatus
-from database.repositories.inventory_repository import InventoryRepository
-from database.repositories.material_repository import MaterialRepository
-from database.repositories.purchase_repository import PurchaseRepository
 from database.repositories.supplier_repository import SupplierRepository
+from database.repositories.material_repository import MaterialRepository
+from database.repositories.tool_repository import ToolRepository
+from database.repositories.purchase_repository import PurchaseRepository
 
-from services.base_service import BaseService, NotFoundError, ValidationError
-from services.interfaces.supplier_service import ISupplierService
+from database.models.enums import SupplierStatus
+
+from services.base_service import BaseService
+from services.exceptions import ValidationError, NotFoundError
+from services.dto.supplier_dto import SupplierDTO
+from services.dto.material_dto import MaterialDTO
+from services.dto.tool_dto import ToolDTO
+
+from di.core import inject
 
 
-class SupplierService(BaseService, ISupplierService):
-    """Implementation of the supplier service interface.
-
-    This class provides functionality for managing suppliers,
-    including creation, retrieval, updating, and supplier-related operations.
-    """
+class SupplierService(BaseService):
+    """Implementation of the supplier service interface."""
 
     @inject
-    def __init__(
-            self,
-            session: Session,
-            supplier_repository: SupplierRepository,
-            material_repository: MaterialRepository,
-            purchase_repository: PurchaseRepository,
-            inventory_repository: InventoryRepository
-    ):
-        """Initialize the SupplierService with required repositories.
-
-        Args:
-            session: SQLAlchemy database session
-            supplier_repository: Repository for supplier operations
-            material_repository: Repository for material operations
-            purchase_repository: Repository for purchase operations
-            inventory_repository: Repository for inventory operations
-        """
+    def __init__(self, session: Session,
+                 supplier_repository: Optional[SupplierRepository] = None,
+                 material_repository: Optional[MaterialRepository] = None,
+                 tool_repository: Optional[ToolRepository] = None,
+                 purchase_repository: Optional[PurchaseRepository] = None):
+        """Initialize the supplier service."""
         super().__init__(session)
-        self._logger = logging.getLogger(__name__)
-        self._supplier_repository = supplier_repository
-        self._material_repository = material_repository
-        self._purchase_repository = purchase_repository
-        self._inventory_repository = inventory_repository
+        self.supplier_repository = supplier_repository or SupplierRepository(session)
+        self.material_repository = material_repository or MaterialRepository(session)
+        self.tool_repository = tool_repository or ToolRepository(session)
+        self.purchase_repository = purchase_repository or PurchaseRepository(session)
+        self.logger = logging.getLogger(__name__)
 
-    def get_all_suppliers(self) -> List[Dict[str, Any]]:
-        """Get all suppliers.
-
-        Returns:
-            List[Dict[str, Any]]: List of supplier dictionaries
-        """
-        self._logger.info("Retrieving all suppliers")
-        suppliers = self._supplier_repository.get_all()
-        return [self._to_dict(supplier) for supplier in suppliers]
-
-    def get_supplier_by_id(self, supplier_id: int) -> Dict[str, Any]:
-        """Get supplier by ID.
-
-        Args:
-            supplier_id: ID of the supplier
-
-        Returns:
-            Dict[str, Any]: Supplier dictionary
-
-        Raises:
-            NotFoundError: If supplier not found
-        """
-        self._logger.info(f"Retrieving supplier with ID: {supplier_id}")
-        supplier = self._supplier_repository.get_by_id(supplier_id)
-        if not supplier:
-            self._logger.error(f"Supplier with ID {supplier_id} not found")
-            raise NotFoundError(f"Supplier with ID {supplier_id} not found")
-        return self._to_dict(supplier)
-
-    def create_supplier(self, supplier_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Create a new supplier.
-
-        Args:
-            supplier_data: Supplier data dictionary
-
-        Returns:
-            Dict[str, Any]: Created supplier dictionary
-
-        Raises:
-            ValidationError: If validation fails
-        """
-        self._logger.info("Creating new supplier")
-        self._validate_supplier_data(supplier_data)
-
-        # Ensure supplier has a status
-        if 'status' not in supplier_data:
-            supplier_data['status'] = SupplierStatus.ACTIVE.name
-
-        # Check for duplicate email
-        email = supplier_data.get('contact_email')
-        if email and self._supplier_repository.get_by_email(email):
-            self._logger.error(f"Supplier with email {email} already exists")
-            raise ValidationError(f"Supplier with email {email} already exists")
-
+    def get_by_id(self, supplier_id: int) -> Dict[str, Any]:
+        """Get supplier by ID."""
         try:
-            supplier = self._supplier_repository.create(supplier_data)
-            self._session.commit()
-            self._logger.info(f"Created supplier with ID: {supplier.id}")
-            return self._to_dict(supplier)
+            supplier = self.supplier_repository.get_by_id(supplier_id)
+            if not supplier:
+                raise NotFoundError(f"Supplier with ID {supplier_id} not found")
+            return SupplierDTO.from_model(supplier, include_counts=True).to_dict()
+        except NotFoundError:
+            raise
         except Exception as e:
-            self._session.rollback()
-            self._logger.error(f"Failed to create supplier: {str(e)}")
-            raise ValidationError(f"Failed to create supplier: {str(e)}")
+            self.logger.error(f"Error retrieving supplier {supplier_id}: {str(e)}")
+            raise
 
-    def update_supplier(self, supplier_id: int, supplier_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Update an existing supplier.
-
-        Args:
-            supplier_id: ID of the supplier to update
-            supplier_data: Updated supplier data
-
-        Returns:
-            Dict[str, Any]: Updated supplier dictionary
-
-        Raises:
-            NotFoundError: If supplier not found
-            ValidationError: If validation fails
-        """
-        self._logger.info(f"Updating supplier with ID: {supplier_id}")
-        supplier = self._supplier_repository.get_by_id(supplier_id)
-        if not supplier:
-            self._logger.error(f"Supplier with ID {supplier_id} not found")
-            raise NotFoundError(f"Supplier with ID {supplier_id} not found")
-
-        self._validate_supplier_data(supplier_data, is_update=True)
-
-        # Check for duplicate email if email is being updated
-        email = supplier_data.get('contact_email')
-        if email and email != supplier.contact_email:
-            existing_supplier = self._supplier_repository.get_by_email(email)
-            if existing_supplier and existing_supplier.id != supplier_id:
-                self._logger.error(f"Supplier with email {email} already exists")
-                raise ValidationError(f"Supplier with email {email} already exists")
-
+    def get_all(self, filters: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+        """Get all suppliers, optionally filtered."""
         try:
-            updated_supplier = self._supplier_repository.update(supplier_id, supplier_data)
-            self._session.commit()
-            self._logger.info(f"Updated supplier with ID: {supplier_id}")
-            return self._to_dict(updated_supplier)
+            suppliers = self.supplier_repository.get_all(filters=filters)
+            return [SupplierDTO.from_model(supplier).to_dict() for supplier in suppliers]
         except Exception as e:
-            self._session.rollback()
-            self._logger.error(f"Failed to update supplier: {str(e)}")
-            raise ValidationError(f"Failed to update supplier: {str(e)}")
+            self.logger.error(f"Error retrieving suppliers: {str(e)}")
+            raise
 
-    def delete_supplier(self, supplier_id: int) -> bool:
-        """Delete a supplier.
-
-        Args:
-            supplier_id: ID of the supplier to delete
-
-        Returns:
-            bool: True if successful
-
-        Raises:
-            NotFoundError: If supplier not found
-        """
-        self._logger.info(f"Deleting supplier with ID: {supplier_id}")
-        supplier = self._supplier_repository.get_by_id(supplier_id)
-        if not supplier:
-            self._logger.error(f"Supplier with ID {supplier_id} not found")
-            raise NotFoundError(f"Supplier with ID {supplier_id} not found")
-
-        # Check if supplier can be deleted (no active purchases)
-        active_purchases = self._purchase_repository.get_active_by_supplier_id(supplier_id)
-        if active_purchases:
-            self._logger.error(f"Cannot delete supplier with active purchases")
-            raise ValidationError(f"Cannot delete supplier with active purchases")
-
+    def create(self, supplier_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a new supplier."""
         try:
-            self._supplier_repository.delete(supplier_id)
-            self._session.commit()
-            self._logger.info(f"Deleted supplier with ID: {supplier_id}")
-            return True
+            # Validate supplier data
+            self._validate_supplier_data(supplier_data)
+
+            # Create supplier
+            with self.transaction():
+                supplier = self.supplier_repository.create(supplier_data)
+                return SupplierDTO.from_model(supplier).to_dict()
+        except ValidationError:
+            raise
         except Exception as e:
-            self._session.rollback()
-            self._logger.error(f"Failed to delete supplier: {str(e)}")
-            raise ValidationError(f"Failed to delete supplier: {str(e)}")
+            self.logger.error(f"Error creating supplier: {str(e)}")
+            raise
 
-    def get_supplier_materials(self, supplier_id: int) -> List[Dict[str, Any]]:
-        """Get materials supplied by a specific supplier.
+    def update(self, supplier_id: int, supplier_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update an existing supplier."""
+        try:
+            # Check if supplier exists
+            supplier = self.supplier_repository.get_by_id(supplier_id)
+            if not supplier:
+                raise NotFoundError(f"Supplier with ID {supplier_id} not found")
 
-        Args:
-            supplier_id: ID of the supplier
+            # Validate supplier data
+            self._validate_supplier_data(supplier_data, update=True)
 
-        Returns:
-            List[Dict[str, Any]]: List of material dictionaries
+            # Update supplier
+            with self.transaction():
+                updated_supplier = self.supplier_repository.update(supplier_id, supplier_data)
+                return SupplierDTO.from_model(updated_supplier).to_dict()
+        except (NotFoundError, ValidationError):
+            raise
+        except Exception as e:
+            self.logger.error(f"Error updating supplier {supplier_id}: {str(e)}")
+            raise
 
-        Raises:
-            NotFoundError: If supplier not found
-        """
-        self._logger.info(f"Retrieving materials for supplier with ID: {supplier_id}")
-        supplier = self._supplier_repository.get_by_id(supplier_id)
-        if not supplier:
-            self._logger.error(f"Supplier with ID {supplier_id} not found")
-            raise NotFoundError(f"Supplier with ID {supplier_id} not found")
+    def delete(self, supplier_id: int) -> bool:
+        """Delete a supplier by ID."""
+        try:
+            # Check if supplier exists
+            supplier = self.supplier_repository.get_by_id(supplier_id)
+            if not supplier:
+                raise NotFoundError(f"Supplier with ID {supplier_id} not found")
 
-        materials = self._material_repository.get_by_supplier_id(supplier_id)
+            # Check if supplier has associated materials or tools
+            if hasattr(supplier, 'materials') and supplier.materials:
+                raise ValidationError(
+                    f"Cannot delete supplier with ID {supplier_id} because it has associated materials")
 
-        result = []
-        for material in materials:
-            material_dict = {
-                'id': material.id,
-                'name': material.name,
-                'material_type': material.material_type.name if material.material_type else None,
-                'cost_per_unit': material.cost_per_unit
+            if hasattr(supplier, 'tools') and supplier.tools:
+                raise ValidationError(f"Cannot delete supplier with ID {supplier_id} because it has associated tools")
+
+            # Delete supplier
+            with self.transaction():
+                return self.supplier_repository.delete(supplier_id)
+        except (NotFoundError, ValidationError):
+            raise
+        except Exception as e:
+            self.logger.error(f"Error deleting supplier {supplier_id}: {str(e)}")
+            raise
+
+    def search(self, query: str) -> List[Dict[str, Any]]:
+        """Search for suppliers by name or other properties."""
+        try:
+            suppliers = self.supplier_repository.search(query)
+            return [SupplierDTO.from_model(supplier).to_dict() for supplier in suppliers]
+        except Exception as e:
+            self.logger.error(f"Error searching suppliers with query '{query}': {str(e)}")
+            raise
+
+    def get_by_status(self, status: str) -> List[Dict[str, Any]]:
+        """Get suppliers by status."""
+        try:
+            # Validate status
+            if not hasattr(SupplierStatus, status):
+                raise ValidationError(f"Invalid supplier status: {status}")
+
+            suppliers = self.supplier_repository.get_by_status(status)
+            return [SupplierDTO.from_model(supplier).to_dict() for supplier in suppliers]
+        except ValidationError:
+            raise
+        except Exception as e:
+            self.logger.error(f"Error retrieving suppliers with status '{status}': {str(e)}")
+            raise
+
+    def get_materials_from_supplier(self, supplier_id: int) -> List[Dict[str, Any]]:
+        """Get all materials supplied by a specific supplier."""
+        try:
+            # Check if supplier exists
+            supplier = self.supplier_repository.get_by_id(supplier_id)
+            if not supplier:
+                raise NotFoundError(f"Supplier with ID {supplier_id} not found")
+
+            materials = self.material_repository.get_by_supplier(supplier_id)
+            return [MaterialDTO.from_model(material).to_dict() for material in materials]
+        except NotFoundError:
+            raise
+        except Exception as e:
+            self.logger.error(f"Error retrieving materials for supplier {supplier_id}: {str(e)}")
+            raise
+
+    def get_tools_from_supplier(self, supplier_id: int) -> List[Dict[str, Any]]:
+        """Get all tools supplied by a specific supplier."""
+        try:
+            # Check if supplier exists
+            supplier = self.supplier_repository.get_by_id(supplier_id)
+            if not supplier:
+                raise NotFoundError(f"Supplier with ID {supplier_id} not found")
+
+            tools = self.tool_repository.get_by_supplier(supplier_id)
+            return [ToolDTO.from_model(tool).to_dict() for tool in tools]
+        except NotFoundError:
+            raise
+        except Exception as e:
+            self.logger.error(f"Error retrieving tools for supplier {supplier_id}: {str(e)}")
+            raise
+
+    def get_purchase_history(self, supplier_id: int,
+                             start_date: Optional[datetime] = None,
+                             end_date: Optional[datetime] = None) -> List[Dict[str, Any]]:
+        """Get purchase history for a supplier."""
+        try:
+            # Check if supplier exists
+            supplier = self.supplier_repository.get_by_id(supplier_id)
+            if not supplier:
+                raise NotFoundError(f"Supplier with ID {supplier_id} not found")
+
+            purchases = self.purchase_repository.get_by_supplier(
+                supplier_id=supplier_id,
+                start_date=start_date,
+                end_date=end_date
+            )
+            return [purchase.to_dict() for purchase in purchases]  # Assuming Purchase has a to_dict method
+        except NotFoundError:
+            raise
+        except Exception as e:
+            self.logger.error(f"Error retrieving purchase history for supplier {supplier_id}: {str(e)}")
+            raise
+
+    def get_supplier_performance(self, supplier_id: int) -> Dict[str, Any]:
+        """Get performance metrics for a supplier."""
+        try:
+            # Check if supplier exists
+            supplier = self.supplier_repository.get_by_id(supplier_id)
+            if not supplier:
+                raise NotFoundError(f"Supplier with ID {supplier_id} not found")
+
+            # Get purchases
+            purchases = self.purchase_repository.get_by_supplier(supplier_id)
+
+            # Calculate performance metrics
+            total_purchases = len(purchases)
+            total_amount = sum(p.total_amount for p in purchases)
+
+            on_time_deliveries = sum(1 for p in purchases
+                                     if p.status == 'DELIVERED' and p.delivery_date <= p.expected_delivery_date)
+            on_time_rate = on_time_deliveries / total_purchases if total_purchases > 0 else 0
+
+            delivery_times = [(p.delivery_date - p.order_date).days for p in purchases if p.delivery_date]
+            avg_delivery_time = sum(delivery_times) / len(delivery_times) if delivery_times else 0
+
+            # Last 6 months analysis
+            six_months_ago = datetime.now() - timedelta(days=180)
+            recent_purchases = [p for p in purchases if p.order_date >= six_months_ago]
+            recent_total = sum(p.total_amount for p in recent_purchases)
+
+            return {
+                'supplier_id': supplier_id,
+                'supplier_name': supplier.name,
+                'total_purchases': total_purchases,
+                'total_spent': total_amount,
+                'on_time_delivery_rate': on_time_rate,
+                'average_delivery_time_days': avg_delivery_time,
+                'last_6_months': {
+                    'purchase_count': len(recent_purchases),
+                    'total_amount': recent_total
+                }
             }
-
-            # Get inventory status and quantity
-            inventory = self._inventory_repository.get_by_item('material', material.id)
-            if inventory:
-                material_dict['inventory_status'] = inventory.status.name if inventory.status else None
-                material_dict['quantity'] = inventory.quantity
-
-            result.append(material_dict)
-
-        return result
-
-    def get_supplier_purchase_history(self, supplier_id: int) -> List[Dict[str, Any]]:
-        """Get purchase history for a specific supplier.
-
-        Args:
-            supplier_id: ID of the supplier
-
-        Returns:
-            List[Dict[str, Any]]: List of purchase dictionaries
-
-        Raises:
-            NotFoundError: If supplier not found
-        """
-        self._logger.info(f"Retrieving purchase history for supplier with ID: {supplier_id}")
-        supplier = self._supplier_repository.get_by_id(supplier_id)
-        if not supplier:
-            self._logger.error(f"Supplier with ID {supplier_id} not found")
-            raise NotFoundError(f"Supplier with ID {supplier_id} not found")
-
-        purchases = self._purchase_repository.get_by_supplier_id(supplier_id)
-
-        result = []
-        for purchase in purchases:
-            result.append({
-                'id': purchase.id,
-                'total_amount': round(purchase.total_amount, 2) if purchase.total_amount else 0,
-                'status': purchase.status.name if purchase.status else None,
-                'created_at': purchase.created_at.isoformat() if purchase.created_at else None
-            })
-
-        return result
-
-    def search_suppliers(self, query: str) -> List[Dict[str, Any]]:
-        """Search for suppliers by name or contact information.
-
-        Args:
-            query: Search query string
-
-        Returns:
-            List[Dict[str, Any]]: List of matching supplier dictionaries
-        """
-        self._logger.info(f"Searching suppliers with query: {query}")
-        suppliers = self._supplier_repository.search(query)
-        return [self._to_dict(supplier) for supplier in suppliers]
-
-    def update_supplier_status(self, supplier_id: int, status: str) -> Dict[str, Any]:
-        """Update the status of a supplier.
-
-        Args:
-            supplier_id: ID of the supplier
-            status: New status value
-
-        Returns:
-            Dict[str, Any]: Updated supplier dictionary
-
-        Raises:
-            NotFoundError: If supplier not found
-            ValidationError: If validation fails
-        """
-        self._logger.info(f"Updating status of supplier with ID: {supplier_id} to {status}")
-        supplier = self._supplier_repository.get_by_id(supplier_id)
-        if not supplier:
-            self._logger.error(f"Supplier with ID {supplier_id} not found")
-            raise NotFoundError(f"Supplier with ID {supplier_id} not found")
-
-        # Validate status value
-        try:
-            status_enum = SupplierStatus[status.upper()]
-        except KeyError:
-            self._logger.error(f"Invalid supplier status: {status}")
-            raise ValidationError(f"Invalid supplier status: {status}")
-
-        try:
-            updated_supplier = self._supplier_repository.update(supplier_id, {'status': status_enum})
-            self._session.commit()
-            self._logger.info(f"Updated status of supplier with ID: {supplier_id} to {status_enum.name}")
-            return self._to_dict(updated_supplier)
+        except NotFoundError:
+            raise
         except Exception as e:
-            self._session.rollback()
-            self._logger.error(f"Failed to update supplier status: {str(e)}")
-            raise ValidationError(f"Failed to update supplier status: {str(e)}")
+            self.logger.error(f"Error retrieving performance metrics for supplier {supplier_id}: {str(e)}")
+            raise
 
-    def _validate_supplier_data(self, supplier_data: Dict[str, Any], is_update: bool = False) -> None:
+    def _validate_supplier_data(self, supplier_data: Dict[str, Any], update: bool = False) -> None:
         """Validate supplier data.
 
         Args:
             supplier_data: Supplier data to validate
-            is_update: Whether this is an update operation
+            update: Whether this is for an update operation
 
         Raises:
             ValidationError: If validation fails
         """
-        # For create operations, name is required
-        if not is_update and 'name' not in supplier_data:
-            raise ValidationError("name is required")
-
-        # Validate email format if provided
-        email = supplier_data.get('contact_email')
-        if email and not self._is_valid_email(email):
-            raise ValidationError(f"Invalid email format: {email}")
+        required_fields = ['name']
+        if not update:
+            for field in required_fields:
+                if field not in supplier_data or not supplier_data[field]:
+                    raise ValidationError(f"Missing required field: {field}")
 
         # Validate status if provided
         if 'status' in supplier_data:
-            try:
-                SupplierStatus[supplier_data['status'].upper()]
-            except KeyError:
-                raise ValidationError(f"Invalid supplier status: {supplier_data['status']}")
+            status = supplier_data['status']
+            if not hasattr(SupplierStatus, status):
+                raise ValidationError(f"Invalid supplier status: {status}")
 
-    def _is_valid_email(self, email: str) -> bool:
-        """Check if an email has a valid format.
-
-        Args:
-            email: Email to validate
-
-        Returns:
-            bool: True if the email format is valid
-        """
-        pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-        return bool(re.match(pattern, email))
-
-    def _to_dict(self, supplier) -> Dict[str, Any]:
-        """Convert supplier model to dictionary.
-
-        Args:
-            supplier: Supplier model object
-
-        Returns:
-            Dict[str, Any]: Supplier dictionary
-        """
-        return {
-            'id': supplier.id,
-            'name': supplier.name,
-            'contact_email': supplier.contact_email,
-            'contact_phone': getattr(supplier, 'contact_phone', None),
-            'address': getattr(supplier, 'address', None),
-            'website': getattr(supplier, 'website', None),
-            'status': supplier.status.name if supplier.status else None,
-            'notes': getattr(supplier, 'notes', None),
-            'created_at': supplier.created_at.isoformat() if supplier.created_at else None,
-            'updated_at': supplier.updated_at.isoformat() if supplier.updated_at else None
-        }
+        # Validate email format if provided
+        if 'contact_email' in supplier_data and supplier_data['contact_email']:
+            email = supplier_data['contact_email']
+            if '@' not in email or '.' not in email:
+                raise ValidationError(f"Invalid email format: {email}")
