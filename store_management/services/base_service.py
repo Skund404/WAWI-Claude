@@ -1,89 +1,319 @@
 # services/base_service.py
-import abc
+from contextlib import contextmanager
+from typing import Any, Generator, TypeVar, Optional, List, Dict
+from sqlalchemy.orm import Session
 import logging
-from typing import Any, Dict, Generic, List, Optional, TypeVar
 
-# Define a generic type variable for models
 T = TypeVar('T')
 
 
-class BaseApplicationException(Exception):
-    """Base class for all application exceptions."""
+class ServiceError(Exception):
+    """Base exception for service-related errors."""
+    pass
 
-    def __init__(self, message: str, context: Optional[Dict[str, Any]] = None):
-        """Initialize with message and context.
+
+class ValidationError(ServiceError):
+    """Exception raised when validation fails."""
+    pass
+
+
+class NotFoundError(ServiceError):
+    """Exception raised when an entity is not found."""
+    pass
+
+
+class ConcurrencyError(ServiceError):
+    """Exception raised when concurrent modifications conflict."""
+    pass
+
+
+class BaseService:
+    """Base class for services with common functionality."""
+
+    def __init__(self, session: Session):
+        """Initialize the base service.
 
         Args:
-            message: The error message
-            context: Additional context for the error
+            session: SQLAlchemy database session
         """
-        self.message = message
-        self.context = context or {}
-        super().__init__(message)
-
-
-class NotFoundError(BaseApplicationException):
-    """Exception raised when a requested resource is not found."""
-    pass
-
-
-class ValidationError(BaseApplicationException):
-    """Exception raised when input validation fails."""
-    pass
-
-
-class ServiceError(BaseApplicationException):
-    """Exception raised when a service operation fails."""
-    pass
-
-
-class IBaseService(abc.ABC):
-    """Interface for base service functionality."""
-    pass
-
-
-class BaseService(Generic[T]):
-    """
-    Base service implementation with common functionality.
-
-    This class provides common service methods and error handling patterns
-    to be used across all services.
-    """
-
-    def __init__(self):
-        """Initialize the base service with logging."""
+        self.session = session
         self.logger = logging.getLogger(self.__class__.__name__)
 
-    def validate_input(self, data: Dict[str, Any], required_fields: List[str]) -> None:
-        """Validate that required fields are present in the input data.
+    @contextmanager
+    def transaction(self) -> Generator[None, None, None]:
+        """Provide a transactional scope around a series of operations.
 
-        Args:
-            data: Input data to validate
-            required_fields: List of required field names
+        Yields:
+            None
 
         Raises:
-            ValidationError: If any required field is missing
+            Exception: If an error occurs during transaction
         """
-        missing_fields = [field for field in required_fields if field not in data]
-        if missing_fields:
-            raise ValidationError(f"Missing required fields: {', '.join(missing_fields)}")
+        try:
+            yield
+            self.session.commit()
+        except Exception:
+            self.session.rollback()
+            raise
 
-    def to_dict(self, model: T, include_relationships: bool = False) -> Dict[str, Any]:
-        """Convert a model instance to a dictionary.
+    def _to_dict(self, obj) -> Dict[str, Any]:
+        """Convert an object to a dictionary.
 
         Args:
-            model: The model instance to convert
-            include_relationships: Whether to include related models
+            obj: Object to convert
 
         Returns:
-            Dictionary representation of the model
+            Dictionary representation
         """
-        # Use the model's to_dict method if available
-        if hasattr(model, 'to_dict') and callable(getattr(model, 'to_dict')):
-            return model.to_dict(include_relationships=include_relationships)
+        if hasattr(obj, '__dict__'):
+            return {k: v for k, v in obj.__dict__.items() if not k.startswith('_')}
+        return obj
 
-        # Fallback to manual conversion
-        result = {}
-        for column in model.__table__.columns:
-            result[column.name] = getattr(model, column.name)
-        return result
+
+# services/interfaces/entity_service.py
+from typing import Protocol, TypeVar, Generic, List, Optional, Dict, Any
+
+T = TypeVar('T')
+
+
+class IEntityService(Protocol, Generic[T]):
+    """Generic interface for entity-related operations."""
+
+    def get_by_id(self, entity_id: int) -> Dict[str, Any]:
+        """Get entity by ID.
+
+        Args:
+            entity_id: ID of the entity to retrieve
+
+        Returns:
+            Dict representing the entity
+
+        Raises:
+            NotFoundError: If entity not found
+        """
+        ...
+
+    def get_all(self, filters: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+        """Get all entities, optionally filtered.
+
+        Args:
+            filters: Optional filters to apply
+
+        Returns:
+            List of dicts representing entities
+        """
+        ...
+
+    def create(self, entity_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a new entity.
+
+        Args:
+            entity_data: Dict containing entity properties
+
+        Returns:
+            Dict representing the created entity
+
+        Raises:
+            ValidationError: If validation fails
+        """
+        ...
+
+    def update(self, entity_id: int, entity_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update an existing entity.
+
+        Args:
+            entity_id: ID of the entity to update
+            entity_data: Dict containing updated entity properties
+
+        Returns:
+            Dict representing the updated entity
+
+        Raises:
+            NotFoundError: If entity not found
+            ValidationError: If validation fails
+        """
+        ...
+
+    def delete(self, entity_id: int) -> bool:
+        """Delete an entity by ID.
+
+        Args:
+            entity_id: ID of the entity to delete
+
+        Returns:
+            True if successful
+
+        Raises:
+            NotFoundError: If entity not found
+        """
+        ...
+
+    def search(self, query: str) -> List[Dict[str, Any]]:
+        """Search for entities by query string.
+
+        Args:
+            query: Search query string
+
+        Returns:
+            List of dicts representing matching entities
+        """
+        ...
+
+
+# services/interfaces/customer_service.py
+from typing import Protocol, List, Optional, Dict, Any
+from datetime import datetime
+
+
+class ICustomerService(Protocol):
+    """Interface for customer-related operations."""
+
+    def get_by_id(self, customer_id: int) -> Dict[str, Any]:
+        """Get customer by ID."""
+        ...
+
+    def get_all(self, filters: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+        """Get all customers, optionally filtered."""
+        ...
+
+    def create(self, customer_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a new customer."""
+        ...
+
+    def update(self, customer_id: int, customer_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update an existing customer."""
+        ...
+
+    def delete(self, customer_id: int) -> bool:
+        """Delete a customer by ID."""
+        ...
+
+    def search(self, query: str) -> List[Dict[str, Any]]:
+        """Search for customers by name or email."""
+        ...
+
+    def get_by_email(self, email: str) -> Optional[Dict[str, Any]]:
+        """Get customer by email address."""
+        ...
+
+    def get_sales_history(self, customer_id: int) -> List[Dict[str, Any]]:
+        """Get sales history for a customer."""
+        ...
+
+    def update_status(self, customer_id: int, status: str) -> Dict[str, Any]:
+        """Update customer status."""
+        ...
+
+
+# services/interfaces/material_service.py
+from typing import Protocol, List, Optional, Dict, Any
+from datetime import datetime
+
+
+class IMaterialService(Protocol):
+    """Interface for material-related operations."""
+
+    def get_by_id(self, material_id: int) -> Dict[str, Any]:
+        """Get material by ID."""
+        ...
+
+    def get_all(self, filters: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+        """Get all materials, optionally filtered."""
+        ...
+
+    def create(self, material_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a new material."""
+        ...
+
+    def update(self, material_id: int, material_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update an existing material."""
+        ...
+
+    def delete(self, material_id: int) -> bool:
+        """Delete a material by ID."""
+        ...
+
+    def search(self, query: str) -> List[Dict[str, Any]]:
+        """Search for materials by name or other properties."""
+        ...
+
+    def get_inventory_status(self, material_id: int) -> Dict[str, Any]:
+        """Get inventory status for a material."""
+        ...
+
+    def adjust_inventory(self, material_id: int, quantity: float, reason: str) -> Dict[str, Any]:
+        """Adjust inventory for a material."""
+        ...
+
+    def get_by_supplier(self, supplier_id: int) -> List[Dict[str, Any]]:
+        """Get materials by supplier ID."""
+        ...
+
+    def get_low_stock(self, threshold: Optional[float] = None) -> List[Dict[str, Any]]:
+        """Get materials with low stock levels."""
+        ...
+
+
+# services/interfaces/project_service.py
+from typing import Protocol, List, Optional, Dict, Any
+from datetime import datetime
+
+
+class IProjectService(Protocol):
+    """Interface for project-related operations."""
+
+    def get_by_id(self, project_id: int) -> Dict[str, Any]:
+        """Get project by ID."""
+        ...
+
+    def get_all(self, filters: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+        """Get all projects, optionally filtered."""
+        ...
+
+    def create(self, project_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a new project."""
+        ...
+
+    def update(self, project_id: int, project_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update an existing project."""
+        ...
+
+    def delete(self, project_id: int) -> bool:
+        """Delete a project by ID."""
+        ...
+
+    def add_component(self, project_id: int, component_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Add component to project."""
+        ...
+
+    def remove_component(self, project_id: int, component_id: int) -> bool:
+        """Remove component from project."""
+        ...
+
+    def update_component(self, project_id: int, component_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update component in project."""
+        ...
+
+    def generate_picking_list(self, project_id: int) -> Dict[str, Any]:
+        """Generate picking list for a project."""
+        ...
+
+    def generate_tool_list(self, project_id: int) -> Dict[str, Any]:
+        """Generate tool list for a project."""
+        ...
+
+    def calculate_cost(self, project_id: int) -> Dict[str, Any]:
+        """Calculate total cost for a project."""
+        ...
+
+    def update_status(self, project_id: int, status: str) -> Dict[str, Any]:
+        """Update project status."""
+        ...
+
+    def get_by_customer(self, customer_id: int) -> List[Dict[str, Any]]:
+        """Get projects by customer ID."""
+        ...
+
+    def get_by_date_range(self, start_date: datetime, end_date: datetime) -> List[Dict[str, Any]]:
+        """Get projects within a date range."""
+        ...

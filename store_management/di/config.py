@@ -1,108 +1,54 @@
-# store_management/di/config.py
 """
-Dependency Injection Configuration Management.
+Dependency Injection Configuration.
 
-Provides configuration and management for service containers.
+Provides centralized configuration for service registrations.
 """
 
-import logging
-import importlib
-from typing import Any, Dict, Optional, Type
+from typing import Dict, Any, Optional, Type, List
 
-from utils.circular_import_resolver import CircularImportResolver
+# Service mappings - using simple interface names
+SERVICE_MAPPINGS = {
+    # Real implementations (uncomment when implemented)
+    # 'IPatternService': 'services.implementations.pattern_service.PatternService',
+    # 'IToolListService': 'services.implementations.tool_list_service.ToolListService',
+    # 'IMaterialService': 'services.implementations.material_service.MaterialService',
+    # 'ICustomerService': 'services.implementations.customer_service.CustomerService',
+    # 'IProjectService': 'services.implementations.project_service.ProjectService',
+    # 'IInventoryService': 'services.implementations.inventory_service.InventoryService',
+    # 'ISalesService': 'services.implementations.sales_service.SalesService',
+    # 'ISupplierService': 'services.implementations.supplier_service.SupplierService',
 
+    # Using mocks (remove these lines when real implementations are ready)
+    'IPatternService': None,  # Using mock implementation
+    'IToolListService': None,  # Using mock implementation
+    'IMaterialService': None,  # Using mock implementation
+    'ICustomerService': None,  # Using mock implementation
+    'IProjectService': None,  # Using mock implementation
+    'IInventoryService': None,  # Using mock implementation
+    'ISalesService': None,  # Using mock implementation
+    'ISupplierService': None,  # Using mock implementation
+}
 
-class ServiceContainer:
-    """
-    Centralized service container for managing and retrieving service implementations.
-    """
-    _instance = None
-    _services: Dict[str, Any] = {}
+# Repository mappings - keep what we know exists
+REPOSITORY_MAPPINGS = [
+    # Base repositories
+    'database.repositories.base_repository.BaseRepository',
 
-    def __new__(cls):
-        """
-        Implement singleton pattern to ensure only one instance exists.
+    # Main entity repositories
+    'database.repositories.customer_repository.CustomerRepository',
+    'database.repositories.material_repository.MaterialRepository',
+    'database.repositories.product_repository.ProductRepository',
+    'database.repositories.pattern_repository.PatternRepository',
+    'database.repositories.project_repository.ProjectRepository',
+    'database.repositories.supplier_repository.SupplierRepository',
+    'database.repositories.tool_repository.ToolRepository',
+    'database.repositories.inventory_repository.InventoryRepository',
+    'database.repositories.sales_repository.SalesRepository',
+    'database.repositories.purchase_repository.PurchaseRepository',
+]
 
-        Returns:
-            ServiceContainer: The singleton instance of the service container
-        """
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance._services = {}
-        return cls._instance
-
-    def register_service(
-            self,
-            service_type: str,
-            service_impl: Optional[Type[Any]] = None,
-            import_path: Optional[str] = None
-    ):
-        """
-        Register a service implementation.
-
-        Args:
-            service_type (str): The type of service to register
-            service_impl (Optional[Type[Any]], optional): Direct service implementation
-            import_path (Optional[str], optional): Module path for lazy import
-        """
-        try:
-            if service_impl:
-                self._services[service_type] = service_impl
-            elif import_path:
-                # Register lazy import
-                self._services[service_type] = lambda: CircularImportResolver.lazy_import(
-                    import_path,
-                    service_type
-                )
-
-            logging.info(f"Registered service: {service_type}")
-        except Exception as e:
-            logging.error(f"Failed to register service {service_type}: {e}")
-
-    def get_service(self, service_type: str) -> Any:
-        """
-        Retrieve a service implementation.
-
-        Args:
-            service_type (str): The type of service to retrieve
-
-        Returns:
-            Any: The service implementation instance
-        """
-        try:
-            service_factory = self._services.get(service_type)
-            if service_factory is None:
-                raise ValueError(f"No implementation found for {service_type}")
-
-            # Handle lazy import or direct instantiation
-            return service_factory() if callable(service_factory) else service_factory
-        except Exception as e:
-            logging.error(f"Failed to retrieve service {service_type}: {e}")
-            raise
-
-
-def get_service_container() -> ServiceContainer:
-    """
-    Get the singleton service container instance.
-
-    Returns:
-        ServiceContainer: The service container
-    """
-    container = ServiceContainer()
-
-    # Register known services with their import paths
-    services_to_register = {
-        'MaterialService': 'services.implementations.material_service.MaterialService',
-        'ProjectService': 'services.implementations.project_service.ProjectService',
-        'InventoryService': 'services.implementations.inventory_service.InventoryService',
-        'SaleService': 'services.implementations.order_service.SaleService',
-    }
-
-    for service_name, import_path in services_to_register.items():
-        container.register_service(service_name, import_path=import_path)
-
-    return container
-
-
-# Create a singleton instance for easy access
-SERVICE_CONTAINER = get_service_container()
+# Database session configuration
+DATABASE_SESSION_CONFIG = {
+    'module': 'database.sqlalchemy.session',
+    'factory_function': None  # We'll handle this in the setup code
+}

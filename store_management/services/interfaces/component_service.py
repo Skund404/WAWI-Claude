@@ -1,160 +1,179 @@
 # services/interfaces/component_service.py
-"""
-Interface for Component Service that manages component-related business logic.
-"""
-
-from abc import ABC, abstractmethod
-from database.models.components import Component
-from database.models.enums import ComponentType
-from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Any, Optional, Protocol
 
 
-class IComponentService(ABC):
-    """Interface for the Component Service that handles operations related to components."""
+class IComponentService(Protocol):
+    """Interface for the Component Service.
 
-    @abstractmethod
-    def get_component(self, component_id: int) -> Component:
-        """
-        Retrieve a component by its ID.
+    The Component Service handles operations related to components used in
+    leatherworking projects, including their material requirements and relationships.
+    """
+
+    def get_by_id(self, component_id: int) -> Dict[str, Any]:
+        """Retrieve a component by its ID.
 
         Args:
-            component_id: ID of the component to retrieve
+            component_id: The ID of the component to retrieve
 
         Returns:
-            Component: The retrieved component
+            A dictionary representation of the component
 
         Raises:
-            NotFoundError: If the component does not exist
+            NotFoundError: If the component with the given ID does not exist
         """
-        pass
+        ...
 
-    @abstractmethod
-    def get_components(self, **filters) -> List[Component]:
-        """
-        Retrieve components based on optional filters.
+    def get_all(self, filters: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+        """Retrieve all components with optional filtering.
 
         Args:
-            **filters: Optional keyword arguments for filtering components
+            filters: Optional filters to apply to the component query
 
         Returns:
-            List[Component]: List of components matching the filters
+            List of dictionaries representing components
         """
-        pass
+        ...
 
-    @abstractmethod
-    def create_component(self, component_data: Dict[str, Any]) -> Component:
-        """
-        Create a new component with the provided data.
+    def create(self, component_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a new component.
 
         Args:
-            component_data: Data for creating the component
+            component_data: Dictionary containing component data
 
         Returns:
-            Component: The created component
+            Dictionary representation of the created component
 
         Raises:
             ValidationError: If the component data is invalid
         """
-        pass
+        ...
 
-    @abstractmethod
-    def update_component(self, component_id: int, component_data: Dict[str, Any]) -> Component:
-        """
-        Update a component with the provided data.
+    def update(self, component_id: int, component_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update an existing component.
 
         Args:
             component_id: ID of the component to update
-            component_data: Data for updating the component
+            component_data: Dictionary containing updated component data
 
         Returns:
-            Component: The updated component
+            Dictionary representation of the updated component
 
         Raises:
-            NotFoundError: If the component does not exist
-            ValidationError: If the component data is invalid
+            NotFoundError: If the component with the given ID does not exist
+            ValidationError: If the updated data is invalid
         """
-        pass
+        ...
 
-    @abstractmethod
-    def delete_component(self, component_id: int) -> bool:
-        """
-        Delete a component by its ID.
+    def delete(self, component_id: int) -> bool:
+        """Delete a component by its ID.
 
         Args:
             component_id: ID of the component to delete
 
         Returns:
-            bool: True if deletion was successful
+            True if the component was successfully deleted
 
         Raises:
-            NotFoundError: If the component does not exist
+            NotFoundError: If the component with the given ID does not exist
+            ServiceError: If the component cannot be deleted (e.g., in use)
         """
-        pass
+        ...
 
-    @abstractmethod
-    def get_components_by_type(self, component_type: ComponentType) -> List[Component]:
-        """
-        Retrieve components filtered by their type.
+    def find_by_name(self, name: str) -> List[Dict[str, Any]]:
+        """Find components by name (partial match).
 
         Args:
-            component_type: Type of components to retrieve
+            name: Name or partial name to search for
 
         Returns:
-            List[Component]: List of components of the specified type
+            List of dictionaries representing matching components
         """
-        pass
+        ...
 
-    @abstractmethod
-    def get_component_materials(self, component_id: int) -> List[Dict[str, Any]]:
+    def find_by_type(self, component_type: str) -> List[Dict[str, Any]]:
+        """Find components by type.
+
+        Args:
+            component_type: Component type to filter by
+
+        Returns:
+            List of dictionaries representing components of the specified type
         """
-        Retrieve materials associated with a component.
+        ...
+
+    def get_materials(self, component_id: int) -> List[Dict[str, Any]]:
+        """Get all materials used by a component.
 
         Args:
             component_id: ID of the component
 
         Returns:
-            List[Dict[str, Any]]: List of materials with quantities used in the component
+            List of dictionaries representing materials with quantities
 
         Raises:
-            NotFoundError: If the component does not exist
+            NotFoundError: If the component with the given ID does not exist
         """
-        pass
+        ...
 
-    @abstractmethod
-    def add_material_to_component(
-        self, component_id: int, material_id: int, quantity: float
-    ) -> bool:
-        """
-        Add a material to a component or update its quantity.
+    def add_material(self,
+                     component_id: int,
+                     material_id: int,
+                     quantity: float) -> Dict[str, Any]:
+        """Add a material to a component or update its quantity.
 
         Args:
             component_id: ID of the component
             material_id: ID of the material to add
-            quantity: Quantity of the material to use
+            quantity: Quantity of the material needed
 
         Returns:
-            bool: True if the material was added/updated successfully
+            Dictionary representing the component-material relationship
 
         Raises:
             NotFoundError: If the component or material does not exist
             ValidationError: If the quantity is invalid
         """
-        pass
+        ...
 
-    @abstractmethod
-    def remove_material_from_component(self, component_id: int, material_id: int) -> bool:
-        """
-        Remove a material from a component.
+    def remove_material(self, component_id: int, material_id: int) -> bool:
+        """Remove a material from a component.
 
         Args:
             component_id: ID of the component
             material_id: ID of the material to remove
 
         Returns:
-            bool: True if the material was removed successfully
+            True if the material was successfully removed
 
         Raises:
-            NotFoundError: If the component or component-material association does not exist
+            NotFoundError: If the component or the component-material relationship does not exist
         """
-        pass
+        ...
+
+    def get_components_using_material(self, material_id: int) -> List[Dict[str, Any]]:
+        """Find all components that use a specific material.
+
+        Args:
+            material_id: ID of the material
+
+        Returns:
+            List of dictionaries representing components that use the material
+
+        Raises:
+            NotFoundError: If the material with the given ID does not exist
+        """
+        ...
+
+    def calculate_component_cost(self, component_id: int) -> Dict[str, float]:
+        """Calculate the cost of a component based on its materials.
+
+        Args:
+            component_id: ID of the component
+
+        Returns:
+            Dictionary with cost details (material_cost, labor_cost, total_cost)
+
+        Raises:
+            NotFoundError: If the component with the given ID does not exist
+        """
+        ...

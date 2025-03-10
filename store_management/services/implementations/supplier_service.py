@@ -1,331 +1,368 @@
-# database/services/implementations/supplier_service.py
-"""
-Service implementation for managing Supplier entities and their relationships.
-"""
-from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
-import uuid
-import logging
+# services/implementations/supplier_service.py
 import re
+import logging
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
-from database.models.enums import SupplierStatus
-from database.models.supplier import Supplier
-from database.models.purchase import Purchase
-from database.repositories.supplier_repository import SupplierRepository
+from di.inject import inject
+from sqlalchemy.orm import Session
+
+from database.models.enums import InventoryStatus, SupplierStatus
+from database.repositories.inventory_repository import InventoryRepository
+from database.repositories.material_repository import MaterialRepository
 from database.repositories.purchase_repository import PurchaseRepository
-from database.sqlalchemy.session import get_db_session
+from database.repositories.supplier_repository import SupplierRepository
 
 from services.base_service import BaseService, NotFoundError, ValidationError
 from services.interfaces.supplier_service import ISupplierService
 
 
-class SupplierService(BaseService[Supplier], ISupplierService):
-    """
-    Service for managing Supplier-related operations.
+class SupplierService(BaseService, ISupplierService):
+    """Implementation of the supplier service interface.
 
-    Handles creation, retrieval, updating, and deletion of suppliers,
-    along with purchase and contact management.
+    This class provides functionality for managing suppliers,
+    including creation, retrieval, updating, and supplier-related operations.
     """
 
+    @inject
     def __init__(
-        self,
-        session=None,
-        supplier_repository: Optional[SupplierRepository] = None,
-        purchase_repository: Optional[PurchaseRepository] = None,
+            self,
+            session: Session,
+            supplier_repository: SupplierRepository,
+            material_repository: MaterialRepository,
+            purchase_repository: PurchaseRepository,
+            inventory_repository: InventoryRepository
     ):
-        """
-        Initialize the Supplier Service.
+        """Initialize the SupplierService with required repositories.
 
         Args:
             session: SQLAlchemy database session
-            supplier_repository: Repository for supplier data access
-            purchase_repository: Repository for purchase data access
+            supplier_repository: Repository for supplier operations
+            material_repository: Repository for material operations
+            purchase_repository: Repository for purchase operations
+            inventory_repository: Repository for inventory operations
         """
-        self.session = session or get_db_session()
-        self.supplier_repository = supplier_repository or SupplierRepository(self.session)
-        self.purchase_repository = purchase_repository or PurchaseRepository(self.session)
-        self.logger = logging.getLogger(__name__)
+        super().__init__(session)
+        self._logger = logging.getLogger(__name__)
+        self._supplier_repository = supplier_repository
+        self._material_repository = material_repository
+        self._purchase_repository = purchase_repository
+        self._inventory_repository = inventory_repository
 
-    def _validate_email(self, email: str) -> bool:
-        """
-        Validate email format.
-
-        Args:
-            email: Email address to validate
+    def get_all_suppliers(self) -> List[Dict[str, Any]]:
+        """Get all suppliers.
 
         Returns:
-            Boolean indicating email validity
+            List[Dict[str, Any]]: List of supplier dictionaries
         """
-        email_regex = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
-        return re.match(email_regex, email) is not None
+        self._logger.info("Retrieving all suppliers")
+        suppliers = self._supplier_repository.get_all()
+        return [self._to_dict(supplier) for supplier in suppliers]
 
-    def create_supplier(
-        self,
-        name: str,
-        contact_email: str,
-        status: SupplierStatus = SupplierStatus.ACTIVE,
-        **kwargs,
-    ) -> Supplier:
-        """
-        Create a new supplier.
+    def get_supplier_by_id(self, supplier_id: int) -> Dict[str, Any]:
+        """Get supplier by ID.
 
         Args:
-            name: Supplier name
-            contact_email: Contact email address
-            status: Supplier status (default: ACTIVE)
-            **kwargs: Additional supplier attributes
+            supplier_id: ID of the supplier
 
         Returns:
-            Created Supplier instance
+            Dict[str, Any]: Supplier dictionary
 
         Raises:
-            ValidationError: If supplier creation fails validation
+            NotFoundError: If supplier not found
         """
+        self._logger.info(f"Retrieving supplier with ID: {supplier_id}")
+        supplier = self._supplier_repository.get_by_id(supplier_id)
+        if not supplier:
+            self._logger.error(f"Supplier with ID {supplier_id} not found")
+            raise NotFoundError(f"Supplier with ID {supplier_id} not found")
+        return self._to_dict(supplier)
+
+    def create_supplier(self, supplier_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a new supplier.
+
+        Args:
+            supplier_data: Supplier data dictionary
+
+        Returns:
+            Dict[str, Any]: Created supplier dictionary
+
+        Raises:
+            ValidationError: If validation fails
+        """
+        self._logger.info("Creating new supplier")
+        self._validate_supplier_data(supplier_data)
+
+        # Ensure supplier has a status
+        if 'status' not in supplier_data:
+            supplier_data['status'] = SupplierStatus.ACTIVE.name
+
+        # Check for duplicate email
+        email = supplier_data.get('contact_email')
+        if email and self._supplier_repository.get_by_email(email):
+            self._logger.error(f"Supplier with email {email} already exists")
+            raise ValidationError(f"Supplier with email {email} already exists")
+
         try:
-            # Validate required fields
-            if not name:
-                raise ValidationError("Supplier name is required")
-
-            # Validate email
-            if not self._validate_email(contact_email):
-                raise ValidationError("Invalid email format")
-
-            # Generate a unique identifier
-            supplier_id = str(uuid.uuid4())
-
-            # Create supplier
-            supplier_data = {
-                "id": supplier_id,
-                "name": name,
-                "contact_email": contact_email,
-                "status": status,
-                **kwargs,
-            }
-
-            supplier = Supplier(**supplier_data)
-
-            # Save supplier
-            with self.session:
-                self.session.add(supplier)
-                self.session.commit()
-                self.session.refresh(supplier)
-
-            self.logger.info(f"Created supplier: {supplier.name}")
-            return supplier
-
+            supplier = self._supplier_repository.create(supplier_data)
+            self._session.commit()
+            self._logger.info(f"Created supplier with ID: {supplier.id}")
+            return self._to_dict(supplier)
         except Exception as e:
-            self.logger.error(f"Error creating supplier: {str(e)}")
-            raise ValidationError(f"Supplier creation failed: {str(e)}")
+            self._session.rollback()
+            self._logger.error(f"Failed to create supplier: {str(e)}")
+            raise ValidationError(f"Failed to create supplier: {str(e)}")
 
-    def get_supplier_by_id(self, supplier_id: str) -> Supplier:
-        """
-        Retrieve a supplier by its ID.
+    def update_supplier(self, supplier_id: int, supplier_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update an existing supplier.
 
         Args:
-            supplier_id: Unique identifier of the supplier
+            supplier_id: ID of the supplier to update
+            supplier_data: Updated supplier data
 
         Returns:
-            Supplier instance
+            Dict[str, Any]: Updated supplier dictionary
 
         Raises:
-            NotFoundError: If supplier is not found
+            NotFoundError: If supplier not found
+            ValidationError: If validation fails
         """
+        self._logger.info(f"Updating supplier with ID: {supplier_id}")
+        supplier = self._supplier_repository.get_by_id(supplier_id)
+        if not supplier:
+            self._logger.error(f"Supplier with ID {supplier_id} not found")
+            raise NotFoundError(f"Supplier with ID {supplier_id} not found")
+
+        self._validate_supplier_data(supplier_data, is_update=True)
+
+        # Check for duplicate email if email is being updated
+        email = supplier_data.get('contact_email')
+        if email and email != supplier.contact_email:
+            existing_supplier = self._supplier_repository.get_by_email(email)
+            if existing_supplier and existing_supplier.id != supplier_id:
+                self._logger.error(f"Supplier with email {email} already exists")
+                raise ValidationError(f"Supplier with email {email} already exists")
+
         try:
-            supplier = self.supplier_repository.get(supplier_id)
-            if not supplier:
-                raise NotFoundError(f"Supplier with ID {supplier_id} not found")
-            return supplier
+            updated_supplier = self._supplier_repository.update(supplier_id, supplier_data)
+            self._session.commit()
+            self._logger.info(f"Updated supplier with ID: {supplier_id}")
+            return self._to_dict(updated_supplier)
         except Exception as e:
-            self.logger.error(f"Error retrieving supplier: {str(e)}")
-            raise NotFoundError(f"Supplier retrieval failed: {str(e)}")
+            self._session.rollback()
+            self._logger.error(f"Failed to update supplier: {str(e)}")
+            raise ValidationError(f"Failed to update supplier: {str(e)}")
 
-    def update_supplier(
-        self,
-        supplier_id: str,
-        **update_data: Dict[str, Any],
-    ) -> Supplier:
-        """
-        Update an existing supplier.
+    def delete_supplier(self, supplier_id: int) -> bool:
+        """Delete a supplier.
 
         Args:
-            supplier_id: Unique identifier of the supplier
-            update_data: Dictionary of fields to update
+            supplier_id: ID of the supplier to delete
 
         Returns:
-            Updated Supplier instance
+            bool: True if successful
 
         Raises:
-            NotFoundError: If supplier is not found
-            ValidationError: If update fails validation
+            NotFoundError: If supplier not found
         """
+        self._logger.info(f"Deleting supplier with ID: {supplier_id}")
+        supplier = self._supplier_repository.get_by_id(supplier_id)
+        if not supplier:
+            self._logger.error(f"Supplier with ID {supplier_id} not found")
+            raise NotFoundError(f"Supplier with ID {supplier_id} not found")
+
+        # Check if supplier can be deleted (no active purchases)
+        active_purchases = self._purchase_repository.get_active_by_supplier_id(supplier_id)
+        if active_purchases:
+            self._logger.error(f"Cannot delete supplier with active purchases")
+            raise ValidationError(f"Cannot delete supplier with active purchases")
+
         try:
-            # Retrieve existing supplier
-            supplier = self.get_supplier_by_id(supplier_id)
-
-            # Validate email if provided
-            if "contact_email" in update_data:
-                if not self._validate_email(update_data["contact_email"]):
-                    raise ValidationError("Invalid email format")
-
-            # Validate status if provided
-            if "status" in update_data:
-                if not isinstance(update_data["status"], SupplierStatus):
-                    raise ValidationError("Invalid supplier status")
-
-            # Update supplier attributes
-            for key, value in update_data.items():
-                setattr(supplier, key, value)
-
-            # Save updates
-            with self.session:
-                self.session.add(supplier)
-                self.session.commit()
-                self.session.refresh(supplier)
-
-            self.logger.info(f"Updated supplier: {supplier.name}")
-            return supplier
-
-        except Exception as e:
-            self.logger.error(f"Error updating supplier: {str(e)}")
-            raise ValidationError(f"Supplier update failed: {str(e)}")
-
-    def delete_supplier(self, supplier_id: str) -> bool:
-        """
-        Delete a supplier.
-
-        Args:
-            supplier_id: Unique identifier of the supplier
-
-        Returns:
-            Boolean indicating successful deletion
-
-        Raises:
-            NotFoundError: If supplier is not found
-            ValidationError: If supplier cannot be deleted
-        """
-        try:
-            # Retrieve supplier
-            supplier = self.get_supplier_by_id(supplier_id)
-
-            # Check for active purchases
-            active_purchases = self.purchase_repository.get_by_supplier(supplier_id)
-            if active_purchases:
-                raise ValidationError("Cannot delete supplier with active purchases")
-
-            # Delete supplier
-            with self.session:
-                self.session.delete(supplier)
-                self.session.commit()
-
-            self.logger.info(f"Deleted supplier: {supplier_id}")
+            self._supplier_repository.delete(supplier_id)
+            self._session.commit()
+            self._logger.info(f"Deleted supplier with ID: {supplier_id}")
             return True
-
         except Exception as e:
-            self.logger.error(f"Error deleting supplier: {str(e)}")
-            raise ValidationError(f"Supplier deletion failed: {str(e)}")
+            self._session.rollback()
+            self._logger.error(f"Failed to delete supplier: {str(e)}")
+            raise ValidationError(f"Failed to delete supplier: {str(e)}")
 
-    def get_suppliers_by_status(
-        self,
-        status: Optional[SupplierStatus] = None,
-    ) -> List[Supplier]:
-        """
-        Retrieve suppliers filtered by status.
+    def get_supplier_materials(self, supplier_id: int) -> List[Dict[str, Any]]:
+        """Get materials supplied by a specific supplier.
 
         Args:
-            status: Optional supplier status to filter suppliers
+            supplier_id: ID of the supplier
 
         Returns:
-            List of Supplier instances
-        """
-        try:
-            # Use repository method to filter suppliers
-            suppliers = self.supplier_repository.get_by_status(status)
-            return suppliers
-        except Exception as e:
-            self.logger.error(f"Error retrieving suppliers: {str(e)}")
-            return []
-
-    def create_purchase_order(
-        self,
-        supplier_id: str,
-        total_amount: float,
-        **kwargs,
-    ) -> Purchase:
-        """
-        Create a purchase order for a specific supplier.
-
-        Args:
-            supplier_id: Unique identifier of the supplier
-            total_amount: Total amount of the purchase
-            **kwargs: Additional purchase order attributes
-
-        Returns:
-            Created Purchase instance
+            List[Dict[str, Any]]: List of material dictionaries
 
         Raises:
-            NotFoundError: If supplier is not found
-            ValidationError: If purchase order creation fails
+            NotFoundError: If supplier not found
         """
-        try:
-            # Verify supplier exists
-            supplier = self.get_supplier_by_id(supplier_id)
+        self._logger.info(f"Retrieving materials for supplier with ID: {supplier_id}")
+        supplier = self._supplier_repository.get_by_id(supplier_id)
+        if not supplier:
+            self._logger.error(f"Supplier with ID {supplier_id} not found")
+            raise NotFoundError(f"Supplier with ID {supplier_id} not found")
 
-            # Generate a unique identifier
-            purchase_id = str(uuid.uuid4())
+        materials = self._material_repository.get_by_supplier_id(supplier_id)
 
-            # Create purchase order
-            purchase_data = {
-                "id": purchase_id,
-                "supplier_id": supplier_id,
-                "total_amount": total_amount,
-                **kwargs,
+        result = []
+        for material in materials:
+            material_dict = {
+                'id': material.id,
+                'name': material.name,
+                'material_type': material.material_type.name if material.material_type else None,
+                'cost_per_unit': material.cost_per_unit
             }
 
-            purchase = Purchase(**purchase_data)
+            # Get inventory status and quantity
+            inventory = self._inventory_repository.get_by_item('material', material.id)
+            if inventory:
+                material_dict['inventory_status'] = inventory.status.name if inventory.status else None
+                material_dict['quantity'] = inventory.quantity
 
-            # Save purchase order
-            with self.session:
-                self.session.add(purchase)
-                self.session.commit()
-                self.session.refresh(purchase)
+            result.append(material_dict)
 
-            self.logger.info(f"Created purchase order for supplier: {supplier.name}")
-            return purchase
+        return result
 
-        except Exception as e:
-            self.logger.error(f"Error creating purchase order: {str(e)}")
-            raise ValidationError(f"Purchase order creation failed: {str(e)}")
-
-    def get_supplier_purchase_history(
-        self,
-        supplier_id: str,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-    ) -> List[Purchase]:
-        """
-        Retrieve purchase history for a specific supplier.
+    def get_supplier_purchase_history(self, supplier_id: int) -> List[Dict[str, Any]]:
+        """Get purchase history for a specific supplier.
 
         Args:
-            supplier_id: Unique identifier of the supplier
-            start_date: Optional start date for filtering purchases
-            end_date: Optional end date for filtering purchases
+            supplier_id: ID of the supplier
 
         Returns:
-            List of Purchase instances
+            List[Dict[str, Any]]: List of purchase dictionaries
 
         Raises:
-            NotFoundError: If supplier is not found
+            NotFoundError: If supplier not found
         """
+        self._logger.info(f"Retrieving purchase history for supplier with ID: {supplier_id}")
+        supplier = self._supplier_repository.get_by_id(supplier_id)
+        if not supplier:
+            self._logger.error(f"Supplier with ID {supplier_id} not found")
+            raise NotFoundError(f"Supplier with ID {supplier_id} not found")
+
+        purchases = self._purchase_repository.get_by_supplier_id(supplier_id)
+
+        result = []
+        for purchase in purchases:
+            result.append({
+                'id': purchase.id,
+                'total_amount': round(purchase.total_amount, 2) if purchase.total_amount else 0,
+                'status': purchase.status.name if purchase.status else None,
+                'created_at': purchase.created_at.isoformat() if purchase.created_at else None
+            })
+
+        return result
+
+    def search_suppliers(self, query: str) -> List[Dict[str, Any]]:
+        """Search for suppliers by name or contact information.
+
+        Args:
+            query: Search query string
+
+        Returns:
+            List[Dict[str, Any]]: List of matching supplier dictionaries
+        """
+        self._logger.info(f"Searching suppliers with query: {query}")
+        suppliers = self._supplier_repository.search(query)
+        return [self._to_dict(supplier) for supplier in suppliers]
+
+    def update_supplier_status(self, supplier_id: int, status: str) -> Dict[str, Any]:
+        """Update the status of a supplier.
+
+        Args:
+            supplier_id: ID of the supplier
+            status: New status value
+
+        Returns:
+            Dict[str, Any]: Updated supplier dictionary
+
+        Raises:
+            NotFoundError: If supplier not found
+            ValidationError: If validation fails
+        """
+        self._logger.info(f"Updating status of supplier with ID: {supplier_id} to {status}")
+        supplier = self._supplier_repository.get_by_id(supplier_id)
+        if not supplier:
+            self._logger.error(f"Supplier with ID {supplier_id} not found")
+            raise NotFoundError(f"Supplier with ID {supplier_id} not found")
+
+        # Validate status value
         try:
-            # Verify supplier exists
-            self.get_supplier_by_id(supplier_id)
+            status_enum = SupplierStatus[status.upper()]
+        except KeyError:
+            self._logger.error(f"Invalid supplier status: {status}")
+            raise ValidationError(f"Invalid supplier status: {status}")
 
-            # Retrieve purchase history
-            purchases = self.purchase_repository.get_by_supplier_and_date_range(
-                supplier_id, start_date, end_date
-            )
-            return purchases
-
+        try:
+            updated_supplier = self._supplier_repository.update(supplier_id, {'status': status_enum})
+            self._session.commit()
+            self._logger.info(f"Updated status of supplier with ID: {supplier_id} to {status_enum.name}")
+            return self._to_dict(updated_supplier)
         except Exception as e:
-            self.logger.error(f"Error retrieving supplier purchase history: {str(e)}")
-            raise NotFoundError(f"Supplier purchase history retrieval failed: {str(e)}")
+            self._session.rollback()
+            self._logger.error(f"Failed to update supplier status: {str(e)}")
+            raise ValidationError(f"Failed to update supplier status: {str(e)}")
+
+    def _validate_supplier_data(self, supplier_data: Dict[str, Any], is_update: bool = False) -> None:
+        """Validate supplier data.
+
+        Args:
+            supplier_data: Supplier data to validate
+            is_update: Whether this is an update operation
+
+        Raises:
+            ValidationError: If validation fails
+        """
+        # For create operations, name is required
+        if not is_update and 'name' not in supplier_data:
+            raise ValidationError("name is required")
+
+        # Validate email format if provided
+        email = supplier_data.get('contact_email')
+        if email and not self._is_valid_email(email):
+            raise ValidationError(f"Invalid email format: {email}")
+
+        # Validate status if provided
+        if 'status' in supplier_data:
+            try:
+                SupplierStatus[supplier_data['status'].upper()]
+            except KeyError:
+                raise ValidationError(f"Invalid supplier status: {supplier_data['status']}")
+
+    def _is_valid_email(self, email: str) -> bool:
+        """Check if an email has a valid format.
+
+        Args:
+            email: Email to validate
+
+        Returns:
+            bool: True if the email format is valid
+        """
+        pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        return bool(re.match(pattern, email))
+
+    def _to_dict(self, supplier) -> Dict[str, Any]:
+        """Convert supplier model to dictionary.
+
+        Args:
+            supplier: Supplier model object
+
+        Returns:
+            Dict[str, Any]: Supplier dictionary
+        """
+        return {
+            'id': supplier.id,
+            'name': supplier.name,
+            'contact_email': supplier.contact_email,
+            'contact_phone': getattr(supplier, 'contact_phone', None),
+            'address': getattr(supplier, 'address', None),
+            'website': getattr(supplier, 'website', None),
+            'status': supplier.status.name if supplier.status else None,
+            'notes': getattr(supplier, 'notes', None),
+            'created_at': supplier.created_at.isoformat() if supplier.created_at else None,
+            'updated_at': supplier.updated_at.isoformat() if supplier.updated_at else None
+        }

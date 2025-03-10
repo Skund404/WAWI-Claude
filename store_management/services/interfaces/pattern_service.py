@@ -1,116 +1,83 @@
 # services/interfaces/pattern_service.py
-"""
-Interface for Pattern Service in the leatherworking application.
-"""
-
-from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
-from database.models.enums import SkillLevel, PatternStatus
-from database.models.pattern import Pattern
-from database.models.components import Component
+from typing import Any, Dict, List, Optional, Protocol
 
 
-class IPatternService(ABC):
-    """
-    Abstract base class defining the interface for Pattern Service.
-    Handles operations related to leatherworking patterns.
-    """
+class IPatternService(Protocol):
+    """Protocol defining the pattern service interface."""
 
-    @abstractmethod
-    def create_pattern(
-        self,
-        name: str,
-        description: Optional[str] = None,
-        skill_level: Optional[SkillLevel] = None,
-        status: Optional[PatternStatus] = None,
-        components: Optional[List[Dict[str, Any]]] = None,
-        **kwargs
-    ) -> Pattern:
-        """
-        Create a new pattern.
-
-        Args:
-            name (str): Name of the pattern
-            description (Optional[str]): Description of the pattern
-            skill_level (Optional[SkillLevel]): Skill level required for the pattern
-            status (Optional[PatternStatus]): Current status of the pattern
-            components (Optional[List[Dict[str, Any]]]): List of components for the pattern
-            **kwargs: Additional attributes for the pattern
+    def get_all_patterns(self) -> List[Dict[str, Any]]:
+        """Get all patterns.
 
         Returns:
-            Pattern: The created pattern
+            List[Dict[str, Any]]: List of pattern dictionaries
         """
-        pass
+        ...
 
-    @abstractmethod
-    def get_pattern_by_id(self, pattern_id: int) -> Pattern:
-        """
-        Retrieve a pattern by its ID.
+    def get_pattern_by_id(self, pattern_id: int) -> Dict[str, Any]:
+        """Get pattern by ID.
 
         Args:
-            pattern_id (int): ID of the pattern
+            pattern_id: ID of the pattern
 
         Returns:
-            Pattern: The retrieved pattern
-        """
-        pass
+            Dict[str, Any]: Pattern dictionary
 
-    @abstractmethod
-    def get_patterns_by_skill_level(self, skill_level: SkillLevel) -> List[Pattern]:
+        Raises:
+            NotFoundError: If pattern not found
         """
-        Retrieve patterns by skill level.
+        ...
+
+    def create_pattern(self, pattern_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a new pattern.
 
         Args:
-            skill_level (SkillLevel): Skill level to filter patterns
+            pattern_data: Pattern data dictionary
 
         Returns:
-            List[Pattern]: List of patterns matching the skill level
-        """
-        pass
+            Dict[str, Any]: Created pattern dictionary
 
-    @abstractmethod
-    def update_pattern(self, pattern_id: int, **kwargs) -> Pattern:
+        Raises:
+            ValidationError: If validation fails
         """
-        Update an existing pattern.
+        ...
+
+    def update_pattern(self, pattern_id: int, pattern_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update an existing pattern.
 
         Args:
-            pattern_id (int): ID of the pattern to update
-            **kwargs: Attributes to update
+            pattern_id: ID of the pattern to update
+            pattern_data: Updated pattern data
 
         Returns:
-            Pattern: The updated pattern
-        """
-        pass
+            Dict[str, Any]: Updated pattern dictionary
 
-    @abstractmethod
+        Raises:
+            NotFoundError: If pattern not found
+            ValidationError: If validation fails
+        """
+        ...
+
     def delete_pattern(self, pattern_id: int) -> bool:
-        """
-        Delete a pattern.
+        """Delete a pattern.
 
         Args:
-            pattern_id (int): ID of the pattern to delete
+            pattern_id: ID of the pattern to delete
 
         Returns:
-            bool: True if deletion was successful, False otherwise
-        """
-        pass
+            bool: True if successful
 
-    @abstractmethod
-    def add_component_to_pattern(
-        self,
-        pattern_id: int,
-        component_id: int,
-        quantity: int = 1
-    ) -> Any:
+        Raises:
+            NotFoundError: If pattern not found
         """
-        Add a component to a pattern.
+        ...
+
+    def get_patterns_by_skill_level(self, skill_level: str) -> List[Dict[str, Any]]:
+        """Get patterns by skill level.
 
         Args:
-            pattern_id (int): ID of the pattern
-            component_id (int): ID of the component
-            quantity (int, optional): Quantity of the component. Defaults to 1.
+            skill_level: Skill level to filter by
 
         Returns:
-            Any: The created pattern component association
+            List[Dict[str, Any]]: List of matching pattern dictionaries
         """
-        pass
+        ...

@@ -1,369 +1,641 @@
-# database/services/implementations/inventory_service.py
-"""
-Service implementation for managing Inventory entities across different types.
-"""
-
-from typing import Any, Dict, List, Optional, Union
-import logging
+# services/implementations/inventory_service.py
+from typing import List, Optional, Dict, Any, Tuple
 from datetime import datetime
+import logging
+from sqlalchemy.orm import Session
 
-from database.models.enums import (
-    InventoryStatus,
-    MaterialType,
-    InventoryAdjustmentType,
-)
-from database.models.product_inventory import ProductInventory
-from database.models.material_inventory import MaterialInventory
-from database.models.leather_inventory import LeatherInventory
-from database.models.hardware_inventory import HardwareInventory
-from database.models.tool_inventory import ToolInventory
-
-from database.repositories.product_inventory_repository import (
-    ProductInventoryRepository,
-)
-from database.repositories.material_inventory_repository import (
-    MaterialInventoryRepository,
-)
-from database.repositories.leather_inventory_repository import (
-    LeatherInventoryRepository,
-)
-from database.repositories.hardware_inventory_repository import (
-    HardwareInventoryRepository,
-)
-from database.repositories.tool_inventory_repository import ToolInventoryRepository
-
-from database.sqlalchemy.session import get_db_session
-
-from services.base_service import BaseService, NotFoundError, ValidationError
-from services.interfaces.inventory_service import IInventoryService
+from database.repositories.inventory_repository import InventoryRepository
+from database.repositories.material_repository import MaterialRepository
+from database.repositories.product_repository import ProductRepository
+from database.repositories.tool_repository import ToolRepository
+from database.models.enums import InventoryStatus, InventoryAdjustmentType, TransactionType
+from services.base_service import BaseService, ValidationError, NotFoundError
 
 
-class InventoryService(BaseService, IInventoryService):
-    """
-    Comprehensive service for managing inventory across different entity types.
+class InventoryService(BaseService):
+    """Implementation of the inventory service interface."""
 
-    Handles inventory tracking, status updates, and adjustments for:
-    - Products
-    - Materials
-    - Leather
-    - Hardware
-    - Tools
-    """
-
-    def __init__(
-        self,
-        session=None,
-        product_inventory_repository: Optional[ProductInventoryRepository] = None,
-        material_inventory_repository: Optional[MaterialInventoryRepository] = None,
-        leather_inventory_repository: Optional[LeatherInventoryRepository] = None,
-        hardware_inventory_repository: Optional[HardwareInventoryRepository] = None,
-        tool_inventory_repository: Optional[ToolInventoryRepository] = None,
-    ):
-        """
-        Initialize the Inventory Service.
+    def __init__(self, session: Session,
+                 inventory_repository: Optional[InventoryRepository] = None,
+                 material_repository: Optional[MaterialRepository] = None,
+                 product_repository: Optional[ProductRepository] = None,
+                 tool_repository: Optional[ToolRepository] = None):
+        """Initialize the inventory service.
 
         Args:
             session: SQLAlchemy database session
-            product_inventory_repository: Repository for product inventory
-            material_inventory_repository: Repository for material inventory
-            leather_inventory_repository: Repository for leather inventory
-            hardware_inventory_repository: Repository for hardware inventory
-            tool_inventory_repository: Repository for tool inventory
+            inventory_repository: Optional InventoryRepository instance
+            material_repository: Optional MaterialRepository instance
+            product_repository: Optional ProductRepository instance
+            tool_repository: Optional ToolRepository instance
         """
-        self.session = session or get_db_session()
-        self.product_inventory_repo = (
-            product_inventory_repository
-            or ProductInventoryRepository(self.session)
-        )
-        self.material_inventory_repo = (
-            material_inventory_repository
-            or MaterialInventoryRepository(self.session)
-        )
-        self.leather_inventory_repo = (
-            leather_inventory_repository
-            or LeatherInventoryRepository(self.session)
-        )
-        self.hardware_inventory_repo = (
-            hardware_inventory_repository
-            or HardwareInventoryRepository(self.session)
-        )
-        self.tool_inventory_repo = (
-            tool_inventory_repository
-            or ToolInventoryRepository(self.session)
-        )
+        super().__init__(session)
+        self.inventory_repository = inventory_repository or InventoryRepository(session)
+        self.material_repository = material_repository or MaterialRepository(session)
+        self.product_repository = product_repository or ProductRepository(session)
+        self.tool_repository = tool_repository or ToolRepository(session)
 
-        self.logger = logging.getLogger(__name__)
-
-    def _get_inventory_repository(self, inventory_type: MaterialType):
-        """
-        Get the appropriate inventory repository based on material type.
+    def get_by_id(self, inventory_id: int) -> Dict[str, Any]:
+        """Get inventory by ID.
 
         Args:
-            inventory_type: Type of inventory
+            inventory_id: ID of the inventory to retrieve
 
         Returns:
-            Corresponding inventory repository
-        """
-        repositories = {
-            MaterialType.SUPPLIES: self.material_inventory_repo,
-            MaterialType.LEATHER: self.leather_inventory_repo,
-            MaterialType.HARDWARE: self.hardware_inventory_repo,
-            MaterialType.OTHER: self.material_inventory_repo,
-        }
-        return repositories.get(inventory_type, self.material_inventory_repo)
-
-    def _get_inventory_model(self, inventory_type: MaterialType):
-        """
-        Get the appropriate inventory model based on material type.
-
-        Args:
-            inventory_type: Type of inventory
-
-        Returns:
-            Corresponding inventory model class
-        """
-        models = {
-            MaterialType.SUPPLIES: MaterialInventory,
-            MaterialType.LEATHER: LeatherInventory,
-            MaterialType.HARDWARE: HardwareInventory,
-            MaterialType.OTHER: MaterialInventory,
-        }
-        return models.get(inventory_type, MaterialInventory)
-
-    def add_inventory(
-        self,
-        item_id: str,
-        inventory_type: MaterialType,
-        quantity: float,
-        storage_location: Optional[str] = None,
-        status: InventoryStatus = InventoryStatus.IN_STOCK,
-    ) -> Union[
-        ProductInventory,
-        MaterialInventory,
-        LeatherInventory,
-        HardwareInventory,
-        ToolInventory,
-    ]:
-        """
-        Add or update inventory for a specific item.
-
-        Args:
-            item_id: Unique identifier of the item
-            inventory_type: Type of material/item
-            quantity: Quantity to add or update
-            storage_location: Optional storage location
-            status: Inventory status (default: IN_STOCK)
-
-        Returns:
-            Corresponding inventory instance
+            Dict representing the inventory
 
         Raises:
-            NotFoundError: If item is not found
-            ValidationError: If inventory addition fails
+            NotFoundError: If inventory not found
         """
         try:
-            # Validate quantity
-            if quantity <= 0:
-                raise ValidationError("Quantity must be positive")
-
-            # Get appropriate repository and model
-            inventory_repo = self._get_inventory_repository(inventory_type)
-            inventory_model = self._get_inventory_model(inventory_type)
-
-            # Create inventory entry
-            inventory_data = {
-                f"{inventory_type.value}_id": item_id,
-                "quantity": quantity,
-                "storage_location": storage_location,
-                "status": status,
-            }
-
-            inventory = inventory_model(**inventory_data)
-
-            # Save inventory
-            with self.session:
-                self.session.add(inventory)
-                self.session.commit()
-                self.session.refresh(inventory)
-
-            self.logger.info(f"Added inventory for {inventory_type}: {item_id}")
-            return inventory
-
-        except Exception as e:
-            self.logger.error(f"Error adding inventory: {str(e)}")
-            raise ValidationError(f"Inventory addition failed: {str(e)}")
-
-    def adjust_inventory(
-        self,
-        item_id: str,
-        inventory_type: MaterialType,
-        quantity_change: float,
-        adjustment_type: InventoryAdjustmentType,
-        storage_location: Optional[str] = None,
-    ) -> Union[
-        ProductInventory,
-        MaterialInventory,
-        LeatherInventory,
-        HardwareInventory,
-        ToolInventory,
-    ]:
-        """
-        Adjust inventory quantity with specific adjustment type.
-
-        Args:
-            item_id: Unique identifier of the item
-            inventory_type: Type of material/item
-            quantity_change: Quantity to add or subtract
-            adjustment_type: Type of inventory adjustment
-            storage_location: Optional storage location
-
-        Returns:
-            Updated inventory instance
-
-        Raises:
-            NotFoundError: If inventory is not found
-            ValidationError: If inventory adjustment fails
-        """
-        try:
-            # Get appropriate repository
-            inventory_repo = self._get_inventory_repository(inventory_type)
-
-            # Find existing inventory
-            item_key = f"{inventory_type.value}_id"
-            existing_inventory = inventory_repo.get_by_item_id(item_id)
-
-            if not existing_inventory:
-                # If no existing inventory, create new
-                return self.add_inventory(
-                    item_id,
-                    inventory_type,
-                    abs(quantity_change),
-                    storage_location,
-                )
-
-            # Adjust quantity based on adjustment type
-            if adjustment_type in [
-                InventoryAdjustmentType.INITIAL_STOCK,
-                InventoryAdjustmentType.RESTOCK,
-                InventoryAdjustmentType.RETURN,
-                InventoryAdjustmentType.FOUND,
-            ]:
-                existing_inventory.quantity += abs(quantity_change)
-            elif adjustment_type in [
-                InventoryAdjustmentType.USAGE,
-                InventoryAdjustmentType.DAMAGE,
-                InventoryAdjustmentType.LOST,
-            ]:
-                if existing_inventory.quantity < abs(quantity_change):
-                    raise ValidationError("Insufficient inventory for adjustment")
-                existing_inventory.quantity -= abs(quantity_change)
-
-            # Update storage location if provided
-            if storage_location:
-                existing_inventory.storage_location = storage_location
-
-            # Update inventory status based on quantity
-            if existing_inventory.quantity == 0:
-                existing_inventory.status = InventoryStatus.OUT_OF_STOCK
-            elif existing_inventory.quantity < 10:  # Adjust threshold as needed
-                existing_inventory.status = InventoryStatus.LOW_STOCK
-            else:
-                existing_inventory.status = InventoryStatus.IN_STOCK
-
-            # Save updated inventory
-            with self.session:
-                self.session.add(existing_inventory)
-                self.session.commit()
-                self.session.refresh(existing_inventory)
-
-            self.logger.info(f"Adjusted inventory for {inventory_type}: {item_id}")
-            return existing_inventory
-
-        except Exception as e:
-            self.logger.error(f"Error adjusting inventory: {str(e)}")
-            raise ValidationError(f"Inventory adjustment failed: {str(e)}")
-
-    def get_inventory_status(
-        self, item_id: str, inventory_type: MaterialType
-    ) -> Union[
-        ProductInventory,
-        MaterialInventory,
-        LeatherInventory,
-        HardwareInventory,
-        ToolInventory,
-    ]:
-        """
-        Retrieve inventory status for a specific item.
-
-        Args:
-            item_id: Unique identifier of the item
-            inventory_type: Type of material/item
-
-        Returns:
-            Inventory instance
-
-        Raises:
-            NotFoundError: If inventory is not found
-        """
-        try:
-            # Get appropriate repository
-            inventory_repo = self._get_inventory_repository(inventory_type)
-
-            # Find inventory
-            inventory = inventory_repo.get_by_item_id(item_id)
-
+            inventory = self.inventory_repository.get_by_id(inventory_id)
             if not inventory:
-                raise NotFoundError(
-                    f"Inventory not found for {inventory_type}: {item_id}"
-                )
+                raise NotFoundError(f"Inventory with ID {inventory_id} not found")
 
-            return inventory
+            # Get item details
+            inventory_dict = self._to_dict(inventory)
+            item_details = self._get_item_details(inventory.item_type, inventory.item_id)
+            if item_details:
+                inventory_dict['item_details'] = item_details
 
+            return inventory_dict
         except Exception as e:
-            self.logger.error(f"Error retrieving inventory status: {str(e)}")
-            raise NotFoundError(f"Inventory status retrieval failed: {str(e)}")
+            self.logger.error(f"Error retrieving inventory {inventory_id}: {str(e)}")
+            raise
 
-    def get_low_stock_inventory(
-        self, inventory_type: Optional[MaterialType] = None
-    ) -> List[
-        Union[
-            ProductInventory,
-            MaterialInventory,
-            LeatherInventory,
-            HardwareInventory,
-            ToolInventory,
-        ]
-    ]:
-        """
-        Retrieve inventory items with low stock.
+    def get_all(self, filters: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+        """Get all inventory, optionally filtered.
 
         Args:
-            inventory_type: Optional specific inventory type to filter
+            filters: Optional filters to apply
 
         Returns:
-            List of low stock inventory items
+            List of dicts representing inventory
         """
         try:
-            low_stock_inventories = []
+            inventory_items = self.inventory_repository.get_all(filters)
 
-            # Check each repository if no specific type is given
-            if inventory_type is None:
-                repositories = [
-                    self.product_inventory_repo,
-                    self.material_inventory_repo,
-                    self.leather_inventory_repo,
-                    self.hardware_inventory_repo,
-                    self.tool_inventory_repo,
-                ]
-                for repo in repositories:
-                    low_stock_inventories.extend(repo.get_low_stock_items())
+            # Build inventory list with item details
+            inventory_list = []
+            for inventory in inventory_items:
+                inventory_dict = self._to_dict(inventory)
+
+                # Get item details
+                item_details = self._get_item_details(inventory.item_type, inventory.item_id)
+                if item_details:
+                    inventory_dict['item_details'] = item_details
+
+                inventory_list.append(inventory_dict)
+
+            return inventory_list
+        except Exception as e:
+            self.logger.error(f"Error retrieving inventory: {str(e)}")
+            raise
+
+    def get_by_item(self, item_type: str, item_id: int) -> Dict[str, Any]:
+        """Get inventory by item type and ID.
+
+        Args:
+            item_type: Type of the item (material, product, tool)
+            item_id: ID of the item
+
+        Returns:
+            Dict representing the inventory
+
+        Raises:
+            NotFoundError: If inventory not found
+        """
+        try:
+            inventory = self.inventory_repository.get_by_item(item_type, item_id)
+            if not inventory:
+                raise NotFoundError(f"Inventory for {item_type} with ID {item_id} not found")
+
+            # Get item details
+            inventory_dict = self._to_dict(inventory)
+            item_details = self._get_item_details(item_type, item_id)
+            if item_details:
+                inventory_dict['item_details'] = item_details
+
+            return inventory_dict
+        except Exception as e:
+            self.logger.error(f"Error retrieving inventory for {item_type} {item_id}: {str(e)}")
+            raise
+
+    def get_by_status(self, status: str) -> List[Dict[str, Any]]:
+        """Get inventory by status.
+
+        Args:
+            status: Inventory status
+
+        Returns:
+            List of dicts representing inventory with the given status
+
+        Raises:
+            ValidationError: If invalid status
+        """
+        try:
+            # Validate status
+            try:
+                InventoryStatus(status)
+            except ValueError:
+                raise ValidationError(f"Invalid inventory status: {status}")
+
+            # Get inventory by status
+            inventory_items = self.inventory_repository.get_by_status(status)
+
+            # Build inventory list with item details
+            inventory_list = []
+            for inventory in inventory_items:
+                inventory_dict = self._to_dict(inventory)
+
+                # Get item details
+                item_details = self._get_item_details(inventory.item_type, inventory.item_id)
+                if item_details:
+                    inventory_dict['item_details'] = item_details
+
+                inventory_list.append(inventory_dict)
+
+            return inventory_list
+        except Exception as e:
+            self.logger.error(f"Error retrieving inventory with status {status}: {str(e)}")
+            raise
+
+    def get_by_location(self, location: str) -> List[Dict[str, Any]]:
+        """Get inventory by storage location.
+
+        Args:
+            location: Storage location
+
+        Returns:
+            List of dicts representing inventory in the given location
+        """
+        try:
+            # Get inventory by location
+            inventory_items = self.inventory_repository.get_by_location(location)
+
+            # Build inventory list with item details
+            inventory_list = []
+            for inventory in inventory_items:
+                inventory_dict = self._to_dict(inventory)
+
+                # Get item details
+                item_details = self._get_item_details(inventory.item_type, inventory.item_id)
+                if item_details:
+                    inventory_dict['item_details'] = item_details
+
+                inventory_list.append(inventory_dict)
+
+            return inventory_list
+        except Exception as e:
+            self.logger.error(f"Error retrieving inventory in location {location}: {str(e)}")
+            raise
+
+    def get_low_stock(self, threshold: Optional[float] = None) -> List[Dict[str, Any]]:
+        """Get inventory with low stock levels.
+
+        Args:
+            threshold: Optional quantity threshold (if not provided, uses LOW_STOCK status)
+
+        Returns:
+            List of dicts representing inventory with low stock
+        """
+        try:
+            # Get low stock inventory
+            if threshold is not None:
+                inventory_items = self.inventory_repository.get_by_quantity_below(threshold)
             else:
-                # Get specific repository
-                inventory_repo = self._get_inventory_repository(inventory_type)
-                low_stock_inventories = inventory_repo.get_low_stock_items()
+                inventory_items = self.inventory_repository.get_by_status(InventoryStatus.LOW_STOCK.value)
 
-            return low_stock_inventories
+            # Build inventory list with item details
+            inventory_list = []
+            for inventory in inventory_items:
+                inventory_dict = self._to_dict(inventory)
 
+                # Get item details
+                item_details = self._get_item_details(inventory.item_type, inventory.item_id)
+                if item_details:
+                    inventory_dict['item_details'] = item_details
+
+                inventory_list.append(inventory_dict)
+
+            return inventory_list
         except Exception as e:
             self.logger.error(f"Error retrieving low stock inventory: {str(e)}")
-            return []
+            raise
+
+    def get_out_of_stock(self) -> List[Dict[str, Any]]:
+        """Get out of stock inventory.
+
+        Returns:
+            List of dicts representing out of stock inventory
+        """
+        try:
+            # Get out of stock inventory
+            inventory_items = self.inventory_repository.get_by_status(InventoryStatus.OUT_OF_STOCK.value)
+
+            # Build inventory list with item details
+            inventory_list = []
+            for inventory in inventory_items:
+                inventory_dict = self._to_dict(inventory)
+
+                # Get item details
+                item_details = self._get_item_details(inventory.item_type, inventory.item_id)
+                if item_details:
+                    inventory_dict['item_details'] = item_details
+
+                inventory_list.append(inventory_dict)
+
+            return inventory_list
+        except Exception as e:
+            self.logger.error(f"Error retrieving out of stock inventory: {str(e)}")
+            raise
+
+    def create(self, inventory_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a new inventory entry.
+
+        Args:
+            inventory_data: Dict containing inventory properties
+
+        Returns:
+            Dict representing the created inventory
+
+        Raises:
+            ValidationError: If validation fails
+            NotFoundError: If item not found
+        """
+        try:
+            # Validate inventory data
+            self._validate_inventory_data(inventory_data)
+
+            # Check if item exists
+            item_type = inventory_data['item_type']
+            item_id = inventory_data['item_id']
+            self._check_item_exists(item_type, item_id)
+
+            # Check if inventory already exists for this item
+            existing_inventory = self.inventory_repository.get_by_item(item_type, item_id)
+            if existing_inventory:
+                raise ValidationError(f"Inventory already exists for {item_type} with ID {item_id}")
+
+            # Set default status if not provided
+            if 'status' not in inventory_data:
+                quantity = inventory_data.get('quantity', 0)
+                inventory_data['status'] = self._determine_inventory_status(quantity)
+
+            # Create inventory
+            with self.transaction():
+                inventory = self.inventory_repository.create(inventory_data)
+
+                # Get item details
+                inventory_dict = self._to_dict(inventory)
+                item_details = self._get_item_details(item_type, item_id)
+                if item_details:
+                    inventory_dict['item_details'] = item_details
+
+                return inventory_dict
+        except Exception as e:
+            self.logger.error(f"Error creating inventory: {str(e)}")
+            raise
+
+    def update(self, inventory_id: int, inventory_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update an existing inventory entry.
+
+        Args:
+            inventory_id: ID of the inventory to update
+            inventory_data: Dict containing updated inventory properties
+
+        Returns:
+            Dict representing the updated inventory
+
+        Raises:
+            NotFoundError: If inventory not found
+            ValidationError: If validation fails
+        """
+        try:
+            # Check if inventory exists
+            inventory = self.inventory_repository.get_by_id(inventory_id)
+            if not inventory:
+                raise NotFoundError(f"Inventory with ID {inventory_id} not found")
+
+            # Validate inventory data
+            self._validate_inventory_data(inventory_data, update=True)
+
+            # Check if item type and ID are being changed
+            if ('item_type' in inventory_data or 'item_id' in inventory_data):
+                item_type = inventory_data.get('item_type', inventory.item_type)
+                item_id = inventory_data.get('item_id', inventory.item_id)
+
+                # Check if the new item exists
+                self._check_item_exists(item_type, item_id)
+
+                # Check if inventory already exists for this item
+                if item_type != inventory.item_type or item_id != inventory.item_id:
+                    existing_inventory = self.inventory_repository.get_by_item(item_type, item_id)
+                    if existing_inventory:
+                        raise ValidationError(f"Inventory already exists for {item_type} with ID {item_id}")
+
+            # Update status based on quantity if quantity is being changed
+            if 'quantity' in inventory_data and 'status' not in inventory_data:
+                inventory_data['status'] = self._determine_inventory_status(inventory_data['quantity'])
+
+            # Update inventory
+            with self.transaction():
+                updated_inventory = self.inventory_repository.update(inventory_id, inventory_data)
+
+                # Get item details
+                inventory_dict = self._to_dict(updated_inventory)
+                item_details = self._get_item_details(updated_inventory.item_type, updated_inventory.item_id)
+                if item_details:
+                    inventory_dict['item_details'] = item_details
+
+                return inventory_dict
+        except Exception as e:
+            self.logger.error(f"Error updating inventory {inventory_id}: {str(e)}")
+            raise
+
+    def delete(self, inventory_id: int) -> bool:
+        """Delete an inventory entry by ID.
+
+        Args:
+            inventory_id: ID of the inventory to delete
+
+        Returns:
+            True if successful
+
+        Raises:
+            NotFoundError: If inventory not found
+        """
+        try:
+            # Check if inventory exists
+            inventory = self.inventory_repository.get_by_id(inventory_id)
+            if not inventory:
+                raise NotFoundError(f"Inventory with ID {inventory_id} not found")
+
+            # Delete inventory
+            with self.transaction():
+                self.inventory_repository.delete(inventory_id)
+                return True
+        except Exception as e:
+            self.logger.error(f"Error deleting inventory {inventory_id}: {str(e)}")
+            raise
+
+    def adjust_quantity(self, inventory_id: int, adjustment: float,
+                        adjustment_type: str, notes: Optional[str] = None) -> Dict[str, Any]:
+        """Adjust inventory quantity.
+
+        Args:
+            inventory_id: ID of the inventory
+            adjustment: Quantity to adjust (positive for increase, negative for decrease)
+            adjustment_type: Type of adjustment
+            notes: Optional notes for the adjustment
+
+        Returns:
+            Dict representing the updated inventory
+
+        Raises:
+            NotFoundError: If inventory not found
+            ValidationError: If validation fails
+        """
+        try:
+            # Check if inventory exists
+            inventory = self.inventory_repository.get_by_id(inventory_id)
+            if not inventory:
+                raise NotFoundError(f"Inventory with ID {inventory_id} not found")
+
+            # Validate adjustment type
+            try:
+                InventoryAdjustmentType(adjustment_type)
+            except ValueError:
+                raise ValidationError(f"Invalid adjustment type: {adjustment_type}")
+
+            # Calculate new quantity
+            new_quantity = inventory.quantity + adjustment
+
+            # Validate new quantity
+            if new_quantity < 0:
+                raise ValidationError(f"Adjustment would result in negative quantity")
+
+            # Update inventory
+            with self.transaction():
+                # Determine new status
+                new_status = self._determine_inventory_status(new_quantity)
+
+                # Update inventory
+                inventory_data = {
+                    'quantity': new_quantity,
+                    'status': new_status
+                }
+                updated_inventory = self.inventory_repository.update(inventory_id, inventory_data)
+
+                # Record transaction if transaction repository is available
+                if hasattr(self, 'transaction_repository'):
+                    transaction_type = TransactionType.USAGE.value if adjustment < 0 else TransactionType.RESTOCK.value
+                    transaction_data = {
+                        'item_type': inventory.item_type,
+                        'item_id': inventory.item_id,
+                        'quantity': abs(adjustment),
+                        'type': transaction_type,
+                        'notes': notes or f"{adjustment_type} adjustment",
+                        'created_at': datetime.now()
+                    }
+                    self.transaction_repository.create(transaction_data)
+
+                # Get item details
+                inventory_dict = self._to_dict(updated_inventory)
+                item_details = self._get_item_details(inventory.item_type, inventory.item_id)
+                if item_details:
+                    inventory_dict['item_details'] = item_details
+
+                return inventory_dict
+        except Exception as e:
+            self.logger.error(f"Error adjusting inventory {inventory_id}: {str(e)}")
+            raise
+
+    def transfer_location(self, inventory_id: int, new_location: str) -> Dict[str, Any]:
+        """Transfer inventory to a new location.
+
+        Args:
+            inventory_id: ID of the inventory
+            new_location: New storage location
+
+        Returns:
+            Dict representing the updated inventory
+
+        Raises:
+            NotFoundError: If inventory not found
+        """
+        try:
+            # Check if inventory exists
+            inventory = self.inventory_repository.get_by_id(inventory_id)
+            if not inventory:
+                raise NotFoundError(f"Inventory with ID {inventory_id} not found")
+
+            # Validate location
+            if not new_location:
+                raise ValidationError(f"New location cannot be empty")
+
+            # Update inventory location
+            with self.transaction():
+                updated_inventory = self.inventory_repository.update(inventory_id, {'storage_location': new_location})
+
+                # Get item details
+                inventory_dict = self._to_dict(updated_inventory)
+                item_details = self._get_item_details(inventory.item_type, inventory.item_id)
+                if item_details:
+                    inventory_dict['item_details'] = item_details
+
+                return inventory_dict
+        except Exception as e:
+            self.logger.error(f"Error transferring inventory {inventory_id}: {str(e)}")
+            raise
+
+    def search(self, query: str) -> List[Dict[str, Any]]:
+        """Search for inventory by query string.
+
+        Args:
+            query: Search query string
+
+        Returns:
+            List of dicts representing matching inventory
+        """
+        try:
+            # Search inventory
+            inventory_items = self.inventory_repository.search(query)
+
+            # Build inventory list with item details
+            inventory_list = []
+            for inventory in inventory_items:
+                inventory_dict = self._to_dict(inventory)
+
+                # Get item details
+                item_details = self._get_item_details(inventory.item_type, inventory.item_id)
+                if item_details:
+                    inventory_dict['item_details'] = item_details
+
+                inventory_list.append(inventory_dict)
+
+            return inventory_list
+        except Exception as e:
+            self.logger.error(f"Error searching inventory: {str(e)}")
+            raise
+
+    # Helper methods
+
+    def _validate_inventory_data(self, data: Dict[str, Any], update: bool = False) -> None:
+        """Validate inventory data.
+
+        Args:
+            data: Inventory data to validate
+            update: Whether this is an update operation
+
+        Raises:
+            ValidationError: If validation fails
+        """
+        # Check required fields for new inventory
+        if not update:
+            required_fields = ['item_type', 'item_id', 'quantity']
+            for field in required_fields:
+                if field not in data:
+                    raise ValidationError(f"Missing required field: {field}")
+
+        # Validate item_type if provided
+        if 'item_type' in data:
+            item_type = data['item_type']
+            valid_types = ['material', 'product', 'tool']
+            if item_type not in valid_types:
+                raise ValidationError(f"Invalid item type: {item_type}")
+
+        # Validate quantity if provided
+        if 'quantity' in data:
+            quantity = data['quantity']
+            if not isinstance(quantity, (int, float)) or quantity < 0:
+                raise ValidationError(f"Quantity must be non-negative")
+
+        # Validate status if provided
+        if 'status' in data:
+            try:
+                InventoryStatus(data['status'])
+            except ValueError:
+                raise ValidationError(f"Invalid inventory status: {data['status']}")
+
+    def _check_item_exists(self, item_type: str, item_id: int) -> None:
+        """Check if an item exists.
+
+        Args:
+            item_type: Type of the item
+            item_id: ID of the item
+
+        Raises:
+            NotFoundError: If item not found
+        """
+        if item_type == 'material':
+            material = self.material_repository.get_by_id(item_id)
+            if not material:
+                raise NotFoundError(f"Material with ID {item_id} not found")
+        elif item_type == 'product':
+            product = self.product_repository.get_by_id(item_id)
+            if not product:
+                raise NotFoundError(f"Product with ID {item_id} not found")
+        elif item_type == 'tool':
+            tool = self.tool_repository.get_by_id(item_id)
+            if not tool:
+                raise NotFoundError(f"Tool with ID {item_id} not found")
+        else:
+            raise ValidationError(f"Invalid item type: {item_type}")
+
+    def _get_item_details(self, item_type: str, item_id: int) -> Optional[Dict[str, Any]]:
+        """Get details for an item.
+
+        Args:
+            item_type: Type of the item
+            item_id: ID of the item
+
+        Returns:
+            Dict with item details, or None if item not found
+        """
+        try:
+            if item_type == 'material':
+                material = self.material_repository.get_by_id(item_id)
+                if material:
+                    details = self._to_dict(material)
+
+                    # Add material-specific details
+                    details['type'] = 'Material'
+                    if hasattr(material, 'material_type'):
+                        details['subtype'] = material.material_type
+
+                    return details
+            elif item_type == 'product':
+                product = self.product_repository.get_by_id(item_id)
+                if product:
+                    details = self._to_dict(product)
+                    details['type'] = 'Product'
+                    return details
+            elif item_type == 'tool':
+                tool = self.tool_repository.get_by_id(item_id)
+                if tool:
+                    details = self._to_dict(tool)
+                    details['type'] = 'Tool'
+                    if hasattr(tool, 'tool_type'):
+                        details['subtype'] = tool.tool_type
+                    return details
+        except Exception as e:
+            self.logger.warning(f"Error getting details for {item_type} {item_id}: {str(e)}")
+
+        return None
+
+    def _determine_inventory_status(self, quantity: float) -> str:
+        """Determine inventory status based on quantity.
+
+        Args:
+            quantity: Current inventory quantity
+
+        Returns:
+            Inventory status string
+        """
+        if quantity <= 0:
+            return InventoryStatus.OUT_OF_STOCK.value
+        elif quantity < 5:  # This threshold could be configurable
+            return InventoryStatus.LOW_STOCK.value
+        else:
+            return InventoryStatus.IN_STOCK.value

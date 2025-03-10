@@ -1,117 +1,216 @@
-# database/services/interfaces/product_service.py
-"""
-Interface definition for Product Service.
-"""
-
-from abc import ABC, abstractmethod
-from typing import List, Optional, Any
-
-from database.models.enums import MaterialType
-from database.models.product import Product
-from database.models.product_inventory import ProductInventory
+# services/interfaces/product_service.py
+from typing import Dict, List, Any, Optional, Protocol
 
 
-class IProductService(ABC):
-    """
-    Interface defining contract for Product Service operations.
+class IProductService(Protocol):
+    """Interface for the Product Service.
+
+    The Product Service handles operations related to the product catalog,
+    pricing, and inventory management of finished products.
     """
 
-    @abstractmethod
-    def create_product(
-        self,
-        name: str,
-        price: float,
-        **kwargs
-    ) -> Product:
-        """
-        Create a new product.
+    def get_by_id(self, product_id: int) -> Dict[str, Any]:
+        """Retrieve a product by its ID.
 
         Args:
-            name: Product name
-            price: Product price
-            **kwargs: Additional product attributes
+            product_id: The ID of the product to retrieve
 
         Returns:
-            Created Product instance
-        """
-        pass
+            A dictionary representation of the product
 
-    @abstractmethod
-    def get_product_by_id(self, product_id: str) -> Product:
+        Raises:
+            NotFoundError: If the product with the given ID does not exist
         """
-        Retrieve a product by its ID.
+        ...
+
+    def get_all(self, filters: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+        """Retrieve all products with optional filtering.
 
         Args:
-            product_id: Unique identifier of the product
+            filters: Optional filters to apply to the product query
 
         Returns:
-            Product instance
+            List of dictionaries representing products
         """
-        pass
+        ...
 
-    @abstractmethod
-    def update_product(
-        self,
-        product_id: str,
-        **update_data
-    ) -> Product:
-        """
-        Update an existing product.
+    def create(self, product_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a new product.
 
         Args:
-            product_id: Unique identifier of the product
-            update_data: Dictionary of fields to update
+            product_data: Dictionary containing product data
 
         Returns:
-            Updated Product instance
-        """
-        pass
+            Dictionary representation of the created product
 
-    @abstractmethod
-    def delete_product(self, product_id: str) -> bool:
+        Raises:
+            ValidationError: If the product data is invalid
         """
-        Delete a product.
+        ...
+
+    def update(self, product_id: int, product_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update an existing product.
 
         Args:
-            product_id: Unique identifier of the product
+            product_id: ID of the product to update
+            product_data: Dictionary containing updated product data
 
         Returns:
-            Boolean indicating successful deletion
-        """
-        pass
+            Dictionary representation of the updated product
 
-    @abstractmethod
-    def get_products_by_type(
-        self,
-        material_type: Optional[MaterialType] = None
-    ) -> List[Product]:
+        Raises:
+            NotFoundError: If the product with the given ID does not exist
+            ValidationError: If the updated data is invalid
         """
-        Retrieve products filtered by material type.
+        ...
+
+    def delete(self, product_id: int) -> bool:
+        """Delete a product by its ID.
 
         Args:
-            material_type: Optional material type to filter products
+            product_id: ID of the product to delete
 
         Returns:
-            List of Product instances
-        """
-        pass
+            True if the product was successfully deleted
 
-    @abstractmethod
-    def add_product_inventory(
-        self,
-        product_id: str,
-        quantity: int,
-        storage_location: Optional[str] = None
-    ) -> ProductInventory:
+        Raises:
+            NotFoundError: If the product with the given ID does not exist
+            ServiceError: If the product cannot be deleted (e.g., in use)
         """
-        Add inventory for a specific product.
+        ...
+
+    def find_by_name(self, name: str) -> List[Dict[str, Any]]:
+        """Find products by name (partial match).
 
         Args:
-            product_id: Unique identifier of the product
-            quantity: Quantity to add to inventory
-            storage_location: Optional storage location
+            name: Name or partial name to search for
 
         Returns:
-            ProductInventory instance
+            List of dictionaries representing matching products
         """
-        pass
+        ...
+
+    def get_by_pattern(self, pattern_id: int) -> List[Dict[str, Any]]:
+        """Find products that use a specific pattern.
+
+        Args:
+            pattern_id: ID of the pattern
+
+        Returns:
+            List of dictionaries representing products using the pattern
+
+        Raises:
+            NotFoundError: If the pattern with the given ID does not exist
+        """
+        ...
+
+    def link_pattern(self, product_id: int, pattern_id: int) -> Dict[str, Any]:
+        """Link a pattern to a product.
+
+        Args:
+            product_id: ID of the product
+            pattern_id: ID of the pattern
+
+        Returns:
+            Dictionary representation of the updated product
+
+        Raises:
+            NotFoundError: If the product or pattern does not exist
+            ValidationError: If the pattern is already linked to the product
+        """
+        ...
+
+    def unlink_pattern(self, product_id: int, pattern_id: int) -> bool:
+        """Unlink a pattern from a product.
+
+        Args:
+            product_id: ID of the product
+            pattern_id: ID of the pattern
+
+        Returns:
+            True if the pattern was successfully unlinked
+
+        Raises:
+            NotFoundError: If the product or the product-pattern link does not exist
+        """
+        ...
+
+    def update_inventory(self, product_id: int, quantity: int, notes: str = None) -> Dict[str, Any]:
+        """Update the inventory of a product.
+
+        Args:
+            product_id: ID of the product
+            quantity: Quantity to adjust (positive or negative)
+            notes: Optional notes about the adjustment
+
+        Returns:
+            Dictionary containing updated inventory information
+
+        Raises:
+            NotFoundError: If the product does not exist
+            ValidationError: If the adjustment would result in negative inventory
+        """
+        ...
+
+    def get_inventory_status(self, product_id: int) -> Dict[str, Any]:
+        """Get the current inventory status of a product.
+
+        Args:
+            product_id: ID of the product
+
+        Returns:
+            Dictionary containing inventory information
+
+        Raises:
+            NotFoundError: If the product does not exist
+        """
+        ...
+
+    def calculate_production_cost(self, product_id: int) -> Dict[str, float]:
+        """Calculate the production cost of a product based on its pattern and materials.
+
+        Args:
+            product_id: ID of the product
+
+        Returns:
+            Dictionary with cost breakdown (materials, labor, overhead, total)
+
+        Raises:
+            NotFoundError: If the product does not exist
+            ServiceError: If the product is not linked to a pattern
+        """
+        ...
+
+    def update_pricing(self, product_id: int, pricing_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update the pricing information for a product.
+
+        Args:
+            product_id: ID of the product
+            pricing_data: Dictionary containing pricing information
+
+        Returns:
+            Dictionary representation of the updated product
+
+        Raises:
+            NotFoundError: If the product does not exist
+            ValidationError: If the pricing data is invalid
+        """
+        ...
+
+    def get_sales_history(self, product_id: int,
+                          start_date: Optional[str] = None,
+                          end_date: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Get the sales history for a product.
+
+        Args:
+            product_id: ID of the product
+            start_date: Optional start date (ISO format)
+            end_date: Optional end date (ISO format)
+
+        Returns:
+            List of dictionaries containing sales information
+
+        Raises:
+            NotFoundError: If the product does not exist
+        """
+        ...

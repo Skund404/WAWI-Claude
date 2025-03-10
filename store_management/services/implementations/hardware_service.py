@@ -1,741 +1,822 @@
 # services/implementations/hardware_service.py
-"""
-Service implementation for hardware-related operations.
-Provides business logic for hardware management in the leatherworking application.
-"""
-
 import logging
-from typing import Any, Dict, List, Optional, Union
-from sqlalchemy.exc import SQLAlchemyError
+from typing import Dict, List, Any, Optional, Union
 from datetime import datetime
 
-from database.models.hardware import Hardware
-from database.models.enums import HardwareType, HardwareMaterial, HardwareFinish
-from database.models.enums import InventoryStatus, TransactionType
+from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError
+
+from database.models.material import Hardware
+from database.models.enums import HardwareType, HardwareMaterial, HardwareFinish, InventoryStatus
 from database.repositories.hardware_repository import HardwareRepository
-from database.sqlalchemy.session import get_db_session
+from database.repositories.component_repository import ComponentRepository
+from database.repositories.inventory_repository import InventoryRepository
+from database.repositories.supplier_repository import SupplierRepository
 
-from services.base_service import BaseService, NotFoundError, ValidationError
+from services.base_service import BaseService, ValidationError, NotFoundError, ServiceError
+from services.implementations.material_service import MaterialService
 from services.interfaces.hardware_service import IHardwareService
-from utils.validators import validate_string, validate_positive_number
+
+from di.core import inject
 
 
-class HardwareService(BaseService[Hardware], IHardwareService):
+class HardwareService(MaterialService, IHardwareService):
+    """Implementation of the Hardware Service interface.
+
+    This service provides specialized functionality for managing hardware materials
+    used in leatherworking projects, such as buckles, rivets, snaps, etc.
     """
-    Service for managing hardware items in the leatherworking inventory.
-    Provides methods for creating, updating, retrieving, and managing hardware.
-    """
 
-    def __init__(self, hardware_repository: Optional[HardwareRepository] = None):
-        """
-        Initialize the hardware service.
+    @inject
+    def __init__(self,
+                 session: Session,
+                 hardware_repository: Optional[HardwareRepository] = None,
+                 component_repository: Optional[ComponentRepository] = None,
+                 inventory_repository: Optional[InventoryRepository] = None,
+                 supplier_repository: Optional[SupplierRepository] = None):
+        """Initialize the Hardware Service.
 
         Args:
-            hardware_repository (Optional[HardwareRepository]): Repository for hardware data access.
-                If not provided, a new one will be created.
+            session: SQLAlchemy database session
+            hardware_repository: Optional HardwareRepository instance
+            component_repository: Optional ComponentRepository instance
+            inventory_repository: Optional InventoryRepository instance
+            supplier_repository: Optional SupplierRepository instance
         """
-        super().__init__()
+        super().__init__(session)
+        self.hardware_repository = hardware_repository or HardwareRepository(session)
+        self.component_repository = component_repository or ComponentRepository(session)
+        self.inventory_repository = inventory_repository or InventoryRepository(session)
+        self.supplier_repository = supplier_repository or SupplierRepository(session)
         self.logger = logging.getLogger(__name__)
-        self.logger.info("Initializing HardwareService")
 
-        # Create a new repository with a session if none provided
-        if hardware_repository is None:
-            session = get_db_session()
-            self.hardware_repository = HardwareRepository(session)
-        else:
-            self.hardware_repository = hardware_repository
-
-    def get_all_hardware(self, include_inactive: bool = False,
-                         include_deleted: bool = False) -> List[Dict[str, Any]]:
-        """
-        Get all hardware items in the inventory.
+    def get_by_id(self, hardware_id: int) -> Dict[str, Any]:
+        """Retrieve a hardware item by its ID.
 
         Args:
-            include_inactive (bool): Whether to include inactive hardware
-            include_deleted (bool): Whether to include soft-deleted hardware
+            hardware_id: The ID of the hardware to retrieve
 
         Returns:
-            List[Dict[str, Any]]: List of hardware items as dictionaries
-        """
-        self.logger.debug(
-            f"Getting all hardware items (include_inactive={include_inactive}, include_deleted={include_deleted})")
-
-        try:
-            # Get the raw hardware entities
-            hardware_items = self.hardware_repository.get_all(
-                include_inactive=include_inactive,
-                include_deleted=include_deleted
-            )
-
-            # Convert to dictionaries for API consumption
-            return [self._convert_to_dict(item) for item in hardware_items]
-        except SQLAlchemyError as e:
-            error_msg = f"Database error when retrieving hardware items: {str(e)}"
-            self.logger.error(error_msg)
-            raise NotFoundError(error_msg, {"details": str(e)})
-
-    def get_hardware_by_id(self, hardware_id: str) -> Dict[str, Any]:
-        """
-        Get a hardware item by its ID.
-
-        Args:
-            hardware_id (str): ID of the hardware to retrieve
-
-        Returns:
-            Dict[str, Any]: Hardware item as a dictionary
+            A dictionary representation of the hardware
 
         Raises:
-            NotFoundError: If hardware with the specified ID does not exist
+            NotFoundError: If the hardware does not exist
         """
-        self.logger.debug(f"Getting hardware by ID: {hardware_id}")
-
         try:
             hardware = self.hardware_repository.get_by_id(hardware_id)
             if not hardware:
                 raise NotFoundError(f"Hardware with ID {hardware_id} not found")
+            return self._to_dict(hardware)
+        except NotFoundError:
+            raise
+        except Exception as e:
+            self.logger.error(f"Error retrieving hardware {hardware_id}: {str(e)}")
+            raise ServiceError(f"Failed to retrieve hardware: {str(e)}")
 
-            return self._convert_to_dict(hardware)
-        except SQLAlchemyError as e:
-            error_msg = f"Database error when retrieving hardware with ID {hardware_id}: {str(e)}"
-            self.logger.error(error_msg)
-            raise NotFoundError(error_msg, {"hardware_id": hardware_id, "details": str(e)})
-
-    def create_hardware(self, hardware_data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Create a new hardware item.
-
-        Args:
-            hardware_data (Dict[str, Any]): Hardware data to create
-
-        Returns:
-            Dict[str, Any]: Created hardware item as a dictionary
-
-        Raises:
-            ValidationError: If validation fails
-        """
-        self.logger.info(f"Creating new hardware: {hardware_data.get('name', 'unnamed')}")
-
-        # Validate required fields
-        self._validate_hardware_data(hardware_data, is_new=True)
-
-        try:
-            # Set default values for new hardware if not provided
-            if 'is_active' not in hardware_data:
-                hardware_data['is_active'] = True
-
-            if 'is_deleted' not in hardware_data:
-                hardware_data['is_deleted'] = False
-
-            if 'created_at' not in hardware_data:
-                hardware_data['created_at'] = datetime.utcnow()
-
-            if 'updated_at' not in hardware_data:
-                hardware_data['updated_at'] = datetime.utcnow()
-
-            # Set inventory status based on quantity
-            if 'quantity' in hardware_data:
-                quantity = hardware_data['quantity']
-                reorder_threshold = hardware_data.get('reorder_threshold', 10)
-
-                if quantity == 0:
-                    hardware_data['status'] = InventoryStatus.OUT_OF_STOCK
-                elif quantity <= reorder_threshold:
-                    hardware_data['status'] = InventoryStatus.LOW_STOCK
-                else:
-                    hardware_data['status'] = InventoryStatus.IN_STOCK
-
-            # Convert enum strings to enum values if needed
-            hardware_data = self._process_enum_fields(hardware_data)
-
-            # Create hardware object
-            hardware = Hardware(**hardware_data)
-
-            # Save to database
-            created_hardware = self.hardware_repository.create(hardware)
-            self.logger.info(f"Hardware created successfully with ID: {created_hardware.id}")
-
-            return self._convert_to_dict(created_hardware)
-        except SQLAlchemyError as e:
-            error_msg = f"Database error when creating hardware: {str(e)}"
-            self.logger.error(error_msg)
-            raise ValidationError(error_msg, {"details": str(e)})
-
-    def update_hardware(self, hardware_id: str, hardware_data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Update an existing hardware item.
+    def get_all(self, filters: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+        """Retrieve all hardware items with optional filtering.
 
         Args:
-            hardware_id (str): ID of the hardware to update
-            hardware_data (Dict[str, Any]): Updated hardware data
+            filters: Optional filters to apply to the hardware query
 
         Returns:
-            Dict[str, Any]: Updated hardware item as a dictionary
+            List of dictionaries representing hardware items
+        """
+        try:
+            hardware_items = self.hardware_repository.get_all(filters)
+            return [self._to_dict(hardware) for hardware in hardware_items]
+        except Exception as e:
+            self.logger.error(f"Error retrieving hardware items: {str(e)}")
+            raise ServiceError(f"Failed to retrieve hardware items: {str(e)}")
+
+    def create(self, hardware_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a new hardware item.
+
+        Args:
+            hardware_data: Dictionary containing hardware data
+
+        Returns:
+            Dictionary representation of the created hardware
 
         Raises:
-            NotFoundError: If hardware with the specified ID does not exist
-            ValidationError: If validation fails
+            ValidationError: If the hardware data is invalid
         """
-        self.logger.info(f"Updating hardware with ID {hardware_id}")
-
-        # Validate the update data
-        self._validate_hardware_data(hardware_data, is_new=False)
-
         try:
-            # Get existing hardware
+            # Validate the hardware data
+            self._validate_hardware_data(hardware_data)
+
+            # Set material_type to HARDWARE
+            hardware_data['material_type'] = 'HARDWARE'
+
+            # Check supplier if supplier_id is provided
+            if 'supplier_id' in hardware_data and hardware_data['supplier_id']:
+                supplier = self.supplier_repository.get_by_id(hardware_data['supplier_id'])
+                if not supplier:
+                    raise NotFoundError(f"Supplier with ID {hardware_data['supplier_id']} not found")
+
+            # Create the hardware within a transaction
+            with self.transaction():
+                hardware = Hardware(**hardware_data)
+                created_hardware = self.hardware_repository.create(hardware)
+
+                # Create inventory entry for the hardware if initial_quantity is provided
+                if 'initial_quantity' in hardware_data:
+                    initial_quantity = hardware_data.get('initial_quantity', 0)
+                    inventory_data = {
+                        'item_type': 'material',
+                        'item_id': created_hardware.id,
+                        'quantity': initial_quantity,
+                        'status': InventoryStatus.IN_STOCK.value if initial_quantity > 0 else InventoryStatus.OUT_OF_STOCK.value,
+                        'storage_location': hardware_data.get('storage_location', '')
+                    }
+                    self.inventory_repository.create(inventory_data)
+
+                return self._to_dict(created_hardware)
+        except (ValidationError, NotFoundError):
+            raise
+        except Exception as e:
+            self.logger.error(f"Error creating hardware: {str(e)}")
+            raise ServiceError(f"Failed to create hardware: {str(e)}")
+
+    def update(self, hardware_id: int, hardware_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update an existing hardware item.
+
+        Args:
+            hardware_id: ID of the hardware to update
+            hardware_data: Dictionary containing updated hardware data
+
+        Returns:
+            Dictionary representation of the updated hardware
+
+        Raises:
+            NotFoundError: If the hardware does not exist
+            ValidationError: If the updated data is invalid
+        """
+        try:
+            # Verify hardware exists
             hardware = self.hardware_repository.get_by_id(hardware_id)
             if not hardware:
                 raise NotFoundError(f"Hardware with ID {hardware_id} not found")
 
-            # Update the timestamp
-            hardware_data['updated_at'] = datetime.utcnow()
+            # Validate hardware data
+            self._validate_hardware_data(hardware_data, update=True)
 
-            # Process enum fields if needed
-            hardware_data = self._process_enum_fields(hardware_data)
+            # Check supplier if supplier_id is provided
+            if 'supplier_id' in hardware_data and hardware_data['supplier_id']:
+                supplier = self.supplier_repository.get_by_id(hardware_data['supplier_id'])
+                if not supplier:
+                    raise NotFoundError(f"Supplier with ID {hardware_data['supplier_id']} not found")
 
-            # Update inventory status if quantity is updated
-            if 'quantity' in hardware_data:
-                quantity = hardware_data['quantity']
-                reorder_threshold = hardware_data.get('reorder_threshold', hardware.reorder_threshold)
+            # Update the hardware within a transaction
+            with self.transaction():
+                updated_hardware = self.hardware_repository.update(hardware_id, hardware_data)
+                return self._to_dict(updated_hardware)
+        except (NotFoundError, ValidationError):
+            raise
+        except Exception as e:
+            self.logger.error(f"Error updating hardware {hardware_id}: {str(e)}")
+            raise ServiceError(f"Failed to update hardware: {str(e)}")
 
-                if quantity == 0:
-                    hardware_data['status'] = InventoryStatus.OUT_OF_STOCK
-                elif quantity <= reorder_threshold:
-                    hardware_data['status'] = InventoryStatus.LOW_STOCK
-                else:
-                    hardware_data['status'] = InventoryStatus.IN_STOCK
-
-            # Update hardware
-            updated_hardware = self.hardware_repository.update(hardware_id, hardware_data)
-            self.logger.info(f"Hardware with ID {hardware_id} updated successfully")
-
-            return self._convert_to_dict(updated_hardware)
-        except SQLAlchemyError as e:
-            error_msg = f"Database error when updating hardware with ID {hardware_id}: {str(e)}"
-            self.logger.error(error_msg)
-            raise ValidationError(error_msg, {"hardware_id": hardware_id, "details": str(e)})
-
-    def delete_hardware(self, hardware_id: str, permanent: bool = False) -> Dict[str, Any]:
-        """
-        Delete a hardware item (soft delete by default).
+    def delete(self, hardware_id: int) -> bool:
+        """Delete a hardware item by its ID.
 
         Args:
-            hardware_id (str): ID of the hardware to delete
-            permanent (bool): Whether to permanently delete the hardware
+            hardware_id: ID of the hardware to delete
 
         Returns:
-            Dict[str, Any]: Deleted hardware info or success message
+            True if the hardware was successfully deleted
 
         Raises:
-            NotFoundError: If hardware with the specified ID does not exist
+            NotFoundError: If the hardware does not exist
+            ServiceError: If the hardware cannot be deleted (e.g., in use)
         """
-        self.logger.info(f"Deleting hardware with ID {hardware_id} (permanent={permanent})")
-
         try:
-            # Get existing hardware
+            # Verify hardware exists
             hardware = self.hardware_repository.get_by_id(hardware_id)
             if not hardware:
                 raise NotFoundError(f"Hardware with ID {hardware_id} not found")
 
-            if permanent:
-                # Permanent delete
+            # Check if hardware is used in any components
+            components_using = self.get_components_using(hardware_id)
+            if components_using:
+                raise ServiceError(
+                    f"Cannot delete hardware {hardware_id} as it is used in {len(components_using)} components")
+
+            # Delete the hardware within a transaction
+            with self.transaction():
+                # Delete inventory entries first
+                inventory_entries = self.inventory_repository.get_by_item(item_type='material', item_id=hardware_id)
+                for entry in inventory_entries:
+                    self.inventory_repository.delete(entry.id)
+
+                # Then delete the hardware
                 self.hardware_repository.delete(hardware_id)
-                self.logger.info(f"Hardware with ID {hardware_id} permanently deleted")
-                return {"message": f"Hardware with ID {hardware_id} permanently deleted"}
-            else:
-                # Soft delete
-                hardware = hardware.soft_delete()
-                self.hardware_repository.update(hardware_id, {
-                    "is_deleted": True,
-                    "deleted_at": hardware.deleted_at
-                })
-                self.logger.info(f"Hardware with ID {hardware_id} soft deleted")
-                return self._convert_to_dict(hardware)
-        except SQLAlchemyError as e:
-            error_msg = f"Database error when deleting hardware with ID {hardware_id}: {str(e)}"
-            self.logger.error(error_msg)
-            raise ValidationError(error_msg, {"hardware_id": hardware_id, "details": str(e)})
+                return True
+        except (NotFoundError, ServiceError):
+            raise
+        except Exception as e:
+            self.logger.error(f"Error deleting hardware {hardware_id}: {str(e)}")
+            raise ServiceError(f"Failed to delete hardware: {str(e)}")
 
-    def restore_hardware(self, hardware_id: str) -> Dict[str, Any]:
-        """
-        Restore a soft-deleted hardware item.
+    def find_by_name(self, name: str) -> List[Dict[str, Any]]:
+        """Find hardware items by name (partial match).
 
         Args:
-            hardware_id (str): ID of the hardware to restore
+            name: Name or partial name to search for
 
         Returns:
-            Dict[str, Any]: Restored hardware item as a dictionary
-
-        Raises:
-            NotFoundError: If hardware with the specified ID does not exist
+            List of dictionaries representing matching hardware items
         """
-        self.logger.info(f"Restoring hardware with ID {hardware_id}")
-
         try:
-            # Get existing hardware (including deleted)
-            hardware = self.hardware_repository.get_by_id(hardware_id, include_deleted=True)
-            if not hardware:
-                raise NotFoundError(f"Hardware with ID {hardware_id} not found")
+            hardware_items = self.hardware_repository.find_by_name(name)
+            return [self._to_dict(hardware) for hardware in hardware_items]
+        except Exception as e:
+            self.logger.error(f"Error finding hardware by name '{name}': {str(e)}")
+            raise ServiceError(f"Failed to find hardware by name: {str(e)}")
 
-            if not hardware.is_deleted:
-                # Already active
-                return self._convert_to_dict(hardware)
-
-            # Restore hardware
-            hardware = hardware.restore()
-            self.hardware_repository.update(hardware_id, {
-                "is_deleted": False,
-                "deleted_at": None
-            })
-            self.logger.info(f"Hardware with ID {hardware_id} restored successfully")
-
-            return self._convert_to_dict(hardware)
-        except SQLAlchemyError as e:
-            error_msg = f"Database error when restoring hardware with ID {hardware_id}: {str(e)}"
-            self.logger.error(error_msg)
-            raise ValidationError(error_msg, {"hardware_id": hardware_id, "details": str(e)})
-
-    def adjust_hardware_quantity(self, hardware_id: str, quantity_change: int,
-                                 transaction_type: TransactionType, notes: Optional[str] = None) -> Dict[str, Any]:
-        """
-        Adjust the quantity of a hardware item.
+    def find_by_type(self, hardware_type: str) -> List[Dict[str, Any]]:
+        """Find hardware items by type.
 
         Args:
-            hardware_id (str): ID of the hardware to adjust
-            quantity_change (int): Amount to change (positive or negative)
-            transaction_type (TransactionType): Type of transaction causing the adjustment
-            notes (Optional[str]): Optional notes about the adjustment
+            hardware_type: Hardware type to filter by
 
         Returns:
-            Dict[str, Any]: Updated hardware item as a dictionary
-
-        Raises:
-            NotFoundError: If hardware with the specified ID does not exist
-            ValidationError: If resulting quantity would be negative
+            List of dictionaries representing hardware of the specified type
         """
-        self.logger.info(f"Adjusting quantity for hardware ID {hardware_id} by {quantity_change}")
-
         try:
-            # Get existing hardware
-            hardware = self.hardware_repository.get_by_id(hardware_id)
-            if not hardware:
-                raise NotFoundError(f"Hardware with ID {hardware_id} not found")
+            # Validate hardware type
+            self._validate_hardware_type(hardware_type)
 
-            # Calculate new quantity
-            new_quantity = hardware.quantity + quantity_change
+            hardware_items = self.hardware_repository.find_by_type(hardware_type)
+            return [self._to_dict(hardware) for hardware in hardware_items]
+        except ValidationError:
+            raise
+        except Exception as e:
+            self.logger.error(f"Error finding hardware by type '{hardware_type}': {str(e)}")
+            raise ServiceError(f"Failed to find hardware by type: {str(e)}")
 
-            # Validate new quantity
-            if new_quantity < 0:
-                error_msg = f"Cannot adjust quantity to {new_quantity}. Current quantity is {hardware.quantity}."
-                self.logger.error(error_msg)
-                raise ValidationError(error_msg, {
-                    "hardware_id": hardware_id,
-                    "current_quantity": hardware.quantity,
-                    "quantity_change": quantity_change
-                })
-
-            # Determine new status
-            if new_quantity == 0:
-                new_status = InventoryStatus.OUT_OF_STOCK
-            elif new_quantity <= hardware.reorder_threshold:
-                new_status = InventoryStatus.LOW_STOCK
-            else:
-                new_status = InventoryStatus.IN_STOCK
-
-            # Update hardware in database
-            update_data = {
-                "quantity": new_quantity,
-                "status": new_status,
-                "updated_at": datetime.utcnow()
-            }
-
-            updated_hardware = self.hardware_repository.update(hardware_id, update_data)
-
-            # Log the transaction
-            self._log_transaction(hardware_id, quantity_change, transaction_type, notes)
-
-            return self._convert_to_dict(updated_hardware)
-        except SQLAlchemyError as e:
-            error_msg = f"Database error when adjusting quantity for hardware ID {hardware_id}: {str(e)}"
-            self.logger.error(error_msg)
-            raise ValidationError(error_msg, {"hardware_id": hardware_id, "details": str(e)})
-
-    def search_hardware(self, search_terms: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """
-        Search for hardware items based on criteria.
+    def find_by_material(self, material: str) -> List[Dict[str, Any]]:
+        """Find hardware items by material.
 
         Args:
-            search_terms (Dict[str, Any]): Search criteria
+            material: Material type to filter by
 
         Returns:
-            List[Dict[str, Any]]: List of matching hardware items as dictionaries
+            List of dictionaries representing hardware made of the specified material
         """
-        self.logger.debug(f"Searching hardware with terms: {search_terms}")
-
         try:
-            # Process enum string values to enum types if needed
-            processed_terms = {}
-            for key, value in search_terms.items():
-                if key == 'hardware_type' and isinstance(value, str):
-                    try:
-                        processed_terms[key] = HardwareType[value]
-                    except (KeyError, ValueError):
-                        self.logger.warning(f"Invalid hardware type: {value}")
-                        continue
-                elif key == 'material' and isinstance(value, str):
-                    try:
-                        processed_terms[key] = HardwareMaterial[value]
-                    except (KeyError, ValueError):
-                        self.logger.warning(f"Invalid hardware material: {value}")
-                        continue
-                elif key == 'finish' and isinstance(value, str):
-                    try:
-                        processed_terms[key] = HardwareFinish[value]
-                    except (KeyError, ValueError):
-                        self.logger.warning(f"Invalid hardware finish: {value}")
-                        continue
-                elif key == 'status' and isinstance(value, str):
-                    try:
-                        processed_terms[key] = InventoryStatus[value]
-                    except (KeyError, ValueError):
-                        self.logger.warning(f"Invalid inventory status: {value}")
-                        continue
-                else:
-                    processed_terms[key] = value
+            # Validate hardware material
+            self._validate_hardware_material(material)
 
-            hardware_items = self.hardware_repository.search(processed_terms)
+            hardware_items = self.hardware_repository.find_by_material(material)
+            return [self._to_dict(hardware) for hardware in hardware_items]
+        except ValidationError:
+            raise
+        except Exception as e:
+            self.logger.error(f"Error finding hardware by material '{material}': {str(e)}")
+            raise ServiceError(f"Failed to find hardware by material: {str(e)}")
 
-            return [self._convert_to_dict(item) for item in hardware_items]
-        except SQLAlchemyError as e:
-            error_msg = f"Database error when searching hardware: {str(e)}"
-            self.logger.error(error_msg)
-            raise NotFoundError(error_msg, {"details": str(e)})
-
-    def get_hardware_by_type(self, hardware_type: Union[HardwareType, str]) -> List[Dict[str, Any]]:
-        """
-        Get hardware items of a specific type.
+    def find_by_finish(self, finish: str) -> List[Dict[str, Any]]:
+        """Find hardware items by finish.
 
         Args:
-            hardware_type (Union[HardwareType, str]): Type of hardware to retrieve
+            finish: Finish type to filter by
 
         Returns:
-            List[Dict[str, Any]]: List of hardware items as dictionaries
+            List of dictionaries representing hardware with the specified finish
         """
-        self.logger.debug(f"Getting hardware by type: {hardware_type}")
-
         try:
-            # Convert string to enum if needed
-            if isinstance(hardware_type, str):
-                try:
-                    hardware_type = HardwareType[hardware_type]
-                except (KeyError, ValueError):
-                    raise ValidationError(f"Invalid hardware type: {hardware_type}")
+            # Validate hardware finish
+            self._validate_hardware_finish(finish)
 
-            hardware_items = self.hardware_repository.get_by_type(hardware_type)
-            return [self._convert_to_dict(item) for item in hardware_items]
-        except SQLAlchemyError as e:
-            error_msg = f"Database error when getting hardware by type: {str(e)}"
-            self.logger.error(error_msg)
-            raise NotFoundError(error_msg, {"hardware_type": str(hardware_type), "details": str(e)})
+            hardware_items = self.hardware_repository.find_by_finish(finish)
+            return [self._to_dict(hardware) for hardware in hardware_items]
+        except ValidationError:
+            raise
+        except Exception as e:
+            self.logger.error(f"Error finding hardware by finish '{finish}': {str(e)}")
+            raise ServiceError(f"Failed to find hardware by finish: {str(e)}")
 
-    def get_hardware_by_material(self, material: Union[HardwareMaterial, str]) -> List[Dict[str, Any]]:
-        """
-        Get hardware items made of a specific material.
+    def get_by_size(self, size: str) -> List[Dict[str, Any]]:
+        """Find hardware items by size.
 
         Args:
-            material (Union[HardwareMaterial, str]): Material to filter by
+            size: Size to filter by
 
         Returns:
-            List[Dict[str, Any]]: List of hardware items as dictionaries
-        """
-        self.logger.debug(f"Getting hardware by material: {material}")
-
-        try:
-            # Convert string to enum if needed
-            if isinstance(material, str):
-                try:
-                    material = HardwareMaterial[material]
-                except (KeyError, ValueError):
-                    raise ValidationError(f"Invalid hardware material: {material}")
-
-            hardware_items = self.hardware_repository.get_by_material(material)
-            return [self._convert_to_dict(item) for item in hardware_items]
-        except SQLAlchemyError as e:
-            error_msg = f"Database error when getting hardware by material: {str(e)}"
-            self.logger.error(error_msg)
-            raise NotFoundError(error_msg, {"material": str(material), "details": str(e)})
-
-    def get_low_stock_hardware(self) -> List[Dict[str, Any]]:
-        """
-        Get hardware items with quantity below reorder threshold.
-
-        Returns:
-            List[Dict[str, Any]]: List of low stock hardware items as dictionaries
-        """
-        self.logger.debug("Getting low stock hardware items")
-
-        try:
-            hardware_items = self.hardware_repository.get_low_stock()
-            return [self._convert_to_dict(item) for item in hardware_items]
-        except SQLAlchemyError as e:
-            error_msg = f"Database error when getting low stock hardware: {str(e)}"
-            self.logger.error(error_msg)
-            raise NotFoundError(error_msg, {"details": str(e)})
-
-    def get_hardware_by_supplier(self, supplier_id: str) -> List[Dict[str, Any]]:
-        """
-        Get hardware items from a specific supplier.
-
-        Args:
-            supplier_id (str): ID of the supplier
-
-        Returns:
-            List[Dict[str, Any]]: List of hardware items as dictionaries
-        """
-        self.logger.debug(f"Getting hardware by supplier ID: {supplier_id}")
-
-        try:
-            hardware_items = self.hardware_repository.get_by_supplier(supplier_id)
-            return [self._convert_to_dict(item) for item in hardware_items]
-        except SQLAlchemyError as e:
-            error_msg = f"Database error when getting hardware by supplier: {str(e)}"
-            self.logger.error(error_msg)
-            raise NotFoundError(error_msg, {"supplier_id": supplier_id, "details": str(e)})
-
-    def get_hardware_by_status(self, status: Union[InventoryStatus, str]) -> List[Dict[str, Any]]:
-        """
-        Get hardware items with a specific inventory status.
-
-        Args:
-            status (Union[InventoryStatus, str]): Inventory status to filter by
-
-        Returns:
-            List[Dict[str, Any]]: List of hardware items as dictionaries
-        """
-        self.logger.debug(f"Getting hardware by status: {status}")
-
-        try:
-            # Convert string to enum if needed
-            if isinstance(status, str):
-                try:
-                    status = InventoryStatus[status]
-                except (KeyError, ValueError):
-                    raise ValidationError(f"Invalid inventory status: {status}")
-
-            hardware_items = self.hardware_repository.get_by_status(status)
-            return [self._convert_to_dict(item) for item in hardware_items]
-        except SQLAlchemyError as e:
-            error_msg = f"Database error when getting hardware by status: {str(e)}"
-            self.logger.error(error_msg)
-            raise NotFoundError(error_msg, {"status": str(status), "details": str(e)})
-
-    def get_hardware_stats(self) -> Dict[str, Any]:
-        """
-        Get statistics about hardware inventory.
-
-        Returns:
-            Dict[str, Any]: Dictionary with hardware inventory statistics
-        """
-        self.logger.debug("Getting hardware inventory statistics")
-
-        try:
-            return self.hardware_repository.get_stats()
-        except SQLAlchemyError as e:
-            error_msg = f"Database error when getting hardware statistics: {str(e)}"
-            self.logger.error(error_msg)
-            raise NotFoundError(error_msg, {"details": str(e)})
-
-    def _validate_hardware_data(self, data: Dict[str, Any], is_new: bool = False) -> None:
-        """
-        Validate hardware data to ensure all constraints are met.
-
-        Args:
-            data: Dictionary containing hardware data to validate
-            is_new: Whether this is for a new hardware item
-
-        Raises:
-            ValidationError: If any validation fails
+            List of dictionaries representing hardware of the specified size
         """
         try:
-            # Required fields for new hardware
-            if is_new:
-                required_fields = ['name', 'hardware_type', 'material']
-                for field in required_fields:
-                    if field not in data or data[field] is None:
-                        raise ValidationError(f"Field '{field}' is required", {"field": field})
+            hardware_items = self.hardware_repository.find_by_size(size)
+            return [self._to_dict(hardware) for hardware in hardware_items]
+        except Exception as e:
+            self.logger.error(f"Error finding hardware by size '{size}': {str(e)}")
+            raise ServiceError(f"Failed to find hardware by size: {str(e)}")
 
-            # Validate fields if they exist
-            if 'name' in data and data['name'] is not None:
-                validate_string(data['name'], 'name', max_length=100)
-
-            if 'description' in data and data['description'] is not None:
-                validate_string(data['description'], 'description', max_length=500)
-
-            if 'price' in data and data['price'] is not None:
-                validate_positive_number(data['price'], 'price')
-
-            if 'quantity' in data and data['quantity'] is not None:
-                validate_positive_number(data['quantity'], 'quantity', allow_zero=True)
-
-            if 'weight' in data and data['weight'] is not None:
-                validate_positive_number(data['weight'], 'weight')
-
-            if 'reorder_threshold' in data and data['reorder_threshold'] is not None:
-                validate_positive_number(data['reorder_threshold'], 'reorder_threshold', allow_zero=True)
-
-            if 'size' in data and data['size'] is not None:
-                validate_string(data['size'], 'size', max_length=50)
-
-            if 'notes' in data and data['notes'] is not None:
-                validate_string(data['notes'], 'notes', max_length=500)
-
-            # Validate enum values if they are strings
-            if 'hardware_type' in data and isinstance(data['hardware_type'], str):
-                try:
-                    HardwareType[data['hardware_type']]
-                except KeyError:
-                    raise ValidationError(f"Invalid hardware type: {data['hardware_type']}",
-                                          {"field": "hardware_type", "value": data['hardware_type']})
-
-            if 'material' in data and isinstance(data['material'], str):
-                try:
-                    HardwareMaterial[data['material']]
-                except KeyError:
-                    raise ValidationError(f"Invalid hardware material: {data['material']}",
-                                          {"field": "material", "value": data['material']})
-
-            if 'finish' in data and data['finish'] is not None and isinstance(data['finish'], str):
-                try:
-                    HardwareFinish[data['finish']]
-                except KeyError:
-                    raise ValidationError(f"Invalid hardware finish: {data['finish']}",
-                                          {"field": "finish", "value": data['finish']})
-
-            if 'status' in data and data['status'] is not None and isinstance(data['status'], str):
-                try:
-                    InventoryStatus[data['status']]
-                except KeyError:
-                    raise ValidationError(f"Invalid inventory status: {data['status']}",
-                                          {"field": "status", "value": data['status']})
-
-        except ValueError as e:
-            self.logger.error(f"Hardware validation failed: {str(e)}")
-            raise ValidationError(str(e), {"field": str(e).split("'")[1] if "'" in str(e) else None})
-
-    def _process_enum_fields(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Process enum string values to enum types for database storage.
-
-        Args:
-            data: Dictionary containing hardware data with possibly string enum values
-
-        Returns:
-            Dictionary with enum string values converted to enum types
-        """
-        result = data.copy()
-
-        # Convert hardware_type string to enum
-        if 'hardware_type' in result and isinstance(result['hardware_type'], str):
-            try:
-                result['hardware_type'] = HardwareType[result['hardware_type']]
-            except KeyError:
-                raise ValidationError(f"Invalid hardware type: {result['hardware_type']}")
-
-        # Convert material string to enum
-        if 'material' in result and isinstance(result['material'], str):
-            try:
-                result['material'] = HardwareMaterial[result['material']]
-            except KeyError:
-                raise ValidationError(f"Invalid hardware material: {result['material']}")
-
-        # Convert finish string to enum if not None
-        if 'finish' in result and result['finish'] is not None and isinstance(result['finish'], str):
-            try:
-                result['finish'] = HardwareFinish[result['finish']]
-            except KeyError:
-                raise ValidationError(f"Invalid hardware finish: {result['finish']}")
-
-        # Convert status string to enum if not None
-        if 'status' in result and result['status'] is not None and isinstance(result['status'], str):
-            try:
-                result['status'] = InventoryStatus[result['status']]
-            except KeyError:
-                raise ValidationError(f"Invalid inventory status: {result['status']}")
-
-        # Convert measurement_unit string to enum if not None
-        if 'measurement_unit' in result and result['measurement_unit'] is not None and isinstance(
-                result['measurement_unit'], str):
-            try:
-                from database.models.enums import MeasurementUnit
-                result['measurement_unit'] = MeasurementUnit[result['measurement_unit']]
-            except KeyError:
-                raise ValidationError(f"Invalid measurement unit: {result['measurement_unit']}")
-
-        return result
-
-    def _convert_to_dict(self, hardware: Hardware) -> Dict[str, Any]:
-        """
-        Convert a Hardware entity to a dictionary.
-
-        Args:
-            hardware: Hardware entity to convert
-
-        Returns:
-            Dict containing hardware data
-        """
-        if not hardware:
-            return {}
-
-        # Helper function to safely convert enum to string
-        def safe_enum_value(enum_val):
-            return enum_val.name if enum_val else None
-
-        return {
-            'id': hardware.id,
-            'name': hardware.name,
-            'description': hardware.description,
-            'hardware_type': safe_enum_value(hardware.hardware_type),
-            'material': safe_enum_value(hardware.material),
-            'finish': safe_enum_value(hardware.finish),
-            'price': hardware.price,
-            'quantity': hardware.quantity,
-            'supplier_id': hardware.supplier_id,
-            'size': hardware.size,
-            'weight': hardware.weight,
-            'is_active': hardware.is_active,
-            'reorder_threshold': hardware.reorder_threshold,
-            'measurement_unit': safe_enum_value(hardware.measurement_unit),
-            'status': safe_enum_value(hardware.status),
-            'notes': hardware.notes,
-            'created_at': hardware.created_at.isoformat() if hardware.created_at else None,
-            'updated_at': hardware.updated_at.isoformat() if hardware.updated_at else None,
-            'is_deleted': hardware.is_deleted,
-            'deleted_at': hardware.deleted_at.isoformat() if hardware.deleted_at else None
-        }
-
-    def _log_transaction(self, hardware_id: str, quantity_change: int,
-                         transaction_type: TransactionType, notes: Optional[str]) -> None:
-        """
-        Log a hardware transaction for auditing.
+    def get_inventory_status(self, hardware_id: int) -> Dict[str, Any]:
+        """Get the current inventory status of a hardware item.
 
         Args:
             hardware_id: ID of the hardware
-            quantity_change: Amount changed
-            transaction_type: Type of transaction
-            notes: Optional notes
-        """
-        self.logger.info(
-            f"Hardware transaction: ID={hardware_id}, "
-            f"Change={quantity_change}, Type={transaction_type.name}, "
-            f"Notes={notes or 'N/A'}"
-        )
 
-        # In a real implementation, you would create a transaction record in the database
-        # For example:
-        # transaction = HardwareTransaction(
-        #     hardware_id=hardware_id,
-        #     quantity_change=quantity_change,
-        #     transaction_type=transaction_type,
-        #     notes=notes,
-        #     created_at=datetime.utcnow()
-        # )
-        # self.transaction_repository.create(transaction)
+        Returns:
+            Dictionary containing inventory information
+
+        Raises:
+            NotFoundError: If the hardware does not exist
+        """
+        try:
+            # Verify hardware exists
+            hardware = self.hardware_repository.get_by_id(hardware_id)
+            if not hardware:
+                raise NotFoundError(f"Hardware with ID {hardware_id} not found")
+
+            # Get inventory entry
+            inventory_entries = self.inventory_repository.get_by_item(item_type='material', item_id=hardware_id)
+
+            if not inventory_entries:
+                return {
+                    'hardware_id': hardware_id,
+                    'quantity': 0,
+                    'status': InventoryStatus.OUT_OF_STOCK.value,
+                    'storage_location': '',
+                    'last_updated': None
+                }
+            else:
+                # Use the first inventory entry (should be only one per hardware)
+                inventory = inventory_entries[0]
+                return {
+                    'hardware_id': hardware_id,
+                    'inventory_id': inventory.id,
+                    'quantity': inventory.quantity,
+                    'status': inventory.status.name if hasattr(inventory.status, 'name') else str(inventory.status),
+                    'storage_location': getattr(inventory, 'storage_location', ''),
+                    'last_updated': inventory.updated_at.isoformat() if hasattr(inventory,
+                                                                                'updated_at') and inventory.updated_at else None
+                }
+        except NotFoundError:
+            raise
+        except Exception as e:
+            self.logger.error(f"Error getting inventory status for hardware {hardware_id}: {str(e)}")
+            raise ServiceError(f"Failed to get inventory status: {str(e)}")
+
+    def adjust_inventory(self, hardware_id: int,
+                         quantity: int,
+                         reason: str) -> Dict[str, Any]:
+        """Adjust the inventory of a hardware item.
+
+        Args:
+            hardware_id: ID of the hardware
+            quantity: Quantity to adjust (positive or negative)
+            reason: Reason for the adjustment
+
+        Returns:
+            Dictionary containing updated inventory information
+
+        Raises:
+            NotFoundError: If the hardware does not exist
+            ValidationError: If the adjustment would result in negative inventory
+        """
+        try:
+            # Verify hardware exists
+            hardware = self.hardware_repository.get_by_id(hardware_id)
+            if not hardware:
+                raise NotFoundError(f"Hardware with ID {hardware_id} not found")
+
+            # Get inventory entry
+            inventory_entries = self.inventory_repository.get_by_item(item_type='material', item_id=hardware_id)
+
+            if not inventory_entries:
+                # If no inventory entry exists and quantity is positive, create one
+                if quantity <= 0:
+                    raise ValidationError(f"Cannot adjust inventory by {quantity} when no inventory exists")
+
+                with self.transaction():
+                    inventory_data = {
+                        'item_type': 'material',
+                        'item_id': hardware_id,
+                        'quantity': quantity,
+                        'status': InventoryStatus.IN_STOCK.value if quantity > 0 else InventoryStatus.OUT_OF_STOCK.value,
+                        'storage_location': '',
+                        'notes': reason
+                    }
+                    inventory = self.inventory_repository.create(inventory_data)
+
+                    # Create transaction record if transaction repository is available
+                    if hasattr(self, 'transaction_repository'):
+                        transaction_data = {
+                            'item_type': 'material',
+                            'item_id': hardware_id,
+                            'quantity': abs(quantity),
+                            'type': 'RESTOCK',
+                            'notes': reason
+                        }
+                        self.transaction_repository.create(transaction_data)
+
+                    return {
+                        'hardware_id': hardware_id,
+                        'inventory_id': inventory.id,
+                        'quantity': inventory.quantity,
+                        'status': inventory.status.name if hasattr(inventory.status, 'name') else str(inventory.status),
+                        'storage_location': getattr(inventory, 'storage_location', ''),
+                        'last_updated': inventory.updated_at.isoformat() if hasattr(inventory,
+                                                                                    'updated_at') and inventory.updated_at else None
+                    }
+            else:
+                # Use the first inventory entry (should be only one per hardware)
+                inventory = inventory_entries[0]
+
+                # Check if adjustment would result in negative inventory
+                if inventory.quantity + quantity < 0:
+                    raise ValidationError(
+                        f"Cannot reduce inventory below zero (current: {inventory.quantity}, adjustment: {quantity})")
+
+                # Update inventory within a transaction
+                with self.transaction():
+                    # Determine inventory status based on new quantity
+                    new_quantity = inventory.quantity + quantity
+                    if new_quantity == 0:
+                        status = InventoryStatus.OUT_OF_STOCK.value
+                    elif new_quantity < 5:  # Arbitrary threshold, could be configurable
+                        status = InventoryStatus.LOW_STOCK.value
+                    else:
+                        status = InventoryStatus.IN_STOCK.value
+
+                    # Update inventory
+                    inventory_data = {
+                        'quantity': new_quantity,
+                        'status': status
+                    }
+
+                    updated_inventory = self.inventory_repository.update(inventory.id, inventory_data)
+
+                    # Create transaction record if transaction repository is available
+                    if hasattr(self, 'transaction_repository'):
+                        transaction_type = 'USAGE' if quantity < 0 else 'RESTOCK'
+                        transaction_data = {
+                            'item_type': 'material',
+                            'item_id': hardware_id,
+                            'quantity': abs(quantity),
+                            'type': transaction_type,
+                            'notes': reason
+                        }
+                        self.transaction_repository.create(transaction_data)
+
+                    return {
+                        'hardware_id': hardware_id,
+                        'inventory_id': updated_inventory.id,
+                        'quantity': updated_inventory.quantity,
+                        'status': updated_inventory.status.name if hasattr(updated_inventory.status, 'name') else str(
+                            updated_inventory.status),
+                        'storage_location': getattr(updated_inventory, 'storage_location', ''),
+                        'last_updated': updated_inventory.updated_at.isoformat() if hasattr(updated_inventory,
+                                                                                            'updated_at') and updated_inventory.updated_at else None
+                    }
+        except (NotFoundError, ValidationError):
+            raise
+        except Exception as e:
+            self.logger.error(f"Error adjusting inventory for hardware {hardware_id}: {str(e)}")
+            raise ServiceError(f"Failed to adjust inventory: {str(e)}")
+
+    def get_components_using(self, hardware_id: int) -> List[Dict[str, Any]]:
+        """Get components that use a specific hardware item.
+
+        Args:
+            hardware_id: ID of the hardware
+
+        Returns:
+            List of dictionaries representing components that use the hardware
+
+        Raises:
+            NotFoundError: If the hardware does not exist
+        """
+        try:
+            # Verify hardware exists
+            hardware = self.hardware_repository.get_by_id(hardware_id)
+            if not hardware:
+                raise NotFoundError(f"Hardware with ID {hardware_id} not found")
+
+            # Get components using the hardware
+            components_with_qty = self.component_repository.get_components_using_material(hardware_id)
+
+            result = []
+            for component, quantity in components_with_qty:
+                component_dict = {
+                    'id': component.id,
+                    'name': component.name,
+                    'component_type': component.component_type.name if hasattr(component.component_type,
+                                                                               'name') else str(
+                        component.component_type),
+                    'quantity': quantity
+                }
+                result.append(component_dict)
+
+            return result
+        except NotFoundError:
+            raise
+        except Exception as e:
+            self.logger.error(f"Error getting components using hardware {hardware_id}: {str(e)}")
+            raise ServiceError(f"Failed to get components using hardware: {str(e)}")
+
+    def get_usage_history(self, hardware_id: int,
+                          start_date: Optional[str] = None,
+                          end_date: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Get the usage history for a hardware item.
+
+        Args:
+            hardware_id: ID of the hardware
+            start_date: Optional start date (ISO format)
+            end_date: Optional end date (ISO format)
+
+        Returns:
+            List of dictionaries containing usage records
+
+        Raises:
+            NotFoundError: If the hardware does not exist
+        """
+        try:
+            # Verify hardware exists
+            hardware = self.hardware_repository.get_by_id(hardware_id)
+            if not hardware:
+                raise NotFoundError(f"Hardware with ID {hardware_id} not found")
+
+            # Check if transaction repository is available
+            if not hasattr(self, 'transaction_repository'):
+                return []
+
+            # Parse dates if provided
+            start_datetime = None
+            end_datetime = None
+
+            if start_date:
+                try:
+                    start_datetime = datetime.fromisoformat(start_date)
+                except ValueError:
+                    raise ValidationError(f"Invalid start date format: {start_date}. Use ISO format (YYYY-MM-DD).")
+
+            if end_date:
+                try:
+                    end_datetime = datetime.fromisoformat(end_date)
+                except ValueError:
+                    raise ValidationError(f"Invalid end date format: {end_date}. Use ISO format (YYYY-MM-DD).")
+
+            # Get transactions
+            transactions = self.transaction_repository.get_by_item(
+                item_type='material',
+                item_id=hardware_id,
+                start_date=start_datetime,
+                end_date=end_datetime
+            )
+
+            return [self._transaction_to_dict(transaction) for transaction in transactions]
+        except (NotFoundError, ValidationError):
+            raise
+        except Exception as e:
+            self.logger.error(f"Error getting usage history for hardware {hardware_id}: {str(e)}")
+            raise ServiceError(f"Failed to get usage history: {str(e)}")
+
+    def get_compatible_hardware(self, hardware_id: int) -> List[Dict[str, Any]]:
+        """Get hardware items that are compatible with the specified hardware.
+
+        Args:
+            hardware_id: ID of the hardware
+
+        Returns:
+            List of dictionaries representing compatible hardware items
+
+        Raises:
+            NotFoundError: If the hardware does not exist
+        """
+        try:
+            # Verify hardware exists
+            hardware = self.hardware_repository.get_by_id(hardware_id)
+            if not hardware:
+                raise NotFoundError(f"Hardware with ID {hardware_id} not found")
+
+            # Get compatible hardware
+            compatible_hardware = self.hardware_repository.get_compatible_hardware(hardware_id)
+
+            return [self._to_dict(h) for h in compatible_hardware]
+        except NotFoundError:
+            raise
+        except Exception as e:
+            self.logger.error(f"Error getting compatible hardware for {hardware_id}: {str(e)}")
+            raise ServiceError(f"Failed to get compatible hardware: {str(e)}")
+
+    def set_compatibility(self, hardware_id: int,
+                          compatible_id: int,
+                          is_compatible: bool = True) -> bool:
+        """Set compatibility between two hardware items.
+
+        Args:
+            hardware_id: ID of the first hardware item
+            compatible_id: ID of the second hardware item
+            is_compatible: Whether the items are compatible
+
+        Returns:
+            True if the compatibility was successfully set
+
+        Raises:
+            NotFoundError: If either hardware item does not exist
+        """
+        try:
+            # Verify hardware exists
+            hardware = self.hardware_repository.get_by_id(hardware_id)
+            if not hardware:
+                raise NotFoundError(f"Hardware with ID {hardware_id} not found")
+
+            # Verify compatible hardware exists
+            compatible_hardware = self.hardware_repository.get_by_id(compatible_id)
+            if not compatible_hardware:
+                raise NotFoundError(f"Hardware with ID {compatible_id} not found")
+
+            # Check if compatibility already exists in the desired state
+            existing_compatibility = self.hardware_repository.check_compatibility(hardware_id, compatible_id)
+
+            if existing_compatibility == is_compatible:
+                # Already in the desired state
+                return True
+
+            # Set compatibility within a transaction
+            with self.transaction():
+                if is_compatible:
+                    # Add compatibility
+                    self.hardware_repository.add_compatibility(hardware_id, compatible_id)
+                else:
+                    # Remove compatibility
+                    self.hardware_repository.remove_compatibility(hardware_id, compatible_id)
+
+                return True
+        except NotFoundError:
+            raise
+        except Exception as e:
+            self.logger.error(
+                f"Error setting compatibility between hardware {hardware_id} and {compatible_id}: {str(e)}")
+            raise ServiceError(f"Failed to set compatibility: {str(e)}")
+
+    def _validate_hardware_data(self, data: Dict[str, Any], update: bool = False) -> None:
+        """Validate hardware data.
+
+        Args:
+            data: Hardware data to validate
+            update: Whether this is an update operation
+
+        Raises:
+            ValidationError: If validation fails
+        """
+        # Required fields for new hardware
+        if not update:
+            required_fields = ['name', 'hardware_type']
+            for field in required_fields:
+                if field not in data:
+                    raise ValidationError(f"Missing required field: {field}")
+
+        # Validate hardware type if provided
+        if 'hardware_type' in data:
+            self._validate_hardware_type(data['hardware_type'])
+
+        # Validate hardware material if provided
+        if 'hardware_material' in data:
+            self._validate_hardware_material(data['hardware_material'])
+
+        # Validate hardware finish if provided
+        if 'finish' in data:
+            self._validate_hardware_finish(data['finish'])
+
+        # Validate price/cost if provided
+        if 'unit_cost' in data:
+            try:
+                unit_cost = float(data['unit_cost'])
+                if unit_cost < 0:
+                    raise ValidationError("Unit cost cannot be negative")
+            except (ValueError, TypeError):
+                raise ValidationError("Unit cost must be a valid number")
+
+        # Validate initial_quantity if provided
+        if 'initial_quantity' in data:
+            try:
+                quantity = int(data['initial_quantity'])
+                if quantity < 0:
+                    raise ValidationError("Initial quantity cannot be negative")
+            except (ValueError, TypeError):
+                raise ValidationError("Initial quantity must be a valid integer")
+
+    def _validate_hardware_type(self, hardware_type: str) -> None:
+        """Validate that the hardware type is a valid enum value.
+
+        Args:
+            hardware_type: Hardware type to validate
+
+        Raises:
+            ValidationError: If the hardware type is invalid
+        """
+        try:
+            # Check if the type is a valid enum value
+            HardwareType[hardware_type]
+        except (KeyError, ValueError):
+            valid_types = [t.name for t in HardwareType]
+            raise ValidationError(f"Invalid hardware type: {hardware_type}. Valid types are: {valid_types}")
+
+    def _validate_hardware_material(self, hardware_material: str) -> None:
+        """Validate that the hardware material is a valid enum value.
+
+        Args:
+            hardware_material: Hardware material to validate
+
+        Raises:
+            ValidationError: If the hardware material is invalid
+        """
+        try:
+            # Check if the material is a valid enum value
+            HardwareMaterial[hardware_material]
+        except (KeyError, ValueError):
+            valid_materials = [m.name for m in HardwareMaterial]
+            raise ValidationError(
+                f"Invalid hardware material: {hardware_material}. Valid materials are: {valid_materials}")
+
+    def _validate_hardware_finish(self, hardware_finish: str) -> None:
+        """Validate that the hardware finish is a valid enum value.
+
+        Args:
+            hardware_finish: Hardware finish to validate
+
+        Raises:
+            ValidationError: If the hardware finish is invalid
+        """
+        try:
+            # Check if the finish is a valid enum value
+            HardwareFinish[hardware_finish]
+        except (KeyError, ValueError):
+            valid_finishes = [f.name for f in HardwareFinish]
+            raise ValidationError(f"Invalid hardware finish: {hardware_finish}. Valid finishes are: {valid_finishes}")
+
+    def _to_dict(self, obj) -> Dict[str, Any]:
+        """Convert a model object to a dictionary representation.
+
+        Args:
+            obj: Model object to convert
+
+        Returns:
+            Dictionary representation of the object
+        """
+        if isinstance(obj, Hardware):
+            result = {
+                'id': obj.id,
+                'name': obj.name,
+                'material_type': 'HARDWARE',
+                'hardware_type': obj.hardware_type.name if hasattr(obj.hardware_type, 'name') else str(
+                    obj.hardware_type),
+                'hardware_material': obj.hardware_material.name if hasattr(obj.hardware_material, 'name') else getattr(
+                    obj, 'hardware_material', None),
+                'finish': obj.finish.name if hasattr(obj, 'finish', None) and hasattr(obj.finish, 'name') else getattr(
+                    obj, 'finish', None),
+                'size': getattr(obj, 'size', None),
+                'unit_cost': getattr(obj, 'unit_cost', None),
+                'supplier_id': getattr(obj, 'supplier_id', None),
+                'created_at': obj.created_at.isoformat() if hasattr(obj, 'created_at') and obj.created_at else None,
+                'updated_at': obj.updated_at.isoformat() if hasattr(obj, 'updated_at') and obj.updated_at else None,
+            }
+
+            # Include other fields if present
+            optional_fields = ['description', 'sku', 'minimum_order_quantity', 'reorder_threshold', 'unit']
+
+            for field in optional_fields:
+                if hasattr(obj, field):
+                    result[field] = getattr(obj, field)
+
+            return result
+        elif hasattr(obj, '__dict__'):
+            # Generic conversion for other model types
+            result = {}
+            for k, v in obj.__dict__.items():
+                if not k.startswith('_'):
+                    # Handle datetime objects
+                    if isinstance(v, datetime):
+                        result[k] = v.isoformat()
+                    # Handle enum objects
+                    elif hasattr(v, 'name'):
+                        result[k] = v.name
+                    else:
+                        result[k] = v
+            return result
+        else:
+            # If not a model object, return as is
+            return obj
+
+    def _transaction_to_dict(self, transaction) -> Dict[str, Any]:
+        """Convert a transaction model to a dictionary.
+
+        Args:
+            transaction: Transaction model to convert
+
+        Returns:
+            Dictionary representation of the transaction
+        """
+        return {
+            'id': transaction.id,
+            'type': transaction.type.name if hasattr(transaction.type, 'name') else str(transaction.type),
+            'quantity': transaction.quantity,
+            'date': transaction.created_at.isoformat() if hasattr(transaction,
+                                                                  'created_at') and transaction.created_at else None,
+            'notes': getattr(transaction, 'notes', None)
+        }

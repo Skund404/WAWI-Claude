@@ -1,222 +1,232 @@
 # services/interfaces/hardware_service.py
-"""
-Interface for hardware-related operations.
-Defines the contract for hardware management in the leatherworking application.
-"""
-
-from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Union
-
-from database.models.enums import HardwareType, HardwareMaterial, HardwareFinish
-from database.models.enums import InventoryStatus, TransactionType
+from typing import Dict, List, Any, Optional, Protocol
 
 
-class IHardwareService(ABC):
-    """
-    Interface for hardware management service.
-    Defines methods for creating, updating, retrieving, and managing hardware items.
+class IHardwareService(Protocol):
+    """Interface for the Hardware Service.
+
+    The Hardware Service handles specialized operations for hardware materials
+    used in leatherworking projects, such as buckles, rivets, snaps, etc.
     """
 
-    @abstractmethod
-    def get_all_hardware(self, include_inactive: bool = False,
-                         include_deleted: bool = False) -> List[Dict[str, Any]]:
-        """
-        Get all hardware items in the inventory.
+    def get_by_id(self, hardware_id: int) -> Dict[str, Any]:
+        """Retrieve a hardware item by its ID.
 
         Args:
-            include_inactive (bool): Whether to include inactive hardware
-            include_deleted (bool): Whether to include soft-deleted hardware
+            hardware_id: The ID of the hardware to retrieve
 
         Returns:
-            List[Dict[str, Any]]: List of hardware items as dictionaries
-        """
-        pass
-
-    @abstractmethod
-    def get_hardware_by_id(self, hardware_id: str) -> Dict[str, Any]:
-        """
-        Get a hardware item by its ID.
-
-        Args:
-            hardware_id (str): ID of the hardware to retrieve
-
-        Returns:
-            Dict[str, Any]: Hardware item as a dictionary
+            A dictionary representation of the hardware
 
         Raises:
-            NotFoundError: If hardware with the specified ID does not exist
+            NotFoundError: If the hardware with the given ID does not exist
         """
-        pass
+        ...
 
-    @abstractmethod
-    def create_hardware(self, hardware_data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Create a new hardware item.
+    def get_all(self, filters: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+        """Retrieve all hardware items with optional filtering.
 
         Args:
-            hardware_data (Dict[str, Any]): Hardware data to create
+            filters: Optional filters to apply to the hardware query
 
         Returns:
-            Dict[str, Any]: Created hardware item as a dictionary
+            List of dictionaries representing hardware items
+        """
+        ...
+
+    def create(self, hardware_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a new hardware item.
+
+        Args:
+            hardware_data: Dictionary containing hardware data
+
+        Returns:
+            Dictionary representation of the created hardware
 
         Raises:
-            ValidationError: If validation fails
+            ValidationError: If the hardware data is invalid
         """
-        pass
+        ...
 
-    @abstractmethod
-    def update_hardware(self, hardware_id: str, hardware_data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Update an existing hardware item.
+    def update(self, hardware_id: int, hardware_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update an existing hardware item.
 
         Args:
-            hardware_id (str): ID of the hardware to update
-            hardware_data (Dict[str, Any]): Updated hardware data
+            hardware_id: ID of the hardware to update
+            hardware_data: Dictionary containing updated hardware data
 
         Returns:
-            Dict[str, Any]: Updated hardware item as a dictionary
+            Dictionary representation of the updated hardware
 
         Raises:
-            NotFoundError: If hardware with the specified ID does not exist
-            ValidationError: If validation fails
+            NotFoundError: If the hardware with the given ID does not exist
+            ValidationError: If the updated data is invalid
         """
-        pass
+        ...
 
-    @abstractmethod
-    def delete_hardware(self, hardware_id: str, permanent: bool = False) -> Dict[str, Any]:
-        """
-        Delete a hardware item (soft delete by default).
+    def delete(self, hardware_id: int) -> bool:
+        """Delete a hardware item by its ID.
 
         Args:
-            hardware_id (str): ID of the hardware to delete
-            permanent (bool): Whether to permanently delete the hardware
+            hardware_id: ID of the hardware to delete
 
         Returns:
-            Dict[str, Any]: Deleted hardware info or success message
+            True if the hardware was successfully deleted
 
         Raises:
-            NotFoundError: If hardware with the specified ID does not exist
+            NotFoundError: If the hardware with the given ID does not exist
+            ServiceError: If the hardware cannot be deleted (e.g., in use)
         """
-        pass
+        ...
 
-    @abstractmethod
-    def restore_hardware(self, hardware_id: str) -> Dict[str, Any]:
-        """
-        Restore a soft-deleted hardware item.
+    def find_by_name(self, name: str) -> List[Dict[str, Any]]:
+        """Find hardware items by name (partial match).
 
         Args:
-            hardware_id (str): ID of the hardware to restore
+            name: Name or partial name to search for
 
         Returns:
-            Dict[str, Any]: Restored hardware item as a dictionary
+            List of dictionaries representing matching hardware items
+        """
+        ...
+
+    def find_by_type(self, hardware_type: str) -> List[Dict[str, Any]]:
+        """Find hardware items by type.
+
+        Args:
+            hardware_type: Hardware type to filter by
+
+        Returns:
+            List of dictionaries representing hardware of the specified type
+        """
+        ...
+
+    def find_by_material(self, material: str) -> List[Dict[str, Any]]:
+        """Find hardware items by material.
+
+        Args:
+            material: Material type to filter by
+
+        Returns:
+            List of dictionaries representing hardware made of the specified material
+        """
+        ...
+
+    def find_by_finish(self, finish: str) -> List[Dict[str, Any]]:
+        """Find hardware items by finish.
+
+        Args:
+            finish: Finish type to filter by
+
+        Returns:
+            List of dictionaries representing hardware with the specified finish
+        """
+        ...
+
+    def get_by_size(self, size: str) -> List[Dict[str, Any]]:
+        """Find hardware items by size.
+
+        Args:
+            size: Size to filter by
+
+        Returns:
+            List of dictionaries representing hardware of the specified size
+        """
+        ...
+
+    def get_inventory_status(self, hardware_id: int) -> Dict[str, Any]:
+        """Get the current inventory status of a hardware item.
+
+        Args:
+            hardware_id: ID of the hardware
+
+        Returns:
+            Dictionary containing inventory information
 
         Raises:
-            NotFoundError: If hardware with the specified ID does not exist
+            NotFoundError: If the hardware does not exist
         """
-        pass
+        ...
 
-    @abstractmethod
-    def adjust_hardware_quantity(self, hardware_id: str, quantity_change: int,
-                                 transaction_type: TransactionType, notes: Optional[str] = None) -> Dict[str, Any]:
-        """
-        Adjust the quantity of a hardware item.
+    def adjust_inventory(self, hardware_id: int,
+                         quantity: int,
+                         reason: str) -> Dict[str, Any]:
+        """Adjust the inventory of a hardware item.
 
         Args:
-            hardware_id (str): ID of the hardware to adjust
-            quantity_change (int): Amount to change (positive or negative)
-            transaction_type (TransactionType): Type of transaction causing the adjustment
-            notes (Optional[str]): Optional notes about the adjustment
+            hardware_id: ID of the hardware
+            quantity: Quantity to adjust (positive or negative)
+            reason: Reason for the adjustment
 
         Returns:
-            Dict[str, Any]: Updated hardware item as a dictionary
+            Dictionary containing updated inventory information
 
         Raises:
-            NotFoundError: If hardware with the specified ID does not exist
-            ValidationError: If resulting quantity would be negative
+            NotFoundError: If the hardware does not exist
+            ValidationError: If the adjustment would result in negative inventory
         """
-        pass
+        ...
 
-    @abstractmethod
-    def search_hardware(self, search_terms: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """
-        Search for hardware items based on criteria.
+    def get_components_using(self, hardware_id: int) -> List[Dict[str, Any]]:
+        """Get components that use a specific hardware item.
 
         Args:
-            search_terms (Dict[str, Any]): Search criteria
+            hardware_id: ID of the hardware
 
         Returns:
-            List[Dict[str, Any]]: List of matching hardware items as dictionaries
-        """
-        pass
+            List of dictionaries representing components that use the hardware
 
-    @abstractmethod
-    def get_hardware_by_type(self, hardware_type: Union[HardwareType, str]) -> List[Dict[str, Any]]:
+        Raises:
+            NotFoundError: If the hardware does not exist
         """
-        Get hardware items of a specific type.
+        ...
+
+    def get_usage_history(self, hardware_id: int,
+                          start_date: Optional[str] = None,
+                          end_date: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Get the usage history for a hardware item.
 
         Args:
-            hardware_type (Union[HardwareType, str]): Type of hardware to retrieve
+            hardware_id: ID of the hardware
+            start_date: Optional start date (ISO format)
+            end_date: Optional end date (ISO format)
 
         Returns:
-            List[Dict[str, Any]]: List of hardware items as dictionaries
-        """
-        pass
+            List of dictionaries containing usage records
 
-    @abstractmethod
-    def get_hardware_by_material(self, material: Union[HardwareMaterial, str]) -> List[Dict[str, Any]]:
+        Raises:
+            NotFoundError: If the hardware does not exist
         """
-        Get hardware items made of a specific material.
+        ...
+
+    def get_compatible_hardware(self, hardware_id: int) -> List[Dict[str, Any]]:
+        """Get hardware items that are compatible with the specified hardware.
 
         Args:
-            material (Union[HardwareMaterial, str]): Material to filter by
+            hardware_id: ID of the hardware
 
         Returns:
-            List[Dict[str, Any]]: List of hardware items as dictionaries
-        """
-        pass
+            List of dictionaries representing compatible hardware items
 
-    @abstractmethod
-    def get_low_stock_hardware(self) -> List[Dict[str, Any]]:
+        Raises:
+            NotFoundError: If the hardware does not exist
         """
-        Get hardware items with quantity below reorder threshold.
+        ...
 
-        Returns:
-            List[Dict[str, Any]]: List of low stock hardware items as dictionaries
-        """
-        pass
-
-    @abstractmethod
-    def get_hardware_by_supplier(self, supplier_id: str) -> List[Dict[str, Any]]:
-        """
-        Get hardware items from a specific supplier.
+    def set_compatibility(self, hardware_id: int,
+                          compatible_id: int,
+                          is_compatible: bool = True) -> bool:
+        """Set compatibility between two hardware items.
 
         Args:
-            supplier_id (str): ID of the supplier
+            hardware_id: ID of the first hardware item
+            compatible_id: ID of the second hardware item
+            is_compatible: Whether the items are compatible
 
         Returns:
-            List[Dict[str, Any]]: List of hardware items as dictionaries
-        """
-        pass
+            True if the compatibility was successfully set
 
-    @abstractmethod
-    def get_hardware_by_status(self, status: Union[InventoryStatus, str]) -> List[Dict[str, Any]]:
+        Raises:
+            NotFoundError: If either hardware item does not exist
         """
-        Get hardware items with a specific inventory status.
-
-        Args:
-            status (Union[InventoryStatus, str]): Inventory status to filter by
-
-        Returns:
-            List[Dict[str, Any]]: List of hardware items as dictionaries
-        """
-        pass
-
-    @abstractmethod
-    def get_hardware_stats(self) -> Dict[str, Any]:
-        """
-        Get statistics about hardware inventory.
-
-        Returns:
-            Dict[str, Any]: Dictionary with hardware inventory statistics
-        """
-        pass
+        ...

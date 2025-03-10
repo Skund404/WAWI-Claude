@@ -1,449 +1,324 @@
 # services/implementations/customer_service.py
-"""
-Implementation of the customer service interface for managing customer operations.
-"""
-
+from typing import List, Optional, Dict, Any
+from datetime import datetime
 import logging
-from typing import Any, Dict, List, Optional, Union, cast
-import datetime
-
-from database.models.customer import Customer
-from database.repositories.customer_repository import CustomerRepository
-from database.sqlalchemy.session import get_db_session
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
-from sqlalchemy import or_, text
 
-from services.base_service import BaseService, NotFoundError, ServiceError, ValidationError
-from services.interfaces.customer_service import ICustomerService, CustomerStatus, CustomerTier, CustomerSource
-from utils.logger import log_debug, log_error, log_info
-from utils.validators import validate_string, validate_email
+from database.repositories.customer_repository import CustomerRepository
+from database.repositories.sales_repository import SalesRepository
+from database.models.enums import CustomerStatus, CustomerTier, CustomerSource
+from services.base_service import BaseService, ValidationError, NotFoundError
 
 
-class CustomerService(BaseService, ICustomerService):
-    """
-    Implementation of the customer service interface for managing customer operations.
-    Provides business logic for creating, retrieving, updating, and deleting customer records.
-    """
+class CustomerService(BaseService):
+    """Implementation of the customer service interface."""
 
-    def __init__(self, session: Optional[Session] = None,
-                 customer_repository: Optional[CustomerRepository] = None):
-        """
-        Initialize the Customer Service with repository and database session.
+    def __init__(self, session: Session, customer_repository: Optional[CustomerRepository] = None,
+                 sales_repository: Optional[SalesRepository] = None):
+        """Initialize the customer service.
 
         Args:
             session: SQLAlchemy database session
-            customer_repository: Repository for customer data access
+            customer_repository: Optional CustomerRepository instance
+            sales_repository: Optional SalesRepository instance
         """
-        super().__init__()
-        self.logger = logging.getLogger(__name__)
-        self.session = session or get_db_session()
-        self.customer_repository = customer_repository or CustomerRepository(self.session)
+        super().__init__(session)
+        self.customer_repository = customer_repository or CustomerRepository(session)
+        self.sales_repository = sales_repository or SalesRepository(session)
 
-    def create_customer(self, customer_data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Create a new customer record.
+    def get_by_id(self, customer_id: int) -> Dict[str, Any]:
+        """Get customer by ID.
 
         Args:
-            customer_data: Dictionary containing customer information
+            customer_id: ID of the customer to retrieve
 
         Returns:
-            Dictionary representing the created customer
+            Dict representing the customer
 
         Raises:
-            ValidationError: If customer data is invalid
-            ServiceError: If an error occurs during creation
-        """
-        try:
-            # Validate required fields
-            if 'name' not in customer_data or not customer_data['name']:
-                raise ValidationError("Customer name is required")
-
-            if 'email' in customer_data and customer_data['email']:
-                validate_email(customer_data['email'])
-
-            # Create customer record
-            customer = self.customer_repository.create(customer_data)
-            self.session.commit()
-
-            log_info(f"Created new customer: {customer.id} - {customer.name}")
-            return self._serialize_customer(customer)
-
-        except ValidationError as e:
-            log_error(f"Validation error creating customer: {str(e)}")
-            self.session.rollback()
-            raise
-        except SQLAlchemyError as e:
-            log_error(f"Database error creating customer: {str(e)}")
-            self.session.rollback()
-            raise ServiceError(f"Failed to create customer: {str(e)}")
-        except Exception as e:
-            log_error(f"Unexpected error creating customer: {str(e)}")
-            self.session.rollback()
-            raise ServiceError(f"Unexpected error creating customer: {str(e)}")
-
-    def get_customer(self, customer_id: Union[str, int]) -> Dict[str, Any]:
-        """
-        Retrieve a customer by ID.
-
-        Args:
-            customer_id: Unique identifier for the customer
-
-        Returns:
-            Dictionary with customer information
-
-        Raises:
-            NotFoundError: If customer does not exist
-            ServiceError: If an error occurs during retrieval
+            NotFoundError: If customer not found
         """
         try:
             customer = self.customer_repository.get_by_id(customer_id)
             if not customer:
                 raise NotFoundError(f"Customer with ID {customer_id} not found")
-
-            return self._serialize_customer(customer)
-
-        except NotFoundError:
-            raise
-        except SQLAlchemyError as e:
-            log_error(f"Database error retrieving customer {customer_id}: {str(e)}")
-            raise ServiceError(f"Failed to retrieve customer: {str(e)}")
+            return self._to_dict(customer)
         except Exception as e:
-            log_error(f"Unexpected error retrieving customer {customer_id}: {str(e)}")
-            raise ServiceError(f"Unexpected error retrieving customer: {str(e)}")
+            self.logger.error(f"Error retrieving customer {customer_id}: {str(e)}")
+            raise
 
-    def update_customer(self, customer_id: Union[str, int], customer_data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Update an existing customer record.
+    def get_all(self, filters: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+        """Get all customers, optionally filtered.
 
         Args:
-            customer_id: Unique identifier for the customer
-            customer_data: Dictionary containing updated customer information
+            filters: Optional filters to apply
 
         Returns:
-            Dictionary representing the updated customer
-
-        Raises:
-            NotFoundError: If customer does not exist
-            ValidationError: If updated data is invalid
-            ServiceError: If an error occurs during update
+            List of dicts representing customers
         """
         try:
-            # Verify customer exists
+            customers = self.customer_repository.get_all(filters)
+            return [self._to_dict(customer) for customer in customers]
+        except Exception as e:
+            self.logger.error(f"Error retrieving customers: {str(e)}")
+            raise
+
+    def create(self, customer_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a new customer.
+
+        Args:
+            customer_data: Dict containing customer properties
+
+        Returns:
+            Dict representing the created customer
+
+        Raises:
+            ValidationError: If validation fails
+        """
+        try:
+            # Validate customer data
+            self._validate_customer_data(customer_data)
+
+            # Check if email is already in use
+            if 'email' in customer_data:
+                existing_customer = self.customer_repository.get_by_email(customer_data['email'])
+                if existing_customer:
+                    raise ValidationError(f"Email {customer_data['email']} is already in use")
+
+            # Set default status if not provided
+            if 'status' not in customer_data:
+                customer_data['status'] = CustomerStatus.ACTIVE.value
+
+            # Set default tier if not provided
+            if 'tier' not in customer_data:
+                customer_data['tier'] = CustomerTier.STANDARD.value
+
+            # Create customer
+            with self.transaction():
+                customer = self.customer_repository.create(customer_data)
+                return self._to_dict(customer)
+        except Exception as e:
+            self.logger.error(f"Error creating customer: {str(e)}")
+            raise
+
+    def update(self, customer_id: int, customer_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update an existing customer.
+
+        Args:
+            customer_id: ID of the customer to update
+            customer_data: Dict containing updated customer properties
+
+        Returns:
+            Dict representing the updated customer
+
+        Raises:
+            NotFoundError: If customer not found
+            ValidationError: If validation fails
+        """
+        try:
+            # Check if customer exists
             customer = self.customer_repository.get_by_id(customer_id)
             if not customer:
                 raise NotFoundError(f"Customer with ID {customer_id} not found")
 
-            # Validate email if provided
-            if 'email' in customer_data and customer_data['email']:
-                validate_email(customer_data['email'])
+            # Validate customer data
+            self._validate_customer_data(customer_data, update=True)
+
+            # Check if email is already in use by another customer
+            if 'email' in customer_data and customer_data['email'] != customer.email:
+                existing_customer = self.customer_repository.get_by_email(customer_data['email'])
+                if existing_customer and existing_customer.id != customer_id:
+                    raise ValidationError(f"Email {customer_data['email']} is already in use")
 
             # Update customer
-            updated_customer = self.customer_repository.update(customer_id, customer_data)
-            self.session.commit()
-
-            log_info(f"Updated customer: {customer_id}")
-            return self._serialize_customer(updated_customer)
-
-        except NotFoundError:
-            raise
-        except ValidationError as e:
-            log_error(f"Validation error updating customer {customer_id}: {str(e)}")
-            self.session.rollback()
-            raise
-        except SQLAlchemyError as e:
-            log_error(f"Database error updating customer {customer_id}: {str(e)}")
-            self.session.rollback()
-            raise ServiceError(f"Failed to update customer: {str(e)}")
+            with self.transaction():
+                updated_customer = self.customer_repository.update(customer_id, customer_data)
+                return self._to_dict(updated_customer)
         except Exception as e:
-            log_error(f"Unexpected error updating customer {customer_id}: {str(e)}")
-            self.session.rollback()
-            raise ServiceError(f"Unexpected error updating customer: {str(e)}")
+            self.logger.error(f"Error updating customer {customer_id}: {str(e)}")
+            raise
 
-    def delete_customer(self, customer_id: Union[str, int]) -> bool:
-        """
-        Delete a customer record.
+    def delete(self, customer_id: int) -> bool:
+        """Delete a customer by ID.
 
         Args:
-            customer_id: Unique identifier for the customer
+            customer_id: ID of the customer to delete
 
         Returns:
-            True if deletion was successful
+            True if successful
 
         Raises:
-            NotFoundError: If customer does not exist
-            ServiceError: If an error occurs during deletion
+            NotFoundError: If customer not found
+            ValidationError: If customer has associated sales
         """
         try:
-            # Verify customer exists
+            # Check if customer exists
             customer = self.customer_repository.get_by_id(customer_id)
             if not customer:
                 raise NotFoundError(f"Customer with ID {customer_id} not found")
 
-            # Check if customer has associated sales
-            if customer.sales and len(customer.sales) > 0:
-                # Instead of deleting, mark as archived
-                log_info(f"Customer {customer_id} has sales records. Marking as archived instead of deleting.")
-                self.update_customer_status(customer_id, CustomerStatus.ARCHIVED)
+            # Check if customer has sales
+            sales = self.sales_repository.get_by_customer(customer_id)
+            if sales:
+                raise ValidationError(f"Cannot delete customer {customer_id} as they have associated sales")
+
+            # Delete customer
+            with self.transaction():
+                self.customer_repository.delete(customer_id)
                 return True
-
-            # Delete the customer
-            result = self.customer_repository.delete(customer_id)
-            self.session.commit()
-
-            log_info(f"Deleted customer: {customer_id}")
-            return result
-
-        except NotFoundError:
-            raise
-        except SQLAlchemyError as e:
-            log_error(f"Database error deleting customer {customer_id}: {str(e)}")
-            self.session.rollback()
-            raise ServiceError(f"Failed to delete customer: {str(e)}")
         except Exception as e:
-            log_error(f"Unexpected error deleting customer {customer_id}: {str(e)}")
-            self.session.rollback()
-            raise ServiceError(f"Unexpected error deleting customer: {str(e)}")
-
-    def list_customers(self, filters: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
-        """
-        Retrieve a list of customers with optional filtering.
-
-        Args:
-            filters: Optional dictionary of filter criteria
-
-        Returns:
-            List of dictionaries representing customers
-
-        Raises:
-            ServiceError: If an error occurs during retrieval
-        """
-        try:
-            filters = filters or {}
-            customers = self.customer_repository.get_all(filters)
-            return [self._serialize_customer(customer) for customer in customers]
-
-        except SQLAlchemyError as e:
-            log_error(f"Database error listing customers: {str(e)}")
-            raise ServiceError(f"Failed to list customers: {str(e)}")
-        except Exception as e:
-            log_error(f"Unexpected error listing customers: {str(e)}")
-            raise ServiceError(f"Unexpected error listing customers: {str(e)}")
-
-    def get_customer_sales_history(self, customer_id: Union[str, int]) -> List[Dict[str, Any]]:
-        """
-        Retrieve the sales history for a customer.
-
-        Args:
-            customer_id: Unique identifier for the customer
-
-        Returns:
-            List of dictionaries representing sales
-
-        Raises:
-            NotFoundError: If customer does not exist
-            ServiceError: If an error occurs during retrieval
-        """
-        try:
-            # Verify customer exists
-            customer = self.customer_repository.get_by_id(customer_id)
-            if not customer:
-                raise NotFoundError(f"Customer with ID {customer_id} not found")
-
-            # Load sales with eager loading of items
-            sales = []
-            for sale in customer.sales:
-                sale_dict = {
-                    "id": sale.id,
-                    "created_at": sale.created_at,
-                    "total_amount": sale.total_amount,
-                    "status": sale.status.value if hasattr(sale.status, 'value') else sale.status,
-                    "payment_status": sale.payment_status.value if hasattr(sale.payment_status,
-                                                                           'value') else sale.payment_status,
-                    "items": []
-                }
-
-                # Add sales items if available
-                if hasattr(sale, 'items') and sale.items:
-                    for item in sale.items:
-                        item_dict = {
-                            "id": item.id,
-                            "quantity": item.quantity,
-                            "price": item.price,
-                            "product_id": item.product_id,
-                            "product_name": item.product.name if hasattr(item,
-                                                                         'product') and item.product else "Unknown"
-                        }
-                        sale_dict["items"].append(item_dict)
-
-                sales.append(sale_dict)
-
-            return sales
-
-        except NotFoundError:
+            self.logger.error(f"Error deleting customer {customer_id}: {str(e)}")
             raise
-        except SQLAlchemyError as e:
-            log_error(f"Database error retrieving sales for customer {customer_id}: {str(e)}")
-            raise ServiceError(f"Failed to retrieve customer sales history: {str(e)}")
-        except Exception as e:
-            log_error(f"Unexpected error retrieving sales for customer {customer_id}: {str(e)}")
-            raise ServiceError(f"Unexpected error retrieving customer sales history: {str(e)}")
 
-    def update_customer_status(self, customer_id: Union[str, int], status: CustomerStatus) -> Dict[str, Any]:
-        """
-        Update the status of a customer.
-
-        Args:
-            customer_id: Unique identifier for the customer
-            status: New customer status
-
-        Returns:
-            Dictionary representing the updated customer
-
-        Raises:
-            NotFoundError: If customer does not exist
-            ValidationError: If status is invalid
-            ServiceError: If an error occurs during update
-        """
-        try:
-            # Verify customer exists
-            customer = self.customer_repository.get_by_id(customer_id)
-            if not customer:
-                raise NotFoundError(f"Customer with ID {customer_id} not found")
-
-            # Update status
-            customer.status = status
-            self.session.commit()
-
-            log_info(f"Updated status for customer {customer_id} to {status.value}")
-            return self._serialize_customer(customer)
-
-        except NotFoundError:
-            raise
-        except ValidationError as e:
-            log_error(f"Validation error updating customer status {customer_id}: {str(e)}")
-            self.session.rollback()
-            raise
-        except SQLAlchemyError as e:
-            log_error(f"Database error updating customer status {customer_id}: {str(e)}")
-            self.session.rollback()
-            raise ServiceError(f"Failed to update customer status: {str(e)}")
-        except Exception as e:
-            log_error(f"Unexpected error updating customer status {customer_id}: {str(e)}")
-            self.session.rollback()
-            raise ServiceError(f"Unexpected error updating customer status: {str(e)}")
-
-    def update_customer_tier(self, customer_id: Union[str, int], tier: CustomerTier) -> Dict[str, Any]:
-        """
-        Update the tier/level of a customer.
-
-        Args:
-            customer_id: Unique identifier for the customer
-            tier: New customer tier
-
-        Returns:
-            Dictionary representing the updated customer
-
-        Raises:
-            NotFoundError: If customer does not exist
-            ValidationError: If tier is invalid
-            ServiceError: If an error occurs during update
-        """
-        try:
-            # Verify customer exists
-            customer = self.customer_repository.get_by_id(customer_id)
-            if not customer:
-                raise NotFoundError(f"Customer with ID {customer_id} not found")
-
-            # Update tier
-            customer.tier = tier
-            self.session.commit()
-
-            log_info(f"Updated tier for customer {customer_id} to {tier.value}")
-            return self._serialize_customer(customer)
-
-        except NotFoundError:
-            raise
-        except ValidationError as e:
-            log_error(f"Validation error updating customer tier {customer_id}: {str(e)}")
-            self.session.rollback()
-            raise
-        except SQLAlchemyError as e:
-            log_error(f"Database error updating customer tier {customer_id}: {str(e)}")
-            self.session.rollback()
-            raise ServiceError(f"Failed to update customer tier: {str(e)}")
-        except Exception as e:
-            log_error(f"Unexpected error updating customer tier {customer_id}: {str(e)}")
-            self.session.rollback()
-            raise ServiceError(f"Unexpected error updating customer tier: {str(e)}")
-
-    def search_customers(self, query: str) -> List[Dict[str, Any]]:
-        """
-        Search for customers by name, email, or other attributes.
+    def search(self, query: str) -> List[Dict[str, Any]]:
+        """Search for customers by name or email.
 
         Args:
             query: Search query string
 
         Returns:
-            List of dictionaries representing matching customers
-
-        Raises:
-            ServiceError: If an error occurs during search
+            List of dicts representing matching customers
         """
         try:
-            # Prepare search query
-            search_term = f"%{query}%"
-
-            # Search in repository
-            customers = self.session.query(Customer).filter(
-                or_(
-                    Customer.name.ilike(search_term),
-                    Customer.email.ilike(search_term),
-                    Customer.phone.ilike(search_term),
-                    Customer.notes.ilike(search_term)
-                )
-            ).all()
-
-            return [self._serialize_customer(customer) for customer in customers]
-
-        except SQLAlchemyError as e:
-            log_error(f"Database error searching customers: {str(e)}")
-            raise ServiceError(f"Failed to search customers: {str(e)}")
+            customers = self.customer_repository.search(query)
+            return [self._to_dict(customer) for customer in customers]
         except Exception as e:
-            log_error(f"Unexpected error searching customers: {str(e)}")
-            raise ServiceError(f"Unexpected error searching customers: {str(e)}")
+            self.logger.error(f"Error searching customers: {str(e)}")
+            raise
 
-    def _serialize_customer(self, customer: Customer) -> Dict[str, Any]:
-        """
-        Serialize a customer model instance to a dictionary.
+    def get_by_email(self, email: str) -> Optional[Dict[str, Any]]:
+        """Get customer by email address.
 
         Args:
-            customer: Customer model instance
+            email: Email address
 
         Returns:
-            Dictionary representation of the customer
+            Dict representing the customer, or None if not found
         """
-        result = {
-            "id": customer.id,
-            "name": customer.name,
-            "email": customer.email,
-            "phone": customer.phone if hasattr(customer, 'phone') else None,
-            "status": customer.status.value if hasattr(customer.status, 'value') else customer.status,
-            "tier": customer.tier.value if hasattr(customer, 'tier') and hasattr(customer.tier, 'value') else None,
-            "created_at": customer.created_at,
-            "updated_at": customer.updated_at,
-            "source": customer.source.value if hasattr(customer, 'source') and hasattr(customer.source,
-                                                                                       'value') else None,
-            "notes": customer.notes if hasattr(customer, 'notes') else None,
-        }
+        try:
+            customer = self.customer_repository.get_by_email(email)
+            if not customer:
+                return None
+            return self._to_dict(customer)
+        except Exception as e:
+            self.logger.error(f"Error retrieving customer by email {email}: {str(e)}")
+            raise
 
-        # Add additional serializable fields as needed
-        if hasattr(customer, 'address') and customer.address:
-            result["address"] = customer.address
+    def get_sales_history(self, customer_id: int) -> List[Dict[str, Any]]:
+        """Get sales history for a customer.
 
-        if hasattr(customer, 'sales_count'):
-            result["sales_count"] = customer.sales_count
-        else:
-            result["sales_count"] = len(customer.sales) if hasattr(customer, 'sales') else 0
+        Args:
+            customer_id: ID of the customer
 
-        return result
+        Returns:
+            List of dicts representing sales for the customer
+
+        Raises:
+            NotFoundError: If customer not found
+        """
+        try:
+            # Check if customer exists
+            customer = self.customer_repository.get_by_id(customer_id)
+            if not customer:
+                raise NotFoundError(f"Customer with ID {customer_id} not found")
+
+            # Get sales for customer
+            sales = self.sales_repository.get_by_customer(customer_id)
+            return [self._to_dict(sale) for sale in sales]
+        except Exception as e:
+            self.logger.error(f"Error retrieving sales history for customer {customer_id}: {str(e)}")
+            raise
+
+    def update_status(self, customer_id: int, status: str) -> Dict[str, Any]:
+        """Update customer status.
+
+        Args:
+            customer_id: ID of the customer
+            status: New status
+
+        Returns:
+            Dict representing the updated customer
+
+        Raises:
+            NotFoundError: If customer not found
+            ValidationError: If invalid status
+        """
+        try:
+            # Check if customer exists
+            customer = self.customer_repository.get_by_id(customer_id)
+            if not customer:
+                raise NotFoundError(f"Customer with ID {customer_id} not found")
+
+            # Validate status
+            try:
+                CustomerStatus(status)
+            except ValueError:
+                raise ValidationError(f"Invalid customer status: {status}")
+
+            # Update customer status
+            with self.transaction():
+                updated_customer = self.customer_repository.update(customer_id, {'status': status})
+                return self._to_dict(updated_customer)
+        except Exception as e:
+            self.logger.error(f"Error updating status for customer {customer_id}: {str(e)}")
+            raise
+
+    # Helper methods
+
+    def _validate_customer_data(self, data: Dict[str, Any], update: bool = False) -> None:
+        """Validate customer data.
+
+        Args:
+            data: Customer data to validate
+            update: Whether this is an update operation
+
+        Raises:
+            ValidationError: If validation fails
+        """
+        # Only check required fields for new customers
+        if not update:
+            required_fields = ['name', 'email']
+            for field in required_fields:
+                if field not in data:
+                    raise ValidationError(f"Missing required field: {field}")
+
+        # Validate email format if provided
+        if 'email' in data:
+            email = data['email']
+            if not self._is_valid_email(email):
+                raise ValidationError(f"Invalid email format: {email}")
+
+        # Validate status if provided
+        if 'status' in data:
+            try:
+                CustomerStatus(data['status'])
+            except ValueError:
+                raise ValidationError(f"Invalid customer status: {data['status']}")
+
+        # Validate tier if provided
+        if 'tier' in data:
+            try:
+                CustomerTier(data['tier'])
+            except ValueError:
+                raise ValidationError(f"Invalid customer tier: {data['tier']}")
+
+        # Validate source if provided
+        if 'source' in data:
+            try:
+                CustomerSource(data['source'])
+            except ValueError:
+                raise ValidationError(f"Invalid customer source: {data['source']}")
+
+    def _is_valid_email(self, email: str) -> bool:
+        """Check if an email address is valid.
+
+        Args:
+            email: Email address to validate
+
+        Returns:
+            True if valid, False otherwise
+        """
+        # Very basic email validation
+        import re
+        email_pattern = re.compile(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
+        return bool(email_pattern.match(email))

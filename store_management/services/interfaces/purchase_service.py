@@ -1,143 +1,146 @@
-# database/services/interfaces/purchase_service.py
-"""
-Interface definition for Purchase Service.
-"""
-
-from abc import ABC, abstractmethod
-from typing import List, Optional, Any
+purchase_service# services/interfaces/purchase_service.py
 from datetime import datetime
+from typing import Any, Dict, List, Optional, Protocol
 
-from database.models.enums import PurchaseStatus, MaterialType
-from database.models.purchase import Purchase
-from database.models.purchase_item import PurchaseItem
+class IPurchaseService(Protocol):
+    """Protocol defining the purchase service interface."""
 
-
-class IPurchaseService(ABC):
-    """
-    Interface defining contract for Purchase Service operations.
-    """
-
-    @abstractmethod
-    def create_purchase(
-        self,
-        supplier_id: str,
-        total_amount: float,
-        status: PurchaseStatus = PurchaseStatus.PENDING,
-        **kwargs
-    ) -> Purchase:
-        """
-        Create a new purchase.
-
-        Args:
-            supplier_id: Unique identifier of the supplier
-            total_amount: Total purchase amount
-            status: Purchase status (default: PENDING)
-            **kwargs: Additional purchase attributes
+    def get_all_purchases(self) -> List[Dict[str, Any]]:
+        """Get all purchases.
 
         Returns:
-            Created Purchase instance
+            List[Dict[str, Any]]: List of purchase dictionaries
         """
-        pass
+        ...
 
-    @abstractmethod
-    def get_purchase_by_id(self, purchase_id: str) -> Purchase:
-        """
-        Retrieve a purchase by its ID.
+    def get_purchase_by_id(self, purchase_id: int) -> Dict[str, Any]:
+        """Get purchase by ID.
 
         Args:
-            purchase_id: Unique identifier of the purchase
+            purchase_id: ID of the purchase
 
         Returns:
-            Purchase instance
-        """
-        pass
+            Dict[str, Any]: Purchase dictionary
 
-    @abstractmethod
-    def update_purchase_status(
-        self,
-        purchase_id: str,
-        new_status: PurchaseStatus
-    ) -> Purchase:
+        Raises:
+            NotFoundError: If purchase not found
         """
-        Update the status of a purchase.
+        ...
+
+    def create_purchase(self, purchase_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a new purchase order.
 
         Args:
-            purchase_id: Unique identifier of the purchase
-            new_status: New purchase status
+            purchase_data: Purchase data dictionary
 
         Returns:
-            Updated Purchase instance
-        """
-        pass
+            Dict[str, Any]: Created purchase dictionary
 
-    @abstractmethod
-    def add_purchase_item(
-        self,
-        purchase_id: str,
-        item_type: MaterialType,
-        item_id: str,
-        quantity: float,
-        price: float,
-        **kwargs
-    ) -> PurchaseItem:
+        Raises:
+            ValidationError: If validation fails
         """
-        Add an item to a purchase.
+        ...
+
+    def update_purchase(self, purchase_id: int, purchase_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update an existing purchase.
 
         Args:
-            purchase_id: Unique identifier of the purchase
-            item_type: Type of material/item being purchased
-            item_id: Unique identifier of the item
-            quantity: Quantity of the item
-            price: Price per unit
-            **kwargs: Additional purchase item attributes
+            purchase_id: ID of the purchase to update
+            purchase_data: Updated purchase data
 
         Returns:
-            Created PurchaseItem instance
-        """
-        pass
+            Dict[str, Any]: Updated purchase dictionary
 
-    @abstractmethod
-    def get_purchase_items(self, purchase_id: str) -> List[PurchaseItem]:
+        Raises:
+            NotFoundError: If purchase not found
+            ValidationError: If validation fails
         """
-        Retrieve all items for a specific purchase.
+        ...
+
+    def delete_purchase(self, purchase_id: int) -> bool:
+        """Delete a purchase.
 
         Args:
-            purchase_id: Unique identifier of the purchase
+            purchase_id: ID of the purchase to delete
 
         Returns:
-            List of PurchaseItem instances
-        """
-        pass
+            bool: True if successful
 
-    @abstractmethod
-    def get_purchases_by_date_range(
-        self,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-        status: Optional[PurchaseStatus] = None
-    ) -> List[Purchase]:
+        Raises:
+            NotFoundError: If purchase not found
         """
-        Retrieve purchases within a specified date range and optional status.
+        ...
+
+    def add_purchase_item(self, purchase_id: int, item_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Add an item to a purchase.
 
         Args:
-            start_date: Optional start date for filtering purchases
-            end_date: Optional end date for filtering purchases
-            status: Optional purchase status to filter
+            purchase_id: ID of the purchase
+            item_data: Purchase item data
 
         Returns:
-            List of Purchase instances
-        """
-        pass
+            Dict[str, Any]: Created purchase item dictionary
 
-    @abstractmethod
-    def delete_purchase(self, purchase_id: str) -> bool:
+        Raises:
+            NotFoundError: If purchase not found
+            ValidationError: If validation fails
         """
-        Delete a purchase and its associated items.
+        ...
+
+    def update_purchase_status(self, purchase_id: int, status: str) -> Dict[str, Any]:
+        """Update the status of a purchase.
 
         Args:
-            purchase_id: Unique identifier of the purchase
+            purchase_id: ID of the purchase
+            status: New status value
 
         Returns:
-            Boolean indicating successful deletion
+            Dict[str, Any]: Updated purchase dictionary
+
+        Raises:
+            NotFoundError: If purchase not found
+            ValidationError: If validation fails
         """
-        pass
+        ...
+
+    def receive_purchase(self, purchase_id: int, received_items: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Mark a purchase as received and update inventory.
+
+        Args:
+            purchase_id: ID of the purchase
+            received_items: List of received items with quantities
+
+        Returns:
+            Dict[str, Any]: Updated purchase dictionary
+
+        Raises:
+            NotFoundError: If purchase not found
+            ValidationError: If validation fails
+        """
+        ...
+
+    def get_purchases_by_supplier(self, supplier_id: int) -> List[Dict[str, Any]]:
+        """Get purchases by supplier ID.
+
+        Args:
+            supplier_id: ID of the supplier
+
+        Returns:
+            List[Dict[str, Any]]: List of purchase dictionaries
+
+        Raises:
+            NotFoundError: If supplier not found
+        """
+        ...
+
+    def get_purchases_by_date_range(self, start_date: datetime, end_date: datetime) -> List[Dict[str, Any]]:
+        """Get purchases within a date range.
+
+        Args:
+            start_date: Start date
+            end_date: End date
+
+        Returns:
+            List[Dict[str, Any]]: List of purchase dictionaries
+        """
+        ...

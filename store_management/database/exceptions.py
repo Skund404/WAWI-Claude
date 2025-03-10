@@ -34,3 +34,5 @@ class DatabaseConnectionError(DatabaseError):
 class TransactionError(DatabaseError):
     """Exception raised when a database transaction fails."""
     pass
+
+

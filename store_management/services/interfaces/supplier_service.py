@@ -1,140 +1,127 @@
-# database/services/interfaces/supplier_service.py
-"""
-Interface definition for Supplier Service.
-"""
-
-from abc import ABC, abstractmethod
-from typing import List, Optional, Any
-from datetime import datetime
-
-from database.models.enums import SupplierStatus
-from database.models.supplier import Supplier
-from database.models.purchase import Purchase
+# services/interfaces/supplier_service.py
+from typing import Any, Dict, List, Optional, Protocol
 
 
-class ISupplierService(ABC):
-    """
-    Interface defining contract for Supplier Service operations.
-    """
+class ISupplierService(Protocol):
+    """Protocol defining the supplier service interface."""
 
-    @abstractmethod
-    def create_supplier(
-        self,
-        name: str,
-        contact_email: str,
-        status: SupplierStatus = SupplierStatus.ACTIVE,
-        **kwargs
-    ) -> Supplier:
-        """
-        Create a new supplier.
-
-        Args:
-            name: Supplier name
-            contact_email: Contact email address
-            status: Supplier status (default: ACTIVE)
-            **kwargs: Additional supplier attributes
+    def get_all_suppliers(self) -> List[Dict[str, Any]]:
+        """Get all suppliers.
 
         Returns:
-            Created Supplier instance
+            List[Dict[str, Any]]: List of supplier dictionaries
         """
-        pass
+        ...
 
-    @abstractmethod
-    def get_supplier_by_id(self, supplier_id: str) -> Supplier:
-        """
-        Retrieve a supplier by its ID.
+    def get_supplier_by_id(self, supplier_id: int) -> Dict[str, Any]:
+        """Get supplier by ID.
 
         Args:
-            supplier_id: Unique identifier of the supplier
+            supplier_id: ID of the supplier
 
         Returns:
-            Supplier instance
-        """
-        pass
+            Dict[str, Any]: Supplier dictionary
 
-    @abstractmethod
-    def update_supplier(
-        self,
-        supplier_id: str,
-        **update_data
-    ) -> Supplier:
+        Raises:
+            NotFoundError: If supplier not found
         """
-        Update an existing supplier.
+        ...
+
+    def create_supplier(self, supplier_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a new supplier.
 
         Args:
-            supplier_id: Unique identifier of the supplier
-            update_data: Dictionary of fields to update
+            supplier_data: Supplier data dictionary
 
         Returns:
-            Updated Supplier instance
-        """
-        pass
+            Dict[str, Any]: Created supplier dictionary
 
-    @abstractmethod
-    def delete_supplier(self, supplier_id: str) -> bool:
+        Raises:
+            ValidationError: If validation fails
         """
-        Delete a supplier.
+        ...
+
+    def update_supplier(self, supplier_id: int, supplier_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update an existing supplier.
 
         Args:
-            supplier_id: Unique identifier of the supplier
+            supplier_id: ID of the supplier to update
+            supplier_data: Updated supplier data
 
         Returns:
-            Boolean indicating successful deletion
-        """
-        pass
+            Dict[str, Any]: Updated supplier dictionary
 
-    @abstractmethod
-    def get_suppliers_by_status(
-        self,
-        status: Optional[SupplierStatus] = None
-    ) -> List[Supplier]:
+        Raises:
+            NotFoundError: If supplier not found
+            ValidationError: If validation fails
         """
-        Retrieve suppliers filtered by status.
+        ...
+
+    def delete_supplier(self, supplier_id: int) -> bool:
+        """Delete a supplier.
 
         Args:
-            status: Optional supplier status to filter suppliers
+            supplier_id: ID of the supplier to delete
 
         Returns:
-            List of Supplier instances
-        """
-        pass
+            bool: True if successful
 
-    @abstractmethod
-    def create_purchase_order(
-        self,
-        supplier_id: str,
-        total_amount: float,
-        **kwargs
-    ) -> Purchase:
+        Raises:
+            NotFoundError: If supplier not found
         """
-        Create a purchase order for a specific supplier.
+        ...
+
+    def get_supplier_materials(self, supplier_id: int) -> List[Dict[str, Any]]:
+        """Get materials supplied by a specific supplier.
 
         Args:
-            supplier_id: Unique identifier of the supplier
-            total_amount: Total amount of the purchase
-            **kwargs: Additional purchase order attributes
+            supplier_id: ID of the supplier
 
         Returns:
-            Created Purchase instance
-        """
-        pass
+            List[Dict[str, Any]]: List of material dictionaries
 
-    @abstractmethod
-    def get_supplier_purchase_history(
-        self,
-        supplier_id: str,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None
-    ) -> List[Purchase]:
+        Raises:
+            NotFoundError: If supplier not found
         """
-        Retrieve purchase history for a specific supplier.
+        ...
+
+    def get_supplier_purchase_history(self, supplier_id: int) -> List[Dict[str, Any]]:
+        """Get purchase history for a specific supplier.
 
         Args:
-            supplier_id: Unique identifier of the supplier
-            start_date: Optional start date for filtering purchases
-            end_date: Optional end date for filtering purchases
+            supplier_id: ID of the supplier
 
         Returns:
-            List of Purchase instances
+            List[Dict[str, Any]]: List of purchase dictionaries
+
+        Raises:
+            NotFoundError: If supplier not found
         """
-        pass
+        ...
+
+    def search_suppliers(self, query: str) -> List[Dict[str, Any]]:
+        """Search for suppliers by name or contact information.
+
+        Args:
+            query: Search query string
+
+        Returns:
+            List[Dict[str, Any]]: List of matching supplier dictionaries
+        """
+        ...
+
+    def update_supplier_status(self, supplier_id: int, status: str) -> Dict[str, Any]:
+        """Update the status of a supplier.
+
+        Args:
+            supplier_id: ID of the supplier
+            status: New status value
+
+        Returns:
+            Dict[str, Any]: Updated supplier dictionary
+
+        Raises:
+            NotFoundError: If supplier not found
+            ValidationError: If validation fails
+        """
+        ...

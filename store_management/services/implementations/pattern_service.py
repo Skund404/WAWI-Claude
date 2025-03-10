@@ -3,291 +3,227 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from utils.circular_import_resolver import CircularImportResolver
-from services.interfaces.pattern_service import IPatternService, PatternStatus
+from di.core import inject
+from sqlalchemy.orm import Session
 
-# Use lazy imports to avoid circular imports
-from utils.circular_import_resolver import lazy_import
-Pattern = lazy_import("database.models.pattern", "Pattern")
+from database.models.enums import SkillLevel
+from database.repositories.component_repository import ComponentRepository
+from database.repositories.material_repository import MaterialRepository
+from database.repositories.pattern_repository import PatternRepository
+
+from services.base_service import BaseService, NotFoundError, ValidationError
+from services.interfaces.pattern_service import IPatternService
 
 
-class PatternService(IPatternService):
-    """Implementation of the Pattern Service for managing leatherworking patterns."""
+class PatternService(BaseService, IPatternService):
+    """Implementation of the pattern service interface.
 
-    def __init__(self):
-        """Initialize the pattern service."""
-        self.logger = logging.getLogger(__name__)
-        self.logger.info("PatternService initialized")
+    This class provides functionality for managing patterns,
+    including creation, retrieval, updating, and deletion.
+    """
 
-        # In-memory storage for demonstration/fallback purposes
-        self._patterns = {}
+    @inject
+    def __init__(
+            self,
+            session: Session,
+            pattern_repository: PatternRepository,
+            component_repository: ComponentRepository,
+            material_repository: MaterialRepository
+    ):
+        """Initialize the PatternService with required repositories.
 
-    def create_pattern(self, name: str, description: Optional[str] = None,
-                       instructions: Optional[str] = None,
-                       complexity_level: int = 1,
-                       metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        Args:
+            session: SQLAlchemy database session
+            pattern_repository: Repository for pattern operations
+            component_repository: Repository for component operations
+            material_repository: Repository for material operations
+        """
+        super().__init__(session)
+        self._logger = logging.getLogger(__name__)
+        self._pattern_repository = pattern_repository
+        self._component_repository = component_repository
+        self._material_repository = material_repository
+
+    def get_all_patterns(self) -> List[Dict[str, Any]]:
+        """Get all patterns.
+
+        Returns:
+            List[Dict[str, Any]]: List of pattern dictionaries
+        """
+        self._logger.info("Retrieving all patterns")
+        patterns = self._pattern_repository.get_all()
+        return [self._to_dict(pattern) for pattern in patterns]
+
+    def get_pattern_by_id(self, pattern_id: int) -> Dict[str, Any]:
+        """Get pattern by ID.
+
+        Args:
+            pattern_id: ID of the pattern
+
+        Returns:
+            Dict[str, Any]: Pattern dictionary
+
+        Raises:
+            NotFoundError: If pattern not found
+        """
+        self._logger.info(f"Retrieving pattern with ID: {pattern_id}")
+        pattern = self._pattern_repository.get_by_id(pattern_id)
+        if not pattern:
+            self._logger.error(f"Pattern with ID {pattern_id} not found")
+            raise NotFoundError(f"Pattern with ID {pattern_id} not found")
+        return self._to_dict(pattern)
+
+    def create_pattern(self, pattern_data: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new pattern.
 
         Args:
-            name: Pattern name
-            description: Optional pattern description
-            instructions: Optional pattern instructions
-            complexity_level: Complexity level (1-5)
-            metadata: Additional pattern metadata
+            pattern_data: Pattern data dictionary
 
         Returns:
-            Dict[str, Any]: Created pattern data
+            Dict[str, Any]: Created pattern dictionary
+
+        Raises:
+            ValidationError: If validation fails
         """
-        pattern_id = f"PT{len(self._patterns) + 1:04d}"
-        now = datetime.now()
+        self._logger.info("Creating new pattern")
+        self._validate_pattern_data(pattern_data)
 
-        pattern = {
-            "id": pattern_id,
-            "name": name,
-            "description": description,
-            "instructions": instructions,
-            "complexity_level": max(1, min(5, complexity_level)),  # Clamp between 1-5
-            "status": PatternStatus.DRAFT,
-            "created_at": now,
-            "updated_at": now,
-            "metadata": metadata or {},
-            "components": []
-        }
+        try:
+            pattern = self._pattern_repository.create(pattern_data)
+            self._session.commit()
+            self._logger.info(f"Created pattern with ID: {pattern.id}")
+            return self._to_dict(pattern)
+        except Exception as e:
+            self._session.rollback()
+            self._logger.error(f"Failed to create pattern: {str(e)}")
+            raise ValidationError(f"Failed to create pattern: {str(e)}")
 
-        self._patterns[pattern_id] = pattern
-        self.logger.info(f"Created pattern: {name} (ID: {pattern_id})")
-
-        return pattern
-
-    def get_pattern(self, pattern_id: str) -> Optional[Dict[str, Any]]:
-        """Get a pattern by ID.
-
-        Args:
-            pattern_id: ID of the pattern to retrieve
-
-        Returns:
-            Optional[Dict[str, Any]]: Pattern data or None if not found
-        """
-        pattern = self._patterns.get(pattern_id)
-        if not pattern:
-            self.logger.warning(f"Pattern not found: {pattern_id}")
-            return None
-
-        return pattern
-
-    def update_pattern(self, pattern_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Update a pattern.
+    def update_pattern(self, pattern_id: int, pattern_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update an existing pattern.
 
         Args:
             pattern_id: ID of the pattern to update
-            updates: Dictionary of fields to update
+            pattern_data: Updated pattern data
 
         Returns:
-            Optional[Dict[str, Any]]: Updated pattern data or None if not found
+            Dict[str, Any]: Updated pattern dictionary
+
+        Raises:
+            NotFoundError: If pattern not found
+            ValidationError: If validation fails
         """
-        if pattern_id not in self._patterns:
-            self.logger.warning(f"Cannot update non-existent pattern: {pattern_id}")
-            return None
+        self._logger.info(f"Updating pattern with ID: {pattern_id}")
+        pattern = self._pattern_repository.get_by_id(pattern_id)
+        if not pattern:
+            self._logger.error(f"Pattern with ID {pattern_id} not found")
+            raise NotFoundError(f"Pattern with ID {pattern_id} not found")
 
-        pattern = self._patterns[pattern_id]
+        self._validate_pattern_data(pattern_data)
 
-        # Update only valid fields
-        valid_fields = ["name", "description", "instructions", "complexity_level", "status", "metadata"]
-        for field, value in updates.items():
-            if field in valid_fields:
-                pattern[field] = value
+        try:
+            updated_pattern = self._pattern_repository.update(pattern_id, pattern_data)
+            self._session.commit()
+            self._logger.info(f"Updated pattern with ID: {pattern_id}")
+            return self._to_dict(updated_pattern)
+        except Exception as e:
+            self._session.rollback()
+            self._logger.error(f"Failed to update pattern: {str(e)}")
+            raise ValidationError(f"Failed to update pattern: {str(e)}")
 
-        # Always update the 'updated_at' timestamp
-        pattern["updated_at"] = datetime.now()
-
-        self.logger.info(f"Updated pattern: {pattern_id}")
-        return pattern
-
-    def delete_pattern(self, pattern_id: str) -> bool:
+    def delete_pattern(self, pattern_id: int) -> bool:
         """Delete a pattern.
 
         Args:
             pattern_id: ID of the pattern to delete
 
         Returns:
-            bool: True if successful, False otherwise
+            bool: True if successful
+
+        Raises:
+            NotFoundError: If pattern not found
         """
-        if pattern_id not in self._patterns:
-            self.logger.warning(f"Cannot delete non-existent pattern: {pattern_id}")
-            return False
+        self._logger.info(f"Deleting pattern with ID: {pattern_id}")
+        pattern = self._pattern_repository.get_by_id(pattern_id)
+        if not pattern:
+            self._logger.error(f"Pattern with ID {pattern_id} not found")
+            raise NotFoundError(f"Pattern with ID {pattern_id} not found")
 
-        del self._patterns[pattern_id]
-        self.logger.info(f"Deleted pattern: {pattern_id}")
-        return True
+        try:
+            self._pattern_repository.delete(pattern_id)
+            self._session.commit()
+            self._logger.info(f"Deleted pattern with ID: {pattern_id}")
+            return True
+        except Exception as e:
+            self._session.rollback()
+            self._logger.error(f"Failed to delete pattern: {str(e)}")
+            raise ValidationError(f"Failed to delete pattern: {str(e)}")
 
-    def list_patterns(self, status: Optional[PatternStatus] = None) -> List[Dict[str, Any]]:
-        """List all patterns, optionally filtered by status.
+    def get_patterns_by_skill_level(self, skill_level: str) -> List[Dict[str, Any]]:
+        """Get patterns by skill level.
 
         Args:
-            status: Optional filter by pattern status
+            skill_level: Skill level to filter by
 
         Returns:
-            List[Dict[str, Any]]: List of patterns
+            List[Dict[str, Any]]: List of matching pattern dictionaries
         """
-        if status:
-            return [p for p in self._patterns.values() if p["status"] == status]
-        return list(self._patterns.values())
+        self._logger.info(f"Retrieving patterns with skill level: {skill_level}")
+        try:
+            skill_level_enum = SkillLevel[skill_level.upper()]
+            patterns = self._pattern_repository.get_by_skill_level(skill_level_enum)
+            return [self._to_dict(pattern) for pattern in patterns]
+        except KeyError:
+            self._logger.warning(f"Invalid skill level: {skill_level}")
+            return []
 
-    def search_patterns(self, query: str) -> List[Dict[str, Any]]:
-        """Search for patterns by name or description.
+    def _validate_pattern_data(self, pattern_data: Dict[str, Any]) -> None:
+        """Validate pattern data.
 
         Args:
-            query: Search query string
+            pattern_data: Pattern data to validate
 
-        Returns:
-            List[Dict[str, Any]]: List of matching patterns
+        Raises:
+            ValidationError: If validation fails
         """
-        query = query.lower()
-        results = []
+        # Required fields
+        required_fields = ['name', 'description']
+        for field in required_fields:
+            if field not in pattern_data:
+                raise ValidationError(f"Missing required field: {field}")
 
-        for pattern in self._patterns.values():
-            if (query in pattern["name"].lower() or
-                    (pattern["description"] and query in pattern["description"].lower())):
-                results.append(pattern)
+        # Name length validation
+        if len(pattern_data.get('name', '')) < 3:
+            raise ValidationError("Pattern name must be at least 3 characters")
 
-        return results
+        # Skill level validation if provided
+        if 'skill_level' in pattern_data:
+            try:
+                SkillLevel[pattern_data['skill_level'].upper()]
+            except KeyError:
+                raise ValidationError(f"Invalid skill level: {pattern_data['skill_level']}")
 
-    def add_component_to_pattern(self, pattern_id: str,
-                                 component_name: str,
-                                 material_type: str,
-                                 dimensions: Dict[str, float],
-                                 quantity: int = 1,
-                                 notes: Optional[str] = None) -> Optional[Dict[str, Any]]:
-        """Add a component to a pattern.
+    def _to_dict(self, pattern) -> Dict[str, Any]:
+        """Convert pattern model to dictionary.
 
         Args:
-            pattern_id: ID of the pattern
-            component_name: Name of the component
-            material_type: Type of material for the component
-            dimensions: Component dimensions
-            quantity: Number of this component needed
-            notes: Optional notes about the component
+            pattern: Pattern model object
 
         Returns:
-            Optional[Dict[str, Any]]: Updated pattern or None if pattern not found
+            Dict[str, Any]: Pattern dictionary
         """
-        if pattern_id not in self._patterns:
-            self.logger.warning(f"Cannot add component to non-existent pattern: {pattern_id}")
-            return None
-
-        pattern = self._patterns[pattern_id]
-
-        # Create a new component
-        component_id = f"CMP{len(pattern['components']) + 1:03d}"
-        component = {
-            "id": component_id,
-            "name": component_name,
-            "material_type": material_type,
-            "dimensions": dimensions,
-            "quantity": quantity,
-            "notes": notes
+        return {
+            'id': pattern.id,
+            'name': pattern.name,
+            'description': pattern.description,
+            'skill_level': pattern.skill_level.name if pattern.skill_level else None,
+            'created_at': pattern.created_at.isoformat() if pattern.created_at else None,
+            'updated_at': pattern.updated_at.isoformat() if pattern.updated_at else None,
+            'components': [
+                {
+                    'id': component.id,
+                    'name': component.name,
+                    'component_type': component.component_type.name if component.component_type else None
+                }
+                for component in getattr(pattern, 'components', [])
+            ]
         }
-
-        pattern["components"].append(component)
-        pattern["updated_at"] = datetime.now()
-
-        self.logger.info(f"Added component {component_name} to pattern {pattern_id}")
-        return pattern
-
-    def remove_component_from_pattern(self, pattern_id: str, component_id: str) -> Optional[Dict[str, Any]]:
-        """Remove a component from a pattern.
-
-        Args:
-            pattern_id: ID of the pattern
-            component_id: ID of the component to remove
-
-        Returns:
-            Optional[Dict[str, Any]]: Updated pattern or None if pattern not found
-        """
-        if pattern_id not in self._patterns:
-            self.logger.warning(f"Cannot remove component from non-existent pattern: {pattern_id}")
-            return None
-
-        pattern = self._patterns[pattern_id]
-
-        # Find and remove the component
-        for i, component in enumerate(pattern["components"]):
-            if component["id"] == component_id:
-                pattern["components"].pop(i)
-                pattern["updated_at"] = datetime.now()
-                self.logger.info(f"Removed component {component_id} from pattern {pattern_id}")
-                return pattern
-
-        self.logger.warning(f"Component {component_id} not found in pattern {pattern_id}")
-        return pattern
-
-    def change_pattern_status(self, pattern_id: str, new_status: PatternStatus) -> Optional[Dict[str, Any]]:
-        """Change the status of a pattern.
-
-        Args:
-            pattern_id: ID of the pattern
-            new_status: New status to set
-
-        Returns:
-            Optional[Dict[str, Any]]: Updated pattern or None if pattern not found
-        """
-        if pattern_id not in self._patterns:
-            self.logger.warning(f"Cannot change status of non-existent pattern: {pattern_id}")
-            return None
-
-        pattern = self._patterns[pattern_id]
-        old_status = pattern["status"]
-        pattern["status"] = new_status
-        pattern["updated_at"] = datetime.now()
-
-        self.logger.info(f"Changed pattern {pattern_id} status from {old_status} to {new_status}")
-        return pattern
-
-    def duplicate_pattern(self, pattern_id: str, new_name: Optional[str] = None) -> Optional[Dict[str, Any]]:
-        """Duplicate a pattern.
-
-        Args:
-            pattern_id: ID of the pattern to duplicate
-            new_name: Optional name for the duplicate
-
-        Returns:
-            Optional[Dict[str, Any]]: Duplicate pattern or None if original not found
-        """
-        if pattern_id not in self._patterns:
-            self.logger.warning(f"Cannot duplicate non-existent pattern: {pattern_id}")
-            return None
-
-        original = self._patterns[pattern_id]
-
-        # Create new pattern with same details but new ID and name
-        duplicate_id = f"PT{len(self._patterns) + 1:04d}"
-        now = datetime.now()
-
-        duplicate = {
-            "id": duplicate_id,
-            "name": new_name or f"Copy of {original['name']}",
-            "description": original["description"],
-            "instructions": original["instructions"],
-            "complexity_level": original["complexity_level"],
-            "status": PatternStatus.DRAFT,  # Always start as draft
-            "created_at": now,
-            "updated_at": now,
-            "metadata": original["metadata"].copy(),
-            "components": []
-        }
-
-        # Duplicate components
-        for comp in original["components"]:
-            duplicate["components"].append({
-                "id": f"CMP{len(duplicate['components']) + 1:03d}",
-                "name": comp["name"],
-                "material_type": comp["material_type"],
-                "dimensions": comp["dimensions"].copy(),
-                "quantity": comp["quantity"],
-                "notes": comp["notes"]
-            })
-
-        self._patterns[duplicate_id] = duplicate
-        self.logger.info(f"Duplicated pattern {pattern_id} to {duplicate_id}")
-
-        return duplicate

@@ -1,720 +1,741 @@
-# database/repositories/material_repository.py
-"""
-Repository for material data access.
-Provides database operations for material items.
-"""
+from __future__ import annotations
 
 import logging
 from typing import Any, Dict, List, Optional, Union, Tuple
-from sqlalchemy import and_, or_, func, select
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session, joinedload
+from datetime import datetime, timedelta
 
-from database.models.enums import MaterialType, InventoryStatus, TransactionType
+from sqlalchemy import (
+    and_, or_, func, select, desc,
+    distinct
+)
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import (
+    Session, joinedload, selectinload,
+    contains_eager
+)
+
+from database.models.enums import (
+    MaterialType,
+    InventoryStatus,
+    TransactionType,
+    QualityGrade,
+    SupplierStatus
+)
 from database.models.material import Material
 from database.models.inventory import Inventory
-from database.repositories.base_repository import BaseRepository
+from database.models.supplier import Supplier
+from database.models.component import Component
+from database.models.component_material import ComponentMaterial
+from database.models.project import Project
+from database.models.purchase_item import PurchaseItem
+from database.models.purchase import Purchase
 from database.models.base import ModelValidationError
-from database.exceptions import DatabaseError, ModelNotFoundError, RepositoryError
-from utils.logger import get_logger
 
-logger = get_logger(__name__)
+from database.repositories.base_repository import BaseRepository
+from database.exceptions import (
+    DatabaseError,
+    ModelNotFoundError,
+    RepositoryError
+)
+from services.base_service import ValidationError
 
 
 class MaterialRepository(BaseRepository[Material]):
     """
-    Repository for material data access operations.
-    Provides methods for CRUD operations and complex queries on materials.
+    Advanced repository for material data access with comprehensive ERP capabilities.
+
+    Provides sophisticated querying, tracking, and analysis for materials 
+    across the leatherworking workflow.
     """
 
     def __init__(self, session: Session):
         """
-        Initialize the Material Repository.
+        Initialize the Material Repository with a database session.
 
         Args:
             session (Session): SQLAlchemy database session
         """
         super().__init__(session, Material)
-        logger.debug("Initialized MaterialRepository")
+        self.logger = logging.getLogger(self.__class__.__name__)
 
-    def get_all_materials(self,
-                          include_deleted: bool = False,
-                          status: Optional[InventoryStatus] = None,
-                          material_type: Optional[MaterialType] = None,
-                          quality: Optional[str] = None,
-                          supplier_id: Optional[int] = None) -> List[Material]:
+    def advanced_material_search(
+            self,
+            search_params: Dict[str, Any]
+    ) -> List[Material]:
         """
-        Get all materials with optional filtering.
+        Comprehensive material search with multiple filtering options.
 
         Args:
-            include_deleted (bool): Whether to include soft-deleted materials
-            status (Optional[InventoryStatus]): Filter by inventory status
-            material_type (Optional[MaterialType]): Filter by material type
-            quality (Optional[str]): Filter by quality
-            supplier_id (Optional[int]): Filter by supplier ID
+            search_params: Dictionary of search and filter parameters
+                - material_type: Optional[MaterialType]
+                - min_quantity: Optional[float]
+                - max_quantity: Optional[float]
+                - supplier_id: Optional[int]
+                - quality_grade: Optional[QualityGrade]
+                - inventory_status: Optional[InventoryStatus]
+                - used_in_project: Optional[int]
+                - used_in_component: Optional[int]
 
         Returns:
-            List[Material]: List of material objects
-
-        Raises:
-            RepositoryError: If a database error occurs
+            List of materials matching search criteria
         """
         try:
-            # Join with inventory to filter by status if needed
-            if status:
-                query = select(Material).join(
-                    Inventory,
-                    and_(
-                        Inventory.item_id == Material.id,
-                        Inventory.item_type == 'material'
-                    )
-                )
-            else:
-                query = select(Material)
-
-            # Build filter conditions
+            query = select(Material)
             conditions = []
 
-            if not include_deleted:
-                conditions.append(Material.is_deleted == False)
-
-            if status:
-                conditions.append(Inventory.status == status)
-
-            if material_type:
+            # Material Type Filter
+            if material_type := search_params.get('material_type'):
                 conditions.append(Material.material_type == material_type)
 
-            if quality:
-                conditions.append(Material.quality.ilike(f"%{quality}%"))
+            # Inventory Quantity Range
+            if min_qty := search_params.get('min_quantity'):
+                query = query.join(Inventory,
+                                   and_(
+                                       Inventory.item_id == Material.id,
+                                       Inventory.item_type == 'material'
+                                   )
+                                   )
+                conditions.append(Inventory.quantity >= min_qty)
 
-            if supplier_id:
+            if max_qty := search_params.get('max_quantity'):
+                conditions.append(Inventory.quantity <= max_qty)
+
+            # Supplier Filter
+            if supplier_id := search_params.get('supplier_id'):
                 conditions.append(Material.supplier_id == supplier_id)
+
+            # Quality Grade Filter
+            if quality_grade := search_params.get('quality_grade'):
+                conditions.append(Material.quality_grade == quality_grade)
+
+            # Inventory Status Filter
+            if status := search_params.get('inventory_status'):
+                query = query.join(Inventory,
+                                   and_(
+                                       Inventory.item_id == Material.id,
+                                       Inventory.item_type == 'material'
+                                   )
+                                   )
+                conditions.append(Inventory.status == status)
+
+            # Project Usage Filter
+            if project_id := search_params.get('used_in_project'):
+                query = query.join(ComponentMaterial).join(Component).join(Project)
+                conditions.append(Project.id == project_id)
+
+            # Component Usage Filter
+            if component_id := search_params.get('used_in_component'):
+                query = query.join(ComponentMaterial)
+                conditions.append(ComponentMaterial.component_id == component_id)
 
             # Apply all conditions
             if conditions:
                 query = query.where(and_(*conditions))
 
-            # Optionally load inventory relationship
-            if status:
-                query = query.options(joinedload(Material.inventory))
-            else:
-                query = query.options(joinedload(Material.inventory))
-
-            # Execute query
-            result = self.session.execute(query.order_by(Material.name)).scalars().all()
-            logger.debug(f"Retrieved {len(result)} materials with filters: {locals()}")
-            return result
-
-        except SQLAlchemyError as e:
-            logger.error(f"Database error retrieving materials: {str(e)}")
-            raise RepositoryError(f"Failed to retrieve materials: {str(e)}")
-
-    def search_materials(self, search_term: str, include_deleted: bool = False) -> List[Material]:
-        """
-        Search for materials by name, description, or other text fields.
-
-        Args:
-            search_term (str): Search term to look for
-            include_deleted (bool): Whether to include soft-deleted materials
-
-        Returns:
-            List[Material]: List of matching material objects
-
-        Raises:
-            RepositoryError: If a database error occurs
-        """
-        try:
-            # Create base query
-            query = select(Material)
-
-            # Add search conditions
-            search_conditions = [
-                Material.name.ilike(f"%{search_term}%"),
-                Material.description.ilike(f"%{search_term}%")
-            ]
-
-            query = query.where(or_(*search_conditions))
-
-            # Filter deleted if needed
-            if not include_deleted:
-                query = query.where(Material.is_deleted == False)
-
-            # Load inventory information
-            query = query.options(joinedload(Material.inventory))
-
-            # Execute query
-            result = self.session.execute(query.order_by(Material.name)).scalars().all()
-            logger.debug(f"Search for '{search_term}' returned {len(result)} materials")
-            return result
-
-        except SQLAlchemyError as e:
-            logger.error(f"Database error searching materials: {str(e)}")
-            raise RepositoryError(f"Failed to search materials: {str(e)}")
-
-    def get_material_with_inventory(self, material_id: int) -> Optional[Material]:
-        """
-        Get a material by ID with related inventory information.
-
-        Args:
-            material_id (int): ID of the material
-
-        Returns:
-            Optional[Material]: Material object with loaded inventory or None
-
-        Raises:
-            RepositoryError: If a database error occurs
-        """
-        try:
-            query = select(Material).where(
-                and_(
-                    Material.id == material_id,
-                    Material.is_deleted == False
-                )
-            ).options(
-                joinedload(Material.inventory)
-            )
-
-            result = self.session.execute(query).scalars().first()
-            if result:
-                logger.debug(f"Retrieved material ID {material_id} with inventory info")
-            else:
-                logger.debug(f"No material found with ID {material_id}")
-
-            return result
-
-        except SQLAlchemyError as e:
-            logger.error(f"Database error retrieving material with inventory: {str(e)}")
-            raise RepositoryError(f"Failed to retrieve material with inventory: {str(e)}")
-
-    def get_material_with_supplier(self, material_id: int) -> Optional[Material]:
-        """
-        Get a material by ID with supplier information.
-
-        Args:
-            material_id (int): ID of the material
-
-        Returns:
-            Optional[Material]: Material object with loaded supplier or None
-
-        Raises:
-            RepositoryError: If a database error occurs
-        """
-        try:
-            query = select(Material).where(
-                and_(
-                    Material.id == material_id,
-                    Material.is_deleted == False
-                )
-            ).options(
-                joinedload(Material.supplier)
-            )
-
-            result = self.session.execute(query).scalars().first()
-            if result:
-                logger.debug(f"Retrieved material ID {material_id} with supplier info")
-            else:
-                logger.debug(f"No material found with ID {material_id}")
-
-            return result
-
-        except SQLAlchemyError as e:
-            logger.error(f"Database error retrieving material with supplier: {str(e)}")
-            raise RepositoryError(f"Failed to retrieve material with supplier: {str(e)}")
-
-    def get_materials_by_status(self, status: InventoryStatus) -> List[Material]:
-        """
-        Get materials filtered by inventory status.
-
-        Args:
-            status (InventoryStatus): Status to filter by
-
-        Returns:
-            List[Material]: List of material objects with the specified status
-
-        Raises:
-            RepositoryError: If a database error occurs
-        """
-        try:
-            query = select(Material).join(
-                Inventory,
-                and_(
-                    Inventory.item_id == Material.id,
-                    Inventory.item_type == 'material'
-                )
-            ).where(
-                and_(
-                    Inventory.status == status,
-                    Material.is_deleted == False
-                )
-            ).options(
-                joinedload(Material.inventory)
-            )
-
-            result = self.session.execute(query).scalars().all()
-            logger.debug(f"Retrieved {len(result)} materials with status {status.name}")
-            return result
-
-        except SQLAlchemyError as e:
-            logger.error(f"Database error retrieving materials by status: {str(e)}")
-            raise RepositoryError(f"Failed to retrieve materials by status: {str(e)}")
-
-    def get_materials_by_type(self, material_type: MaterialType) -> List[Material]:
-        """
-        Get materials of a specific type.
-
-        Args:
-            material_type (MaterialType): Type of material to filter by
-
-        Returns:
-            List[Material]: List of material objects of the specified type
-
-        Raises:
-            RepositoryError: If a database error occurs
-        """
-        try:
-            query = select(Material).where(
-                and_(
-                    Material.material_type == material_type,
-                    Material.is_deleted == False
-                )
-            ).options(
-                joinedload(Material.inventory)
-            )
-
-            result = self.session.execute(query).scalars().all()
-            logger.debug(f"Retrieved {len(result)} materials of type {material_type.name}")
-            return result
-
-        except SQLAlchemyError as e:
-            logger.error(f"Database error retrieving materials by type: {str(e)}")
-            raise RepositoryError(f"Failed to retrieve materials by type: {str(e)}")
-
-    def get_materials_by_supplier(self, supplier_id: int) -> List[Material]:
-        """
-        Get materials from a specific supplier.
-
-        Args:
-            supplier_id (int): ID of the supplier
-
-        Returns:
-            List[Material]: List of material objects from the supplier
-
-        Raises:
-            RepositoryError: If a database error occurs
-        """
-        try:
-            query = select(Material).where(
-                and_(
-                    Material.supplier_id == supplier_id,
-                    Material.is_deleted == False
-                )
-            ).options(
+            # Include inventory and supplier details
+            query = query.options(
                 joinedload(Material.inventory),
                 joinedload(Material.supplier)
             )
 
-            result = self.session.execute(query).scalars().all()
-            logger.debug(f"Retrieved {len(result)} materials from supplier ID {supplier_id}")
-            return result
+            # Execute query
+            results = self.session.execute(query).unique().scalars().all()
+
+            self.logger.info(f"Advanced material search returned {len(results)} results")
+            return results
 
         except SQLAlchemyError as e:
-            logger.error(f"Database error retrieving materials by supplier: {str(e)}")
-            raise RepositoryError(f"Failed to retrieve materials by supplier: {str(e)}")
+            self.logger.error(f"Advanced material search error: {e}")
+            raise RepositoryError(f"Material search failed: {e}")
 
-    def get_material_inventory_value(self) -> Dict[str, Any]:
+    def get_low_stock_critical_materials(
+            self,
+            threshold_days: int = 30
+    ) -> List[Dict[str, Any]]:
         """
-        Calculate the total inventory value of all material items.
+        Identify critical low-stock materials based on usage history.
+
+        Args:
+            threshold_days: Number of days to analyze past usage
 
         Returns:
-            Dict[str, Any]: Dictionary with total value and breakdowns by type
-
-        Raises:
-            RepositoryError: If a database error occurs
+            List of critical low-stock materials with detailed information
         """
         try:
-            query = select(Material).join(
+            # Calculate usage in the past threshold period
+            end_date = datetime.now()
+            start_date = end_date - timedelta(days=threshold_days)
+
+            # Complex query to find materials with low stock relative to recent usage
+            query = select(
+                Material,
                 Inventory,
+                func.sum(ComponentMaterial.quantity).label('total_recent_usage')
+            ).join(Inventory,
+                   and_(
+                       Inventory.item_id == Material.id,
+                       Inventory.item_type == 'material'
+                   )
+                   ).outerjoin(ComponentMaterial,
+                               and_(
+                                   ComponentMaterial.material_id == Material.id,
+                                   ComponentMaterial.created_at.between(start_date, end_date)
+                               )
+                               ).where(
                 and_(
-                    Inventory.item_id == Material.id,
-                    Inventory.item_type == 'material'
+                    Material.is_deleted == False,
+                    or_(
+                        Inventory.status == InventoryStatus.LOW_STOCK,
+                        Inventory.quantity <= func.coalesce(func.sum(ComponentMaterial.quantity), 0) * 1.5
+                    )
                 )
-            ).where(
-                Material.is_deleted == False
-            ).options(
-                joinedload(Material.inventory)
-            )
+            ).group_by(Material.id, Inventory.id)
 
-            materials = self.session.execute(query).scalars().all()
+            results = self.session.execute(query).all()
 
-            # Calculate totals
-            total_value = 0.0
-            by_type = {}
+            # Process and enrich results
+            critical_materials = []
+            for material, inventory, recent_usage in results:
+                critical_info = {
+                    "material_id": material.id,
+                    "material_name": material.name,
+                    "material_type": material.material_type,
+                    "current_quantity": inventory.quantity,
+                    "recent_usage": recent_usage or 0,
+                    "inventory_status": inventory.status,
+                    "supplier_id": material.supplier_id
+                }
+                critical_materials.append(critical_info)
 
-            for material in materials:
-                if material.inventory and material.inventory.unit_cost is not None:
-                    # Calculate value based on inventory
-                    value = material.inventory.calculate_value()
-                    total_value += value
+            self.logger.warning(f"Found {len(critical_materials)} critical low-stock materials")
+            return critical_materials
 
-                    # Group by type
-                    type_name = material.material_type.name if material.material_type else "Unknown"
-                    by_type[type_name] = by_type.get(type_name, 0.0) + value
+        except SQLAlchemyError as e:
+            self.logger.error(f"Error identifying critical low-stock materials: {e}")
+            raise RepositoryError(f"Failed to identify critical low-stock materials: {e}")
 
-            result = {
-                "total_value": total_value,
-                "by_material_type": by_type
+    def generate_material_utilization_report(
+            self,
+            start_date: Optional[datetime] = None,
+            end_date: Optional[datetime] = None
+    ) -> Dict[str, Any]:
+        """
+        Generate a comprehensive material utilization report.
+
+        Args:
+            start_date: Start of reporting period
+            end_date: End of reporting period
+
+        Returns:
+            Detailed material utilization report
+        """
+        try:
+            # Default to last 90 days if no dates provided
+            start_date = start_date or (datetime.now() - timedelta(days=90))
+            end_date = end_date or datetime.now()
+
+            # Aggregate usage across different domains
+            usage_query = select(
+                Material.id,
+                Material.name,
+                Material.material_type,
+                func.sum(ComponentMaterial.quantity).label('total_component_usage'),
+                func.count(distinct(Component.id)).label('unique_components'),
+                func.count(distinct(Project.id)).label('unique_projects')
+            ).join(ComponentMaterial, isouter=True
+                   ).join(Component, isouter=True
+                          ).join(Project, isouter=True
+                                 ).where(
+                and_(
+                    Material.is_deleted == False,
+                    ComponentMaterial.created_at.between(start_date, end_date)
+                )
+            ).group_by(Material.id, Material.name, Material.material_type)
+
+            results = self.session.execute(usage_query).all()
+
+            # Prepare comprehensive report
+            utilization_report = {
+                "report_period": {
+                    "start_date": start_date,
+                    "end_date": end_date
+                },
+                "total_materials_analyzed": len(results),
+                "material_utilization": [],
+                "summary": {
+                    "total_component_usage": 0,
+                    "total_unique_components": 0,
+                    "total_unique_projects": 0
+                }
             }
 
-            logger.debug(f"Calculated material inventory value: {total_value:.2f}")
-            return result
+            # Process and aggregate results
+            for material_id, name, material_type, component_usage, unique_components, unique_projects in results:
+                material_data = {
+                    "material_id": material_id,
+                    "name": name,
+                    "material_type": material_type,
+                    "total_component_usage": component_usage or 0,
+                    "unique_components": unique_components or 0,
+                    "unique_projects": unique_projects or 0
+                }
+
+                utilization_report["material_utilization"].append(material_data)
+
+                # Update summary
+                utilization_report["summary"]["total_component_usage"] += component_usage or 0
+                utilization_report["summary"]["total_unique_components"] += unique_components or 0
+                utilization_report["summary"]["total_unique_projects"] += unique_projects or 0
+
+            self.logger.info("Generated comprehensive material utilization report")
+            return utilization_report
 
         except SQLAlchemyError as e:
-            logger.error(f"Database error calculating material inventory value: {str(e)}")
-            raise RepositoryError(f"Failed to calculate material inventory value: {str(e)}")
+            self.logger.error(f"Error generating material utilization report: {e}")
+            raise RepositoryError(f"Failed to generate material utilization report: {e}")
 
-    def update_inventory_quantity(self, material_id: int, quantity_change: float,
-                                  transaction_type: TransactionType,
-                                  reference_type: Optional[str] = None,
-                                  reference_id: Optional[int] = None,
-                                  notes: Optional[str] = None) -> Inventory:
+    def forecast_material_needs(
+            self,
+            look_ahead_days: int = 90
+    ) -> Dict[str, Any]:
         """
-        Update the inventory quantity for a material item.
+        Forecast future material needs based on historical usage and current projects.
 
         Args:
-            material_id (int): ID of the material
-            quantity_change (float): Quantity to add (positive) or remove (negative)
-            transaction_type (TransactionType): Type of transaction
-            reference_type (Optional[str]): Type of reference document
-            reference_id (Optional[int]): ID of the reference document
-            notes (Optional[str]): Optional notes about the transaction
+            look_ahead_days: Number of days to forecast
 
         Returns:
-            Inventory: The updated inventory record
-
-        Raises:
-            ModelNotFoundError: If the material or inventory does not exist
-            ModelValidationError: If quantity would go negative
-            RepositoryError: If a database error occurs
+            Forecasted material needs and recommendations
         """
         try:
-            # Get the material with inventory
-            material = self.get_material_with_inventory(material_id)
-            if not material:
-                logger.error(f"Cannot update inventory: Material ID {material_id} not found")
-                raise ModelNotFoundError(f"Material with ID {material_id} not found")
+            # Calculate historical average usage
+            end_date = datetime.now()
+            historical_start = end_date - timedelta(days=180)  # 6-month historical data
 
-            # Check if inventory exists
-            if not material.inventory:
-                logger.error(f"No inventory record exists for Material ID {material_id}")
-                raise ModelNotFoundError(f"No inventory record exists for Material ID {material_id}")
+            # Query to calculate average daily usage per material
+            usage_query = select(
+                Material.id,
+                Material.name,
+                Material.material_type,
+                func.avg(ComponentMaterial.quantity /
+                         func.nullif(func.date_part('day', end_date - ComponentMaterial.created_at), 0)
+                         ).label('avg_daily_usage')
+            ).join(ComponentMaterial
+                   ).where(
+                ComponentMaterial.created_at.between(historical_start, end_date)
+            ).group_by(Material.id, Material.name, Material.material_type)
 
-            # Update the inventory quantity
-            try:
-                material.inventory.update_quantity(
-                    change=quantity_change,
-                    transaction_type=transaction_type,
-                    reference_type=reference_type,
-                    reference_id=reference_id,
-                    notes=notes
-                )
-            except ModelValidationError as e:
-                raise ModelValidationError(str(e))
+            usage_results = self.session.execute(usage_query).all()
 
-            self.session.commit()
+            # Prepare forecast report
+            forecast_report = {
+                "forecast_period": {
+                    "start_date": end_date,
+                    "end_date": end_date + timedelta(days=look_ahead_days)
+                },
+                "material_forecasts": []
+            }
 
-            logger.info(f"Updated inventory for Material ID {material_id}. "
-                        f"Quantity change: {quantity_change}, New quantity: {material.inventory.quantity}")
-
-            return material.inventory
-
-        except ModelNotFoundError:
-            # Re-raise to be handled at the service level
-            raise
-        except ModelValidationError:
-            # Re-raise to be handled at the service level
-            self.session.rollback()
-            raise
-        except SQLAlchemyError as e:
-            self.session.rollback()
-            logger.error(f"Database error updating material inventory: {str(e)}")
-            raise RepositoryError(f"Failed to update material inventory: {str(e)}")
-
-    def get_material_inventory_history(self, material_id: int, limit: Optional[int] = None) -> List[Dict[str, Any]]:
-        """
-        Get transaction history for a specific material's inventory.
-
-        Args:
-            material_id (int): ID of the material
-            limit (Optional[int]): Maximum number of transactions to return
-
-        Returns:
-            List[Dict[str, Any]]: List of transaction records
-
-        Raises:
-            ModelNotFoundError: If the material or inventory does not exist
-            RepositoryError: If a database error occurs
-        """
-        try:
-            # Get the material with inventory
-            material = self.get_material_with_inventory(material_id)
-            if not material:
-                logger.error(f"Cannot get history: Material ID {material_id} not found")
-                raise ModelNotFoundError(f"Material with ID {material_id} not found")
-
-            # Check if inventory exists
-            if not material.inventory:
-                logger.error(f"No inventory record exists for Material ID {material_id}")
-                raise ModelNotFoundError(f"No inventory record exists for Material ID {material_id}")
-
-            # Get transaction history from the inventory record
-            history = material.inventory.transaction_history or []
-
-            # Sort by date (most recent first)
-            history = sorted(history,
-                             key=lambda x: x.get('date', ''),
-                             reverse=True)
-
-            # Apply limit if specified
-            if limit is not None and limit > 0:
-                history = history[:limit]
-
-            logger.debug(f"Retrieved {len(history)} transaction records for Material ID {material_id}")
-            return history
-
-        except ModelNotFoundError:
-            # Re-raise to be handled at the service level
-            raise
-        except SQLAlchemyError as e:
-            logger.error(f"Database error retrieving material inventory history: {str(e)}")
-            raise RepositoryError(f"Failed to retrieve material inventory history: {str(e)}")
-
-    def get_low_stock_materials(self, threshold: Optional[float] = None) -> List[Material]:
-        """
-        Get all materials with low stock.
-
-        Args:
-            threshold (Optional[float]): Override the defined min_stock_level
-
-        Returns:
-            List[Material]: List of material objects with low stock
-
-        Raises:
-            RepositoryError: If a database error occurs
-        """
-        try:
-            query = select(Material).join(
-                Inventory,
-                and_(
-                    Inventory.item_id == Material.id,
-                    Inventory.item_type == 'material'
-                )
-            )
-
-            conditions = [
-                Material.is_deleted == False
-            ]
-
-            if threshold is not None:
-                # Use provided threshold
-                conditions.append(
+            # Process each material's forecast
+            for material_id, name, material_type, avg_daily_usage in usage_results:
+                # Get current inventory
+                inventory_query = select(Inventory).where(
                     and_(
-                        Inventory.quantity <= threshold,
-                        Inventory.quantity > 0
+                        Inventory.item_id == material_id,
+                        Inventory.item_type == 'material'
                     )
                 )
-            else:
-                # Use each item's defined min_stock_level or fallback to LOW_STOCK status
-                conditions.append(
-                    or_(
-                        and_(
-                            Inventory.min_stock_level.is_not(None),
-                            Inventory.quantity <= Inventory.min_stock_level,
-                            Inventory.quantity > 0
-                        ),
-                        Inventory.status == InventoryStatus.LOW_STOCK
-                    )
-                )
+                current_inventory = self.session.execute(inventory_query).scalar_one_or_none()
 
-            query = query.where(and_(*conditions)).options(
-                joinedload(Material.inventory)
-            ).order_by(Inventory.quantity)
+                # Forecast calculation
+                forecast = {
+                    "material_id": material_id,
+                    "name": name,
+                    "material_type": material_type,
+                    "current_inventory": current_inventory.quantity if current_inventory else 0,
+                    "avg_daily_usage": avg_daily_usage or 0,
+                    "forecasted_usage": (avg_daily_usage or 0) * look_ahead_days,
+                    "recommendation": "MONITOR"
+                }
 
-            result = self.session.execute(query).scalars().all()
-            logger.debug(f"Retrieved {len(result)} materials with low stock")
-            return result
+                # Determine recommendation
+                days_of_stock = (current_inventory.quantity / avg_daily_usage) if avg_daily_usage else float('inf')
+                if days_of_stock < look_ahead_days / 2:
+                    forecast["recommendation"] = "URGENT_RESTOCK"
+                elif days_of_stock < look_ahead_days:
+                    forecast["recommendation"] = "CONSIDER_RESTOCK"
 
-        except SQLAlchemyError as e:
-            logger.error(f"Database error retrieving low stock materials: {str(e)}")
-            raise RepositoryError(f"Failed to retrieve low stock materials: {str(e)}")
+                forecast_report["material_forecasts"].append(forecast)
 
-    def get_out_of_stock_materials(self) -> List[Material]:
-        """
-        Get all materials that are out of stock.
-
-        Returns:
-            List[Material]: List of material objects with zero quantity
-
-        Raises:
-            RepositoryError: If a database error occurs
-        """
-        try:
-            query = select(Material).join(
-                Inventory,
-                and_(
-                    Inventory.item_id == Material.id,
-                    Inventory.item_type == 'material'
-                )
-            ).where(
-                and_(
-                    or_(
-                        Inventory.status == InventoryStatus.OUT_OF_STOCK,
-                        Inventory.quantity == 0
-                    ),
-                    Material.is_deleted == False
-                )
-            ).options(
-                joinedload(Material.inventory)
-            ).order_by(Material.name)
-
-            result = self.session.execute(query).scalars().all()
-            logger.debug(f"Retrieved {len(result)} out of stock materials")
-            return result
+            self.logger.info("Generated material needs forecast")
+            return forecast_report
 
         except SQLAlchemyError as e:
-            logger.error(f"Database error retrieving out of stock materials: {str(e)}")
-            raise RepositoryError(f"Failed to retrieve out of stock materials: {str(e)}")
+            self.logger.error(f"Error forecasting material needs: {e}")
+            raise RepositoryError(f"Failed to forecast material needs: {e}")
 
-    def batch_update(self, updates: List[Dict[str, Any]]) -> List[Material]:
+    def batch_update_materials(
+            self,
+            updates: List[Dict[str, Any]]
+    ) -> List[Material]:
         """
-        Update multiple material records in a batch.
+        Perform batch updates on multiple materials.
 
         Args:
-            updates (List[Dict[str, Any]]): List of dictionaries with 'id' and fields to update
+            updates: List of dictionaries containing material update information
+                Each dictionary should have:
+                - 'id': Material ID (required)
+                - Other material fields to update
+                - Optional 'inventory' sub-dictionary for inventory updates
 
         Returns:
-            List[Material]: List of updated material objects
+            List of updated material objects
 
         Raises:
-            ModelNotFoundError: If any material ID is not found
-            ModelValidationError: If any of the updates fail validation
-            RepositoryError: If a database error occurs
+            ModelValidationError: If update data is invalid
+            ModelNotFoundError: If any material is not found
         """
         try:
             updated_materials = []
 
-            for update_data in updates:
-                material_id = update_data.pop('id', None)
-                inventory_data = update_data.pop('inventory', None)
+            # Start a transaction
+            with self.session.begin():
+                for update_data in updates:
+                    # Extract material ID and remove from update data
+                    material_id = update_data.pop('id', None)
+                    if not material_id:
+                        raise ModelValidationError("Material ID is required for batch update")
 
-                if not material_id:
-                    logger.error("Missing material ID in batch update")
-                    raise ModelValidationError("Material ID is required for batch update")
+                    # Extract inventory data if present
+                    inventory_data = update_data.pop('inventory', {})
 
-                material = self.get_by_id(material_id)
-                if not material:
-                    logger.error(f"Material ID {material_id} not found in batch update")
-                    raise ModelNotFoundError(f"Material with ID {material_id} not found")
+                    # Retrieve the existing material
+                    material = self.get_by_id(material_id)
+                    if not material:
+                        raise ModelNotFoundError(f"Material with ID {material_id} not found")
 
-                # Update material fields
-                for key, value in update_data.items():
-                    setattr(material, key, value)
+                    # Update material attributes
+                    for key, value in update_data.items():
+                        setattr(material, key, value)
 
-                # Update inventory if provided
-                if inventory_data and material.inventory:
-                    for key, value in inventory_data.items():
-                        setattr(material.inventory, key, value)
+                    # Update inventory if data provided
+                    if material.inventory and inventory_data:
+                        for key, value in inventory_data.items():
+                            setattr(material.inventory, key, value)
 
-                    # Update status based on new quantities
-                    material.inventory._update_status()
+                        # Trigger any inventory-specific validations
+                        material.inventory.validate()
 
-                material.validate()
-                updated_materials.append(material)
+                    # Validate the updated material
+                    material.validate()
 
-            # Commit all updates
-            self.session.commit()
-            logger.info(f"Batch updated {len(updated_materials)} materials")
+                    updated_materials.append(material)
+
+            # Log the batch update
+            self.logger.info(f"Batch updated {len(updated_materials)} materials")
             return updated_materials
 
-        except ModelValidationError:
-            # Rollback and re-raise
-            self.session.rollback()
-            raise
-        except ModelNotFoundError:
-            # Rollback and re-raise
+        except (ModelValidationError, ModelNotFoundError) as e:
+            self.logger.error(f"Validation error in batch material update: {e}")
             self.session.rollback()
             raise
         except SQLAlchemyError as e:
+            self.logger.error(f"Database error in batch material update: {e}")
             self.session.rollback()
-            logger.error(f"Database error in batch update: {str(e)}")
-            raise RepositoryError(f"Failed to batch update materials: {str(e)}")
+            raise RepositoryError(f"Failed to batch update materials: {e}")
 
-    def get_materials_by_ids(self, material_ids: List[int]) -> List[Material]:
+    def analyze_material_cost_efficiency(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None
+    ) -> Dict[str, Any]:
         """
-        Get multiple materials by their IDs.
+        Analyze material cost efficiency across different usage contexts.
 
         Args:
-            material_ids (List[int]): List of material IDs
+            start_date: Start of analysis period
+            end_date: End of analysis period
 
         Returns:
-            List[Material]: List of found material objects
-
-        Raises:
-            RepositoryError: If a database error occurs
+            Comprehensive material cost efficiency report
         """
         try:
-            if not material_ids:
-                return []
+            # Default to last 12 months if no dates provided
+            end_date = end_date or datetime.now()
+            start_date = start_date or (end_date - timedelta(days=365))
 
-            query = select(Material).where(
+            # Aggregate material usage and cost information
+            cost_analysis_query = select(
+                Material.id,
+                Material.name,
+                Material.material_type,
+                func.sum(PurchaseItem.quantity).label('total_purchased_quantity'),
+                func.sum(PurchaseItem.price).label('total_purchase_cost'),
+                func.sum(ComponentMaterial.quantity).label('total_used_quantity'),
+                func.count(distinct(Project.id)).label('unique_projects')
+            ).join(PurchaseItem, isouter=True
+            ).join(ComponentMaterial, isouter=True
+            ).join(Component, isouter=True
+            ).join(Project, isouter=True
+            ).where(
                 and_(
-                    Material.id.in_(material_ids),
-                    Material.is_deleted == False
+                    Material.is_deleted == False,
+                    or_(
+                        PurchaseItem.created_at.between(start_date, end_date),
+                        ComponentMaterial.created_at.between(start_date, end_date)
+                    )
                 )
-            ).options(
-                joinedload(Material.inventory)
+            ).group_by(Material.id, Material.name, Material.material_type)
+
+            results = self.session.execute(cost_analysis_query).all()
+
+            # Prepare cost efficiency report
+            cost_efficiency_report = {
+                "analysis_period": {
+                    "start_date": start_date,
+                    "end_date": end_date
+                },
+                "materials": [],
+                "summary": {
+                    "total_materials_analyzed": 0,
+                    "total_purchase_cost": 0,
+                    "total_used_quantity": 0
+                }
+            }
+
+            # Process and analyze results
+            for (
+                material_id, name, material_type,
+                purchased_qty, purchase_cost,
+                used_qty, unique_projects
+            ) in results:
+                # Calculate key metrics
+                avg_unit_cost = (purchase_cost / purchased_qty) if purchased_qty else 0
+                utilization_ratio = (used_qty / purchased_qty) if purchased_qty else 0
+
+                # Determine efficiency rating
+                if utilization_ratio > 0.9:
+                    efficiency_rating = "EXCELLENT"
+                elif utilization_ratio > 0.7:
+                    efficiency_rating = "GOOD"
+                elif utilization_ratio > 0.5:
+                    efficiency_rating = "AVERAGE"
+                elif utilization_ratio > 0.3:
+                    efficiency_rating = "POOR"
+                else:
+                    efficiency_rating = "CRITICAL"
+
+                # Prepare material efficiency data
+                material_efficiency = {
+                    "material_id": material_id,
+                    "name": name,
+                    "material_type": material_type,
+                    "total_purchased_quantity": purchased_qty or 0,
+                    "total_purchase_cost": purchase_cost or 0,
+                    "total_used_quantity": used_qty or 0,
+                    "unique_projects": unique_projects or 0,
+                    "avg_unit_cost": avg_unit_cost,
+                    "utilization_ratio": utilization_ratio,
+                    "efficiency_rating": efficiency_rating
+                }
+
+                cost_efficiency_report["materials"].append(material_efficiency)
+
+                # Update summary
+                cost_efficiency_report["summary"]["total_materials_analyzed"] += 1
+                cost_efficiency_report["summary"]["total_purchase_cost"] += purchase_cost or 0
+                cost_efficiency_report["summary"]["total_used_quantity"] += used_qty or 0
+
+            self.logger.info("Generated material cost efficiency analysis")
+            return cost_efficiency_report
+
+        except SQLAlchemyError as e:
+            self.logger.error(f"Error analyzing material cost efficiency: {e}")
+            raise RepositoryError(f"Failed to analyze material cost efficiency: {e}")
+
+    def get_material_sourcing_recommendations(
+        self,
+        material_type: Optional[MaterialType] = None
+    ) -> Dict[str, Any]:
+        """
+        Generate material sourcing recommendations based on current inventory and usage.
+
+        Args:
+            material_type: Optional filter for specific material type
+
+        Returns:
+            Sourcing recommendations report
+        """
+        try:
+            # Base query for low stock and usage analysis
+            query = select(
+                Material,
+                Inventory,
+                func.sum(ComponentMaterial.quantity).label('total_usage'),
+                func.avg(PurchaseItem.price).label('avg_purchase_price')
+            ).join(Inventory,
+                and_(
+                    Inventory.item_id == Material.id,
+                    Inventory.item_type == 'material'
+                )
+            ).outerjoin(ComponentMaterial,
+                ComponentMaterial.material_id == Material.id
+            ).outerjoin(PurchaseItem,
+                PurchaseItem.material_id == Material.id
+            ).where(
+                and_(
+                    Material.is_deleted == False,
+                    Inventory.status.in_([
+                        InventoryStatus.LOW_STOCK,
+                        InventoryStatus.OUT_OF_STOCK
+                    ])
+                )
             )
 
-            result = self.session.execute(query).scalars().all()
-            logger.debug(f"Retrieved {len(result)} materials by IDs")
-            return result
+            # Apply material type filter if provided
+            if material_type:
+                query = query.where(Material.material_type == material_type)
+
+            # Group and prepare results
+            query = query.group_by(Material, Inventory)
+
+            results = self.session.execute(query).all()
+
+            # Prepare sourcing recommendations
+            sourcing_recommendations = {
+                "total_recommendations": 0,
+                "recommendations": []
+            }
+
+            for material, inventory, total_usage, avg_price in results:
+                recommendation = {
+                    "material_id": material.id,
+                    "name": material.name,
+                    "material_type": material.material_type,
+                    "current_quantity": inventory.quantity,
+                    "inventory_status": inventory.status,
+                    "total_usage": total_usage or 0,
+                    "avg_purchase_price": avg_price or 0,
+                    "recommended_order_quantity": max(
+                        (total_usage or 0) * 1.5 - inventory.quantity,
+                        0
+                    ),
+                    "supplier_id": material.supplier_id
+                }
+
+                sourcing_recommendations["recommendations"].append(recommendation)
+                sourcing_recommendations["total_recommendations"] += 1
+
+            self.logger.info(f"Generated {sourcing_recommendations['total_recommendations']} material sourcing recommendations")
+            return sourcing_recommendations
 
         except SQLAlchemyError as e:
-            logger.error(f"Database error retrieving materials by IDs: {str(e)}")
-            raise RepositoryError(f"Failed to retrieve materials by IDs: {str(e)}")
+            self.logger.error(f"Error generating material sourcing recommendations: {e}")
+            raise RepositoryError(f"Failed to generate material sourcing recommendations: {e}")
 
-    def create_material(self, material_data: Dict[str, Any]) -> Material:
+    def generate_comprehensive_material_report(
+        self,
+        report_type: str = 'full',
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None
+    ) -> Dict[str, Any]:
         """
-        Create a new material with validation.
+        Generate a comprehensive report covering multiple aspects of materials.
 
         Args:
-            material_data (Dict[str, Any]): Data for the new material
+            report_type: Type of report ('full', 'inventory', 'usage', 'cost')
+            start_date: Start of reporting period
+            end_date: End of reporting period
 
         Returns:
-            Material: Created material instance
-
-        Raises:
-            ModelValidationError: If validation fails
-            RepositoryError: If a database error occurs
+            Comprehensive material report
         """
         try:
-            # Create new material instance
-            material = Material(**material_data)
+            # Set default date range (last 12 months)
+            end_date = end_date or datetime.now()
+            start_date = start_date or (end_date - timedelta(days=365))
 
-            # Validate the material
-            material.validate()
+            # Prepare comprehensive report
+            comprehensive_report = {
+                "report_period": {
+                    "start_date": start_date,
+                    "end_date": end_date
+                },
+                "report_type": report_type
+            }
 
-            # Add to session and commit
-            self.session.add(material)
-            self.session.commit()
+            # Additional report sections based on report type
+            if report_type in ['full', 'inventory']:
+                comprehensive_report['inventory_analysis'] = self.get_low_stock_critical_materials()
 
-            logger.info(f"Created new material: {material.name} (ID: {material.id})")
-            return material
+            if report_type in ['full', 'usage']:
+                comprehensive_report['utilization_report'] = self.generate_material_utilization_report(
+                    start_date, end_date
+                )
 
-        except ModelValidationError:
-            # Re-raise validation errors
-            self.session.rollback()
-            raise
-        except SQLAlchemyError as e:
-            self.session.rollback()
-            logger.error(f"Database error creating material: {str(e)}")
-            raise RepositoryError(f"Failed to create material: {str(e)}")
+            if report_type in ['full', 'cost']:
+                comprehensive_report['cost_efficiency_analysis'] = self.analyze_material_cost_efficiency(
+                    start_date, end_date
+                )
+
+            if report_type == 'full':
+                comprehensive_report['sourcing_recommendations'] = self.get_material_sourcing_recommendations()
+                comprehensive_report['forecast'] = self.forecast_material_needs()
+
+            self.logger.info(f"Generated comprehensive {report_type} material report")
+            return comprehensive_report
+
+        except Exception as e:
+            self.logger.error(f"Error generating comprehensive material report: {e}")
+            raise RepositoryError(f"Failed to generate comprehensive material report: {e}")
+
+    def validate_material_data(
+        self,
+        material_data: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Validate material data before creation or update.
+
+        Args:
+            material_data: Dictionary of material attributes to validate
+
+        Returns:
+            Validated and potentially modified material data
+        """
+        try:
+            # Validate required fields
+            required_fields = ['name', 'material_type']
+            for field in required_fields:
+                if field not in material_data:
+                    raise ValidationError(f"Missing required field: {field}")
+
+            # Validate material type
+            if material_data['material_type'] not in MaterialType:
+                raise ValidationError(f"Invalid material type: {material_data['material_type']}")
+
+            # Additional type-specific validations could be added here
+            # For example, specific validations for leather, hardware, etc.
+
+            # Sanitize and validate optional fields
+            if 'supplier_id' in material_data:
+                # Optionally validate supplier existence
+                supplier_query = select(Supplier).where(Supplier.id == material_data['supplier_id'])
+                supplier = self.session.execute(supplier_query).scalar_one_or_none()
+                if not supplier:
+                    raise ValidationError(f"Invalid supplier ID: {material_data['supplier_id']}")
+
+            # Clean up and standardize data
+            cleaned_data = {
+                k: v for k, v in material_data.items()
+                if v is not None and k in [
+                    'name', 'description', 'material_type',
+                    'supplier_id', 'quality_grade'
+                ]
+            }
+
+            self.logger.info("Material data validated successfully")
+            return cleaned_data
+
+        except (ValidationError, SQLAlchemyError) as e:
+            self.logger.error(f"Material data validation error: {e}")
+            raise RepositoryError(f"Failed to validate material data: {e}")

@@ -1,247 +1,164 @@
-# database/repositories/leather_repository.py
-import logging
-from typing import Any, Dict, List, Optional, Tuple, Union
+from __future__ import annotations
 
+import logging
+from typing import Any, Dict, List, Optional, Union
+from datetime import datetime, timedelta
+
+from sqlalchemy import and_, or_, func, select, desc, distinct
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import and_, or_, func, select, desc
 
-from database.models.enums import InventoryStatus, LeatherType, QualityGrade, TransactionType, MaterialType
-from database.models.material import Leather
+from database.models.enums import (
+    LeatherType,
+    LeatherFinish,
+    MaterialType,
+    InventoryStatus,
+    QualityGrade,
+    TransactionType
+)
+from database.models.material import Leather, Material
 from database.models.inventory import Inventory
-from database.repositories.base_repository import BaseRepository
-from database.models.base import ModelValidationError
-from database.exceptions import DatabaseError, ModelNotFoundError, RepositoryError
-from utils.logger import get_logger
+from database.models.component import Component
+from database.models.component_material import ComponentMaterial
+from database.models.project import Project
+from database.models.purchase import Purchase
+from database.models.purchase_item import PurchaseItem
+from database.models.supplier import Supplier
 
-logger = get_logger(__name__)
+from database.repositories.base_repository import BaseRepository
+from database.repositories.material_repository import MaterialRepository
+from database.exceptions import (
+    DatabaseError,
+    ModelNotFoundError,
+    RepositoryError,
+
+)
 
 
 class LeatherRepository(BaseRepository[Leather]):
     """
-    Repository for leather model operations.
-    Provides data access methods for the leather table.
+    Advanced repository for leather material data access with comprehensive ERP capabilities.
+
+    Provides sophisticated querying, tracking, and analysis for leather materials 
+    across the leatherworking workflow.
     """
 
-    def __init__(self, session: Session) -> None:
+    def __init__(self, session: Session):
         """
-        Initialize the LeatherRepository with a database session.
+        Initialize the Leather Repository with a database session.
 
         Args:
             session (Session): SQLAlchemy database session
         """
         super().__init__(session, Leather)
-        logger.debug("Initialized LeatherRepository")
+        self.logger = logging.getLogger(self.__class__.__name__)
 
-    def get_all_leathers(self,
-                         include_deleted: bool = False,
-                         status: Optional[InventoryStatus] = None,
-                         leather_type: Optional[LeatherType] = None,
-                         quality: Optional[QualityGrade] = None,
-                         color: Optional[str] = None,
-                         thickness_min: Optional[float] = None,
-                         thickness_max: Optional[float] = None,
-                         area_min: Optional[float] = None) -> List[Leather]:
+    def find_leather_by_criteria(
+            self,
+            criteria: Dict[str, Any]
+    ) -> List[Leather]:
         """
-        Get all leathers with optional filtering.
+        Advanced search for leather materials with multiple filtering options.
 
         Args:
-            include_deleted (bool): Whether to include soft-deleted leathers
-            status (Optional[InventoryStatus]): Filter by inventory status
-            leather_type (Optional[LeatherType]): Filter by leather type
-            quality (Optional[QualityGrade]): Filter by quality grade
-            color (Optional[str]): Filter by color
-            thickness_min (Optional[float]): Filter by minimum thickness
-            thickness_max (Optional[float]): Filter by maximum thickness
-            area_min (Optional[float]): Filter by minimum area in square feet
+            criteria: Dictionary of search parameters
+                - leather_type: Optional[LeatherType]
+                - min_thickness: Optional[float]
+                - max_thickness: Optional[float]
+                - min_area: Optional[float]
+                - max_area: Optional[float]
+                - finish: Optional[LeatherFinish]
+                - quality_grade: Optional[QualityGrade]
+                - supplier_id: Optional[int]
+                - inventory_status: Optional[InventoryStatus]
+                - is_full_hide: Optional[bool]
 
         Returns:
-            List[Leather]: List of leather objects
-
-        Raises:
-            RepositoryError: If a database error occurs
+            List of leather materials matching the criteria
         """
         try:
-            # Join with inventory to filter by status if needed
-            if status:
-                query = select(Leather).join(
+            query = select(Leather).where(
+                Leather.material_type == MaterialType.LEATHER
+            )
+            conditions = []
+
+            # Leather Type Filter
+            if leather_type := criteria.get('leather_type'):
+                conditions.append(Leather.leather_type == leather_type)
+
+            # Thickness Range Filter
+            if min_thickness := criteria.get('min_thickness'):
+                conditions.append(Leather.thickness >= min_thickness)
+            if max_thickness := criteria.get('max_thickness'):
+                conditions.append(Leather.thickness <= max_thickness)
+
+            # Area Range Filter
+            if min_area := criteria.get('min_area'):
+                conditions.append(Leather.area >= min_area)
+            if max_area := criteria.get('max_area'):
+                conditions.append(Leather.area <= max_area)
+
+            # Finish Filter
+            if finish := criteria.get('finish'):
+                conditions.append(Leather.finish == finish)
+
+            # Quality Grade Filter
+            if quality_grade := criteria.get('quality_grade'):
+                conditions.append(Leather.quality_grade == quality_grade)
+
+            # Supplier Filter
+            if supplier_id := criteria.get('supplier_id'):
+                conditions.append(Leather.supplier_id == supplier_id)
+
+            # Full Hide Filter
+            if is_full_hide := criteria.get('is_full_hide'):
+                conditions.append(Leather.is_full_hide == is_full_hide)
+
+            # Inventory Status Filter
+            if inventory_status := criteria.get('inventory_status'):
+                query = query.join(
                     Inventory,
                     and_(
                         Inventory.item_id == Leather.id,
                         Inventory.item_type == 'material'
                     )
                 )
-            else:
-                query = select(Leather)
-
-            # Ensure only leather materials are returned
-            query = query.where(Leather.material_type == MaterialType.LEATHER)
-
-            # Build filter conditions
-            conditions = []
-
-            if not include_deleted:
-                conditions.append(Leather.is_deleted == False)
-
-            if status:
-                conditions.append(Inventory.status == status)
-
-            if leather_type:
-                conditions.append(Leather.leather_type == leather_type)
-
-            if quality:
-                conditions.append(Leather.quality == quality)
-
-            if color:
-                conditions.append(Leather.color.ilike(f"%{color}%"))
-
-            if thickness_min is not None:
-                conditions.append(Leather.thickness >= thickness_min)
-
-            if thickness_max is not None:
-                conditions.append(Leather.thickness <= thickness_max)
-
-            if area_min is not None:
-                conditions.append(Leather.area >= area_min)
+                conditions.append(Inventory.status == inventory_status)
 
             # Apply all conditions
             if conditions:
                 query = query.where(and_(*conditions))
 
-            # Optionally load inventory relationship
-            if status:
-                query = query.options(joinedload(Leather.inventory))
-
-            # Execute query
-            result = self.session.execute(query.order_by(Leather.name)).scalars().all()
-            logger.debug(f"Retrieved {len(result)} leathers with filters: {locals()}")
-            return result
-
-        except SQLAlchemyError as e:
-            logger.error(f"Database error retrieving leathers: {str(e)}")
-            raise RepositoryError(f"Failed to retrieve leathers: {str(e)}")
-
-    def search_leathers(self, search_term: str, include_deleted: bool = False) -> List[Leather]:
-        """
-        Search for leathers by name, description, or other text fields.
-
-        Args:
-            search_term (str): Search term to look for
-            include_deleted (bool): Whether to include soft-deleted leathers
-
-        Returns:
-            List[Leather]: List of matching leather objects
-
-        Raises:
-            RepositoryError: If a database error occurs
-        """
-        try:
-            # Create base query for leather type only
-            query = select(Leather).where(Leather.material_type == MaterialType.LEATHER)
-
-            # Add search conditions
-            search_conditions = [
-                Leather.name.ilike(f"%{search_term}%"),
-                Leather.description.ilike(f"%{search_term}%")
-            ]
-
-            query = query.where(or_(*search_conditions))
-
-            # Filter deleted if needed
-            if not include_deleted:
-                query = query.where(Leather.is_deleted == False)
-
-            # Execute query
-            result = self.session.execute(query.order_by(Leather.name)).scalars().all()
-            logger.debug(f"Search for '{search_term}' returned {len(result)} leathers")
-            return result
-
-        except SQLAlchemyError as e:
-            logger.error(f"Database error searching leathers: {str(e)}")
-            raise RepositoryError(f"Failed to search leathers: {str(e)}")
-
-    def get_leather_with_inventory(self, leather_id: int) -> Optional[Leather]:
-        """
-        Get a leather by ID with related inventory information.
-
-        Args:
-            leather_id (int): ID of the leather
-
-        Returns:
-            Optional[Leather]: Leather object with loaded inventory or None
-
-        Raises:
-            RepositoryError: If a database error occurs
-        """
-        try:
-            query = select(Leather).where(
-                and_(
-                    Leather.id == leather_id,
-                    Leather.material_type == MaterialType.LEATHER
-                )
-            ).options(
-                joinedload(Leather.inventory)
-            )
-
-            result = self.session.execute(query).scalars().first()
-            if result:
-                logger.debug(f"Retrieved leather ID {leather_id} with inventory info")
-            else:
-                logger.debug(f"No leather found with ID {leather_id}")
-
-            return result
-
-        except SQLAlchemyError as e:
-            logger.error(f"Database error retrieving leather with inventory: {str(e)}")
-            raise RepositoryError(f"Failed to retrieve leather with inventory: {str(e)}")
-
-    def get_leather_with_supplier(self, leather_id: int) -> Optional[Leather]:
-        """
-        Get a leather by ID with supplier information.
-
-        Args:
-            leather_id (int): ID of the leather
-
-        Returns:
-            Optional[Leather]: Leather object with loaded supplier or None
-
-        Raises:
-            RepositoryError: If a database error occurs
-        """
-        try:
-            query = select(Leather).where(
-                and_(
-                    Leather.id == leather_id,
-                    Leather.material_type == MaterialType.LEATHER
-                )
-            ).options(
+            # Include inventory and supplier details
+            query = query.options(
+                joinedload(Leather.inventory),
                 joinedload(Leather.supplier)
             )
 
-            result = self.session.execute(query).scalars().first()
-            if result:
-                logger.debug(f"Retrieved leather ID {leather_id} with supplier info")
-            else:
-                logger.debug(f"No leather found with ID {leather_id}")
+            # Execute query
+            results = self.session.execute(query).unique().scalars().all()
 
-            return result
+            self.logger.info(f"Advanced leather search returned {len(results)} results")
+            return results
 
         except SQLAlchemyError as e:
-            logger.error(f"Database error retrieving leather with supplier: {str(e)}")
-            raise RepositoryError(f"Failed to retrieve leather with supplier: {str(e)}")
+            self.logger.error(f"Advanced leather search error: {e}")
+            raise RepositoryError(f"Leather search failed: {e}")
 
-    def get_leathers_by_status(self, status: InventoryStatus) -> List[Leather]:
+    def find_with_sufficient_area(
+            self,
+            required_area: float,
+            filters: Optional[Dict[str, Any]] = None
+    ) -> List[Leather]:
         """
-        Get leathers filtered by inventory status.
+        Find leather materials with sufficient area for a specific requirement.
 
         Args:
-            status (InventoryStatus): Status to filter by
+            required_area: Minimum area needed
+            filters: Optional additional filtering criteria
 
         Returns:
-            List[Leather]: List of leather objects with the specified status
-
-        Raises:
-            RepositoryError: If a database error occurs
+            List of leather materials with sufficient area
         """
         try:
             query = select(Leather).join(
@@ -253,268 +170,314 @@ class LeatherRepository(BaseRepository[Leather]):
             ).where(
                 and_(
                     Leather.material_type == MaterialType.LEATHER,
-                    Inventory.status == status,
-                    Leather.is_deleted == False
+                    Inventory.quantity >= required_area
                 )
-            ).options(
-                joinedload(Leather.inventory)
             )
 
-            result = self.session.execute(query).scalars().all()
-            logger.debug(f"Retrieved {len(result)} leathers with status {status.name}")
-            return result
+            # Apply additional filters
+            if filters:
+                if leather_type := filters.get('leather_type'):
+                    query = query.where(Leather.leather_type == leather_type)
+
+                if min_thickness := filters.get('min_thickness'):
+                    query = query.where(Leather.thickness >= min_thickness)
+
+                if finish := filters.get('finish'):
+                    query = query.where(Leather.finish == finish)
+
+            # Include inventory details
+            query = query.options(joinedload(Leather.inventory))
+
+            # Execute query
+            results = self.session.execute(query).unique().scalars().all()
+
+            self.logger.info(f"Found {len(results)} leather materials with sufficient area")
+            return results
 
         except SQLAlchemyError as e:
-            logger.error(f"Database error retrieving leathers by status: {str(e)}")
-            raise RepositoryError(f"Failed to retrieve leathers by status: {str(e)}")
+            self.logger.error(f"Error finding leather with sufficient area: {e}")
+            raise RepositoryError(f"Failed to find leather with sufficient area: {e}")
 
-    def get_leather_inventory_value(self) -> Dict[str, Any]:
+    def calculate_leather_usage_analytics(
+            self,
+            leather_id: int,
+            start_date: Optional[datetime] = None,
+            end_date: Optional[datetime] = None
+    ) -> Dict[str, Any]:
         """
-        Calculate the total inventory value of all leather items.
+        Generate comprehensive usage analytics for a specific leather material.
+
+        Args:
+            leather_id: ID of the leather material
+            start_date: Optional start date for analysis
+            end_date: Optional end date for analysis
 
         Returns:
-            Dict[str, Any]: Dictionary with total value and breakdowns by type and quality
-
-        Raises:
-            RepositoryError: If a database error occurs
+            Detailed usage analytics dictionary
         """
         try:
-            query = select(Leather).join(
-                Inventory,
+            # Set default date range
+            end_date = end_date or datetime.now()
+            start_date = start_date or (end_date - timedelta(days=365))
+
+            # Retrieve leather
+            leather = self.get_by_id(leather_id)
+
+            # Get current inventory
+            inventory_query = select(Inventory).where(
                 and_(
-                    Inventory.item_id == Leather.id,
+                    Inventory.item_id == leather_id,
                     Inventory.item_type == 'material'
                 )
-            ).where(
-                and_(
-                    Leather.material_type == MaterialType.LEATHER,
-                    Leather.is_deleted == False
-                )
-            ).options(
-                joinedload(Leather.inventory)
             )
+            current_inventory = self.session.execute(inventory_query).scalar_one_or_none()
 
-            leathers = self.session.execute(query).scalars().all()
+            # Analyze component usage
+            component_usage_query = select(
+                Component.id,
+                Component.name,
+                func.sum(ComponentMaterial.quantity).label('total_quantity')
+            ).join(ComponentMaterial).where(
+                and_(
+                    ComponentMaterial.material_id == leather_id,
+                    ComponentMaterial.created_at.between(start_date, end_date)
+                )
+            ).group_by(Component.id, Component.name)
 
-            # Calculate totals
-            total_value = 0.0
-            by_type = {}
-            by_quality = {}
+            component_usage = self.session.execute(component_usage_query).all()
 
-            for leather in leathers:
-                if leather.inventory and leather.inventory.unit_cost is not None:
-                    # Calculate value based on inventory
-                    value = leather.inventory.calculate_value()
-                    total_value += value
+            # Analyze project usage
+            project_usage_query = select(
+                Project.id,
+                Project.name,
+                func.count(distinct(Component.id)).label('component_count')
+            ).join(Component).join(ComponentMaterial).where(
+                and_(
+                    ComponentMaterial.material_id == leather_id,
+                    Project.created_at.between(start_date, end_date)
+                )
+            ).group_by(Project.id, Project.name)
 
-                    # Group by type
-                    type_name = leather.leather_type.name if leather.leather_type else "Unknown"
-                    by_type[type_name] = by_type.get(type_name, 0.0) + value
+            project_usage = self.session.execute(project_usage_query).all()
 
-                    # Group by quality
-                    quality_name = leather.quality.name if leather.quality else "Unknown"
-                    by_quality[quality_name] = by_quality.get(quality_name, 0.0) + value
-
-            result = {
-                "total_value": total_value,
-                "by_leather_type": by_type,
-                "by_quality": by_quality
+            # Prepare analytics
+            analytics = {
+                "leather_id": leather_id,
+                "leather_name": leather.name,
+                "leather_type": leather.leather_type,
+                "current_inventory": {
+                    "quantity": current_inventory.quantity if current_inventory else 0,
+                    "status": current_inventory.status if current_inventory else None
+                },
+                "usage_period": {
+                    "start_date": start_date,
+                    "end_date": end_date
+                },
+                "total_component_usage": sum(usage[2] for usage in component_usage),
+                "unique_components_used": len(component_usage),
+                "projects_used_in": len(project_usage),
+                "component_usage_details": [
+                    {
+                        "component_id": usage[0],
+                        "component_name": usage[1],
+                        "total_quantity": usage[2]
+                    } for usage in component_usage
+                ],
+                "project_usage_details": [
+                    {
+                        "project_id": proj[0],
+                        "project_name": proj[1],
+                        "component_count": proj[2]
+                    } for proj in project_usage
+                ]
             }
 
-            logger.debug(f"Calculated leather inventory value: {total_value:.2f}")
-            return result
+            self.logger.info(f"Generated usage analytics for leather {leather_id}")
+            return analytics
 
         except SQLAlchemyError as e:
-            logger.error(f"Database error calculating leather inventory value: {str(e)}")
-            raise RepositoryError(f"Failed to calculate leather inventory value: {str(e)}")
+            self.logger.error(f"Leather usage analytics error: {e}")
+            raise RepositoryError(f"Failed to generate leather usage analytics: {e}")
 
-    def update_inventory_quantity(self, leather_id: int, quantity_change: float,
-                                  transaction_type: TransactionType,
-                                  reference_type: Optional[str] = None,
-                                  reference_id: Optional[int] = None,
-                                  notes: Optional[str] = None) -> Inventory:
+    def get_leather_usage_history(
+            self,
+            leather_id: int,
+            start_date: Optional[datetime] = None,
+            end_date: Optional[datetime] = None
+    ) -> List[Dict[str, Any]]:
         """
-        Update the inventory quantity for a leather item.
+        Retrieve usage history for a specific leather material.
 
         Args:
-            leather_id (int): ID of the leather
-            quantity_change (float): Quantity to add (positive) or remove (negative)
-            transaction_type (TransactionType): Type of transaction
-            reference_type (Optional[str]): Type of reference document
-            reference_id (Optional[int]): ID of the reference document
-            notes (Optional[str]): Optional notes about the transaction
+            leather_id: ID of the leather material
+            start_date: Optional start date for history
+            end_date: Optional end date for history
 
         Returns:
-            Inventory: The updated inventory record
-
-        Raises:
-            ModelNotFoundError: If the leather or inventory does not exist
-            ModelValidationError: If quantity would go negative
-            RepositoryError: If a database error occurs
+            List of usage records detailing leather usage across components and projects
         """
         try:
-            # Get the leather with inventory
-            leather = self.get_leather_with_inventory(leather_id)
-            if not leather:
-                logger.error(f"Cannot update inventory: Leather ID {leather_id} not found")
-                raise ModelNotFoundError(f"Leather with ID {leather_id} not found")
+            # Validate leather existence
+            leather = self.get_by_id(leather_id)
 
-            # Check if inventory exists
-            if not leather.inventory:
-                logger.error(f"No inventory record exists for Leather ID {leather_id}")
-                raise ModelNotFoundError(f"No inventory record exists for Leather ID {leather_id}")
-
-            # Update the inventory quantity
-            try:
-                leather.inventory.update_quantity(
-                    change=quantity_change,
-                    transaction_type=transaction_type,
-                    reference_type=reference_type,
-                    reference_id=reference_id,
-                    notes=notes
-                )
-            except ModelValidationError as e:
-                raise ModelValidationError(str(e))
-
-            self.session.commit()
-
-            logger.info(f"Updated inventory for Leather ID {leather_id}. "
-                        f"Quantity change: {quantity_change}, New quantity: {leather.inventory.quantity}")
-
-            return leather.inventory
-
-        except ModelNotFoundError:
-            # Re-raise to be handled at the service level
-            raise
-        except ModelValidationError:
-            # Re-raise to be handled at the service level
-            self.session.rollback()
-            raise
-        except SQLAlchemyError as e:
-            self.session.rollback()
-            logger.error(f"Database error updating leather inventory: {str(e)}")
-            raise RepositoryError(f"Failed to update leather inventory: {str(e)}")
-
-    def get_leather_inventory_history(self, leather_id: int, limit: Optional[int] = None) -> List[Dict[str, Any]]:
-        """
-        Get transaction history for a specific leather's inventory.
-
-        Args:
-            leather_id (int): ID of the leather
-            limit (Optional[int]): Maximum number of transactions to return
-
-        Returns:
-            List[Dict[str, Any]]: List of transaction records
-
-        Raises:
-            ModelNotFoundError: If the leather or inventory does not exist
-            RepositoryError: If a database error occurs
-        """
-        try:
-            # Get the leather with inventory
-            leather = self.get_leather_with_inventory(leather_id)
-            if not leather:
-                logger.error(f"Cannot get history: Leather ID {leather_id} not found")
-                raise ModelNotFoundError(f"Leather with ID {leather_id} not found")
-
-            # Check if inventory exists
-            if not leather.inventory:
-                logger.error(f"No inventory record exists for Leather ID {leather_id}")
-                raise ModelNotFoundError(f"No inventory record exists for Leather ID {leather_id}")
-
-            # Get transaction history from the inventory record
-            history = leather.inventory.transaction_history or []
-
-            # Sort by date (most recent first)
-            history = sorted(history,
-                             key=lambda x: x.get('date', ''),
-                             reverse=True)
-
-            # Apply limit if specified
-            if limit is not None and limit > 0:
-                history = history[:limit]
-
-            logger.debug(f"Retrieved {len(history)} transaction records for Leather ID {leather_id}")
-            return history
-
-        except ModelNotFoundError:
-            # Re-raise to be handled at the service level
-            raise
-        except SQLAlchemyError as e:
-            logger.error(f"Database error retrieving leather inventory history: {str(e)}")
-            raise RepositoryError(f"Failed to retrieve leather inventory history: {str(e)}")
-
-    def get_low_stock_leathers(self, threshold: Optional[float] = None) -> List[Leather]:
-        """
-        Get all leathers with low stock.
-
-        Args:
-            threshold (Optional[float]): Override the defined min_stock_level
-
-        Returns:
-            List[Leather]: List of leather objects with low stock
-
-        Raises:
-            RepositoryError: If a database error occurs
-        """
-        try:
-            query = select(Leather).join(
-                Inventory,
+            # Prepare query for component material usage
+            query = select(
+                ComponentMaterial,
+                Component,
+                Project
+            ).join(Component
+                   ).outerjoin(Project
+                               ).where(
                 and_(
-                    Inventory.item_id == Leather.id,
-                    Inventory.item_type == 'material'
+                    ComponentMaterial.material_id == leather_id,
+                    ComponentMaterial.material_type == MaterialType.LEATHER
                 )
             )
 
-            conditions = [
-                Leather.material_type == MaterialType.LEATHER,
-                Leather.is_deleted == False
-            ]
+            # Apply date range filter
+            if start_date:
+                query = query.where(ComponentMaterial.created_at >= start_date)
+            if end_date:
+                query = query.where(ComponentMaterial.created_at <= end_date)
 
-            if threshold is not None:
-                # Use provided threshold
-                conditions.append(
-                    and_(
-                        Inventory.quantity <= threshold,
-                        Inventory.quantity > 0
-                    )
-                )
-            else:
-                # Use each item's defined min_stock_level or fallback to LOW_STOCK status
-                conditions.append(
-                    or_(
-                        and_(
-                            Inventory.min_stock_level.is_not(None),
-                            Inventory.quantity <= Inventory.min_stock_level,
-                            Inventory.quantity > 0
-                        ),
-                        Inventory.status == InventoryStatus.LOW_STOCK
-                    )
-                )
+            # Order by date (most recent first)
+            query = query.order_by(ComponentMaterial.created_at.desc())
 
-            query = query.where(and_(*conditions)).options(
-                joinedload(Leather.inventory)
-            ).order_by(Inventory.quantity)
+            # Execute query
+            results = self.session.execute(query).all()
 
-            result = self.session.execute(query).scalars().all()
-            logger.debug(f"Retrieved {len(result)} leathers with low stock")
-            return result
+            # Process usage history
+            usage_history = []
+            for component_material, component, project in results:
+                record = {
+                    "quantity_used": component_material.quantity,
+                    "created_at": component_material.created_at,
+                    "component_id": component.id,
+                    "component_name": component.name,
+                    "project_id": project.id if project else None,
+                    "project_name": project.name if project else None
+                }
+                usage_history.append(record)
+
+            self.logger.info(f"Retrieved {len(usage_history)} usage records for leather {leather_id}")
+            return usage_history
 
         except SQLAlchemyError as e:
-            logger.error(f"Database error retrieving low stock leathers: {str(e)}")
-            raise RepositoryError(f"Failed to retrieve low stock leathers: {str(e)}")
+            self.logger.error(f"Error retrieving leather usage history: {e}")
+            raise RepositoryError(f"Failed to retrieve leather usage history: {e}")
 
-    def get_out_of_stock_leathers(self) -> List[Leather]:
+    def analyze_leather_efficiency(
+            self,
+            leather_id: int,
+            start_date: Optional[datetime] = None,
+            end_date: Optional[datetime] = None
+    ) -> Dict[str, Any]:
         """
-        Get all leathers that are out of stock.
+        Analyze the efficiency of a specific leather material.
+
+        Args:
+            leather_id: ID of the leather material
+            start_date: Optional start date for analysis
+            end_date: Optional end date for analysis
 
         Returns:
-            List[Leather]: List of leather objects with zero quantity
-
-        Raises:
-            RepositoryError: If a database error occurs
+            Comprehensive efficiency analysis of the leather material
         """
         try:
+            # Set default date range (last 12 months)
+            end_date = end_date or datetime.now()
+            start_date = start_date or (end_date - timedelta(days=365))
+
+            # Retrieve leather
+            leather = self.get_by_id(leather_id)
+
+            # Get current inventory
+            inventory_query = select(Inventory).where(
+                and_(
+                    Inventory.item_id == leather_id,
+                    Inventory.item_type == 'material'
+                )
+            )
+            current_inventory = self.session.execute(inventory_query).scalar_one_or_none()
+
+            # Analyze total usage
+            usage_query = select(
+                func.sum(ComponentMaterial.quantity).label('total_used_area'),
+                func.count(distinct(Component.id)).label('unique_components'),
+                func.count(distinct(Project.id)).label('unique_projects')
+            ).join(Component
+                   ).outerjoin(Project
+                               ).where(
+                and_(
+                    ComponentMaterial.material_id == leather_id,
+                    ComponentMaterial.material_type == MaterialType.LEATHER,
+                    ComponentMaterial.created_at.between(start_date, end_date)
+                )
+            )
+
+            usage_result = self.session.execute(usage_query).first()
+
+            # Calculate efficiency metrics
+            total_area = leather.area if hasattr(leather, 'area') else 0
+            used_area = usage_result.total_used_area or 0
+
+            # Determine efficiency rating
+            efficiency_ratio = used_area / total_area if total_area > 0 else 0
+
+            if efficiency_ratio > 0.9:
+                efficiency_rating = "EXCELLENT"
+            elif efficiency_ratio > 0.7:
+                efficiency_rating = "GOOD"
+            elif efficiency_ratio > 0.5:
+                efficiency_rating = "AVERAGE"
+            elif efficiency_ratio > 0.3:
+                efficiency_rating = "POOR"
+            else:
+                efficiency_rating = "CRITICAL"
+
+            # Prepare efficiency analysis
+            efficiency_analysis = {
+                "leather_id": leather_id,
+                "leather_type": leather.leather_type,
+                "total_area": total_area,
+                "used_area": used_area,
+                "remaining_area": total_area - used_area,
+                "efficiency_ratio": efficiency_ratio,
+                "efficiency_rating": efficiency_rating,
+                "unique_components": usage_result.unique_components or 0,
+                "unique_projects": usage_result.unique_projects or 0,
+                "current_inventory": {
+                    "quantity": current_inventory.quantity if current_inventory else 0,
+                    "status": current_inventory.status if current_inventory else 0}
+            }
+
+            self.logger.info(f"Generated efficiency analysis for leather {leather_id}")
+            return efficiency_analysis
+
+        except SQLAlchemyError as e:
+            self.logger.error(f"Error analyzing leather efficiency: {e}")
+            raise RepositoryError(f"Failed to analyze leather efficiency: {e}")
+
+    def recommend_leather_replacements(
+        self,
+        leather_id: int,
+        required_area: float
+    ) -> List[Dict[str, Any]]:
+        """
+        Recommend alternative leather materials based on specific requirements.
+
+        Args:
+            leather_id: ID of the original leather material
+            required_area: Area needed for replacement
+
+        Returns:
+            List of recommended leather alternatives
+        """
+        try:
+            # Retrieve original leather
+            original_leather = self.get_by_id(leather_id)
+
+            # Prepare recommendation query
             query = select(Leather).join(
                 Inventory,
                 and_(
@@ -524,124 +487,192 @@ class LeatherRepository(BaseRepository[Leather]):
             ).where(
                 and_(
                     Leather.material_type == MaterialType.LEATHER,
-                    or_(
-                        Inventory.status == InventoryStatus.OUT_OF_STOCK,
-                        Inventory.quantity == 0
-                    ),
-                    Leather.is_deleted == False
+                    Inventory.quantity >= required_area,
+                    # Exclude the original leather
+                    Leather.id != leather_id
                 )
-            ).options(
-                joinedload(Leather.inventory)
-            ).order_by(Leather.name)
-
-            result = self.session.execute(query).scalars().all()
-            logger.debug(f"Retrieved {len(result)} out of stock leathers")
-            return result
-
-        except SQLAlchemyError as e:
-            logger.error(f"Database error retrieving out of stock leathers: {str(e)}")
-            raise RepositoryError(f"Failed to retrieve out of stock leathers: {str(e)}")
-
-    def batch_update(self, updates: List[Dict[str, Any]]) -> List[Leather]:
-        """
-        Update multiple leather records in a batch.
-
-        Args:
-            updates (List[Dict[str, Any]]): List of dictionaries with 'id' and fields to update
-
-        Returns:
-            List[Leather]: List of updated leather objects
-
-        Raises:
-            ModelNotFoundError: If any leather ID is not found
-            ModelValidationError: If any of the updates fail validation
-            RepositoryError: If a database error occurs
-        """
-        try:
-            updated_leathers = []
-
-            for update_data in updates:
-                leather_id = update_data.pop('id', None)
-                inventory_data = update_data.pop('inventory', None)
-
-                if not leather_id:
-                    logger.error("Missing leather ID in batch update")
-                    raise ModelValidationError("Leather ID is required for batch update")
-
-                leather = self.get_by_id(leather_id)
-                if not leather:
-                    logger.error(f"Leather ID {leather_id} not found in batch update")
-                    raise ModelNotFoundError(f"Leather with ID {leather_id} not found")
-
-                # Ensure this is a leather type
-                if leather.material_type != MaterialType.LEATHER:
-                    logger.error(f"Material ID {leather_id} is not a leather type")
-                    raise ModelValidationError(f"Material ID {leather_id} is not a leather type")
-
-                # Update leather fields
-                for key, value in update_data.items():
-                    setattr(leather, key, value)
-
-                # Update inventory if provided
-                if inventory_data and leather.inventory:
-                    for key, value in inventory_data.items():
-                        setattr(leather.inventory, key, value)
-
-                    # Update status based on new quantities
-                    leather.inventory._update_status()
-
-                leather.validate()
-                updated_leathers.append(leather)
-
-            # Commit all updates
-            self.session.commit()
-            logger.info(f"Batch updated {len(updated_leathers)} leathers")
-            return updated_leathers
-
-        except ModelValidationError:
-            # Rollback and re-raise
-            self.session.rollback()
-            raise
-        except ModelNotFoundError:
-            # Rollback and re-raise
-            self.session.rollback()
-            raise
-        except SQLAlchemyError as e:
-            self.session.rollback()
-            logger.error(f"Database error in batch update: {str(e)}")
-            raise RepositoryError(f"Failed to batch update leathers: {str(e)}")
-
-    def get_leathers_by_ids(self, leather_ids: List[int]) -> List[Leather]:
-        """
-        Get multiple leathers by their IDs.
-
-        Args:
-            leather_ids (List[int]): List of leather IDs
-
-        Returns:
-            List[Leather]: List of found leather objects
-
-        Raises:
-            RepositoryError: If a database error occurs
-        """
-        try:
-            if not leather_ids:
-                return []
-
-            query = select(Leather).where(
-                and_(
-                    Leather.id.in_(leather_ids),
-                    Leather.material_type == MaterialType.LEATHER,
-                    Leather.is_deleted == False
-                )
-            ).options(
-                joinedload(Leather.inventory)
             )
 
-            result = self.session.execute(query).scalars().all()
-            logger.debug(f"Retrieved {len(result)} leathers by IDs")
-            return result
+            # Add similarity filters based on original leather characteristics
+            conditions = []
+
+            # Similar leather type
+            if original_leather.leather_type:
+                conditions.append(
+                    or_(
+                        Leather.leather_type == original_leather.leather_type,
+                        # Allow some flexibility with related types
+                        Leather.leather_type.in_([
+                            LeatherType.FULL_GRAIN if original_leather.leather_type == LeatherType.TOP_GRAIN else None,
+                            LeatherType.TOP_GRAIN if original_leather.leather_type == LeatherType.FULL_GRAIN else None
+                        ])
+                    )
+                )
+
+            # Similar thickness range (within 20% tolerance)
+            if original_leather.thickness:
+                min_thickness = original_leather.thickness * 0.8
+                max_thickness = original_leather.thickness * 1.2
+                conditions.append(
+                    and_(
+                        Leather.thickness >= min_thickness,
+                        Leather.thickness <= max_thickness
+                    )
+                )
+
+            # Similar finish if specified
+            if original_leather.finish:
+                conditions.append(Leather.finish == original_leather.finish)
+
+            # Apply additional conditions
+            if conditions:
+                query = query.where(and_(*conditions))
+
+            # Order by closest match (inventory quantity close to required area)
+            query = query.order_by(
+                func.abs(Inventory.quantity - required_area)
+            ).options(
+                joinedload(Leather.inventory),
+                joinedload(Leather.supplier)
+            )
+
+            # Limit recommendations
+            query = query.limit(5)
+
+            # Execute query
+            alternatives = self.session.execute(query).unique().scalars().all()
+
+            # Prepare recommendation details
+            recommendations = []
+            for leather in alternatives:
+                recommendation = {
+                    "leather_id": leather.id,
+                    "name": leather.name,
+                    "leather_type": leather.leather_type,
+                    "thickness": leather.thickness,
+                    "available_area": leather.inventory.quantity if leather.inventory else 0,
+                    "finish": leather.finish,
+                    "supplier_id": leather.supplier_id,
+                    "supplier_name": leather.supplier.name if leather.supplier else None
+                }
+                recommendations.append(recommendation)
+
+            self.logger.info(f"Generated {len(recommendations)} leather replacement recommendations")
+            return recommendations
 
         except SQLAlchemyError as e:
-            logger.error(f"Database error retrieving leathers by IDs: {str(e)}")
-            raise RepositoryError(f"Failed to retrieve leathers by IDs: {str(e)}")
+            self.logger.error(f"Error recommending leather replacements: {e}")
+            raise RepositoryError(f"Failed to recommend leather replacements: {e}")
+
+    def generate_comprehensive_leather_report(
+        self,
+        leather_id: int,
+        report_type: str = 'full'
+    ) -> Dict[str, Any]:
+        """
+        Generate a comprehensive report for a specific leather material.
+
+        Args:
+            leather_id: ID of the leather material
+            report_type: Type of report to generate ('full', 'usage', 'efficiency')
+
+        Returns:
+            Comprehensive leather material report
+        """
+        try:
+            # Retrieve leather details
+            leather = self.get_by_id(leather_id)
+
+            # Prepare comprehensive report
+            report = {
+                "leather_id": leather_id,
+                "name": leather.name,
+                "material_type": leather.material_type,
+                "leather_type": leather.leather_type,
+                "report_type": report_type
+            }
+
+            # Add report sections based on type
+            if report_type in ['full', 'usage']:
+                report['usage_analytics'] = self.calculate_leather_usage_analytics(leather_id)
+                report['usage_history'] = self.get_leather_usage_history(leather_id)
+
+            if report_type in ['full', 'efficiency']:
+                report['efficiency_analysis'] = self.analyze_leather_efficiency(leather_id)
+
+            if report_type == 'full':
+                # Additional comprehensive details
+                report['inventory_details'] = self._get_leather_inventory_details(leather_id)
+                report['supplier_details'] = self._get_leather_supplier_details(leather_id)
+
+            self.logger.info(f"Generated {report_type} report for leather {leather_id}")
+            return report
+
+        except SQLAlchemyError as e:
+            self.logger.error(f"Error generating comprehensive leather report: {e}")
+            raise RepositoryError(f"Failed to generate comprehensive leather report: {e}")
+
+    def _get_leather_inventory_details(self, leather_id: int) -> Dict[str, Any]:
+        """
+        Helper method to retrieve detailed inventory information.
+
+        Args:
+            leather_id: ID of the leather material
+
+        Returns:
+            Detailed inventory information
+        """
+        try:
+            inventory_query = select(Inventory).where(
+                and_(
+                    Inventory.item_id == leather_id,
+                    Inventory.item_type == 'material'
+                )
+            )
+            inventory = self.session.execute(inventory_query).scalar_one_or_none()
+
+            if not inventory:
+                return {}
+
+            return {
+                "quantity": inventory.quantity,
+                "status": inventory.status,
+                "min_stock_level": inventory.min_stock_level,
+                "storage_location": inventory.storage_location
+            }
+
+        except SQLAlchemyError as e:
+            self.logger.error(f"Error retrieving leather inventory details: {e}")
+            raise RepositoryError(f"Failed to retrieve leather inventory details: {e}")
+
+    def _get_leather_supplier_details(self, leather_id: int) -> Dict[str, Any]:
+        """
+        Helper method to retrieve detailed supplier information.
+
+        Args:
+            leather_id: ID of the leather material
+
+        Returns:
+            Detailed supplier information
+        """
+        try:
+            leather_query = select(Leather).where(
+                Leather.id == leather_id
+            ).options(joinedload(Leather.supplier))
+
+            leather = self.session.execute(leather_query).scalar_one_or_none()
+
+            if not leather or not leather.supplier:
+                return {}
+
+            supplier = leather.supplier
+            return {
+                "supplier_id": supplier.id,
+                "name": supplier.name,
+                "contact_email": supplier.contact_email,
+                "status": supplier.status
+            }
+
+        except SQLAlchemyError as e:
+            self.logger.error(f"Error retrieving leather supplier details: {e}")
+            raise RepositoryError(f"Failed to retrieve leather supplier details: {e}")

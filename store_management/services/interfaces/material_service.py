@@ -1,284 +1,239 @@
-# services/interfaces/material_service.py
-"""
-Interface for material-related services.
-Defines methods for material management including materials, leather, hardware, and supplies.
-"""
-
-from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Union
+from typing import Protocol, Dict, List, Optional, Union
+from datetime import datetime
 
 from database.models.enums import (
-    InventoryStatus, MaterialType, LeatherType, HardwareType,
-    TransactionType, QualityGrade
+    MaterialType,
+    LeatherType,
+    HardwareType,
+    InventoryStatus,
+    QualityGrade,
+    SupplierStatus,
+    TransactionType
 )
-from database.models.material import Material, Leather, Hardware
 
 
-class IMaterialService(ABC):
+class IMaterialService(Protocol):
     """
-    Interface for material-related services.
-
-    Defines methods for managing materials in the leatherworking application.
+    Comprehensive interface for Material Service operations.
+    Defines the contract for material-related business logic across different material types.
     """
 
-    @abstractmethod
-    def get_all_materials(self,
-                          include_deleted: bool = False,
-                          status: Optional[InventoryStatus] = None,
-                          material_type: Optional[MaterialType] = None) -> List[Material]:
+    def create_material(
+            self,
+            material_type: MaterialType,
+            **kwargs
+    ) -> Dict:
         """
-        Get all materials with optional filtering.
+        Create a new material entry with comprehensive details.
 
         Args:
-            include_deleted: Whether to include soft-deleted materials
-            status: Filter by inventory status
+            material_type: Type of material
+            **kwargs: Detailed material-specific information
+
+        Returns:
+            Dict: Created material information
+        """
+        ...
+
+    def update_material(
+            self,
+            material_id: int,
+            **kwargs
+    ) -> Dict:
+        """
+        Update an existing material's information.
+
+        Args:
+            material_id: Unique identifier for the material
+            **kwargs: Material details to update
+
+        Returns:
+            Dict: Updated material information
+        """
+        ...
+
+    def get_material_by_id(
+            self,
+            material_id: int
+    ) -> Optional[Dict]:
+        """
+        Retrieve comprehensive material details by ID.
+
+        Args:
+            material_id: Unique identifier for the material
+
+        Returns:
+            Detailed material information including inventory, components, etc.
+        """
+        ...
+
+    def list_materials(
+            self,
+            material_type: Optional[MaterialType] = None,
+            status: Optional[InventoryStatus] = None,
+            quality: Optional[QualityGrade] = None,
+            supplier_id: Optional[int] = None,
+            min_quantity: Optional[float] = None,
+            max_quantity: Optional[float] = None
+    ) -> List[Dict]:
+        """
+        Advanced material listing with multiple filtering options.
+
+        Args:
             material_type: Filter by material type
+            status: Filter by inventory status
+            quality: Filter by material quality
+            supplier_id: Filter by supplier
+            min_quantity: Minimum inventory quantity
+            max_quantity: Maximum inventory quantity
 
         Returns:
-            List of material objects
+            List of material details with advanced filtering
         """
-        pass
+        ...
 
-    @abstractmethod
-    def get_material_by_id(self, material_id: int) -> Optional[Material]:
-        """
-        Get material by ID.
-
-        Args:
-            material_id: ID of the material
-
-        Returns:
-            Material object or None if not found
-        """
-        pass
-
-    @abstractmethod
-    def create_material(self, material_data: Dict[str, Any]) -> Material:
-        """
-        Create a new material.
-
-        Args:
-            material_data: Material data dictionary
-
-        Returns:
-            Created material object
-        """
-        pass
-
-    @abstractmethod
-    def update_material(self, material_id: int, update_data: Dict[str, Any]) -> Material:
-        """
-        Update existing material.
-
-        Args:
-            material_id: ID of the material
-            update_data: Updated material data
-
-        Returns:
-            Updated material object
-        """
-        pass
-
-    @abstractmethod
     def delete_material(self, material_id: int) -> bool:
         """
-        Soft delete a material.
+        Soft or hard delete a material entry.
 
         Args:
-            material_id: ID of the material
+            material_id: Unique identifier for the material
 
         Returns:
-            Success status
+            Boolean indicating successful deletion
         """
-        pass
+        ...
 
-    @abstractmethod
-    def search_materials(self, search_term: str) -> List[Material]:
+    def validate_material_data(
+            self,
+            material_data: Dict,
+            material_type: MaterialType
+    ) -> bool:
         """
-        Search for materials matching a search term.
+        Comprehensive validation of material data.
 
         Args:
-            search_term: Text to search for
+            material_data: Material information to validate
+            material_type: Type of material for specific validation
 
         Returns:
-            List of matching materials
+            Boolean indicating data validity
         """
-        pass
+        ...
 
-    @abstractmethod
-    def update_inventory_quantity(self,
-                                  material_id: int,
-                                  quantity_change: float,
-                                  transaction_type: TransactionType,
-                                  notes: Optional[str] = None) -> bool:
+    def calculate_material_cost(
+            self,
+            material_id: int,
+            quantity: float
+    ) -> float:
         """
-        Update material inventory quantity.
+        Calculate the total cost for a specific quantity of material.
 
         Args:
-            material_id: ID of the material
-            quantity_change: Amount to adjust (positive or negative)
-            transaction_type: Type of transaction
-            notes: Optional notes about the transaction
+            material_id: Unique identifier for the material
+            quantity: Amount of material
 
         Returns:
-            Success status
+            Total cost for the material quantity
         """
-        pass
+        ...
 
-    # Leather-specific methods
-    @abstractmethod
-    def get_all_leathers(self,
-                         include_deleted: bool = False,
-                         status: Optional[InventoryStatus] = None,
-                         leather_type: Optional[LeatherType] = None,
-                         quality: Optional[QualityGrade] = None) -> List[Leather]:
+    def get_material_inventory(
+            self,
+            material_id: int
+    ) -> Dict:
         """
-        Get all leather materials with optional filtering.
+        Retrieve detailed inventory information for a material.
 
         Args:
-            include_deleted: Whether to include soft-deleted leathers
-            status: Filter by inventory status
-            leather_type: Filter by leather type
-            quality: Filter by quality grade
+            material_id: Unique identifier for the material
 
         Returns:
-            List of leather objects
+            Detailed inventory information
         """
-        pass
+        ...
 
-    @abstractmethod
-    def get_leather_by_id(self, leather_id: int) -> Optional[Leather]:
+    def track_material_usage(
+            self,
+            material_id: int,
+            quantity: float,
+            transaction_type: TransactionType
+    ) -> Dict:
         """
-        Get leather by ID.
+        Track material usage across different transaction types.
 
         Args:
-            leather_id: ID of the leather
+            material_id: Unique identifier for the material
+            quantity: Quantity of material used/added
+            transaction_type: Type of transaction (purchase, usage, etc.)
 
         Returns:
-            Leather object or None if not found
+            Updated material transaction record
         """
-        pass
+        ...
 
-    # Hardware-specific methods
-    @abstractmethod
-    def get_all_hardware(self,
-                         include_deleted: bool = False,
-                         status: Optional[InventoryStatus] = None,
-                         hardware_type: Optional[HardwareType] = None) -> List[Hardware]:
+    def get_material_components(
+            self,
+            material_id: int
+    ) -> List[Dict]:
         """
-        Get all hardware materials with optional filtering.
+        Retrieve components that use this material.
 
         Args:
-            include_deleted: Whether to include soft-deleted hardware
-            status: Filter by inventory status
-            hardware_type: Filter by hardware type
+            material_id: Unique identifier for the material
 
         Returns:
-            List of hardware objects
+            List of components using this material
         """
-        pass
+        ...
 
-    @abstractmethod
-    def get_hardware_by_id(self, hardware_id: int) -> Optional[Hardware]:
+    def get_material_purchase_history(
+            self,
+            material_id: int,
+            start_date: Optional[datetime] = None,
+            end_date: Optional[datetime] = None
+    ) -> List[Dict]:
         """
-        Get hardware by ID.
+        Retrieve purchase history for a specific material.
 
         Args:
-            hardware_id: ID of the hardware
+            material_id: Unique identifier for the material
+            start_date: Optional start date for purchase history
+            end_date: Optional end date for purchase history
 
         Returns:
-            Hardware object or None if not found
+            List of purchase records for the material
         """
-        pass
+        ...
 
-    # Supplies-specific methods
-    @abstractmethod
-    def get_all_supplies(self,
-                         include_deleted: bool = False,
-                         status: Optional[InventoryStatus] = None,
-                         material_type: Optional[MaterialType] = None) -> List[Material]:
+    def check_material_low_stock(
+            self,
+            material_id: int,
+            threshold: Optional[float] = None
+    ) -> bool:
         """
-        Get all supply materials with optional filtering.
+        Check if material is below stock threshold.
 
         Args:
-            include_deleted: Whether to include soft-deleted supplies
-            status: Filter by inventory status
-            material_type: Filter by specific material type
+            material_id: Unique identifier for the material
+            threshold: Optional custom low stock threshold
 
         Returns:
-            List of supply objects
+            Boolean indicating if material is low in stock
         """
-        pass
+        ...
 
-    @abstractmethod
-    def get_supply_by_id(self, supply_id: int) -> Optional[Material]:
+    def get_material_supplier(
+            self,
+            material_id: int
+    ) -> Optional[Dict]:
         """
-        Get supply by ID.
+        Retrieve supplier information for a material.
 
         Args:
-            supply_id: ID of the supply
+            material_id: Unique identifier for the material
 
         Returns:
-            Supply object or None if not found
+            Supplier details for the material
         """
-        pass
-
-    @abstractmethod
-    def get_supplies_by_type(self, material_type: MaterialType) -> List[Material]:
-        """
-        Get supplies by material type.
-
-        Args:
-            material_type: Type of material to filter by
-
-        Returns:
-            List of supply objects matching the type
-        """
-        pass
-
-    # Inventory statistics methods
-    @abstractmethod
-    def get_low_stock_materials(self) -> Dict[str, List[Material]]:
-        """
-        Get all materials with low stock, grouped by category.
-
-        Returns:
-            Dictionary of low stock materials by category
-            (leather, hardware, supplies)
-        """
-        pass
-
-    @abstractmethod
-    def get_out_of_stock_materials(self) -> Dict[str, List[Material]]:
-        """
-        Get all materials that are out of stock, grouped by category.
-
-        Returns:
-            Dictionary of out of stock materials by category
-            (leather, hardware, supplies)
-        """
-        pass
-
-    @abstractmethod
-    def get_inventory_value_report(self) -> Dict[str, Any]:
-        """
-        Get comprehensive inventory value report.
-
-        Returns:
-            Dictionary with inventory value statistics
-        """
-        pass
-
-    @abstractmethod
-    def get_materials_by_supplier(self, supplier_id: int) -> Dict[str, List[Material]]:
-        """
-        Get all materials from a specific supplier, grouped by category.
-
-        Args:
-            supplier_id: ID of the supplier
-
-        Returns:
-            Dictionary of materials by category
-            (leather, hardware, supplies)
-        """
-        pass
+        ...
