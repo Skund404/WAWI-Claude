@@ -27,7 +27,12 @@ class PurchaseItem(AbstractBase, ValidationMixin):
     item_id: Mapped[int] = mapped_column(Integer, nullable=False)
     quantity: Mapped[float] = mapped_column(Float, nullable=False)
     price: Mapped[float] = mapped_column(Float, nullable=False)
-    received_quantity: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    received_quantity: Mapped[float] = mapped_column(
+        Float,
+        nullable=False,
+        default=0.0,
+        server_default="0.0"
+    )
 
     # Relationships
     purchase: Mapped["Purchase"] = relationship(back_populates="items")

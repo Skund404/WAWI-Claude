@@ -28,7 +28,8 @@ class Customer(AbstractBase, ValidationMixin):
     __table_args__ = {"extend_existing": True}
 
     # Basic information
-    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    first_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    last_name: Mapped[str] = mapped_column(String(255), nullable=False)
     email: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     status: Mapped[CustomerStatus] = mapped_column(
         Enum(CustomerStatus),

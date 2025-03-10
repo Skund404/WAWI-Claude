@@ -6,25 +6,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database.models.base import AbstractBase, ModelValidationError, ValidationMixin
 from database.models.enums import SkillLevel
-from database.models.component_material import component_material_table
 
-# We'll define the association tables here instead of importing them to avoid circular imports
-from sqlalchemy import Column, Float, Table, UniqueConstraint
-from database.models.base import Base
-
-# Association table for Pattern-Component relationship
-pattern_component_table = Table(
-    'pattern_components',
-    Base.metadata,
-    Column('pattern_id', Integer, ForeignKey('patterns.id', ondelete='CASCADE'), primary_key=True),
-    Column('component_id', Integer, ForeignKey('components.id', ondelete='CASCADE'), primary_key=True),
-    Column('quantity', Float, nullable=False, default=1.0),  # How many of this component is needed
-    Column('position', String(100), nullable=True),  # Optional positioning info
-    Column('notes', String(255), nullable=True),  # Optional notes for component use in this pattern
-    UniqueConstraint('pattern_id', 'component_id', name='uq_pattern_component'),
-    extend_existing=True  # This helps avoid "table already exists" errors
-)
-
+# Import the relationship tables from the central location
+from database.models.relationship_tables import pattern_component_table, product_pattern_table
 
 class Pattern(AbstractBase, ValidationMixin):
     """
@@ -72,13 +56,13 @@ class Pattern(AbstractBase, ValidationMixin):
         lazy="selectin"
     )
 
-    # Will add product relationship later when Product model is defined
-    # products = relationship(
-    #     "Product",
-    #     secondary="product_patterns",
-    #     backref="patterns",
-    #     lazy="selectin"
-    # )
+    # Uncommenting the relationship to Product
+    products = relationship(
+        "Product",
+        secondary=product_pattern_table,
+        back_populates="patterns",  # Using back_populates to match Product class
+        lazy="selectin"
+    )
 
     def __init__(self, **kwargs):
         """

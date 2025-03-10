@@ -1,376 +1,406 @@
 # database/repositories/supplier_repository.py
-"""
-Repository for Supplier model database access.
+from sqlalchemy.orm import Session
+from typing import List, Dict, Any, Optional, Type, Tuple
+from datetime import datetime, timedelta
+from sqlalchemy import func, or_, and_, desc
 
-Provides specialized operations for retrieving, creating, and managing
-supplier information with advanced querying capabilities.
-"""
-
-from typing import List, Optional, Dict, Any
-from datetime import datetime
-
-from sqlalchemy import func, desc, select
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session, selectinload
-import logging
-
-from database.models.supplier import Supplier
-from database.models.purchase import Purchase
-from database.models.material import Material
-from database.models.tool import Tool
+from database.repositories.base_repository import BaseRepository, EntityNotFoundError, ValidationError, RepositoryError
 from database.models.enums import SupplierStatus
-from database.repositories.base_repository import BaseRepository
-from database.exceptions import DatabaseError, ModelNotFoundError, RepositoryError
-
-# Configure logging
-logger = logging.getLogger(__name__)
 
 
-class SupplierRepository(BaseRepository[Supplier]):
-    """
-    Repository for Supplier model database operations.
+class SupplierRepository(BaseRepository):
+    """Repository for supplier operations.
 
-    Provides methods to interact with suppliers, including
-    retrieval, filtering, and comprehensive management.
+    This repository provides methods for querying and manipulating supplier data,
+    including relationships with materials, tools, and purchases.
     """
 
-    def __init__(self, session: Session):
-        """
-        Initialize the SupplierRepository with a database session.
-
-        Args:
-            session (Session): SQLAlchemy database session
-        """
-        super().__init__(session, Supplier)
-
-    def search(
-            self,
-            search_term: str,
-            fields: Optional[List[str]] = None,
-            limit: Optional[int] = None
-    ) -> List[Supplier]:
-        """
-        Search for suppliers by a search term in specified fields.
-
-        Args:
-            search_term (str): The search term
-            fields (Optional[List[str]], optional): Fields to search in
-            limit (Optional[int], optional): Maximum number of results
+    def _get_model_class(self) -> Type:
+        """Return the model class this repository manages.
 
         Returns:
-            List[Supplier]: Suppliers matching the search criteria
+            The Supplier model class
         """
-        try:
-            # Validate inputs
-            if not search_term:
-                return []
+        # Import at function level to avoid circular imports
+        from database.models.supplier import Supplier
+        return Supplier
 
-            # Determine search fields
-            if not fields:
-                fields = ['name', 'contact_email']
+    # Supplier-specific query methods
 
-            # Build search conditions
-            query = select(Supplier)
-            conditions = []
-
-            for field in fields:
-                if hasattr(Supplier, field):
-                    attr = getattr(Supplier, field)
-                    conditions.append(attr.ilike(f'%{search_term}%'))
-
-            # Apply search conditions
-            if not conditions:
-                return []
-
-            query = query.where(func.or_(*conditions))
-
-            # Apply options for related data
-            query = query.options(
-                selectinload(Supplier.materials),
-                selectinload(Supplier.tools),
-                selectinload(Supplier.purchases)
-            )
-
-            # Apply limit if specified
-            if limit:
-                query = query.limit(limit)
-
-            # Execute query
-            results = self.session.execute(query).scalars().unique().all()
-
-            logger.info(f"Found {len(results)} suppliers matching search term '{search_term}'")
-            return results
-
-        except SQLAlchemyError as e:
-            logger.error(f"Error searching suppliers for '{search_term}' in {fields}: {e}")
-            raise RepositoryError(f"Failed to search suppliers: {str(e)}")
-
-    def get_supplier_purchases(
-            self,
-            supplier_id: int,
-            start_date: Optional[datetime] = None,
-            end_date: Optional[datetime] = None,
-            status: Optional[str] = None
-    ) -> List[Purchase]:
-        """
-        Retrieve purchases for a specific supplier within an optional date range.
+    def get_by_status(self, status: SupplierStatus) -> List:
+        """Get suppliers by status.
 
         Args:
-            supplier_id (int): The ID of the supplier
-            start_date (Optional[datetime], optional): Start of date range
-            end_date (Optional[datetime], optional): End of date range
-            status (Optional[str], optional): Filter by purchase status
+            status: Supplier status to filter by
 
         Returns:
-            List[Purchase]: Purchases for the supplier
+            List of supplier instances with the specified status
         """
-        try:
-            # Base query for supplier purchases
-            query = select(Purchase).where(Purchase.supplier_id == supplier_id)
+        # Import at function level to avoid circular imports
+        from database.models.supplier import Supplier
 
-            # Apply date range filtering if provided
-            if start_date:
-                query = query.filter(Purchase.created_at >= start_date)
-            if end_date:
-                query = query.filter(Purchase.created_at <= end_date)
+        self.logger.debug(f"Getting suppliers with status '{status.value}'")
+        return self.session.query(Supplier).filter(Supplier.status == status).all()
 
-            # Apply status filtering if provided
-            if status:
-                query = query.filter(Purchase.status == status)
-
-            # Include purchase items
-            query = query.options(
-                selectinload(Purchase.purchase_items)
-            )
-
-            # Execute query
-            results = self.session.execute(query).scalars().unique().all()
-
-            logger.info(f"Retrieved {len(results)} purchases for supplier ID {supplier_id}")
-            return results
-
-        except SQLAlchemyError as e:
-            logger.error(f'Error getting purchases for supplier ID {supplier_id}: {e}')
-            raise RepositoryError(f"Failed to retrieve supplier purchases: {str(e)}")
-
-    def get_top_suppliers(
-            self,
-            limit: int = 10,
-            performance_metric: str = 'total_purchases'
-    ) -> List[Supplier]:
-        """
-        Retrieve top suppliers based on a performance metric.
+    def get_by_name(self, name: str) -> List:
+        """Get suppliers by name (partial match).
 
         Args:
-            limit (int, optional): Maximum number of suppliers to return. Defaults to 10.
-            performance_metric (str, optional): Metric to sort by. Defaults to 'total_purchases'.
+            name: Name to search for
 
         Returns:
-            List[Supplier]: Top suppliers sorted by the specified metric
+            List of supplier instances matching the name
         """
-        try:
-            # Base query for active suppliers
-            query = select(Supplier).where(Supplier.status == SupplierStatus.ACTIVE)
+        # Import at function level to avoid circular imports
+        from database.models.supplier import Supplier
 
-            # Apply sorting based on performance metric
-            if performance_metric == 'total_purchases':
-                # Subquery to calculate total purchase amount
-                subquery = (
-                    select(
-                        Purchase.supplier_id,
-                        func.sum(Purchase.total_amount).label('total_purchase_amount')
-                    )
-                    .group_by(Purchase.supplier_id)
-                    .alias('supplier_purchase_totals')
-                )
+        self.logger.debug(f"Getting suppliers with name containing '{name}'")
+        return self.session.query(Supplier).filter(Supplier.name.like(f"%{name}%")).all()
 
-                query = query.join(
-                    subquery,
-                    Supplier.id == subquery.c.supplier_id
-                ).order_by(desc(subquery.c.total_purchase_amount))
-            elif hasattr(Supplier, performance_metric):
-                # Sort by a direct supplier attribute if it exists
-                query = query.order_by(desc(getattr(Supplier, performance_metric)))
+    def get_by_email(self, email: str) -> Optional:
+        """Get supplier by exact email address.
+
+        Args:
+            email: Email address to search for
+
+        Returns:
+            Supplier instance with the specified email or None
+        """
+        # Import at function level to avoid circular imports
+        from database.models.supplier import Supplier
+
+        self.logger.debug(f"Getting supplier with email '{email}'")
+        return self.session.query(Supplier).filter(Supplier.contact_email == email).first()
+
+    def get_active_suppliers(self) -> List:
+        """Get all active suppliers.
+
+        Returns:
+            List of active supplier instances
+        """
+        # Import at function level to avoid circular imports
+        from database.models.supplier import Supplier
+
+        self.logger.debug("Getting all active suppliers")
+        return self.session.query(Supplier).filter(Supplier.status == SupplierStatus.ACTIVE).all()
+
+    def get_suppliers_with_purchases(self, limit: int = 100) -> List[Dict[str, Any]]:
+        """Get suppliers with their purchase history.
+
+        Args:
+            limit: Maximum number of suppliers to return
+
+        Returns:
+            List of suppliers with purchase history
+        """
+        # Import at function level to avoid circular imports
+        from database.models.purchase import Purchase
+
+        self.logger.debug(f"Getting suppliers with purchases (limit: {limit})")
+
+        suppliers = self.get_all(limit=limit)
+        result = []
+
+        for supplier in suppliers:
+            supplier_dict = supplier.to_dict()
+
+            # Get purchase history
+            purchases = self.session.query(Purchase).filter(
+                Purchase.supplier_id == supplier.id
+            ).order_by(Purchase.created_at.desc()).all()
+
+            supplier_dict['purchases'] = [p.to_dict() for p in purchases]
+            supplier_dict['total_purchases'] = len(purchases)
+            supplier_dict['total_spent'] = sum(p.total_amount for p in purchases)
+
+            if purchases:
+                supplier_dict['last_purchase_date'] = purchases[0].created_at.isoformat()
             else:
-                logger.warning(f'Invalid performance metric: {performance_metric}')
-                # Fallback to default sorting
-                query = query.order_by(desc(Supplier.name))
+                supplier_dict['last_purchase_date'] = None
 
-            # Apply limit and include related data
-            query = (
-                query.limit(limit)
-                .options(
-                    selectinload(Supplier.materials),
-                    selectinload(Supplier.tools),
-                    selectinload(Supplier.purchases)
-                )
-            )
+            result.append(supplier_dict)
 
-            # Execute query
-            results = self.session.execute(query).scalars().unique().all()
+        return result
 
-            logger.info(f"Retrieved top {len(results)} suppliers by {performance_metric}")
-            return results
+    # Business logic methods
 
-        except SQLAlchemyError as e:
-            logger.error(f'Error getting top suppliers by {performance_metric}: {e}')
-            raise RepositoryError(f"Failed to retrieve top suppliers: {str(e)}")
-
-    def create_supplier(self, supplier_data: Dict[str, Any]) -> Supplier:
-        """
-        Create a new supplier.
+    def get_supplier_performance(self, supplier_id: int) -> Dict[str, Any]:
+        """Get supplier performance metrics.
 
         Args:
-            supplier_data (Dict[str, Any]): Data for creating a supplier
+            supplier_id: ID of the supplier
 
         Returns:
-            Supplier: Created supplier
+            Dict with performance metrics
 
         Raises:
-            RepositoryError: If supplier creation fails
+            EntityNotFoundError: If supplier not found
         """
-        try:
-            # Validate required fields
-            if not supplier_data.get('name'):
-                raise ValueError('Supplier name is required')
+        # Import at function level to avoid circular imports
+        from database.models.purchase import Purchase
+        from database.models.material import Material
+        from database.models.tool import Tool
 
-            # Create supplier instance
-            supplier = Supplier(**supplier_data)
+        self.logger.debug(f"Getting performance metrics for supplier {supplier_id}")
 
-            # Set default status if not provided
-            if 'status' not in supplier_data:
-                supplier.status = SupplierStatus.ACTIVE
+        supplier = self.get_by_id(supplier_id)
+        if not supplier:
+            raise EntityNotFoundError(f"Supplier with ID {supplier_id} not found")
 
-            # Add to session and commit
-            self.session.add(supplier)
-            self.session.commit()
+        # Get all purchases
+        purchases = self.session.query(Purchase).filter(
+            Purchase.supplier_id == supplier_id
+        ).all()
 
-            logger.info(f'Created supplier: {supplier.name}')
-            return supplier
-
-        except (ValueError, SQLAlchemyError) as e:
-            self.session.rollback()
-            logger.error(f'Error creating supplier: {e}')
-            raise RepositoryError(f"Failed to create supplier: {str(e)}")
-
-    def update_supplier(self, supplier_id: int, supplier_data: Dict[str, Any]) -> Optional[Supplier]:
-        """
-        Update an existing supplier.
-
-        Args:
-            supplier_id (int): ID of the supplier to update
-            supplier_data (Dict[str, Any]): Data to update
-
-        Returns:
-            Optional[Supplier]: Updated supplier or None if not found
-
-        Raises:
-            RepositoryError: If supplier update fails
-        """
-        try:
-            # Retrieve existing supplier
-            supplier = self.session.get(Supplier, supplier_id)
-
-            if not supplier:
-                logger.warning(f'Supplier with ID {supplier_id} not found for update')
-                return None
-
-            # Update attributes
-            for key, value in supplier_data.items():
-                if hasattr(supplier, key):
-                    setattr(supplier, key, value)
-                else:
-                    logger.warning(f'Attempted to set non-existent attribute {key} on Supplier')
-
-            # Commit changes
-            self.session.commit()
-
-            logger.info(f'Updated supplier: {supplier.name}')
-            return supplier
-
-        except SQLAlchemyError as e:
-            self.session.rollback()
-            logger.error(f'Error updating supplier with ID {supplier_id}: {e}')
-            raise RepositoryError(f"Failed to update supplier: {str(e)}")
-
-    def delete_supplier(self, supplier_id: int) -> bool:
-        """
-        Soft delete a supplier by marking as inactive.
-
-        Args:
-            supplier_id (int): ID of the supplier to delete
-
-        Returns:
-            bool: True if deletion was successful
-        """
-        try:
-            # Retrieve supplier
-            supplier = self.session.get(Supplier, supplier_id)
-
-            if not supplier:
-                logger.warning(f'Supplier with ID {supplier_id} not found for deletion')
-                return False
-
-            # Mark as inactive instead of hard delete
-            supplier.status = SupplierStatus.INACTIVE
-
-            # Commit changes
-            self.session.commit()
-
-            logger.info(f'Marked supplier as inactive: {supplier.name}')
-            return True
-
-        except SQLAlchemyError as e:
-            self.session.rollback()
-            logger.error(f'Error deactivating supplier with ID {supplier_id}: {e}')
-            raise RepositoryError(f"Failed to delete supplier: {str(e)}")
-
-    def generate_supplier_performance_report(self) -> Dict[str, Any]:
-        """
-        Generate a comprehensive supplier performance report.
-
-        Returns:
-            Dict[str, Any]: Supplier performance metrics
-        """
-        try:
-            # Active suppliers
-            query_active = select(func.count()).select_from(Supplier).where(Supplier.status == SupplierStatus.ACTIVE)
-            active_suppliers = self.session.execute(query_active).scalar_one()
-
-            # Total suppliers
-            query_total = select(func.count()).select_from(Supplier)
-            total_suppliers = self.session.execute(query_total).scalar_one()
-
-            # Supplier purchase performance
-            query_purchase_performance = (
-                select(
-                    Supplier.id,
-                    Supplier.name,
-                    func.count(Purchase.id).label('total_purchases'),
-                    func.coalesce(func.sum(Purchase.total_amount), 0).label('total_purchase_amount')
-                )
-                .outerjoin(Purchase, Supplier.id == Purchase.supplier_id)
-                .group_by(Supplier.id, Supplier.name)
-                .order_by(func.count(Purchase.id).desc())
-                .limit(10)
-            )
-            supplier_purchase_performance = self.session.execute(query_purchase_performance).all()
-
+        if not purchases:
             return {
-                'total_suppliers': total_suppliers,
-                'active_suppliers': active_suppliers,
-                'inactive_suppliers': total_suppliers - active_suppliers,
-                'top_suppliers_by_order_volume': [
-                    {
-                        'supplier_id': sup.id,
-                        'supplier_name': sup.name,
-                        'total_purchases': sup.total_purchases,
-                        'total_purchase_amount': float(sup.total_purchase_amount)
-                    }
-                    for sup in supplier_purchase_performance
-                ]
+                'supplier_id': supplier_id,
+                'supplier_name': supplier.name,
+                'total_purchases': 0,
+                'total_spent': 0,
+                'avg_lead_time': None,
+                'on_time_delivery_rate': None,
+                'last_purchase_date': None,
+                'materials_supplied': [],
+                'tools_supplied': []
             }
 
-        except SQLAlchemyError as e:
-            logger.error(f'Error generating supplier performance report: {e}')
-            raise RepositoryError(f"Failed to generate supplier performance report: {str(e)}")
+        # Calculate metrics
+        total_spent = sum(p.total_amount for p in purchases)
+
+        # Calculate lead time (days between order and delivery)
+        lead_times = []
+        on_time_deliveries = 0
+
+        for p in purchases:
+            if p.created_at and p.delivery_date:
+                lead_time = (p.delivery_date - p.created_at).days
+                lead_times.append(lead_time)
+
+                # Assume on-time delivery if within 2 days of expected date
+                if p.expected_delivery_date:
+                    if p.delivery_date <= p.expected_delivery_date + timedelta(days=2):
+                        on_time_deliveries += 1
+
+        avg_lead_time = sum(lead_times) / len(lead_times) if lead_times else None
+        on_time_delivery_rate = on_time_deliveries / len(purchases) * 100 if purchases else None
+
+        # Get supplied materials
+        materials = self.session.query(Material).filter(
+            Material.supplier_id == supplier_id
+        ).all()
+
+        # Get supplied tools
+        tools = self.session.query(Tool).filter(
+            Tool.supplier_id == supplier_id
+        ).all()
+
+        return {
+            'supplier_id': supplier_id,
+            'supplier_name': supplier.name,
+            'total_purchases': len(purchases),
+            'total_spent': total_spent,
+            'avg_lead_time': avg_lead_time,
+            'on_time_delivery_rate': on_time_delivery_rate,
+            'last_purchase_date': max(p.created_at for p in purchases).isoformat(),
+            'materials_supplied': [m.to_dict() for m in materials],
+            'tools_supplied': [t.to_dict() for t in tools]
+        }
+
+    def get_material_suppliers(self, material_type: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Get suppliers that provide specific types of materials.
+
+        Args:
+            material_type: Optional material type to filter by
+
+        Returns:
+            List of suppliers with material counts
+        """
+        # Import at function level to avoid circular imports
+        from database.models.supplier import Supplier
+        from database.models.material import Material
+
+        self.logger.debug(f"Getting material suppliers for type '{material_type}'")
+
+        query = self.session.query(
+            Supplier,
+            func.count(Material.id).label('material_count')
+        ).join(
+            Material,
+            Material.supplier_id == Supplier.id
+        )
+
+        if material_type:
+            query = query.filter(Material.material_type == material_type)
+
+        query = query.group_by(Supplier.id)
+
+        result = []
+        for supplier, material_count in query.all():
+            supplier_dict = supplier.to_dict()
+            supplier_dict['material_count'] = material_count
+            result.append(supplier_dict)
+
+        return result
+
+    # GUI-specific functionality
+
+    def get_supplier_dashboard_data(self) -> Dict[str, Any]:
+        """Get data for supplier dashboard in GUI.
+
+        Returns:
+            Dictionary with dashboard data for suppliers
+        """
+        # Import at function level to avoid circular imports
+        from database.models.supplier import Supplier
+        from database.models.purchase import Purchase
+
+        self.logger.debug("Getting supplier dashboard data")
+
+        # Count by status
+        status_counts = self.session.query(
+            Supplier.status,
+            func.count().label('count')
+        ).group_by(Supplier.status).all()
+
+        status_data = {s.value: count for s, count in status_counts}
+
+        # Get total number of suppliers
+        total_suppliers = self.count()
+
+        # Get top suppliers by purchase amount
+        top_suppliers_query = self.session.query(
+            Supplier.id,
+            Supplier.name,
+            Supplier.status,
+            func.sum(Purchase.total_amount).label('total_spent')
+        ).join(
+            Purchase,
+            Purchase.supplier_id == Supplier.id
+        ).group_by(
+            Supplier.id,
+            Supplier.name,
+            Supplier.status
+        ).order_by(
+            func.sum(Purchase.total_amount).desc()
+        ).limit(5)
+
+        top_suppliers = []
+        for id, name, status, total_spent in top_suppliers_query.all():
+            top_suppliers.append({
+                'id': id,
+                'name': name,
+                'status': status.value,
+                'total_spent': total_spent
+            })
+
+        # Get recent purchases
+        recent_purchases_query = self.session.query(Purchase).order_by(
+            Purchase.created_at.desc()
+        ).limit(5)
+
+        recent_purchases = []
+        for purchase in recent_purchases_query.all():
+            purchase_dict = purchase.to_dict()
+
+            # Add supplier name
+            supplier = self.get_by_id(purchase.supplier_id)
+            if supplier:
+                purchase_dict['supplier_name'] = supplier.name
+
+            recent_purchases.append(purchase_dict)
+
+        return {
+            'status_counts': status_data,
+            'total_suppliers': total_suppliers,
+            'top_suppliers': top_suppliers,
+            'recent_purchases': recent_purchases
+        }
+
+    def generate_supplier_report(self, start_date: Optional[datetime] = None,
+                                 end_date: Optional[datetime] = None) -> Dict[str, Any]:
+        """Generate comprehensive supplier report.
+
+        Args:
+            start_date: Optional start date for filtering
+            end_date: Optional end date for filtering
+
+        Returns:
+            Dict with supplier report data
+        """
+        # Import at function level to avoid circular imports
+        from database.models.supplier import Supplier
+        from database.models.purchase import Purchase
+        from database.models.material import Material
+
+        self.logger.debug(f"Generating supplier report (start: {start_date}, end: {end_date})")
+
+        # Default date range is last 12 months if not specified
+        if not end_date:
+            end_date = datetime.now()
+        if not start_date:
+            start_date = end_date - timedelta(days=365)
+
+        # Get suppliers and their metrics
+        suppliers = self.get_all(limit=1000)  # Get all suppliers
+
+        supplier_data = []
+        total_spent = 0
+        total_orders = 0
+        material_count_by_type = {}
+
+        for supplier in suppliers:
+            # Get purchases in date range
+            purchases = self.session.query(Purchase).filter(
+                Purchase.supplier_id == supplier.id,
+                Purchase.created_at >= start_date,
+                Purchase.created_at <= end_date
+            ).all()
+
+            supplier_spent = sum(p.total_amount for p in purchases)
+            total_spent += supplier_spent
+            total_orders += len(purchases)
+
+            # Get materials from this supplier
+            materials = self.session.query(Material).filter(
+                Material.supplier_id == supplier.id
+            ).all()
+
+            # Count materials by type
+            for material in materials:
+                material_type = material.material_type.value
+                if material_type not in material_count_by_type:
+                    material_count_by_type[material_type] = 0
+                material_count_by_type[material_type] += 1
+
+            # Add to report data if they have any purchases
+            if purchases:
+                supplier_data.append({
+                    'id': supplier.id,
+                    'name': supplier.name,
+                    'status': supplier.status.value,
+                    'contact_email': supplier.contact_email,
+                    'total_spent': supplier_spent,
+                    'order_count': len(purchases),
+                    'material_count': len(materials),
+                    'average_order_value': supplier_spent / len(purchases) if len(purchases) > 0 else 0
+                })
+
+        # Sort by total spent descending
+        supplier_data.sort(key=lambda x: x['total_spent'], reverse=True)
+
+        # Create report
+        return {
+            'period': {
+                'start_date': start_date.isoformat(),
+                'end_date': end_date.isoformat()
+            },
+            'summary': {
+                'total_suppliers': len(suppliers),
+                'active_suppliers': len([s for s in suppliers if s.status == SupplierStatus.ACTIVE]),
+                'total_spent': total_spent,
+                'total_orders': total_orders,
+                'material_types': material_count_by_type
+            },
+            'supplier_data': supplier_data
+        }

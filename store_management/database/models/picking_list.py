@@ -26,7 +26,7 @@ class PickingList(AbstractBase, ValidationMixin):
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
-    # Relationships
+    # Fixed relationship to match the one in Sales
     sales: Mapped["Sales"] = relationship(back_populates="picking_list")
     items: Mapped[List["PickingListItem"]] = relationship(back_populates="picking_list", cascade="all, delete-orphan")
 

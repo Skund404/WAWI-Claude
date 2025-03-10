@@ -56,9 +56,16 @@ class Project(AbstractBase, ValidationMixin):
         primaryjoin="Project.sales_id==Sales.id"
     )
 
-    # Additional relationships will be added here later:
-    # - tool_lists
-    # - picking_lists
+    # Add the tool_list relationship to match ToolList's expectation
+    tool_list = relationship(
+        "ToolList",
+        back_populates="project",
+        uselist=False,  # One-to-one relationship
+        cascade="all, delete-orphan",
+        lazy="selectin"
+    )
+
+    # picking_lists will be added later if needed
 
     def __init__(self, **kwargs):
         """

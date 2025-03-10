@@ -44,16 +44,18 @@ class Component(AbstractBase, ValidationMixin):
     )
 
     # Relationship with materials through junction table
-    materials = relationship(
-        "Material",
-        secondary=component_material_table,
-        back_populates="components",
-        lazy="selectin"
-    )
+    component_materials = relationship("database.models.component_material.ComponentMaterial", back_populates="component")
 
     # Direct relationship to the junction table
     component_materials = relationship(
-        "ComponentMaterial",
+        "database.models.component_material.ComponentMaterial",
+        back_populates="component",
+        cascade="all, delete-orphan"
+    )
+
+    # Uncommented the picking_list_items relationship to match PickingListItem
+    picking_list_items = relationship(
+        "PickingListItem",
         back_populates="component",
         cascade="all, delete-orphan",
         lazy="selectin"
@@ -62,13 +64,6 @@ class Component(AbstractBase, ValidationMixin):
     # These relationships will be added back later
     # project_components: Mapped[List[object]] = relationship(
     #     "ProjectComponent",
-    #     back_populates="component",
-    #     cascade="all, delete-orphan",
-    #     lazy="selectin"
-    # )
-    #
-    # picking_list_items: Mapped[List[object]] = relationship(
-    #     "PickingListItem",
     #     back_populates="component",
     #     cascade="all, delete-orphan",
     #     lazy="selectin"

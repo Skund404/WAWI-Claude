@@ -1,6 +1,6 @@
 # database/models/tool_list_item.py
 from datetime import datetime
-from sqlalchemy import Column, ForeignKey, Integer
+from sqlalchemy import Column, ForeignKey, Integer, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from typing import Any, Dict, List, Optional
@@ -24,7 +24,12 @@ class ToolListItem(AbstractBase, ValidationMixin):
     tool_list_id: Mapped[int] = mapped_column(Integer, ForeignKey('tool_lists.id'), nullable=False)
     tool_id: Mapped[int] = mapped_column(Integer, ForeignKey('tools.id'), nullable=False)
     quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
-    is_checked_out: Mapped[bool] = mapped_column(Integer, nullable=False, default=False)
+    is_checked_out: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default="0"
+    )
 
     # Relationships
     tool_list: Mapped["ToolList"] = relationship(back_populates="items")

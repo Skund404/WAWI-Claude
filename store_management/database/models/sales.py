@@ -64,13 +64,14 @@ class Sales(AbstractBase, ValidationMixin, CostingMixin):
         viewonly=True  # Use viewonly to break circular references
     )
 
-    # These will be implemented later
-    # picking_lists = relationship(
-    #     "PickingList",
-    #     back_populates="sales",
-    #     cascade="all, delete-orphan",
-    #     lazy="selectin"
-    # )
+    # Uncommented and fixed the relationship to match PickingList
+    picking_list = relationship(
+        "PickingList",
+        back_populates="sales",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        uselist=False  # Makes this a one-to-one relationship
+    )
 
     def __init__(self, **kwargs):
         """

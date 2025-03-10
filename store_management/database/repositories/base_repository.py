@@ -1,278 +1,395 @@
 # database/repositories/base_repository.py
-"""
-Base repository for generic database operations with robust error handling.
-
-Provides a generic, type-safe repository pattern implementation with
-comprehensive CRUD operations and error management.
-"""
-
-from logging import getLogger
-
-from sqlalchemy import select
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
-from typing import (
-    Any,
-    Dict,
-    Generic,
-    List,
-    Optional,
-    Type,
-    TypeVar,
-    Self
-)
+from typing import Generic, TypeVar, Optional, List, Type, Dict, Any, Callable, Tuple
+import logging
 
-# Import the updated exception classes
-from database.models.base import ModelValidationError
-from database.exceptions import DatabaseError, ModelNotFoundError, RepositoryError
-
-# Define a generic type variable for models
+# Generic type variable for entity models
 T = TypeVar('T')
 
 
-class BaseRepository(Generic[T]):
-    """
-    Base repository for database operations with proper error handling.
+class RepositoryError(Exception):
+    """Base exception for repository errors."""
+    pass
 
-    This class provides common database access methods for all repositories
-    and properly handles model validation errors.
+
+class EntityNotFoundError(RepositoryError):
+    """Raised when an entity is not found."""
+    pass
+
+
+class ValidationError(RepositoryError):
+    """Raised when entity validation fails."""
+    pass
+
+
+class BaseRepository(Generic[T]):
+    """Base repository providing common operations for all entity types.
+
+    This generic class implements common CRUD operations and utilities
+    that all entity-specific repositories inherit. It uses generic typing
+    to ensure type safety for the entity classes.
 
     Attributes:
-        session (Session): SQLAlchemy database session
-        model_class (Type[T]): SQLAlchemy model class
-        logger (logging.Logger): Logger for the repository
+        session: The SQLAlchemy session for database access
+        logger: Logger for this repository
+        model_class: The SQLAlchemy model class this repository manages
     """
 
-    def __init__(self, session: Session, model_class: Type[T]):
-        """
-        Initialize the base repository.
+    def __init__(self, session: Session):
+        """Initialize repository with session injection.
 
         Args:
-            session (Session): SQLAlchemy database session
-            model_class (Type[T]): SQLAlchemy model class
+            session: SQLAlchemy session for database operations
         """
         self.session = session
-        self.model_class = model_class
-        self.logger = getLogger(__name__)
+        self.logger = logging.getLogger(f"{self.__class__.__name__}")
+        self.model_class: Type[T] = self._get_model_class()
 
-    def get_by_id(self, model_id: int, include_deleted: bool = False) -> Optional[T]:
-        """
-        Get a model instance by its ID.
-
-        Args:
-            model_id (int): The ID of the model to retrieve
-            include_deleted (bool, optional): Whether to include soft-deleted records.
-                                              Defaults to False.
+    def _get_model_class(self) -> Type[T]:
+        """Return the model class this repository manages.
 
         Returns:
-            Optional[T]: The model instance or None if not found
+            The SQLAlchemy model class
 
-        Raises:
-            RepositoryError: If a database error occurs
+        Note:
+            Must be implemented by subclasses
         """
-        try:
-            query = select(self.model_class).filter_by(id=model_id)
+        raise NotImplementedError("Subclasses must implement _get_model_class")
 
-            # Only filter by is_deleted if not explicitly including deleted records
-            if not include_deleted and hasattr(self.model_class, 'is_deleted'):
-                query = query.filter_by(is_deleted=False)
-
-            return self.session.execute(query).scalar_one_or_none()
-        except SQLAlchemyError as e:
-            self.logger.error(f"Error retrieving {self.model_class.__name__} with ID {model_id}: {str(e)}")
-            raise RepositoryError(f"Failed to retrieve {self.model_class.__name__}: {str(e)}")
-
-    def get_all(self, include_deleted: bool = False) -> List[T]:
-        """
-        Get all instances of the model.
+    def get_by_id(self, id: int) -> Optional[T]:
+        """Retrieve entity by ID.
 
         Args:
-            include_deleted (bool, optional): Whether to include soft-deleted records.
-                                              Defaults to False.
+            id: Entity ID
 
         Returns:
-            List[T]: List of model instances
-
-        Raises:
-            RepositoryError: If a database error occurs
+            Entity instance or None if not found
         """
-        try:
-            query = select(self.model_class)
+        self.logger.debug(f"Getting {self.model_class.__name__} with ID {id}")
+        return self.session.query(self.model_class).filter_by(id=id).first()
 
-            # Only filter by is_deleted if the attribute exists and not including deleted records
-            if not include_deleted and hasattr(self.model_class, 'is_deleted'):
-                query = query.filter_by(is_deleted=False)
-
-            return self.session.execute(query).scalars().all()
-        except SQLAlchemyError as e:
-            self.logger.error(f"Error retrieving all {self.model_class.__name__} instances: {str(e)}")
-            raise RepositoryError(f"Failed to retrieve {self.model_class.__name__} instances: {str(e)}")
-
-    def create(self, data: Dict[str, Any]) -> T:
-        """
-        Create a new model instance with validation.
+    def get_all(self, skip: int = 0, limit: int = 100) -> List[T]:
+        """Get all entities with pagination.
 
         Args:
-            data (Dict[str, Any]): Dictionary of model attributes
+            skip: Number of records to skip
+            limit: Maximum records to return
 
         Returns:
-            T: The created model instance
-
-        Raises:
-            ModelValidationError: If validation fails
-            RepositoryError: If a database error occurs
+            List of entity instances
         """
-        try:
-            # Create instance using model constructor (which handles validation)
-            instance = self.model_class(**data)
+        self.logger.debug(f"Getting all {self.model_class.__name__} (skip={skip}, limit={limit})")
+        return self.session.query(self.model_class).offset(skip).limit(limit).all()
 
-            self.session.add(instance)
-            self.session.commit()
-
-            return instance
-        except ModelValidationError as e:
-            self.session.rollback()
-            self.logger.error(f"Validation error creating {self.model_class.__name__}: {str(e)}")
-            raise
-        except SQLAlchemyError as e:
-            self.session.rollback()
-            self.logger.error(f"Database error creating {self.model_class.__name__}: {str(e)}")
-            raise RepositoryError(f"Failed to create {self.model_class.__name__}: {str(e)}")
-
-    def update(self, model_id: int, data: Dict[str, Any]) -> Optional[T]:
-        """
-        Update a model instance with validation.
+    def create(self, entity: T) -> T:
+        """Create new entity.
 
         Args:
-            model_id (int): The ID of the model to update
-            data (Dict[str, Any]): Dictionary of model attributes to update
+            entity: Entity instance to create
 
         Returns:
-            Optional[T]: The updated model instance or None if not found
+            Created entity with ID assigned
 
         Raises:
-            ModelValidationError: If validation fails
-            ModelNotFoundError: If the model is not found
-            RepositoryError: If a database error occurs
+            ValidationError: If entity validation fails
         """
         try:
-            # Retrieve the instance, raising an error if not found
-            instance = self.get_by_id(model_id)
-            if not instance:
-                raise ModelNotFoundError(f"{self.model_class.__name__} with ID {model_id} not found")
-
-            # Update the instance (assuming an update method exists)
-            if hasattr(instance, 'update'):
-                instance.update(**data)
-            else:
-                # Fallback to direct attribute setting if no update method
-                for key, value in data.items():
-                    if hasattr(instance, key):
-                        setattr(instance, key, value)
-
-            self.session.commit()
-            return instance
-        except ModelValidationError as e:
+            self.logger.debug(f"Creating new {self.model_class.__name__}")
+            self.session.add(entity)
+            self.session.flush()
+            return entity
+        except Exception as e:
+            self.logger.error(f"Error creating {self.model_class.__name__}: {str(e)}")
             self.session.rollback()
-            self.logger.error(f"Validation error updating {self.model_class.__name__} {model_id}: {str(e)}")
-            raise
-        except ModelNotFoundError:
-            # Re-raise not found error
-            raise
-        except SQLAlchemyError as e:
-            self.session.rollback()
-            self.logger.error(f"Database error updating {self.model_class.__name__} {model_id}: {str(e)}")
-            raise RepositoryError(f"Failed to update {self.model_class.__name__}: {str(e)}")
+            raise ValidationError(f"Failed to create {self.model_class.__name__}: {str(e)}")
 
-    def delete(self, model_id: int) -> bool:
-        """
-        Soft delete a model instance.
+    def update(self, entity: T) -> T:
+        """Update existing entity.
 
         Args:
-            model_id (int): The ID of the model to delete
+            entity: Entity instance to update
 
         Returns:
-            bool: True if successful, False if not found
+            Updated entity
 
         Raises:
-            RepositoryError: If a database error occurs
+            ValidationError: If entity validation fails
         """
         try:
-            instance = self.get_by_id(model_id)
-            if not instance:
-                return False
-
-            # Use the model's soft_delete method if available
-            if hasattr(instance, 'soft_delete'):
-                instance.soft_delete()
-            elif hasattr(instance, 'is_deleted'):
-                # Fallback to manually setting is_deleted
-                instance.is_deleted = True
-            else:
-                # If no soft delete method exists, log a warning
-                self.logger.warning(f"No soft delete method for {self.model_class.__name__}")
-                return False
-
-            self.session.commit()
-            return True
-        except SQLAlchemyError as e:
+            self.logger.debug(f"Updating {self.model_class.__name__} with ID {getattr(entity, 'id', None)}")
+            self.session.merge(entity)
+            self.session.flush()
+            return entity
+        except Exception as e:
+            self.logger.error(f"Error updating {self.model_class.__name__}: {str(e)}")
             self.session.rollback()
-            self.logger.error(f"Error deleting {self.model_class.__name__} {model_id}: {str(e)}")
+            raise ValidationError(f"Failed to update {self.model_class.__name__}: {str(e)}")
+
+    def delete(self, entity: T) -> None:
+        """Delete entity.
+
+        Args:
+            entity: Entity instance to delete
+
+        Raises:
+            RepositoryError: If deletion fails
+        """
+        try:
+            self.logger.debug(f"Deleting {self.model_class.__name__} with ID {getattr(entity, 'id', None)}")
+            self.session.delete(entity)
+            self.session.flush()
+        except Exception as e:
+            self.logger.error(f"Error deleting {self.model_class.__name__}: {str(e)}")
+            self.session.rollback()
             raise RepositoryError(f"Failed to delete {self.model_class.__name__}: {str(e)}")
 
-    def hard_delete(self, model_id: int) -> bool:
-        """
-        Permanently delete a model instance.
+    def filter_by(self, **kwargs) -> List[T]:
+        """Filter entities by exact match criteria.
 
         Args:
-            model_id (int): The ID of the model to delete
+            **kwargs: Filter criteria as field=value pairs
 
         Returns:
-            bool: True if successful, False if not found
-
-        Raises:
-            RepositoryError: If a database error occurs
+            List of matching entities
         """
-        try:
-            instance = self.get_by_id(model_id, include_deleted=True)
-            if not instance:
-                return False
+        self.logger.debug(f"Filtering {self.model_class.__name__} by {kwargs}")
+        return self.session.query(self.model_class).filter_by(**kwargs).all()
 
-            self.session.delete(instance)
-            self.session.commit()
-            return True
-        except SQLAlchemyError as e:
-            self.session.rollback()
-            self.logger.error(f"Error hard deleting {self.model_class.__name__} {model_id}: {str(e)}")
-            raise RepositoryError(f"Failed to hard delete {self.model_class.__name__}: {str(e)}")
-
-    def bulk_create(self, data_list: List[Dict[str, Any]]) -> List[T]:
-        """
-        Create multiple model instances in a single transaction.
+    def search(self, search_term: str, fields: List[str]) -> List[T]:
+        """Search entities by term across specified fields.
 
         Args:
-            data_list (List[Dict[str, Any]]): List of dictionaries with model attributes
+            search_term: Term to search for
+            fields: Model fields to search in
 
         Returns:
-            List[T]: List of created model instances
+            List of matching entities
+        """
+        from sqlalchemy import or_
+
+        self.logger.debug(f"Searching {self.model_class.__name__} for '{search_term}' in fields {fields}")
+
+        if not search_term or not fields:
+            return []
+
+        filters = []
+        for field in fields:
+            if hasattr(self.model_class, field):
+                attr = getattr(self.model_class, field)
+                filters.append(attr.ilike(f"%{search_term}%"))
+
+        if not filters:
+            return []
+
+        return self.session.query(self.model_class).filter(or_(*filters)).all()
+
+    def count(self, **filter_criteria) -> int:
+        """Count entities matching criteria.
+
+        Args:
+            **filter_criteria: Filter criteria as field=value pairs
+
+        Returns:
+            Count of matching entities
+        """
+        query = self.session.query(self.model_class)
+        if filter_criteria:
+            query = query.filter_by(**filter_criteria)
+        return query.count()
+
+    def exists(self, **filter_criteria) -> bool:
+        """Check if entities matching criteria exist.
+
+        Args:
+            **filter_criteria: Filter criteria as field=value pairs
+
+        Returns:
+            True if matching entities exist, False otherwise
+        """
+        return self.count(**filter_criteria) > 0
+
+    def find_or_create(self, search_criteria: Dict[str, Any], create_data: Dict[str, Any]) -> Tuple[T, bool]:
+        """Find an entity by criteria or create if not found.
+
+        Args:
+            search_criteria: Criteria to search for existing entity
+            create_data: Data to use for creating a new entity if not found
+
+        Returns:
+            Tuple of (entity, created) where created is True if a new entity was created
 
         Raises:
-            ModelValidationError: If validation fails
-            RepositoryError: If a database error occurs
+            ValidationError: If entity creation fails
         """
+        # Try to find by search criteria
+        entity = self.session.query(self.model_class).filter_by(**search_criteria).first()
+
+        if entity:
+            return entity, False
+
+        # Create new entity
+        entity = self.model_class(**create_data)
+        created_entity = self.create(entity)
+        return created_entity, True
+
+    def bulk_create(self, entities: List[T]) -> List[T]:
+        """Create multiple entities in a single operation.
+
+        Args:
+            entities: List of entity instances to create
+
+        Returns:
+            List of created entities with IDs assigned
+
+        Raises:
+            ValidationError: If validation fails for any entity
+        """
+        if not entities:
+            return []
+
         try:
-            # Create instances using model constructor
-            instances = [self.model_class(**data) for data in data_list]
-
-            self.session.add_all(instances)
-            self.session.commit()
-
-            return instances
-        except ModelValidationError as e:
+            self.logger.debug(f"Bulk creating {len(entities)} {self.model_class.__name__} instances")
+            self.session.add_all(entities)
+            self.session.flush()
+            return entities
+        except Exception as e:
+            self.logger.error(f"Error bulk creating {self.model_class.__name__}: {str(e)}")
             self.session.rollback()
-            self.logger.error(f"Validation error creating multiple {self.model_class.__name__} instances: {str(e)}")
-            raise
-        except SQLAlchemyError as e:
+            raise ValidationError(f"Failed to bulk create {self.model_class.__name__}: {str(e)}")
+
+    def bulk_update(self, entities: List[T]) -> List[T]:
+        """Update multiple entities in a single operation.
+
+        Args:
+            entities: List of entity instances to update
+
+        Returns:
+            List of updated entities
+
+        Raises:
+            ValidationError: If validation fails for any entity
+        """
+        if not entities:
+            return []
+
+        try:
+            self.logger.debug(f"Bulk updating {len(entities)} {self.model_class.__name__} instances")
+            for entity in entities:
+                self.session.merge(entity)
+            self.session.flush()
+            return entities
+        except Exception as e:
+            self.logger.error(f"Error bulk updating {self.model_class.__name__}: {str(e)}")
             self.session.rollback()
-            self.logger.error(f"Database error creating multiple {self.model_class.__name__} instances: {str(e)}")
-            raise RepositoryError(f"Failed to create multiple {self.model_class.__name__} instances: {str(e)}")
+            raise ValidationError(f"Failed to bulk update {self.model_class.__name__}: {str(e)}")
+
+    def bulk_delete(self, entities: List[T]) -> None:
+        """Delete multiple entities in a single operation.
+
+        Args:
+            entities: List of entity instances to delete
+
+        Raises:
+            RepositoryError: If deletion fails for any entity
+        """
+        if not entities:
+            return
+
+        try:
+            self.logger.debug(f"Bulk deleting {len(entities)} {self.model_class.__name__} instances")
+            for entity in entities:
+                self.session.delete(entity)
+            self.session.flush()
+        except Exception as e:
+            self.logger.error(f"Error bulk deleting {self.model_class.__name__}: {str(e)}")
+            self.session.rollback()
+            raise RepositoryError(f"Failed to bulk delete {self.model_class.__name__}: {str(e)}")
+
+    def delete_by_id(self, id: int) -> bool:
+        """Delete entity by ID.
+
+        Args:
+            id: ID of the entity to delete
+
+        Returns:
+            True if entity was deleted, False if entity not found
+
+        Raises:
+            RepositoryError: If deletion fails
+        """
+        entity = self.get_by_id(id)
+        if not entity:
+            return False
+
+        self.delete(entity)
+        return True
+
+    def update_or_create(self, search_criteria: Dict[str, Any], update_data: Dict[str, Any]) -> Tuple[T, bool]:
+        """Update an entity by criteria or create if not found.
+
+        Args:
+            search_criteria: Criteria to search for existing entity
+            update_data: Data to use for updating or creating the entity
+
+        Returns:
+            Tuple of (entity, created) where created is True if a new entity was created
+
+        Raises:
+            ValidationError: If entity update or creation fails
+        """
+        # Try to find by search criteria
+        entity = self.session.query(self.model_class).filter_by(**search_criteria).first()
+
+        if entity:
+            # Update existing entity
+            for key, value in update_data.items():
+                setattr(entity, key, value)
+            updated_entity = self.update(entity)
+            return updated_entity, False
+
+        # Create new entity with combined data
+        create_data = {**search_criteria, **update_data}
+        entity = self.model_class(**create_data)
+        created_entity = self.create(entity)
+        return created_entity, True
+
+    def paginate(self, page: int = 1, page_size: int = 20, **filter_criteria) -> Dict[str, Any]:
+        """Get paginated results with optional filtering.
+
+        Args:
+            page: Page number (1-based)
+            page_size: Number of items per page
+            **filter_criteria: Optional filter criteria
+
+        Returns:
+            Dictionary with paginated results and metadata
+        """
+        # Build query
+        query = self.session.query(self.model_class)
+
+        # Apply filters if provided
+        if filter_criteria:
+            query = query.filter_by(**filter_criteria)
+
+        # Get total count for pagination
+        total_count = query.count()
+
+        # Apply pagination
+        query = query.offset((page - 1) * page_size).limit(page_size)
+
+        # Execute query
+        items = query.all()
+
+        # Calculate pagination metadata
+        total_pages = (total_count + page_size - 1) // page_size if page_size > 0 else 0
+
+        # Return paginated results with metadata
+        return {
+            'items': items,
+            'total': total_count,
+            'page': page,
+            'page_size': page_size,
+            'pages': total_pages,
+            'has_next': page < total_pages,
+            'has_prev': page > 1
+        }

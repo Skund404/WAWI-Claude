@@ -1,214 +1,206 @@
 # database/repositories/sales_item_repository.py
-"""
-Repository for managing SalesItem entities.
-
-This repository handles database operations for the SalesItem model,
-including creation, retrieval, update, and deletion of sales item records.
-"""
-
-import logging
-from typing import Any, Dict, List, Optional, Union
-
-from sqlalchemy import and_, or_, func, select
-from sqlalchemy.orm import Session, joinedload
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
+from typing import List, Dict, Any, Optional, Type, Tuple
+from datetime import datetime
+from sqlalchemy import func, or_, and_, desc
 
 from database.models.sales_item import SalesItem
-from database.repositories.base_repository import BaseRepository
-from database.exceptions import DatabaseError, ModelNotFoundError
-
-# Setup logger
-logger = logging.getLogger(__name__)
+from database.repositories.base_repository import BaseRepository, EntityNotFoundError, ValidationError, RepositoryError
 
 
 class SalesItemRepository(BaseRepository[SalesItem]):
-    """Repository for managing SalesItem entities."""
+    """Repository for sales item operations.
 
-    def __init__(self, session: Session) -> None:
-        """
-        Initialize the SalesItem Repository with a database session.
+    This repository provides methods for querying and manipulating sales item data,
+    including relationships with sales orders and products.
+    """
 
-        Args:
-            session: SQLAlchemy database session
-        """
-        super().__init__(session, SalesItem)
-        logger.debug("SalesItemRepository initialized")
-
-    def get_by_sales_id(self, sales_id: int) -> List[SalesItem]:
-        """
-        Get all items for a specific sale.
-
-        Args:
-            sales_id: The sale ID to query
+    def _get_model_class(self) -> Type[SalesItem]:
+        """Return the model class this repository manages.
 
         Returns:
-            List[SalesItem]: List of items for the sale
+            The SalesItem model class
         """
-        try:
-            query = select(SalesItem).filter(
-                SalesItem.sales_id == sales_id
-            )
+        return SalesItem
 
-            items = query.all()
-            logger.debug(f"Retrieved {len(items)} items for sale ID {sales_id}")
-            return items
-        except SQLAlchemyError as e:
-            error_msg = f"Error retrieving items for sale ID {sales_id}: {str(e)}"
-            logger.error(error_msg)
-            raise DatabaseError(error_msg)
+    # Sales item-specific query methods
 
-    def get_by_product_id(self, product_id: int) -> List[SalesItem]:
-        """
-        Get all sales items for a specific product.
+    def get_by_sales(self, sales_id: int) -> List[SalesItem]:
+        """Get sales items for a specific sales order.
 
         Args:
-            product_id: The product ID to query
+            sales_id: ID of the sales order
 
         Returns:
-            List[SalesItem]: List of sales items for the product
+            List of sales item instances for the specified sales order
         """
-        try:
-            query = select(SalesItem).filter(
-                SalesItem.product_id == product_id
-            )
+        self.logger.debug(f"Getting sales items for sales order {sales_id}")
+        return self.session.query(SalesItem).filter(SalesItem.sales_id == sales_id).all()
 
-            items = query.all()
-            logger.debug(f"Retrieved {len(items)} sales items for product ID {product_id}")
-            return items
-        except SQLAlchemyError as e:
-            error_msg = f"Error retrieving sales items for product ID {product_id}: {str(e)}"
-            logger.error(error_msg)
-            raise DatabaseError(error_msg)
-
-    def get_with_product(self, item_id: int) -> Optional[SalesItem]:
-        """
-        Get a sales item with its associated product eagerly loaded.
+    def get_by_product(self, product_id: int) -> List[SalesItem]:
+        """Get sales items for a specific product.
 
         Args:
-            item_id: The item ID to retrieve
+            product_id: ID of the product
 
         Returns:
-            Optional[SalesItem]: The sales item with product if found, None otherwise
+            List of sales item instances for the specified product
         """
-        try:
-            query = select(SalesItem).filter(
-                SalesItem.id == item_id
-            ).options(
-                joinedload(SalesItem.product)
-            )
+        self.logger.debug(f"Getting sales items for product {product_id}")
+        return self.session.query(SalesItem).filter(SalesItem.product_id == product_id).all()
 
-            item = query.first()
-            if not item:
-                logger.debug(f"No sales item found with ID {item_id}")
-                return None
-
-            logger.debug(f"Retrieved sales item ID {item_id} with product")
-            return item
-        except SQLAlchemyError as e:
-            error_msg = f"Error retrieving sales item ID {item_id} with product: {str(e)}"
-            logger.error(error_msg)
-            raise DatabaseError(error_msg)
-
-    def update_quantity(self, item_id: int, quantity: int) -> SalesItem:
-        """
-        Update the quantity of a sales item.
+    def get_items_with_details(self, sales_id: int) -> List[Dict[str, Any]]:
+        """Get sales items with product details.
 
         Args:
-            item_id: The item ID to update
-            quantity: The new quantity
+            sales_id: ID of the sales order
 
         Returns:
-            SalesItem: The updated sales item
+            List of sales items with product details
+        """
+        self.logger.debug(f"Getting sales items with details for sales order {sales_id}")
+        from database.models.product import Product
+
+        items = self.session.query(SalesItem, Product).join(
+            Product,
+            Product.id == SalesItem.product_id
+        ).filter(
+            SalesItem.sales_id == sales_id
+        ).all()
+
+        result = []
+        for item, product in items:
+            item_dict = item.to_dict()
+            item_dict['product_name'] = product.name
+            item_dict['product_description'] = product.description
+            item_dict['subtotal'] = item.quantity * item.price
+
+            result.append(item_dict)
+
+        return result
+
+    # Business logic methods
+
+    def calculate_total_amount(self, sales_id: int) -> float:
+        """Calculate the total amount for a sales order.
+
+        Args:
+            sales_id: ID of the sales order
+
+        Returns:
+            Total amount for the sales order
+        """
+        self.logger.debug(f"Calculating total amount for sales order {sales_id}")
+
+        result = self.session.query(
+            func.sum(SalesItem.quantity * SalesItem.price).label('total')
+        ).filter(
+            SalesItem.sales_id == sales_id
+        ).scalar()
+
+        return float(result) if result is not None else 0.0
+
+    def update_quantity(self, sales_item_id: int, new_quantity: int) -> Dict[str, Any]:
+        """Update the quantity of a sales item.
+
+        Args:
+            sales_item_id: ID of the sales item
+            new_quantity: New quantity value
+
+        Returns:
+            Updated sales item data
 
         Raises:
-            ModelNotFoundError: If the item doesn't exist
-            ValueError: If the quantity is invalid
-            DatabaseError: For other database errors
+            EntityNotFoundError: If sales item not found
+            ValidationError: If new quantity is invalid
         """
+        self.logger.debug(f"Updating quantity for sales item {sales_item_id} to {new_quantity}")
+
+        sales_item = self.get_by_id(sales_item_id)
+        if not sales_item:
+            raise EntityNotFoundError(f"Sales item with ID {sales_item_id} not found")
+
+        if new_quantity <= 0:
+            raise ValidationError("Quantity must be greater than zero")
+
         try:
-            # Validate quantity
-            if quantity <= 0:
-                raise ValueError("Quantity must be greater than zero")
+            # Update quantity
+            sales_item.quantity = new_quantity
 
-            # Get the item
-            item = self.get_by_id(item_id)
-            if not item:
-                error_msg = f"No sales item found with ID {item_id}"
-                logger.error(error_msg)
-                raise ModelNotFoundError(error_msg)
+            # Update sales item
+            self.update(sales_item)
 
-            # Update the quantity
-            old_quantity = item.quantity
-            item.quantity = quantity
+            # Calculate new subtotal
+            subtotal = sales_item.quantity * sales_item.price
 
-            # If the item is part of a sale, update the sale total
-            if item.sale:
-                item.sale.calculate_total()
+            # Update total on the parent sales order
+            from database.models.sales import Sales
+            sales = self.session.query(Sales).get(sales_item.sales_id)
+            if sales:
+                # Recalculate total from all items
+                total = self.calculate_total_amount(sales_item.sales_id)
+                sales.total_amount = total
+                self.session.add(sales)
+                self.session.flush()
 
-            self.session.commit()
+            # Prepare result
+            result = sales_item.to_dict()
+            result['subtotal'] = subtotal
 
-            logger.debug(f"Updated quantity of sales item ID {item_id} from {old_quantity} to {quantity}")
-            return item
-        except ModelNotFoundError:
-            raise
-        except ValueError as e:
-            error_msg = str(e)
-            logger.error(f"Validation error updating sales item ID {item_id}: {error_msg}")
-            raise
+            return result
+
         except Exception as e:
-            self.session.rollback()
-            error_msg = f"Error updating quantity of sales item ID {item_id}: {str(e)}"
-            logger.error(error_msg)
-            raise DatabaseError(error_msg)
+            self.logger.error(f"Error updating sales item quantity: {str(e)}")
+            raise ValidationError(f"Failed to update sales item quantity: {str(e)}")
 
-    def update_price(self, item_id: int, price: float) -> SalesItem:
-        """
-        Update the price of a sales item.
+    # GUI-specific functionality
+
+    def get_top_selling_products(self, period_days: int = 30, limit: int = 10) -> List[Dict[str, Any]]:
+        """Get top selling products for a specific period.
 
         Args:
-            item_id: The item ID to update
-            price: The new price
+            period_days: Number of days to look back
+            limit: Maximum number of products to return
 
         Returns:
-            SalesItem: The updated sales item
-
-        Raises:
-            ModelNotFoundError: If the item doesn't exist
-            ValueError: If the price is invalid
-            DatabaseError: For other database errors
+            List of top selling products with quantities and revenue
         """
-        try:
-            # Validate price
-            if price < 0:
-                raise ValueError("Price cannot be negative")
+        self.logger.debug(f"Getting top selling products for the last {period_days} days")
+        from database.models.product import Product
+        from database.models.sales import Sales
 
-            # Get the item
-            item = self.get_by_id(item_id)
-            if not item:
-                error_msg = f"No sales item found with ID {item_id}"
-                logger.error(error_msg)
-                raise ModelNotFoundError(error_msg)
+        # Calculate start date
+        start_date = datetime.now() - timedelta(days=period_days)
 
-            # Update the price
-            old_price = item.price
-            item.price = price
+        # Query for top products
+        top_products = self.session.query(
+            Product.id,
+            Product.name,
+            func.sum(SalesItem.quantity).label('total_quantity'),
+            func.sum(SalesItem.quantity * SalesItem.price).label('total_revenue')
+        ).join(
+            SalesItem,
+            SalesItem.product_id == Product.id
+        ).join(
+            Sales,
+            Sales.id == SalesItem.sales_id
+        ).filter(
+            Sales.created_at >= start_date
+        ).group_by(
+            Product.id,
+            Product.name
+        ).order_by(
+            func.sum(SalesItem.quantity * SalesItem.price).desc()
+        ).limit(limit).all()
 
-            # If the item is part of a sale, update the sale total
-            if item.sale:
-                item.sale.calculate_total()
+        # Format result
+        result = []
+        for id, name, total_quantity, total_revenue in top_products:
+            result.append({
+                'product_id': id,
+                'product_name': name,
+                'total_quantity': total_quantity,
+                'total_revenue': float(total_revenue)
+            })
 
-            self.session.commit()
-
-            logger.debug(f"Updated price of sales item ID {item_id} from {old_price} to {price}")
-            return item
-        except ModelNotFoundError:
-            raise
-        except ValueError as e:
-            error_msg = str(e)
-            logger.error(f"Validation error updating sales item ID {item_id}: {error_msg}")
-            raise
-        except Exception as e:
-            self.session.rollback()
-            error_msg = f"Error updating price of sales item ID {item_id}: {str(e)}"
-            logger.error(error_msg)
-            raise DatabaseError(error_msg)
+        return result

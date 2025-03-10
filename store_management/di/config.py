@@ -45,6 +45,22 @@ REPOSITORY_MAPPINGS = [
     'database.repositories.inventory_repository.InventoryRepository',
     'database.repositories.sales_repository.SalesRepository',
     'database.repositories.purchase_repository.PurchaseRepository',
+
+    # Material type repositories
+    'database.repositories.leather_repository.LeatherRepository',
+    'database.repositories.hardware_repository.HardwareRepository',
+    'database.repositories.supplies_repository.SuppliesRepository',
+
+    # Component repositories
+    'database.repositories.component_repository.ComponentRepository',
+
+    # Transaction item repositories
+    'database.repositories.sales_item_repository.SalesItemRepository',
+    'database.repositories.purchase_item_repository.PurchaseItemRepository',
+
+    # Production related repositories
+    'database.repositories.picking_list_repository.PickingListRepository',
+    'database.repositories.tool_list_repository.ToolListRepository',
 ]
 
 # Database session configuration

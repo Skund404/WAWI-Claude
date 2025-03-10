@@ -1,13 +1,10 @@
 # database/models/relationship_tables.py
 """
 This module defines association tables for many-to-many relationships in the leatherworking database system.
-
-The association tables are temporarily simplified to avoid foreign key issues during initial setup.
 """
 
 from sqlalchemy import Table, Column, ForeignKey, Integer, String, Float, UniqueConstraint
 from database.models.base import Base
-from database.models.component_material import component_material_table
 
 # Association table for Component-Material relationship
 component_material_table = Table(
@@ -33,6 +30,7 @@ product_pattern_table = Table(
     UniqueConstraint('product_id', 'pattern_id', name='uq_product_pattern'),
     extend_existing=True
 )
+
 # Association table for Pattern-Component relationship
 pattern_component_table = Table(
     'pattern_components',
@@ -46,7 +44,3 @@ pattern_component_table = Table(
     UniqueConstraint('pattern_id', 'component_id', name='uq_pattern_component'),
     extend_existing=True
 )
-
-# Define empty placeholder objects to avoid import errors
-product_pattern_table = None
-pattern_component_table = None

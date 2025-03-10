@@ -20,7 +20,6 @@ component_material_table = Table(
 )
 
 
-# We'll use this class for when you need to interact with the junction table directly
 class ComponentMaterial(Base, ValidationMixin):
     """
     Represents the relationship between components and materials with quantity.
@@ -40,9 +39,18 @@ class ComponentMaterial(Base, ValidationMixin):
     material_id: Mapped[int] = mapped_column(ForeignKey('materials.id', ondelete='CASCADE'))
     quantity: Mapped[float] = mapped_column(default=1.0)
 
-    # Relationships
-    component = relationship("Component", back_populates="component_materials")
-    material = relationship("Material", back_populates="component_materials")
+    # Relationships with explicit join conditions
+    component = relationship(
+        "Component",
+        primaryjoin="ComponentMaterial.component_id == Component.id",
+        back_populates="component_materials"
+    )
+
+    material = relationship(
+        "Material",
+        primaryjoin="ComponentMaterial.material_id == Material.id",
+        back_populates="component_materials"
+    )
 
     def __init__(self, component_id, material_id, quantity=1.0):
         self.component_id = component_id

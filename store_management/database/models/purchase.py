@@ -24,6 +24,7 @@ class Purchase(AbstractBase, ValidationMixin):
         invoice_number: Invoice number for reference
     """
     __tablename__ = 'purchases'
+    __table_args__ = {'extend_existing': True}
 
     supplier_id: Mapped[int] = mapped_column(Integer, ForeignKey('suppliers.id'), nullable=False)
     total_amount: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)

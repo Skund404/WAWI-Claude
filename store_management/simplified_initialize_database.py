@@ -22,7 +22,7 @@ from sqlalchemy.orm import Session, sessionmaker
 # Configure logging
 logging.basicConfig(
     stream=sys.stdout,
-    level=logging.INFO,
+    level=logging.DEBUG,  # Set to DEBUG for detailed logging
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
@@ -30,13 +30,17 @@ logger = logging.getLogger(__name__)
 
 def get_database_path() -> str:
     """
-    Determine the path for the SQLite database.
+    Determine the path for the SQLite database inside the 'data' directory.
 
     Returns:
         str: Absolute path to the database file
     """
     base_dir = Path(__file__).resolve().parent
-    return str(base_dir / 'leatherworking_database.db')
+    data_dir = base_dir / 'data'  # Create a Path object pointing to 'data'
+    data_dir.mkdir(parents=True, exist_ok=True)  # Ensure 'data' directory exists
+    db_path = str(data_dir / 'leatherworking_database.db')
+    logger.debug(f"Database path determined: {db_path}")  # Added loggin
+    return db_path
 
 
 def import_models_directly():
@@ -140,7 +144,7 @@ def import_models_directly():
 
 def initialize_database(recreate: bool = False) -> bool:
     """
-    Initialize a minimal database by creating tables directly in the correct order.
+    Initialize a minimal database by creating tables using SQLAlchemy models.
 
     Args:
         recreate (bool): Whether to recreate the database from scratch
@@ -152,6 +156,7 @@ def initialize_database(recreate: bool = False) -> bool:
         # Import models directly
         success, models = import_models_directly()
         if not success:
+            logger.error("Model import failed, database initialization aborted.")
             return False
 
         Base = models['Base']
@@ -176,7 +181,7 @@ def initialize_database(recreate: bool = False) -> bool:
         # Create database connection
         connection_string = f"sqlite:///{db_path}"
         engine_args = {
-            'echo': False,
+            'echo': True,  # IMPORTANT: Enable SQL echoing for debugging
             'connect_args': {
                 'check_same_thread': False,
                 'timeout': 30
@@ -184,604 +189,61 @@ def initialize_database(recreate: bool = False) -> bool:
         }
 
         engine = create_engine(connection_string, **engine_args)
-
+        inspector = inspect(engine)  # inspector to look at database
         # Drop all tables if recreate is True
         if recreate:
             try:
-                # Use direct SQL to drop tables in the correct order to avoid circular dependency issues
-                with engine.connect() as conn:
-                    # Drop order: dependent tables first, then base tables
-                    tables_to_drop = [
-                        'purchase_items', 'purchases',
-                        'tool_list_items', 'tool_lists',
-                        'picking_list_items', 'picking_lists',
-                        'project_components', 'projects',
-                        'sales_items', 'inventory',
-                        'product_patterns', 'pattern_components', 'component_materials',
-                        'sales', 'products', 'patterns',
-                        'components', 'materials', 'tools',
-                        'suppliers', 'customers'
-                    ]
+                # Drop tables in reverse dependency order
+                logger.info("Dropping all tables...")
 
-                    for table in tables_to_drop:
-                        try:
-                            conn.execute(text(f"DROP TABLE IF EXISTS {table}"))
-                            logger.info(f"Dropped table: {table}")
-                        except Exception as e:
-                            logger.warning(f"Could not drop table {table}: {e}")
+                # Get existing tables in inspector
+                tables = inspector.get_table_names()
 
-                    conn.commit()
-                logger.info("Existing tables dropped successfully")
+                # Drop all tables
+                Base.metadata.drop_all(engine)
+
+                logger.info("All tables dropped successfully")
             except Exception as e:
                 logger.error(f"Error dropping tables: {e}")
-                raise
-
-        # -------- CREATE TABLES IN DEPENDENCY ORDER ----------
-
-        # Phase 1: Create base tables with no dependencies
-        base_tables = [
-            'suppliers', 'customers', 'materials', 'components', 'tools',
-            'patterns', 'products'
-        ]
-
-        for table_name in base_tables:
-            try:
-                if table_name in Base.metadata.tables:
-                    Base.metadata.tables[table_name].create(engine, checkfirst=True)
-                    logger.info(f"Created {table_name} table")
-            except Exception as e:
-                logger.error(f"Error creating {table_name} table: {e}")
-
-        # Phase 2: Create sales table explicitly before other tables that depend on it
-        try:
-            # Create sales table using direct SQL to avoid any issues
-            with engine.connect() as conn:
-                conn.execute(text("""
-                CREATE TABLE IF NOT EXISTS sales (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    total_amount FLOAT NOT NULL DEFAULT 0.0,
-                    status VARCHAR(50) NOT NULL,
-                    payment_status VARCHAR(50) NOT NULL,
-                    customer_id INTEGER,
-                    created_at TIMESTAMP NOT NULL,
-                    updated_at TIMESTAMP NOT NULL,
-                    cost_price FLOAT,
-                    FOREIGN KEY(customer_id) REFERENCES customers(id) ON DELETE SET NULL
-                )
-                """))
-                conn.commit()
-            logger.info("Created sales table using direct SQL")
-        except Exception as e:
-            logger.error(f"Error creating sales table with direct SQL: {e}")
-
-        # Phase 3: Create junction tables that depend on base tables
-        junction_tables = [
-            'component_materials', 'pattern_components', 'product_patterns'
-        ]
-
-        for table_name in junction_tables:
-            try:
-                if table_name == 'component_materials':
-                    models['ComponentMaterial'].__table__.create(engine, checkfirst=True)
-                    logger.info(f"Created {table_name} table")
-                elif table_name in Base.metadata.tables:
-                    Base.metadata.tables[table_name].create(engine, checkfirst=True)
-                    logger.info(f"Created {table_name} table")
-            except Exception as e:
-                logger.error(f"Error creating {table_name} table: {e}")
-
-                # Fallback to direct SQL
-                try:
-                    with engine.connect() as conn:
-                        if table_name == 'component_materials':
-                            conn.execute(text("""
-                            CREATE TABLE IF NOT EXISTS component_materials (
-                                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                component_id INTEGER NOT NULL,
-                                material_id INTEGER NOT NULL,
-                                quantity FLOAT NOT NULL DEFAULT 1.0,
-                                FOREIGN KEY(component_id) REFERENCES components (id) ON DELETE CASCADE,
-                                FOREIGN KEY(material_id) REFERENCES materials (id) ON DELETE CASCADE,
-                                UNIQUE (component_id, material_id)
-                            )
-                            """))
-                        elif table_name == 'pattern_components':
-                            conn.execute(text("""
-                            CREATE TABLE IF NOT EXISTS pattern_components (
-                                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                pattern_id INTEGER NOT NULL,
-                                component_id INTEGER NOT NULL,
-                                quantity FLOAT NOT NULL DEFAULT 1.0,
-                                position VARCHAR(100),
-                                notes VARCHAR(255),
-                                FOREIGN KEY(pattern_id) REFERENCES patterns (id) ON DELETE CASCADE,
-                                FOREIGN KEY(component_id) REFERENCES components (id) ON DELETE CASCADE,
-                                UNIQUE (pattern_id, component_id)
-                            )
-                            """))
-                        elif table_name == 'product_patterns':
-                            conn.execute(text("""
-                            CREATE TABLE IF NOT EXISTS product_patterns (
-                                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                product_id INTEGER NOT NULL,
-                                pattern_id INTEGER NOT NULL,
-                                is_primary INTEGER NOT NULL DEFAULT 0,
-                                scale_factor FLOAT NOT NULL DEFAULT 1.0,
-                                notes VARCHAR(255),
-                                FOREIGN KEY(product_id) REFERENCES products (id) ON DELETE CASCADE,
-                                FOREIGN KEY(pattern_id) REFERENCES patterns (id) ON DELETE CASCADE,
-                                UNIQUE (product_id, pattern_id)
-                            )
-                            """))
-                        conn.commit()
-                        logger.info(f"Created {table_name} table using direct SQL")
-                except Exception as e2:
-                    logger.error(f"Error creating {table_name} table with direct SQL: {e2}")
-
-        # Phase 4: Create sales_items table which depends on sales
-        try:
-            # Always create with direct SQL to ensure proper dependencies
-            with engine.connect() as conn:
-                conn.execute(text("""
-                CREATE TABLE IF NOT EXISTS sales_items (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    quantity INTEGER NOT NULL DEFAULT 1,
-                    price FLOAT NOT NULL DEFAULT 0.0,
-                    sales_id INTEGER NOT NULL,
-                    product_id INTEGER NOT NULL,
-                    created_at TIMESTAMP NOT NULL,
-                    updated_at TIMESTAMP NOT NULL,
-                    FOREIGN KEY(sales_id) REFERENCES sales(id) ON DELETE CASCADE,
-                    FOREIGN KEY(product_id) REFERENCES products(id) ON DELETE CASCADE
-                )
-                """))
-                conn.commit()
-            logger.info("Created sales_items table using direct SQL")
-        except Exception as e:
-            logger.error(f"Error creating sales_items table with direct SQL: {e}")
-
-        # Phase 5: Create tables with circular dependencies (projects and project_components)
-        try:
-            # Create projects table
-            with engine.connect() as conn:
-                conn.execute(text("""
-                CREATE TABLE IF NOT EXISTS projects (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name VARCHAR(255) NOT NULL,
-                    description TEXT,
-                    type VARCHAR(50) NOT NULL,
-                    status VARCHAR(50) NOT NULL DEFAULT 'PLANNED',
-                    start_date TIMESTAMP,
-                    end_date TIMESTAMP,
-                    sales_id INTEGER,
-                    created_at TIMESTAMP NOT NULL,
-                    updated_at TIMESTAMP NOT NULL,
-                    FOREIGN KEY(sales_id) REFERENCES sales(id) ON DELETE SET NULL
-                )
-                """))
-                conn.commit()
-                logger.info("Created projects table using direct SQL")
-        except Exception as e:
-            logger.error(f"Error creating projects table: {e}")
-
-        try:
-            # Create project_components table
-            with engine.connect() as conn:
-                conn.execute(text("""
-                CREATE TABLE IF NOT EXISTS project_components (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    project_id INTEGER NOT NULL,
-                    component_id INTEGER NOT NULL,
-                    quantity FLOAT NOT NULL DEFAULT 1.0,
-                    created_at TIMESTAMP NOT NULL,
-                    updated_at TIMESTAMP NOT NULL,
-                    FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE,
-                    FOREIGN KEY(component_id) REFERENCES components(id) ON DELETE CASCADE,
-                    UNIQUE(project_id, component_id)
-                )
-                """))
-                conn.commit()
-                logger.info("Created project_components table using direct SQL")
-        except Exception as e:
-            logger.error(f"Error creating project_components table: {e}")
-
-        # Phase 6: Create inventory table which depends on materials, products, and tools
-        try:
-            # Create inventory table
-            with engine.connect() as conn:
-                conn.execute(text("""
-                CREATE TABLE IF NOT EXISTS inventory (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    item_type VARCHAR(50) NOT NULL,
-                    item_id INTEGER NOT NULL,
-                    quantity FLOAT NOT NULL DEFAULT 0,
-                    status VARCHAR(50) NOT NULL,
-                    min_stock_level FLOAT,
-                    reorder_point FLOAT,
-                    reorder_quantity FLOAT,
-                    storage_location VARCHAR(255),
-                    location_details JSON,
-                    last_count_date TIMESTAMP,
-                    last_movement_date TIMESTAMP,
-                    transaction_history JSON,
-                    unit_cost FLOAT,
-                    notes TEXT,
-                    created_at TIMESTAMP NOT NULL,
-                    updated_at TIMESTAMP NOT NULL,
-                    created_by VARCHAR(100),
-                    updated_by VARCHAR(100),
-                    UNIQUE(item_type, item_id),
-                    CHECK(item_type IN ('material', 'product', 'tool'))
-                )
-                """))
-                conn.commit()
-            logger.info("Created inventory table using direct SQL")
-        except Exception as e:
-            logger.error(f"Error creating inventory table: {e}")
-
-        # Phase 7: Create picking lists and picking list items tables
-        try:
-            # Create picking lists table
-            with engine.connect() as conn:
-                conn.execute(text("""
-                CREATE TABLE IF NOT EXISTS picking_lists (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    sales_id INTEGER,
-                    status VARCHAR(50) NOT NULL DEFAULT 'DRAFT',
-                    completed_at TIMESTAMP,
-                    notes TEXT,
-                    created_at TIMESTAMP NOT NULL,
-                    updated_at TIMESTAMP NOT NULL,
-                    created_by VARCHAR(100),
-                    updated_by VARCHAR(100),
-                    FOREIGN KEY(sales_id) REFERENCES sales(id) ON DELETE SET NULL
-                )
-                """))
-                conn.commit()
-            logger.info("Created picking_lists table using direct SQL")
-        except Exception as e:
-            logger.error(f"Error creating picking_lists table: {e}")
-
-        try:
-            # Create picking list items table
-            with engine.connect() as conn:
-                conn.execute(text("""
-                CREATE TABLE IF NOT EXISTS picking_list_items (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    picking_list_id INTEGER NOT NULL,
-                    component_id INTEGER,
-                    material_id INTEGER,
-                    quantity_ordered INTEGER NOT NULL,
-                    quantity_picked INTEGER NOT NULL DEFAULT 0,
-                    created_at TIMESTAMP NOT NULL,
-                    updated_at TIMESTAMP NOT NULL,
-                    created_by VARCHAR(100),
-                    updated_by VARCHAR(100),
-                    FOREIGN KEY(picking_list_id) REFERENCES picking_lists(id) ON DELETE CASCADE,
-                    FOREIGN KEY(component_id) REFERENCES components(id) ON DELETE SET NULL,
-                    FOREIGN KEY(material_id) REFERENCES materials(id) ON DELETE SET NULL,
-                    CHECK((component_id IS NULL AND material_id IS NOT NULL) OR (component_id IS NOT NULL AND material_id IS NULL))
-                )
-                """))
-                conn.commit()
-            logger.info("Created picking_list_items table using direct SQL")
-        except Exception as e:
-            logger.error(f"Error creating picking_list_items table: {e}")
-
-        # Phase 8: Create tool lists and tool list items tables
-        try:
-            # Create tool lists table
-            with engine.connect() as conn:
-                conn.execute(text("""
-                CREATE TABLE IF NOT EXISTS tool_lists (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    project_id INTEGER NOT NULL,
-                    status VARCHAR(50) NOT NULL DEFAULT 'DRAFT',
-                    notes TEXT,
-                    created_at TIMESTAMP NOT NULL,
-                    updated_at TIMESTAMP NOT NULL,
-                    created_by VARCHAR(100),
-                    updated_by VARCHAR(100),
-                    FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
-                )
-                """))
-                conn.commit()
-            logger.info("Created tool_lists table using direct SQL")
-        except Exception as e:
-            logger.error(f"Error creating tool_lists table: {e}")
-
-        try:
-            # Create tool list items table
-            with engine.connect() as conn:
-                conn.execute(text("""
-                CREATE TABLE IF NOT EXISTS tool_list_items (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    tool_list_id INTEGER NOT NULL,
-                    tool_id INTEGER NOT NULL,
-                    quantity INTEGER NOT NULL DEFAULT 1,
-                    is_checked_out INTEGER NOT NULL DEFAULT 0,
-                    created_at TIMESTAMP NOT NULL,
-                    updated_at TIMESTAMP NOT NULL,
-                    created_by VARCHAR(100),
-                    updated_by VARCHAR(100),
-                    FOREIGN KEY(tool_list_id) REFERENCES tool_lists(id) ON DELETE CASCADE,
-                    FOREIGN KEY(tool_id) REFERENCES tools(id) ON DELETE CASCADE
-                )
-                """))
-                conn.commit()
-            logger.info("Created tool_list_items table using direct SQL")
-        except Exception as e:
-            logger.error(f"Error creating tool_list_items table: {e}")
-
-        # Phase 9: Create purchases and purchase items tables
-        try:
-            # Create purchases table
-            with engine.connect() as conn:
-                conn.execute(text("""
-                CREATE TABLE IF NOT EXISTS purchases (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    supplier_id INTEGER NOT NULL,
-                    total_amount FLOAT NOT NULL DEFAULT 0.0,
-                    status VARCHAR(50) NOT NULL DEFAULT 'DRAFT',
-                    notes TEXT,
-                    order_date TIMESTAMP,
-                    expected_delivery TIMESTAMP,
-                    delivery_date TIMESTAMP,
-                    purchase_order_number VARCHAR(100),
-                    invoice_number VARCHAR(100),
-                    created_at TIMESTAMP NOT NULL,
-                    updated_at TIMESTAMP NOT NULL,
-                    created_by VARCHAR(100),
-                    updated_by VARCHAR(100),
-                    FOREIGN KEY(supplier_id) REFERENCES suppliers(id) ON DELETE CASCADE
-                )
-                """))
-                conn.commit()
-            logger.info("Created purchases table using direct SQL")
-        except Exception as e:
-            logger.error(f"Error creating purchases table: {e}")
-
-        try:
-            # Create purchase_items table
-            with engine.connect() as conn:
-                conn.execute(text("""
-                CREATE TABLE IF NOT EXISTS purchase_items (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    purchase_id INTEGER NOT NULL,
-                    item_type VARCHAR(50) NOT NULL,
-                    item_id INTEGER NOT NULL,
-                    quantity FLOAT NOT NULL,
-                    price FLOAT NOT NULL,
-                    received_quantity FLOAT NOT NULL DEFAULT 0.0,
-                    created_at TIMESTAMP NOT NULL,
-                    updated_at TIMESTAMP NOT NULL,
-                    created_by VARCHAR(100),
-                    updated_by VARCHAR(100),
-                    FOREIGN KEY(purchase_id) REFERENCES purchases(id) ON DELETE CASCADE,
-                    CHECK(item_type IN ('material', 'tool'))
-                )
-                """))
-                conn.commit()
-            logger.info("Created purchase_items table using direct SQL")
-        except Exception as e:
-            logger.error(f"Error creating purchase_items table: {e}")
-
-        # Verify created tables
-        inspector = inspect(engine)
-        created_tables = set(inspector.get_table_names())
-        essential_tables = {
-            'suppliers', 'customers', 'materials', 'components', 'tools',
-            'component_materials', 'patterns', 'products', 'pattern_components',
-            'product_patterns', 'projects', 'project_components', 'sales',
-            'sales_items', 'inventory', 'picking_lists', 'picking_list_items',
-            'tool_lists', 'tool_list_items', 'purchases', 'purchase_items'
-        }
-        missing_tables = essential_tables - created_tables
-
-        if missing_tables:
-            logger.warning(f"Some essential tables were not created: {missing_tables}")
-
-            # Last ditch effort to create missing tables
-            for table_name in missing_tables:
-                logger.warning(f"Attempting to create missing table: {table_name}")
-                try:
-                    with engine.connect() as conn:
-                        if table_name == 'projects':
-                            conn.execute(text("""
-                            CREATE TABLE IF NOT EXISTS projects (
-                                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                name VARCHAR(255) NOT NULL,
-                                description TEXT,
-                                type VARCHAR(50) NOT NULL,
-                                status VARCHAR(50) NOT NULL DEFAULT 'PLANNED',
-                                start_date TIMESTAMP,
-                                end_date TIMESTAMP,
-                                sales_id INTEGER,
-                                created_at TIMESTAMP NOT NULL,
-                                updated_at TIMESTAMP NOT NULL
-                            )
-                            """))
-                        elif table_name == 'project_components':
-                            conn.execute(text("""
-                            CREATE TABLE IF NOT EXISTS project_components (
-                                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                project_id INTEGER NOT NULL,
-                                component_id INTEGER NOT NULL,
-                                quantity FLOAT NOT NULL DEFAULT 1.0,
-                                created_at TIMESTAMP NOT NULL,
-                                updated_at TIMESTAMP NOT NULL
-                            )
-                            """))
-                        elif table_name == 'sales':
-                            conn.execute(text("""
-                            CREATE TABLE IF NOT EXISTS sales (
-                                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                total_amount FLOAT NOT NULL DEFAULT 0.0,
-                                status VARCHAR(50) NOT NULL DEFAULT 'QUOTE_REQUEST',
-                                payment_status VARCHAR(50) NOT NULL DEFAULT 'PENDING',
-                                customer_id INTEGER,
-                                created_at TIMESTAMP NOT NULL,
-                                updated_at TIMESTAMP NOT NULL,
-                                cost_price FLOAT
-                            )
-                            """))
-                        elif table_name == 'sales_items':
-                            conn.execute(text("""
-                            CREATE TABLE IF NOT EXISTS sales_items (
-                                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                quantity INTEGER NOT NULL DEFAULT 1,
-                                price FLOAT NOT NULL DEFAULT 0.0,
-                                sales_id INTEGER NOT NULL,
-                                product_id INTEGER NOT NULL,
-                                created_at TIMESTAMP NOT NULL,
-                                updated_at TIMESTAMP NOT NULL
-                            )
-                            """))
-                        elif table_name == 'inventory':
-                            conn.execute(text("""
-                            CREATE TABLE IF NOT EXISTS inventory (
-                                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                item_type VARCHAR(50) NOT NULL,
-                                item_id INTEGER NOT NULL,
-                                quantity FLOAT NOT NULL DEFAULT 0,
-                                status VARCHAR(50) NOT NULL,
-                                min_stock_level FLOAT,
-                                reorder_point FLOAT,
-                                reorder_quantity FLOAT,
-                                storage_location VARCHAR(255),
-                                location_details JSON,
-                                last_count_date TIMESTAMP,
-                                last_movement_date TIMESTAMP,
-                                transaction_history JSON,
-                                unit_cost FLOAT,
-                                notes TEXT,
-                                created_at TIMESTAMP NOT NULL,
-                                updated_at TIMESTAMP NOT NULL,
-                                created_by VARCHAR(100),
-                                updated_by VARCHAR(100),
-                                UNIQUE(item_type, item_id)
-                            )
-                            """))
-                        elif table_name == 'picking_lists':
-                            conn.execute(text("""
-                            CREATE TABLE IF NOT EXISTS picking_lists (
-                                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                sales_id INTEGER,
-                                status VARCHAR(50) NOT NULL DEFAULT 'DRAFT',
-                                completed_at TIMESTAMP,
-                                notes TEXT,
-                                created_at TIMESTAMP NOT NULL,
-                                updated_at TIMESTAMP NOT NULL,
-                                created_by VARCHAR(100),
-                                updated_by VARCHAR(100),
-                                FOREIGN KEY(sales_id) REFERENCES sales(id) ON DELETE SET NULL
-                            )
-                            """))
-                        elif table_name == 'picking_list_items':
-                            conn.execute(text("""
-                            CREATE TABLE IF NOT EXISTS picking_list_items (
-                                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                picking_list_id INTEGER NOT NULL,
-                                component_id INTEGER,
-                                material_id INTEGER,
-                                quantity_ordered INTEGER NOT NULL,
-                                quantity_picked INTEGER NOT NULL DEFAULT 0,
-                                created_at TIMESTAMP NOT NULL,
-                                updated_at TIMESTAMP NOT NULL,
-                                created_by VARCHAR(100),
-                                updated_by VARCHAR(100),
-                                FOREIGN KEY(picking_list_id) REFERENCES picking_lists(id) ON DELETE CASCADE
-                            )
-                            """))
-                        elif table_name == 'tool_lists':
-                            conn.execute(text("""
-                            CREATE TABLE IF NOT EXISTS tool_lists (
-                                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                project_id INTEGER NOT NULL,
-                                status VARCHAR(50) NOT NULL DEFAULT 'DRAFT',
-                                notes TEXT,
-                                created_at TIMESTAMP NOT NULL,
-                                updated_at TIMESTAMP NOT NULL,
-                                created_by VARCHAR(100),
-                                updated_by VARCHAR(100),
-                                FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
-                            )
-                            """))
-                        elif table_name == 'tool_list_items':
-                            conn.execute(text("""
-                            CREATE TABLE IF NOT EXISTS tool_list_items (
-                                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                tool_list_id INTEGER NOT NULL,
-                                tool_id INTEGER NOT NULL,
-                                quantity INTEGER NOT NULL DEFAULT 1,
-                                is_checked_out INTEGER NOT NULL DEFAULT 0,
-                                created_at TIMESTAMP NOT NULL,
-                                updated_at TIMESTAMP NOT NULL,
-                                created_by VARCHAR(100),
-                                updated_by VARCHAR(100),
-                                FOREIGN KEY(tool_list_id) REFERENCES tool_lists(id) ON DELETE CASCADE
-                            )
-                            """))
-                        elif table_name == 'purchases':
-                            conn.execute(text("""
-                            CREATE TABLE IF NOT EXISTS purchases (
-                                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                supplier_id INTEGER NOT NULL,
-                                total_amount FLOAT NOT NULL DEFAULT 0.0,
-                                status VARCHAR(50) NOT NULL DEFAULT 'DRAFT',
-                                notes TEXT,
-                                order_date TIMESTAMP,
-                                expected_delivery TIMESTAMP,
-                                delivery_date TIMESTAMP,
-                                purchase_order_number VARCHAR(100),
-                                invoice_number VARCHAR(100),
-                                created_at TIMESTAMP NOT NULL,
-                                updated_at TIMESTAMP NOT NULL,
-                                created_by VARCHAR(100),
-                                updated_by VARCHAR(100),
-                                FOREIGN KEY(supplier_id) REFERENCES suppliers(id)
-                            )
-                            """))
-                        elif table_name == 'purchase_items':
-                            conn.execute(text("""
-                            CREATE TABLE IF NOT EXISTS purchase_items (
-                                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                purchase_id INTEGER NOT NULL,
-                                item_type VARCHAR(50) NOT NULL,
-                                item_id INTEGER NOT NULL,
-                                quantity FLOAT NOT NULL,
-                                price FLOAT NOT NULL,
-                                received_quantity FLOAT NOT NULL DEFAULT 0.0,
-                                created_at TIMESTAMP NOT NULL,
-                                updated_at TIMESTAMP NOT NULL,
-                                created_by VARCHAR(100),
-                                updated_by VARCHAR(100),
-                                FOREIGN KEY(purchase_id) REFERENCES purchases(id)
-                            )
-                            """))
-                        conn.commit()
-                        logger.info(f"Created {table_name} table as last resort")
-                except Exception as e:
-                    logger.error(f"Final attempt to create {table_name} table failed: {e}")
-
-            # Check again after last attempt
-            created_tables = set(inspector.get_table_names())
-            missing_tables = essential_tables - created_tables
-            if len(missing_tables) > 0:
-                logger.warning(f"Still missing tables after final attempt: {missing_tables}")
-
-            if len(missing_tables) > len(essential_tables) / 2:
-                logger.error("Too many essential tables are missing")
+                logger.error(traceback.format_exc())
                 return False
 
-        logger.info(f"Created tables: {', '.join(created_tables)}")
-        return True
+        try:
+            # Now create all tables based on the models
+            logger.info("Creating tables using SQLAlchemy models...")
 
+            Base.metadata.create_all(engine)
+
+            logger.info("Successfully created tables using SQLAlchemy models")
+
+            # Verify the tables
+            inspector = inspect(engine)
+            created_tables = inspector.get_table_names()
+            essential_tables = [
+                'suppliers', 'customers', 'materials', 'components', 'tools',
+                'component_materials', 'patterns', 'products', 'pattern_components',
+                'product_patterns', 'projects', 'project_components', 'sales',
+                'sales_items', 'inventory', 'picking_lists', 'picking_list_items',
+                'tool_lists', 'tool_list_items', 'purchases', 'purchase_items'
+            ]
+
+            missing_tables = set(essential_tables) - set(created_tables)
+
+            if missing_tables:
+                logger.error(f"Some essential tables were not created: {missing_tables}")
+                logger.error(f"Missing table Details {missing_tables}")
+                return False
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Error initializing database: {e}")
+            logger.error(traceback.format_exc())
+            return False
     except Exception as e:
-        logger.error(f"Error initializing database: {e}")
-        traceback.print_exc()
+        logger.error(f"General top level exception in initialize: {e}")
+        logger.error(traceback.format_exc())
         return False
-
 
 def seed_minimal_data() -> bool:
     """
@@ -846,9 +308,12 @@ def seed_minimal_data() -> bool:
                 # Insert customer
                 conn.execute(
                     text(
-                        "INSERT INTO customers (name, email, status, created_at, updated_at) VALUES (:name, :email, :status, :created, :updated)"),
+                        "INSERT INTO customers (first_name, last_name, email, status, created_at, updated_at) "
+                        "VALUES (:first_name, :last_name, :email, :status, :created, :updated)"
+                    ),
                     {
-                        "name": "John Smith",
+                        "first_name": "John",
+                        "last_name": "Smith",
                         "email": "john.smith@example.com",
                         "status": "ACTIVE",
                         "created": datetime.now(),
@@ -1054,7 +519,10 @@ def seed_minimal_data() -> bool:
                 # Create a sales record
                 try:
                     # Get customer ID
-                    result = conn.execute(text("SELECT id FROM customers WHERE name = 'John Smith'"))
+                    result = conn.execute(
+                        text("SELECT id FROM customers WHERE first_name = :first_name AND last_name = :last_name"),
+                        {"first_name": "John", "last_name": "Smith"}
+                    )
                     customer_id = result.scalar()
 
                     conn.execute(
@@ -1578,7 +1046,6 @@ def seed_minimal_data() -> bool:
         logger.error(f"Error connecting to database for seeding: {e}")
         traceback.print_exc()
         return False
-
 
 def main():
     """

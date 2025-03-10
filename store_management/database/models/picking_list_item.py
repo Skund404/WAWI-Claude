@@ -25,8 +25,9 @@ class PickingListItem(AbstractBase, ValidationMixin):
     component_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey('components.id'), nullable=True)
     material_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey('materials.id'), nullable=True)
     quantity_ordered: Mapped[int] = mapped_column(Integer, nullable=False)
-    quantity_picked: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-
+    quantity_picked: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
     # Relationships
     picking_list: Mapped["PickingList"] = relationship(back_populates="items")
     component: Mapped[Optional["Component"]] = relationship(back_populates="picking_list_items")

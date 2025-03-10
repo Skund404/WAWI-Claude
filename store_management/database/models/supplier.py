@@ -4,7 +4,6 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy import Column, Enum, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-# Fix relative imports to use absolute imports
 from database.models.base import AbstractBase, ValidationMixin, ModelValidationError
 from database.models.enums import SupplierStatus
 
@@ -22,6 +21,7 @@ class Supplier(AbstractBase, ValidationMixin):
         notes (Optional[str]): Additional notes about the supplier
     """
     __tablename__ = 'suppliers'
+    __table_args__ = {'extend_existing': True}  # Fix for duplicate table definition
 
     # SQLAlchemy 2.0 type annotated columns
     name: Mapped[str] = mapped_column(

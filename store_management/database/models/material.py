@@ -3,7 +3,7 @@
 This module defines the Material model and its subtypes for the leatherworking application.
 """
 from __future__ import annotations
-
+from sqlalchemy import Enum as SQLEnum
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy import Boolean, Enum, Float, ForeignKey, Integer, String
@@ -31,7 +31,10 @@ class Material(AbstractBase, ValidationMixin, CostingMixin):
     # Basic attributes
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(String(500))
-    material_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    material_type: Mapped[MaterialType] = mapped_column(
+        SQLEnum(MaterialType, native_enum=False),
+        nullable=False
+    )
     unit: Mapped[Optional[MeasurementUnit]] = mapped_column(Enum(MeasurementUnit))
     quality: Mapped[Optional[QualityGrade]] = mapped_column(Enum(QualityGrade))
 
@@ -58,12 +61,7 @@ class Material(AbstractBase, ValidationMixin, CostingMixin):
     )
 
     # ORM relationship to ComponentMaterial for direct access
-    component_materials = relationship(
-        "ComponentMaterial",
-        back_populates="material",
-        cascade="all, delete-orphan",
-        lazy="selectin"
-    )
+    component_materials = relationship("database.models.component_material.ComponentMaterial", back_populates="material")
 
     # Relationship to inventory
     inventory = relationship(

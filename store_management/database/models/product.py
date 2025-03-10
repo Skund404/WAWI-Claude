@@ -3,6 +3,7 @@
 This module defines the Product model for the leatherworking application.
 """
 from typing import Any, Dict, List, Optional
+from datetime import datetime
 
 from sqlalchemy import Boolean, Column, Enum, Float, ForeignKey, Integer, String, Table, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -11,7 +12,7 @@ from sqlalchemy.sql import expression
 from database.models.base import AbstractBase, CostingMixin, ModelValidationError, ValidationMixin
 from database.models.enums import ProjectType
 
-# Import the relationship table for product-pattern
+# Import the relationship table from the central location
 from database.models.relationship_tables import product_pattern_table
 
 

@@ -293,7 +293,7 @@ class ProjectType(Enum):
     GUITAR_STRAP = "guitar_strap"
     CUSTOM = "custom"
     OTHER = "other"
-    # Additional types for backward compatibility
+    ACCESSORY = 'accessory'
     PRODUCTION = "production"
     PROTOTYPE = "prototype"
     REPAIR = "repair"
