@@ -16,6 +16,7 @@ from typing import Any, Dict, List, Optional
 from di import resolve
 from gui.config import DATE_FORMAT
 from gui.theme import COLORS, get_status_style
+from gui.widgets.charts import create_bar_chart, create_pie_chart, create_line_chart
 
 logger = logging.getLogger(__name__)
 
@@ -42,10 +43,20 @@ class DashboardView:
         self.project_stats = {}
         self.sales_stats = {}
         self.purchase_stats = {}
+        self.analytics_summary = None
 
         # Track reference to charts/widgets that need updates
         self.kpi_widgets = {}
-        self.chart_frames = {}
+        self.chart_widgets = {}
+
+        # Container frames for sections
+        self.content_frame = None
+        self.left_column = None
+        self.right_column = None
+        self.bottom_frame = None
+
+        # Build the view
+        self.build()
 
         # Subscribe to events
         # Note: This would require an event bus implementation
@@ -53,37 +64,55 @@ class DashboardView:
 
     def build(self):
         """Build the dashboard view layout."""
-        # Create main dashboard layout
+        # Create main dashboard container with padding
         main_frame = ttk.Frame(self.parent)
-        main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=15, pady=15)
 
         # Create header
         self.create_header(main_frame)
 
-        # Create main content with 2-column layout
-        content_frame = ttk.Frame(main_frame)
-        content_frame.pack(fill=tk.BOTH, expand=True, pady=10)
+        # Create a canvas for scrolling
+        canvas = tk.Canvas(main_frame, bg=main_frame.cget("background"))
+        scrollbar = ttk.Scrollbar(main_frame, orient=tk.VERTICAL, command=canvas.yview)
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        # Create main content frame inside canvas for scrolling
+        self.content_frame = ttk.Frame(canvas)
+        canvas_frame = canvas.create_window((0, 0), window=self.content_frame, anchor=tk.NW)
+
+        # Configure canvas scrolling
+        self.content_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.bind("<Configure>", lambda e: canvas.itemconfig(canvas_frame, width=e.width))
+
+        # Create 2-column layout for content
+        columns_frame = ttk.Frame(self.content_frame)
+        columns_frame.pack(fill=tk.BOTH, expand=True, pady=10)
 
         # Left column - KPIs and Actions
-        left_column = ttk.Frame(content_frame)
-        left_column.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 5))
-
-        self.create_kpi_section(left_column)
-        self.create_quick_actions(left_column)
-        self.create_recent_activities(left_column)
+        self.left_column = ttk.Frame(columns_frame)
+        self.left_column.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 8))
 
         # Right column - Charts and Status
-        right_column = ttk.Frame(content_frame)
-        right_column.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(5, 0))
-
-        self.create_inventory_status_section(right_column)
-        self.create_project_status_section(right_column)
+        self.right_column = ttk.Frame(columns_frame)
+        self.right_column.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(8, 0))
 
         # Bottom section - spans both columns
-        bottom_frame = ttk.Frame(main_frame)
-        bottom_frame.pack(fill=tk.X, expand=False, pady=(10, 0))
+        self.bottom_frame = ttk.Frame(self.content_frame)
+        self.bottom_frame.pack(fill=tk.X, expand=False, pady=(10, 0))
 
-        self.create_upcoming_section(bottom_frame)
+        # Create dashboard sections
+        self.create_kpi_section(self.left_column)
+        self.create_quick_actions(self.left_column)
+        self.create_recent_activities(self.left_column)
+
+        self.create_inventory_status_section(self.right_column)
+        self.create_project_status_section(self.right_column)
+        self.create_analytics_section(self.right_column)
+
+        self.create_upcoming_section(self.bottom_frame)
 
         # Load the data
         self.load_data()
@@ -96,23 +125,48 @@ class DashboardView:
             parent: The parent widget
         """
         header_frame = ttk.Frame(parent)
-        header_frame.pack(fill=tk.X, expand=False, pady=(0, 10))
+        header_frame.pack(fill=tk.X, expand=False, pady=(0, 15))
+
+        # Left section - title and description
+        title_frame = ttk.Frame(header_frame)
+        title_frame.pack(side=tk.LEFT, fill=tk.Y)
 
         # Dashboard title
         title_label = ttk.Label(
-            header_frame,
-            text="Dashboard",
-            font=("", 18, "bold")
+            title_frame,
+            text=self.title,
+            font=("", 22, "bold")
         )
-        title_label.pack(side=tk.LEFT)
+        title_label.pack(side=tk.TOP, anchor=tk.W)
 
-        # Add refresh button
+        # Dashboard description
+        desc_label = ttk.Label(
+            title_frame,
+            text=self.description,
+            font=("", 11),
+            foreground=COLORS["text_secondary"]
+        )
+        desc_label.pack(side=tk.TOP, anchor=tk.W)
+
+        # Right section - action buttons
+        action_frame = ttk.Frame(header_frame)
+        action_frame.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # Analytics button
+        analytics_button = ttk.Button(
+            action_frame,
+            text="View Analytics",
+            command=self._open_analytics_dashboard
+        )
+        analytics_button.pack(side=tk.LEFT, padx=(0, 10))
+
+        # Refresh button
         refresh_button = ttk.Button(
-            header_frame,
+            action_frame,
             text="Refresh",
             command=self.refresh
         )
-        refresh_button.pack(side=tk.RIGHT)
+        refresh_button.pack(side=tk.LEFT)
 
     def create_kpi_section(self, parent):
         """
@@ -122,7 +176,7 @@ class DashboardView:
             parent: The parent widget
         """
         kpi_frame = ttk.LabelFrame(parent, text="Key Metrics")
-        kpi_frame.pack(fill=tk.X, expand=False, pady=(0, 10))
+        kpi_frame.pack(fill=tk.X, expand=False, pady=(0, 15))
 
         # Create grid layout for KPIs
         for i in range(2):
@@ -134,7 +188,9 @@ class DashboardView:
             "Monthly Sales",
             "$0.00",
             "0% vs last month",
-            row=0, column=0
+            row=0, column=0,
+            icon="sales",
+            trend=0  # No trend initially
         )
         self.kpi_widgets["sales"] = sales_frame
 
@@ -144,7 +200,9 @@ class DashboardView:
             "Active Projects",
             "0",
             "0 completed this month",
-            row=0, column=1
+            row=0, column=1,
+            icon="projects",
+            trend=0  # No trend initially
         )
         self.kpi_widgets["projects"] = projects_frame
 
@@ -154,7 +212,9 @@ class DashboardView:
             "Inventory Value",
             "$0.00",
             "0 items low stock",
-            row=1, column=0
+            row=1, column=0,
+            icon="inventory",
+            trend=0  # No trend initially
         )
         self.kpi_widgets["inventory"] = inventory_frame
 
@@ -164,11 +224,13 @@ class DashboardView:
             "Pending Orders",
             "0",
             "$0.00 pending receipt",
-            row=1, column=1
+            row=1, column=1,
+            icon="purchases",
+            trend=0  # No trend initially
         )
         self.kpi_widgets["purchases"] = purchases_frame
 
-    def _create_kpi_widget(self, parent, title, value, subtitle, row, column):
+    def _create_kpi_widget(self, parent, title, value, subtitle, row, column, icon=None, trend=0):
         """
         Create a single KPI widget.
 
@@ -179,29 +241,65 @@ class DashboardView:
             subtitle: KPI subtitle/context
             row: Grid row
             column: Grid column
+            icon: Optional icon identifier
+            trend: Trend indicator value (positive, negative, or zero)
 
         Returns:
             Frame containing the KPI widget references
         """
-        frame = ttk.Frame(parent, padding=10)
+        # Create main frame with border styling
+        frame = ttk.Frame(parent, padding=15, style="Card.TFrame")
         frame.grid(row=row, column=column, sticky="nsew", padx=5, pady=5)
+
+        # Header frame with title and icon
+        header_frame = ttk.Frame(frame)
+        header_frame.pack(fill=tk.X, expand=False, pady=(0, 8))
+
+        # Add icon (would be implemented with proper icon widget in real app)
+        if icon:
+            # Placeholder for icon
+            icon_frame = ttk.Label(
+                header_frame,
+                text="•",  # Placeholder icon
+                font=("", 14),
+                foreground=COLORS["primary"]
+            )
+            icon_frame.pack(side=tk.LEFT, padx=(0, 5))
 
         # Title
         title_label = ttk.Label(
-            frame,
+            header_frame,
             text=title,
-            font=("", 10),
+            font=("", 11),
             foreground=COLORS["text_secondary"]
         )
-        title_label.pack(anchor="w")
+        title_label.pack(side=tk.LEFT)
 
-        # Value
+        # Value with trend indicator
+        value_frame = ttk.Frame(frame)
+        value_frame.pack(fill=tk.X, expand=False)
+
         value_label = ttk.Label(
-            frame,
+            value_frame,
             text=value,
             font=("", 24, "bold")
         )
-        value_label.pack(anchor="w")
+        value_label.pack(side=tk.LEFT)
+
+        # Trend indicator
+        if trend != 0:
+            trend_symbol = "↑" if trend > 0 else "↓"
+            trend_color = COLORS["success"] if trend > 0 else COLORS["danger"]
+
+            trend_label = ttk.Label(
+                value_frame,
+                text=f" {trend_symbol}",
+                font=("", 16),
+                foreground=trend_color
+            )
+            trend_label.pack(side=tk.LEFT, padx=(5, 0), pady=(0, 5))
+        else:
+            trend_label = None
 
         # Subtitle
         subtitle_label = ttk.Label(
@@ -210,13 +308,14 @@ class DashboardView:
             font=("", 9),
             foreground=COLORS["text_secondary"]
         )
-        subtitle_label.pack(anchor="w")
+        subtitle_label.pack(anchor="w", pady=(5, 0))
 
         return {
             "frame": frame,
             "title": title_label,
             "value": value_label,
-            "subtitle": subtitle_label
+            "subtitle": subtitle_label,
+            "trend": trend_label
         }
 
     def create_quick_actions(self, parent):
@@ -227,7 +326,7 @@ class DashboardView:
             parent: The parent widget
         """
         actions_frame = ttk.LabelFrame(parent, text="Quick Actions")
-        actions_frame.pack(fill=tk.X, expand=False, pady=(0, 10))
+        actions_frame.pack(fill=tk.X, expand=False, pady=(0, 15))
 
         # Create grid layout for action buttons
         for i in range(2):
@@ -237,6 +336,7 @@ class DashboardView:
         new_project_btn = ttk.Button(
             actions_frame,
             text="New Project",
+            style="Accent.TButton",
             command=self.on_new_project
         )
         new_project_btn.grid(row=0, column=0, sticky="ew", padx=5, pady=5)
@@ -245,6 +345,7 @@ class DashboardView:
         new_sale_btn = ttk.Button(
             actions_frame,
             text="New Sale",
+            style="Accent.TButton",
             command=self.on_new_sale
         )
         new_sale_btn.grid(row=0, column=1, sticky="ew", padx=5, pady=5)
@@ -253,6 +354,7 @@ class DashboardView:
         add_inventory_btn = ttk.Button(
             actions_frame,
             text="Add Inventory",
+            style="Accent.TButton",
             command=self.on_add_inventory
         )
         add_inventory_btn.grid(row=1, column=0, sticky="ew", padx=5, pady=5)
@@ -261,6 +363,7 @@ class DashboardView:
         new_purchase_btn = ttk.Button(
             actions_frame,
             text="New Purchase",
+            style="Accent.TButton",
             command=self.on_new_purchase
         )
         new_purchase_btn.grid(row=1, column=1, sticky="ew", padx=5, pady=5)
@@ -273,7 +376,19 @@ class DashboardView:
             parent: The parent widget
         """
         activities_frame = ttk.LabelFrame(parent, text="Recent Activities")
-        activities_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+        activities_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
+
+        # Create header with view all button
+        header_frame = ttk.Frame(activities_frame, padding=(0, 0, 0, 5))
+        header_frame.pack(fill=tk.X, expand=False)
+
+        view_all_btn = ttk.Button(
+            header_frame,
+            text="View All",
+            style="Link.TButton",
+            command=self._view_all_activities
+        )
+        view_all_btn.pack(side=tk.RIGHT)
 
         # Create treeview for recent activities
         columns = ("timestamp", "type", "description")
@@ -310,6 +425,12 @@ class DashboardView:
         # Bind double-click to view activity details
         self.activities_tree.bind("<Double-1>", self.on_activity_selected)
 
+        # Configure tags for different activity types
+        self.activities_tree.tag_configure("inventory", foreground=COLORS["primary"])
+        self.activities_tree.tag_configure("project", foreground=COLORS["success"])
+        self.activities_tree.tag_configure("sale", foreground=COLORS["accent"])
+        self.activities_tree.tag_configure("purchase", foreground=COLORS["secondary"])
+
     def create_inventory_status_section(self, parent):
         """
         Create inventory status section with charts.
@@ -318,7 +439,19 @@ class DashboardView:
             parent: The parent widget
         """
         inventory_frame = ttk.LabelFrame(parent, text="Inventory Status")
-        inventory_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+        inventory_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
+
+        # Header frame with view details button
+        header_frame = ttk.Frame(inventory_frame, padding=(0, 0, 0, 5))
+        header_frame.pack(fill=tk.X, expand=False)
+
+        view_details_btn = ttk.Button(
+            header_frame,
+            text="View Details",
+            style="Link.TButton",
+            command=lambda: self._navigate_to_view("inventory")
+        )
+        view_details_btn.pack(side=tk.RIGHT)
 
         # Status overview frame
         status_frame = ttk.Frame(inventory_frame, padding=5)
@@ -326,33 +459,18 @@ class DashboardView:
 
         # Status indicators
         self.inventory_status = {
-            "in_stock": self._create_status_indicator(status_frame, "In Stock", "0", 0),
-            "low_stock": self._create_status_indicator(status_frame, "Low Stock", "0", 1),
-            "out_of_stock": self._create_status_indicator(status_frame, "Out of Stock", "0", 2)
+            "in_stock": self._create_status_indicator(status_frame, "In Stock", "0", 0, COLORS["success"]),
+            "low_stock": self._create_status_indicator(status_frame, "Low Stock", "0", 1, COLORS["warning"]),
+            "out_of_stock": self._create_status_indicator(status_frame, "Out of Stock", "0", 2, COLORS["danger"])
         }
 
-        # Placeholder for chart
-        chart_frame = ttk.Frame(inventory_frame, padding=5)
+        # Create chart container
+        chart_frame = ttk.Frame(inventory_frame, padding=5, height=200)
         chart_frame.pack(fill=tk.BOTH, expand=True)
-
-        # Add a label for now (in a real app, this would be a chart)
-        chart_placeholder = ttk.Label(
-            chart_frame,
-            text="Inventory Distribution by Category",
-            font=("", 12, "bold"),
-            anchor="center"
-        )
-        chart_placeholder.pack(pady=20)
-
-        # Placeholder for the chart
-        canvas = tk.Canvas(chart_frame, bg=COLORS["background"], height=150)
-        canvas.pack(fill=tk.BOTH, expand=True)
+        chart_frame.pack_propagate(False)  # Prevent shrinking
 
         # Save reference for updating
-        self.chart_frames["inventory"] = {
-            "frame": chart_frame,
-            "canvas": canvas
-        }
+        self.chart_widgets["inventory"] = chart_frame
 
     def create_project_status_section(self, parent):
         """
@@ -362,7 +480,19 @@ class DashboardView:
             parent: The parent widget
         """
         project_frame = ttk.LabelFrame(parent, text="Project Status")
-        project_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+        project_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
+
+        # Header frame with view details button
+        header_frame = ttk.Frame(project_frame, padding=(0, 0, 0, 5))
+        header_frame.pack(fill=tk.X, expand=False)
+
+        view_details_btn = ttk.Button(
+            header_frame,
+            text="View Details",
+            style="Link.TButton",
+            command=lambda: self._navigate_to_view("projects")
+        )
+        view_details_btn.pack(side=tk.RIGHT)
 
         # Status overview frame
         status_frame = ttk.Frame(project_frame, padding=5)
@@ -370,35 +500,75 @@ class DashboardView:
 
         # Status indicators
         self.project_status = {
-            "planning": self._create_status_indicator(status_frame, "Planning", "0", 0),
-            "in_progress": self._create_status_indicator(status_frame, "In Progress", "0", 1),
-            "completed": self._create_status_indicator(status_frame, "Completed", "0", 2)
+            "planning": self._create_status_indicator(status_frame, "Planning", "0", 0, COLORS["primary"]),
+            "in_progress": self._create_status_indicator(status_frame, "In Progress", "0", 1, COLORS["warning"]),
+            "completed": self._create_status_indicator(status_frame, "Completed", "0", 2, COLORS["success"])
         }
 
-        # Placeholder for chart
-        chart_frame = ttk.Frame(project_frame, padding=5)
+        # Create chart container
+        chart_frame = ttk.Frame(project_frame, padding=5, height=200)
         chart_frame.pack(fill=tk.BOTH, expand=True)
-
-        # Add a label for now (in a real app, this would be a chart)
-        chart_placeholder = ttk.Label(
-            chart_frame,
-            text="Project Timeline Overview",
-            font=("", 12, "bold"),
-            anchor="center"
-        )
-        chart_placeholder.pack(pady=20)
-
-        # Placeholder for the chart
-        canvas = tk.Canvas(chart_frame, bg=COLORS["background"], height=150)
-        canvas.pack(fill=tk.BOTH, expand=True)
+        chart_frame.pack_propagate(False)  # Prevent shrinking
 
         # Save reference for updating
-        self.chart_frames["projects"] = {
-            "frame": chart_frame,
-            "canvas": canvas
-        }
+        self.chart_widgets["projects"] = chart_frame
 
-    def _create_status_indicator(self, parent, label, value, column):
+    def create_analytics_section(self, parent):
+        """
+        Create analytics section with summary metrics and links.
+
+        Args:
+            parent: The parent widget
+        """
+        analytics_frame = ttk.LabelFrame(parent, text="Analytics Insights")
+        analytics_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
+
+        # Header frame with view all button
+        header_frame = ttk.Frame(analytics_frame, padding=(0, 0, 0, 5))
+        header_frame.pack(fill=tk.X, expand=False)
+
+        view_analytics_btn = ttk.Button(
+            header_frame,
+            text="View Analytics Dashboard",
+            style="Link.TButton",
+            command=self._open_analytics_dashboard
+        )
+        view_analytics_btn.pack(side=tk.RIGHT)
+
+        # Create content frame
+        content_frame = ttk.Frame(analytics_frame, padding=5)
+        content_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Placeholder for analytics metrics
+        self.analytics_metrics_frame = ttk.Frame(content_frame)
+        self.analytics_metrics_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Links to specific analytics views
+        links_frame = ttk.Frame(analytics_frame, padding=(5, 10, 5, 5))
+        links_frame.pack(fill=tk.X, expand=False)
+
+        # Create links for different analytics views
+        analytics_links = [
+            {"text": "Customer Analytics", "command": lambda: self._navigate_to_analytics("customer")},
+            {"text": "Profitability", "command": lambda: self._navigate_to_analytics("profitability")},
+            {"text": "Material Usage", "command": lambda: self._navigate_to_analytics("material_usage")},
+            {"text": "Project Metrics", "command": lambda: self._navigate_to_analytics("project_metrics")}
+        ]
+
+        for i, link in enumerate(analytics_links):
+            btn = ttk.Button(
+                links_frame,
+                text=link["text"],
+                style="Link.TButton",
+                command=link["command"]
+            )
+            btn.grid(row=0, column=i, padx=5)
+
+        # Configure grid columns to be equal width
+        for i in range(len(analytics_links)):
+            links_frame.columnconfigure(i, weight=1)
+
+    def _create_status_indicator(self, parent, label, value, column, color=None):
         """
         Create a status indicator with label and value.
 
@@ -407,6 +577,7 @@ class DashboardView:
             label: Status label
             value: Status value
             column: Grid column
+            color: Optional color for the value
 
         Returns:
             Dictionary with references to the indicator widgets
@@ -417,7 +588,8 @@ class DashboardView:
         value_label = ttk.Label(
             frame,
             text=value,
-            font=("", 18, "bold")
+            font=("", 18, "bold"),
+            foreground=color if color else COLORS["text"]
         )
         value_label.pack(anchor="center")
 
@@ -445,11 +617,29 @@ class DashboardView:
         upcoming_frame = ttk.LabelFrame(parent, text="Upcoming Deadlines")
         upcoming_frame.pack(fill=tk.X, expand=False)
 
-        # Create 4-column layout
-        for i in range(4):
-            upcoming_frame.columnconfigure(i, weight=1)
+        # Header frame with view all button
+        header_frame = ttk.Frame(upcoming_frame, padding=(0, 0, 0, 5))
+        header_frame.pack(fill=tk.X, expand=False)
 
-        # Placeholders for upcoming deadlines
+        view_calendar_btn = ttk.Button(
+            header_frame,
+            text="View Calendar",
+            style="Link.TButton",
+            command=self._view_calendar
+        )
+        view_calendar_btn.pack(side=tk.RIGHT)
+
+        # Create 4-column layout for cards
+        card_frame = ttk.Frame(upcoming_frame, padding=5)
+        card_frame.pack(fill=tk.X, expand=True)
+
+        for i in range(4):
+            card_frame.columnconfigure(i, weight=1)
+
+        # Container for deadline cards
+        self.deadline_cards_frame = card_frame
+
+        # Placeholders for upcoming deadlines - will be replaced with real data
         placeholders = [
             {"title": "Client Meeting", "date": "Tomorrow, 10:00 AM", "type": "Meeting"},
             {"title": "Belt Order Due", "date": "Mar 14, 2025", "type": "Order"},
@@ -459,7 +649,7 @@ class DashboardView:
 
         # Create deadline cards
         for i, item in enumerate(placeholders):
-            self._create_deadline_card(upcoming_frame, item, i)
+            self._create_deadline_card(self.deadline_cards_frame, item, i)
 
     def _create_deadline_card(self, parent, data, column):
         """
@@ -470,19 +660,34 @@ class DashboardView:
             data: Dictionary with deadline data
             column: Grid column
         """
-        frame = ttk.Frame(parent, padding=10)
+        # Create card with border and background
+        frame = ttk.Frame(parent, padding=10, style="Card.TFrame")
         frame.grid(row=0, column=column, sticky="nsew", padx=5, pady=5)
 
-        # Type badge
+        # Type badge with appropriate color
+        type_colors = {
+            "Meeting": (COLORS["primary_light"], COLORS["primary"]),
+            "Order": (COLORS["accent_light"], COLORS["accent"]),
+            "Delivery": (COLORS["success_light"], COLORS["success"]),
+            "Task": (COLORS["secondary_light"], COLORS["secondary"]),
+            "Deadline": (COLORS["warning_light"], COLORS["warning"])
+        }
+
+        bg_color, fg_color = type_colors.get(
+            data["type"],
+            (COLORS["light_grey"], COLORS["text_secondary"])
+        )
+
         type_frame = ttk.Frame(frame)
         type_frame.pack(fill=tk.X, anchor="w")
 
+        # Create badge with rounded corners (if possible in ttk)
         type_label = ttk.Label(
             type_frame,
             text=data["type"],
             padding=(5, 2),
-            background=COLORS["primary_light"],
-            foreground=COLORS["primary"]
+            background=bg_color,
+            foreground=fg_color
         )
         type_label.pack(side=tk.LEFT)
 
@@ -519,6 +724,9 @@ class DashboardView:
             # Load purchase statistics
             self.load_purchase_stats()
 
+            # Load analytics summary
+            self.load_analytics_summary()
+
             # Load recent activities
             self.load_recent_activities()
 
@@ -548,7 +756,8 @@ class DashboardView:
                         "Leather": 25,
                         "Hardware": 120,
                         "Supplies": 211
-                    }
+                    },
+                    "value_trend": 3.2  # Percentage change from previous period
                 }
                 return
 
@@ -559,7 +768,8 @@ class DashboardView:
                 "low_stock_count": inventory_service.get_low_stock_count(),
                 "out_of_stock_count": inventory_service.get_out_of_stock_count(),
                 "in_stock_count": inventory_service.get_in_stock_count(),
-                "categories": inventory_service.get_inventory_by_category()
+                "categories": inventory_service.get_inventory_by_category(),
+                "value_trend": inventory_service.get_inventory_value_trend()
             }
         except Exception as e:
             self.logger.error(f"Error loading inventory statistics: {str(e)}")
@@ -574,7 +784,8 @@ class DashboardView:
                     "Leather": 25,
                     "Hardware": 120,
                     "Supplies": 211
-                }
+                },
+                "value_trend": 3.2  # Percentage change from previous period
             }
 
     def load_project_stats(self):
@@ -588,6 +799,7 @@ class DashboardView:
                 self.project_stats = {
                     "active_count": 8,
                     "completed_this_month": 3,
+                    "completion_trend": 20.0,  # Percentage change from previous period
                     "by_status": {
                         "planning": 2,
                         "initial_consultation": 1,
@@ -596,17 +808,40 @@ class DashboardView:
                         "completed": 3,
                         "on_hold": 1
                     },
-                    "upcoming_deadlines": []
+                    "upcoming_deadlines": [
+                        {"title": "Messenger Bag (John)", "date": "Tomorrow", "type": "Deadline"},
+                        {"title": "Belt (Sarah)", "date": "Mar 15, 2025", "type": "Order"},
+                        {"title": "Wallet Prototype", "date": "Mar 17, 2025", "type": "Task"},
+                        {"title": "Client Meeting", "date": "Mar 18, 2025", "type": "Meeting"}
+                    ]
                 }
                 return
 
             # If service is available, get actual data
+            today = datetime.now()
+            start_of_month = today.replace(day=1)
+
+            completed_this_month = project_service.get_completed_project_count_for_period(
+                start_of_month, today
+            )
+
+            # Calculate completion trend
+            last_month_end = start_of_month - timedelta(days=1)
+            last_month_start = last_month_end.replace(day=1)
+
+            completed_last_month = project_service.get_completed_project_count_for_period(
+                last_month_start, last_month_end
+            )
+
+            if completed_last_month > 0:
+                completion_trend = ((completed_this_month - completed_last_month) / completed_last_month) * 100
+            else:
+                completion_trend = 0 if completed_this_month == 0 else 100
+
             self.project_stats = {
                 "active_count": project_service.get_active_project_count(),
-                "completed_this_month": project_service.get_completed_project_count_for_period(
-                    datetime.now().replace(day=1),
-                    datetime.now()
-                ),
+                "completed_this_month": completed_this_month,
+                "completion_trend": completion_trend,
                 "by_status": project_service.get_projects_by_status(),
                 "upcoming_deadlines": project_service.get_upcoming_deadlines(limit=5)
             }
@@ -616,6 +851,7 @@ class DashboardView:
             self.project_stats = {
                 "active_count": 8,
                 "completed_this_month": 3,
+                "completion_trend": 20.0,  # Percentage change from previous period
                 "by_status": {
                     "planning": 2,
                     "initial_consultation": 1,
@@ -624,7 +860,12 @@ class DashboardView:
                     "completed": 3,
                     "on_hold": 1
                 },
-                "upcoming_deadlines": []
+                "upcoming_deadlines": [
+                    {"title": "Messenger Bag (John)", "date": "Tomorrow", "type": "Deadline"},
+                    {"title": "Belt (Sarah)", "date": "Mar 15, 2025", "type": "Order"},
+                    {"title": "Wallet Prototype", "date": "Mar 17, 2025", "type": "Task"},
+                    {"title": "Client Meeting", "date": "Mar 18, 2025", "type": "Meeting"}
+                ]
             }
 
     def load_sales_stats(self):
@@ -639,7 +880,19 @@ class DashboardView:
                     "current_month": 4250.00,
                     "prev_month": 3980.00,
                     "percentage_change": 6.8,
-                    "recent_sales": []
+                    "recent_sales": [
+                        {"id": "1", "customer": "John Smith", "amount": 120.00,
+                         "date": datetime.now() - timedelta(hours=3)},
+                        {"id": "2", "customer": "Sarah Johnson", "amount": 350.00,
+                         "date": datetime.now() - timedelta(days=1)},
+                        {"id": "3", "customer": "Mike Williams", "amount": 85.00,
+                         "date": datetime.now() - timedelta(days=2)}
+                    ],
+                    "monthly_trend": [
+                        {"month": "Jan", "value": 3600},
+                        {"month": "Feb", "value": 3980},
+                        {"month": "Mar", "value": 4250}
+                    ]
                 }
                 return
 
@@ -664,13 +917,31 @@ class DashboardView:
             if prev_month_sales and prev_month_sales > 0:
                 percentage_change = ((current_month_sales - prev_month_sales) / prev_month_sales) * 100
             else:
-                percentage_change = 0
+                percentage_change = 0 if current_month_sales == 0 else 100
+
+            # Get monthly trend for the last 6 months
+            monthly_trend = []
+            for i in range(5, -1, -1):
+                month_date = today.replace(day=15) - timedelta(days=30 * i)
+                month_start = month_date.replace(day=1)
+                if month_date.month == today.month:
+                    month_end = today
+                else:
+                    next_month = month_date.replace(day=28) + timedelta(days=4)
+                    month_end = next_month.replace(day=1) - timedelta(days=1)
+
+                month_sales = sales_service.get_total_sales_for_period(month_start, month_end)
+                monthly_trend.append({
+                    "month": month_date.strftime("%b"),
+                    "value": month_sales
+                })
 
             self.sales_stats = {
                 "current_month": current_month_sales,
                 "prev_month": prev_month_sales,
                 "percentage_change": percentage_change,
-                "recent_sales": sales_service.get_recent_sales(limit=5)
+                "recent_sales": sales_service.get_recent_sales(limit=5),
+                "monthly_trend": monthly_trend
             }
         except Exception as e:
             self.logger.error(f"Error loading sales statistics: {str(e)}")
@@ -679,7 +950,19 @@ class DashboardView:
                 "current_month": 4250.00,
                 "prev_month": 3980.00,
                 "percentage_change": 6.8,
-                "recent_sales": []
+                "recent_sales": [
+                    {"id": "1", "customer": "John Smith", "amount": 120.00,
+                     "date": datetime.now() - timedelta(hours=3)},
+                    {"id": "2", "customer": "Sarah Johnson", "amount": 350.00,
+                     "date": datetime.now() - timedelta(days=1)},
+                    {"id": "3", "customer": "Mike Williams", "amount": 85.00,
+                     "date": datetime.now() - timedelta(days=2)}
+                ],
+                "monthly_trend": [
+                    {"month": "Jan", "value": 3600},
+                    {"month": "Feb", "value": 3980},
+                    {"month": "Mar", "value": 4250}
+                ]
             }
 
     def load_purchase_stats(self):
@@ -693,14 +976,37 @@ class DashboardView:
                 self.purchase_stats = {
                     "pending_count": 3,
                     "pending_amount": 1250.00,
-                    "recent_purchases": []
+                    "pending_trend": -15.0,  # Percentage change from previous period
+                    "recent_purchases": [
+                        {"id": "1", "supplier": "Buckleguy", "amount": 350.00,
+                         "date": datetime.now() - timedelta(days=2)},
+                        {"id": "2", "supplier": "Tandy Leather", "amount": 650.00,
+                         "date": datetime.now() - timedelta(days=5)},
+                        {"id": "3", "supplier": "Rocky Mountain Leather", "amount": 250.00,
+                         "date": datetime.now() - timedelta(days=7)}
+                    ]
                 }
                 return
+
+            # Get current pending purchase amount
+            pending_amount = purchase_service.get_pending_purchase_amount()
+
+            # Get previous period pending amount (30 days ago)
+            today = datetime.now()
+            one_month_ago = today - timedelta(days=30)
+            prev_pending_amount = purchase_service.get_pending_purchase_amount_at_date(one_month_ago)
+
+            # Calculate trend
+            if prev_pending_amount > 0:
+                pending_trend = ((pending_amount - prev_pending_amount) / prev_pending_amount) * 100
+            else:
+                pending_trend = 0 if pending_amount == 0 else 100
 
             # Get purchase statistics
             self.purchase_stats = {
                 "pending_count": purchase_service.get_pending_purchase_count(),
-                "pending_amount": purchase_service.get_pending_purchase_amount(),
+                "pending_amount": pending_amount,
+                "pending_trend": pending_trend,
                 "recent_purchases": purchase_service.get_recent_purchases(limit=5)
             }
         except Exception as e:
@@ -709,7 +1015,54 @@ class DashboardView:
             self.purchase_stats = {
                 "pending_count": 3,
                 "pending_amount": 1250.00,
-                "recent_purchases": []
+                "pending_trend": -15.0,  # Percentage change from previous period
+                "recent_purchases": [
+                    {"id": "1", "supplier": "Buckleguy", "amount": 350.00, "date": datetime.now() - timedelta(days=2)},
+                    {"id": "2", "supplier": "Tandy Leather", "amount": 650.00,
+                     "date": datetime.now() - timedelta(days=5)},
+                    {"id": "3", "supplier": "Rocky Mountain Leather", "amount": 250.00,
+                     "date": datetime.now() - timedelta(days=7)}
+                ]
+            }
+
+    def load_analytics_summary(self):
+        """Load analytics summary from analytics service."""
+        try:
+            # Use safe service access
+            try:
+                analytics_service = resolve("IAnalyticsDashboardService")
+
+                # Get analytics summary
+                today = datetime.now()
+                start_date = today - timedelta(days=90)  # Last 90 days
+                self.analytics_summary = analytics_service.get_analytics_summary(
+                    start_date=start_date,
+                    end_date=today
+                )
+            except Exception:
+                # If service is not available, use placeholder data
+                self.analytics_summary = {
+                    "total_revenue": 12500.00,
+                    "profit_margin": 32.5,
+                    "customer_retention": 78.4,
+                    "most_profitable_category": "Wallets",
+                    "resource_efficiency": 84.2,
+                    "most_used_material": "Vegetable Tanned Leather",
+                    "average_project_time": 8.5,  # days
+                    "bottleneck_area": "Edge Finishing"
+                }
+        except Exception as e:
+            self.logger.error(f"Error loading analytics summary: {str(e)}")
+            # Use placeholder data on error
+            self.analytics_summary = {
+                "total_revenue": 12500.00,
+                "profit_margin": 32.5,
+                "customer_retention": 78.4,
+                "most_profitable_category": "Wallets",
+                "resource_efficiency": 84.2,
+                "most_used_material": "Vegetable Tanned Leather",
+                "average_project_time": 8.5,  # days
+                "bottleneck_area": "Edge Finishing"
             }
 
     def load_recent_activities(self):
@@ -793,8 +1146,14 @@ class DashboardView:
         # Update project status indicators
         self._update_project_status()
 
+        # Update analytics section
+        self._update_analytics_section()
+
         # Update charts
         self._update_charts()
+
+        # Update upcoming deadlines
+        self._update_upcoming_deadlines()
 
     def _update_kpi_widgets(self):
         """Update KPI widgets with current statistics."""
@@ -802,8 +1161,16 @@ class DashboardView:
         sales_kpi = self.kpi_widgets["sales"]
         sales_kpi["value"].config(text=f"${self.sales_stats['current_month']:.2f}")
 
-        change_text = f"{self.sales_stats['percentage_change']:.1f}% vs last month"
+        # Update sales trend indicator
+        percent_change = self.sales_stats['percentage_change']
+        change_text = f"{abs(percent_change):.1f}% vs last month"
         sales_kpi["subtitle"].config(text=change_text)
+
+        # Update trend indicator
+        if "trend" in sales_kpi and sales_kpi["trend"]:
+            trend_symbol = "↑" if percent_change > 0 else "↓"
+            trend_color = COLORS["success"] if percent_change > 0 else COLORS["danger"]
+            sales_kpi["trend"].config(text=f" {trend_symbol}", foreground=trend_color)
 
         # Update Projects KPI
         projects_kpi = self.kpi_widgets["projects"]
@@ -812,6 +1179,13 @@ class DashboardView:
         completed_text = f"{self.project_stats['completed_this_month']} completed this month"
         projects_kpi["subtitle"].config(text=completed_text)
 
+        # Update trend indicator
+        if "completion_trend" in self.project_stats and "trend" in projects_kpi and projects_kpi["trend"]:
+            trend_value = self.project_stats["completion_trend"]
+            trend_symbol = "↑" if trend_value > 0 else "↓"
+            trend_color = COLORS["success"] if trend_value > 0 else COLORS["danger"]
+            projects_kpi["trend"].config(text=f" {trend_symbol}", foreground=trend_color)
+
         # Update Inventory KPI
         inventory_kpi = self.kpi_widgets["inventory"]
         inventory_kpi["value"].config(text=f"${self.inventory_stats['total_value']:.2f}")
@@ -819,12 +1193,27 @@ class DashboardView:
         low_stock_text = f"{self.inventory_stats['low_stock_count']} items low stock"
         inventory_kpi["subtitle"].config(text=low_stock_text)
 
+        # Update trend indicator
+        if "value_trend" in self.inventory_stats and "trend" in inventory_kpi and inventory_kpi["trend"]:
+            trend_value = self.inventory_stats["value_trend"]
+            trend_symbol = "↑" if trend_value > 0 else "↓"
+            trend_color = COLORS["success"] if trend_value > 0 else COLORS["danger"]
+            inventory_kpi["trend"].config(text=f" {trend_symbol}", foreground=trend_color)
+
         # Update Purchases KPI
         purchases_kpi = self.kpi_widgets["purchases"]
         purchases_kpi["value"].config(text=str(self.purchase_stats["pending_count"]))
 
         pending_text = f"${self.purchase_stats['pending_amount']:.2f} pending receipt"
         purchases_kpi["subtitle"].config(text=pending_text)
+
+        # Update trend indicator
+        if "pending_trend" in self.purchase_stats and "trend" in purchases_kpi and purchases_kpi["trend"]:
+            trend_value = self.purchase_stats["pending_trend"]
+            trend_symbol = "↑" if trend_value > 0 else "↓"
+            # For purchases, decreasing is actually good
+            trend_color = COLORS["success"] if trend_value < 0 else COLORS["danger"]
+            purchases_kpi["trend"].config(text=f" {trend_symbol}", foreground=trend_color)
 
     def _update_inventory_status(self):
         """Update inventory status indicators."""
@@ -860,170 +1249,207 @@ class DashboardView:
         completed_count = status_counts.get("completed", 0)
         self.project_status["completed"]["value"].config(text=str(completed_count))
 
+    def _update_analytics_section(self):
+        """Update analytics section with summary data."""
+        if not self.analytics_summary:
+            return
+
+        # Clear existing widgets
+        for widget in self.analytics_metrics_frame.winfo_children():
+            widget.destroy()
+
+        # Create grid layout for metrics
+        for i in range(2):  # 2 columns
+            self.analytics_metrics_frame.columnconfigure(i, weight=1)
+
+        # Key metrics to display
+        metrics = [
+            {"label": "Profit Margin", "value": f"{self.analytics_summary['profit_margin']}%", "row": 0, "col": 0},
+            {"label": "Customer Retention", "value": f"{self.analytics_summary['customer_retention']}%", "row": 0,
+             "col": 1},
+            {"label": "Resource Efficiency", "value": f"{self.analytics_summary['resource_efficiency']}%", "row": 1,
+             "col": 0},
+            {"label": "Avg. Project Time", "value": f"{self.analytics_summary['average_project_time']} days", "row": 1,
+             "col": 1}
+        ]
+
+        # Create metric labels
+        for metric in metrics:
+            frame = ttk.Frame(self.analytics_metrics_frame, padding=10)
+            frame.grid(row=metric["row"], column=metric["col"], sticky="nsew", padx=5, pady=5)
+
+            # Value
+            value_label = ttk.Label(
+                frame,
+                text=metric["value"],
+                font=("", 16, "bold")
+            )
+            value_label.pack(anchor="w")
+
+            # Label
+            label = ttk.Label(
+                frame,
+                text=metric["label"],
+                font=("", 10),
+                foreground=COLORS["text_secondary"]
+            )
+            label.pack(anchor="w")
+
     def _update_charts(self):
         """Update chart visualizations."""
-        # In a real application, we would update the charts with actual data
-        # For now, we'll just use placeholders
-
-        # Update inventory chart (placeholder)
         self._draw_inventory_chart()
-
-        # Update project chart (placeholder)
         self._draw_project_chart()
 
     def _draw_inventory_chart(self):
-        """Draw inventory distribution chart (placeholder)."""
-        canvas = self.chart_frames["inventory"]["canvas"]
+        """Draw inventory distribution chart."""
+        chart_frame = self.chart_widgets["inventory"]
 
-        # Clear canvas
-        canvas.delete("all")
+        # Clear existing chart
+        for widget in chart_frame.winfo_children():
+            widget.destroy()
 
         # Get categories data
         categories = self.inventory_stats.get("categories", {})
         if not categories:
             # Draw placeholder text
-            canvas.create_text(
-                canvas.winfo_width() // 2,
-                canvas.winfo_height() // 2,
+            ttk.Label(
+                chart_frame,
                 text="No inventory data available",
-                fill=COLORS["text_secondary"]
-            )
+                anchor="center"
+            ).pack(expand=True, fill=tk.BOTH)
             return
 
-        # In a real application, this would draw a proper chart
-        # For now, we'll draw a simple bar chart
+        # Prepare data for pie chart
+        chart_data = [
+            {
+                "label": category,
+                "value": count,
+                "color": COLORS.get(f"category_{i}", COLORS["primary"])
+            }
+            for i, (category, count) in enumerate(categories.items())
+        ]
 
-        # Set up chart dimensions
-        width = max(canvas.winfo_width(), 300)
-        height = max(canvas.winfo_height(), 100)
-        margin = 20
-        bar_width = 30
-        spacing = 10
-        max_height = height - 2 * margin
-
-        # Get max value for scaling
-        max_value = max(categories.values()) if categories else 1
-
-        # Draw bars
-        x = margin
-        for category, count in categories.items():
-            # Calculate bar height
-            bar_height = (count / max_value) * max_height
-            y1 = height - margin - bar_height
-            y2 = height - margin
-
-            # Draw bar
-            canvas.create_rectangle(
-                x, y1, x + bar_width, y2,
-                fill=COLORS["primary"],
-                outline=""
-            )
-
-            # Draw category label
-            canvas.create_text(
-                x + bar_width // 2,
-                y2 + 15,
-                text=category[:10],
-                fill=COLORS["text_secondary"],
-                angle=90,
-                anchor="w"
-            )
-
-            # Draw count
-            canvas.create_text(
-                x + bar_width // 2,
-                y1 - 10,
-                text=str(count),
-                fill=COLORS["text"]
-            )
-
-            # Move to next bar
-            x += bar_width + spacing
+        # Create pie chart
+        pie_chart = create_pie_chart(
+            chart_frame,
+            chart_data,
+            title="Inventory Distribution by Category",
+            width=chart_frame.winfo_width(),
+            height=chart_frame.winfo_height(),
+            show_legend=True,
+            show_percentage=True
+        )
+        pie_chart.pack(fill=tk.BOTH, expand=True)
 
     def _draw_project_chart(self):
-        """Draw project timeline overview chart (placeholder)."""
-        canvas = self.chart_frames["projects"]["canvas"]
+        """Draw project timeline overview chart."""
+        chart_frame = self.chart_widgets["projects"]
 
-        # Clear canvas
-        canvas.delete("all")
+        # Clear existing chart
+        for widget in chart_frame.winfo_children():
+            widget.destroy()
 
         # Get status data
         status_counts = self.project_stats.get("by_status", {})
         if not status_counts:
             # Draw placeholder text
-            canvas.create_text(
-                canvas.winfo_width() // 2,
-                canvas.winfo_height() // 2,
+            ttk.Label(
+                chart_frame,
                 text="No project data available",
-                fill=COLORS["text_secondary"]
-            )
+                anchor="center"
+            ).pack(expand=True, fill=tk.BOTH)
             return
 
-        # In a real application, this would draw a proper chart
-        # For now, we'll draw a simple pie chart
+        # If we have sales trend data, show that
+        if "monthly_trend" in self.sales_stats and self.sales_stats["monthly_trend"]:
+            # Create line chart for sales trend
+            monthly_data = self.sales_stats["monthly_trend"]
 
-        # Set up chart dimensions
-        width = max(canvas.winfo_width(), 300)
-        height = max(canvas.winfo_height(), 100)
-        center_x = width // 2
-        center_y = height // 2
-        radius = min(center_x, center_y) - 20
+            chart_data = [
+                {
+                    "label": item["month"],
+                    "value": item["value"],
+                    "color": COLORS["primary"]
+                }
+                for item in monthly_data
+            ]
 
-        # Calculate total for percentages
-        total = sum(status_counts.values())
+            # Create line chart
+            line_chart = create_line_chart(
+                chart_frame,
+                chart_data,
+                title="Monthly Sales Trend",
+                x_label="Month",
+                y_label="Sales ($)",
+                width=chart_frame.winfo_width(),
+                height=chart_frame.winfo_height(),
+                show_points=True,
+                area_fill=True
+            )
+            line_chart.pack(fill=tk.BOTH, expand=True)
+        else:
+            # Fall back to status distribution
+            chart_data = [
+                {
+                    "label": status,
+                    "value": count,
+                    "color": self._get_status_color(status)
+                }
+                for status, count in status_counts.items()
+            ]
 
-        # Colors for different statuses
+            # Create pie chart
+            pie_chart = create_pie_chart(
+                chart_frame,
+                chart_data,
+                title="Project Status Distribution",
+                width=chart_frame.winfo_width(),
+                height=chart_frame.winfo_height(),
+                show_legend=True,
+                show_percentage=True
+            )
+            pie_chart.pack(fill=tk.BOTH, expand=True)
+
+    def _get_status_color(self, status):
+        """
+        Get color for status visualization.
+
+        Args:
+            status: The status name
+
+        Returns:
+            Color hex code
+        """
         status_colors = {
-            "initial_consultation": "#4CAF50",
-            "design_phase": "#8BC34A",
-            "pattern_development": "#CDDC39",
-            "material_selection": "#FFEB3B",
-            "cutting": "#FFC107",
-            "assembly": "#FF9800",
-            "stitching": "#FF5722",
-            "quality_check": "#795548",
-            "completed": "#607D8B",
-            "on_hold": "#9E9E9E",
-            "cancelled": "#F44336",
-            "planning": "#2196F3",
-            "in_progress": "#FF9800"
+            "initial_consultation": COLORS.get("success", "#4CAF50"),
+            "design_phase": COLORS.get("success_light", "#8BC34A"),
+            "pattern_development": COLORS.get("primary", "#CDDC39"),
+            "material_selection": COLORS.get("primary_light", "#FFEB3B"),
+            "cutting": COLORS.get("warning", "#FFC107"),
+            "assembly": COLORS.get("warning", "#FF9800"),
+            "stitching": COLORS.get("warning", "#FF5722"),
+            "quality_check": COLORS.get("accent", "#795548"),
+            "completed": COLORS.get("success", "#607D8B"),
+            "on_hold": COLORS.get("secondary", "#9E9E9E"),
+            "cancelled": COLORS.get("danger", "#F44336"),
+            "planning": COLORS.get("primary", "#2196F3"),
+            "in_progress": COLORS.get("warning", "#FF9800")
         }
 
-        # Draw segments
-        start_angle = 0
-        for status, count in status_counts.items():
-            # Calculate angle
-            angle = (count / total) * 360
-            end_angle = start_angle + angle
+        return status_colors.get(status, COLORS.get("primary", "#2196F3"))
 
-            # Get color
-            color = status_colors.get(status, "#2196F3")
+    def _update_upcoming_deadlines(self):
+        """Update upcoming deadlines with real data."""
+        # Clear existing cards
+        for widget in self.deadline_cards_frame.winfo_children():
+            widget.destroy()
 
-            # Draw segment
-            canvas.create_arc(
-                center_x - radius, center_y - radius,
-                center_x + radius, center_y + radius,
-                start=start_angle, extent=angle,
-                fill=color, outline="white", width=1
-            )
+        # Get upcoming deadlines from project statistics
+        deadlines = self.project_stats.get("upcoming_deadlines", [])
 
-            # Calculate text position
-            # Position text in the middle of the segment
-            text_angle = math.radians((start_angle + end_angle) / 2)
-            text_radius = radius * 0.7
-            text_x = center_x + text_radius * math.cos(text_angle)
-            text_y = center_y + text_radius * math.sin(text_angle)
-
-            # Draw count if segment is large enough
-            if angle > 30:
-                canvas.create_text(
-                    text_x, text_y,
-                    text=str(count),
-                    fill="white"
-                )
-
-            # Move to next segment
-            start_angle = end_angle
+        # Create deadline cards
+        for i, item in enumerate(deadlines[:4]):  # Show up to 4 deadlines
+            self._create_deadline_card(self.deadline_cards_frame, item, i)
 
     def on_activity_selected(self, event):
         """
@@ -1039,23 +1465,13 @@ class DashboardView:
 
         # Get item tags (source and id)
         tags = self.activities_tree.item(selected_item, "tags")
-        if not tags or len(tags) < 2:
+        if not tags or len(tags) < 1:
             return
 
-        source, item_id = tags
+        source = tags[0]
 
         # Navigate to the appropriate view based on the source
-        # Get the main window
-        main_window = self.parent.winfo_toplevel()
-
-        if source == "inventory":
-            main_window.show_view("inventory")
-        elif source == "project":
-            main_window.show_view("projects")
-        elif source == "sale":
-            main_window.show_view("sales")
-        elif source == "purchase":
-            main_window.show_view("purchases")
+        self._navigate_to_view(source)
 
     def on_new_project(self):
         """Handle new project action."""
@@ -1072,14 +1488,55 @@ class DashboardView:
     def on_add_inventory(self):
         """Handle add inventory action."""
         # Navigate to inventory view
-        main_window = self.parent.winfo_toplevel()
-        main_window.show_view("inventory")
+        self._navigate_to_view("inventory")
 
     def on_new_purchase(self):
         """Handle new purchase action."""
         # Navigate to purchases view and trigger new purchase action
         main_window = self.parent.winfo_toplevel()
         main_window.create_new_purchase()
+
+    def _navigate_to_view(self, view_name):
+        """
+        Navigate to a specific view.
+
+        Args:
+            view_name: Name of the view to navigate to
+        """
+        main_window = self.parent.winfo_toplevel()
+        main_window.show_view(view_name)
+
+    def _navigate_to_analytics(self, view_name):
+        """
+        Navigate to a specific analytics view.
+
+        Args:
+            view_name: Name of the analytics view to navigate to
+        """
+        main_window = self.parent.winfo_toplevel()
+
+        # Check if the main window has a show_analytics_view method
+        if hasattr(main_window, "show_analytics_view"):
+            main_window.show_analytics_view(view_name)
+        else:
+            # Fallback to generic view navigation
+            self._navigate_to_view("analytics")
+
+    def _open_analytics_dashboard(self):
+        """Open the analytics dashboard."""
+        self._navigate_to_analytics("dashboard")
+
+    def _view_all_activities(self):
+        """View all activities."""
+        # This would navigate to an activities log view if one existed
+        # For now, just log that this was clicked
+        self.logger.info("View all activities clicked")
+
+    def _view_calendar(self):
+        """View calendar with all deadlines and events."""
+        # This would navigate to a calendar view if one existed
+        # For now, just log that this was clicked
+        self.logger.info("View calendar clicked")
 
     def refresh(self):
         """Refresh the dashboard data."""

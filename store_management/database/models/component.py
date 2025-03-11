@@ -43,15 +43,23 @@ class Component(AbstractBase, ValidationMixin):
         nullable=True
     )
 
-    # Relationship with materials through junction table
-    component_materials = relationship("database.models.component_material.ComponentMaterial", back_populates="component")
-
     # Direct relationship to the junction table
     component_materials = relationship(
         "database.models.component_material.ComponentMaterial",
         back_populates="component",
         cascade="all, delete-orphan"
     )
+
+    # Many-to-many relationship with materials
+    materials = relationship(
+        "Material",
+        secondary="component_materials",
+        back_populates="components",
+        lazy="selectin"
+    )
+
+
+
 
     # Uncommented the picking_list_items relationship to match PickingListItem
     picking_list_items = relationship(

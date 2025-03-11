@@ -65,6 +65,14 @@ class Project(AbstractBase, ValidationMixin):
         lazy="selectin"
     )
 
+    # New relationship for tool checkouts
+    tool_checkouts = relationship(
+        "ToolCheckout",
+        back_populates="project",
+        cascade="all, delete-orphan",
+        lazy="selectin"
+    )
+
     # picking_lists will be added later if needed
 
     def __init__(self, **kwargs):

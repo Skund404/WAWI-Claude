@@ -2,48 +2,59 @@
     "suppliers": [
         {
             "name": "Wickett & Craig",
-            "contact_name": "Thomas Wilson",
             "contact_email": "sales@wickettandcraig.com",
-            "phone": "555-789-1234",
+            "contact_phone": "555-789-1234",
             "address": "120 Tannery Lane, Curwensville, PA 16833",
             "status": "ACTIVE",
-            "notes": "Premium vegetable tanned leather supplier, specializing in bridle and harness leathers"
+            "notes": "Premium vegetable tanned leather supplier, specializing in bridle and harness leathers. Contact: Thomas Wilson"
         },
         {
             "name": "Buckleguy Hardware",
-            "contact_name": "Sarah Johnson",
             "contact_email": "orders@buckleguy.com",
-            "phone": "555-456-7890",
+            "contact_phone": "555-456-7890",
             "address": "45 Hardware Blvd, Boston, MA 02108",
             "status": "ACTIVE",
-            "notes": "Specialized leather hardware supplier with premium solid brass fittings"
+            "notes": "Specialized leather hardware supplier with premium solid brass fittings. Contact: Sarah Johnson"
         },
         {
             "name": "Maine Supplies Company",
-            "contact_name": "Michael Taylor",
             "contact_email": "info@mainethread.com",
-            "phone": "555-123-4567",
+            "contact_phone": "555-123-4567",
             "address": "68 Industrial Way, Lewiston, ME 04240",
             "status": "ACTIVE",
-            "notes": "High-quality waxed thread for leather stitching"
+            "notes": "High-quality waxed thread for leather stitching. Contact: Michael Taylor"
         },
         {
             "name": "Horween Leather Co.",
-            "contact_name": "Elizabeth Davis",
             "contact_email": "sales@horween.com",
-            "phone": "555-987-6543",
+            "contact_phone": "555-987-6543",
             "address": "2015 N. Elston Ave, Chicago, IL 60614",
             "status": "ACTIVE",
-            "notes": "Premium Chromexcel and Shell Cordovan leather supplier"
+            "notes": "Premium Chromexcel and Shell Cordovan leather supplier. Contact: Elizabeth Davis"
         },
         {
             "name": "Weaver Leathercraft Supply",
-            "contact_name": "Robert Chen",
             "contact_email": "support@weaverleathercraft.com",
-            "phone": "555-234-5678",
+            "contact_phone": "555-234-5678",
             "address": "3900 Weaver Rd, Mt. Hope, OH 44660",
             "status": "ACTIVE",
-            "notes": "Comprehensive leatherworking tools and supplies"
+            "notes": "Comprehensive leatherworking tools and supplies. Contact: Robert Chen"
+        },
+        {
+            "name": "Tandy Leather",
+            "contact_email": "wholesale@tandyleather.com",
+            "contact_phone": "555-321-9876",
+            "address": "1900 SE Loop 820, Fort Worth, TX 76140",
+            "status": "ACTIVE",
+            "notes": "Large retail and wholesale leather supplier with nationwide locations. Contact: Jennifer Smith"
+        },
+        {
+            "name": "Rocky Mountain Leather Supply",
+            "contact_email": "orders@rmleathersupply.com",
+            "contact_phone": "555-444-5555",
+            "address": "251 N. Main St, Bountiful, UT 84010",
+            "status": "ACTIVE",
+            "notes": "High-quality leathercraft tools and specialty materials. Contact: David Miller"
         }
     ],
     "customers": [
@@ -54,8 +65,8 @@
             "phone": "555-111-2222",
             "address": "789 Crafting Street, Portland, OR 97210",
             "status": "ACTIVE",
-            "customer_tier": "STANDARD",
-            "customer_source": "WEBSITE",
+            "tier": "STANDARD",
+            "source": "WEBSITE",
             "notes": "Repeat customer, prefers vegetable tanned products"
         },
         {
@@ -65,8 +76,8 @@
             "phone": "555-333-4444",
             "address": "101 Artisan Avenue, Seattle, WA 98104",
             "status": "ACTIVE",
-            "customer_tier": "PREMIUM",
-            "customer_source": "REFERRAL",
+            "tier": "PREMIUM",
+            "source": "REFERRAL",
             "notes": "Orders custom pieces quarterly, prefers Horween leather"
         },
         {
@@ -76,8 +87,8 @@
             "phone": "555-555-6666",
             "address": "222 Maker Street, San Francisco, CA 94110",
             "status": "ACTIVE",
-            "customer_tier": "VIP",
-            "customer_source": "TRADE_SHOW",
+            "tier": "VIP",
+            "source": "TRADE_SHOW",
             "notes": "Professional saddle maker, bulk orders"
         },
         {
@@ -87,8 +98,8 @@
             "phone": "555-777-8888",
             "address": "333 Design Drive, Austin, TX 78704",
             "status": "ACTIVE",
-            "customer_tier": "STANDARD",
-            "customer_source": "WEBSITE",
+            "tier": "STANDARD",
+            "source": "WEBSITE",
             "notes": "New to leatherworking, attending our beginner workshop"
         },
         {
@@ -98,194 +109,437 @@
             "phone": "555-999-0000",
             "address": "444 Creative Court, Chicago, IL 60607",
             "status": "ACTIVE",
-            "customer_tier": "PREMIUM",
-            "customer_source": "SOCIAL_MEDIA",
+            "tier": "PREMIUM",
+            "source": "SOCIAL_MEDIA",
             "notes": "Fashion designer, orders exotic leathers for accessories"
+        },
+        {
+            "first_name": "Frank",
+            "last_name": "Rodriguez",
+            "email": "frank.rodriguez@example.com",
+            "phone": "555-222-3333",
+            "address": "555 Workshop Way, Denver, CO 80202",
+            "status": "ACTIVE",
+            "tier": "STANDARD",
+            "source": "REFERRAL",
+            "notes": "Makes custom motorcycle accessories, frequent hardware buyer"
+        },
+        {
+            "first_name": "Grace",
+            "last_name": "Kim",
+            "email": "grace.kim@example.com",
+            "phone": "555-444-5555",
+            "address": "666 Craft Circle, New York, NY 10012",
+            "status": "ACTIVE",
+            "tier": "VIP",
+            "source": "TRADE_SHOW",
+            "notes": "Boutique store owner, places wholesale orders for retail"
         }
     ],
     "leathers": [
         {
             "name": "Wickett & Craig English Bridle",
-            "type": "VEGETABLE_TANNED",
+            "material_type": "LEATHER",
             "quality": "PREMIUM",
             "color": "Chestnut",
             "thickness": 3.5,
-            "origin": "USA",
-            "cost_per_unit": 14.99,
-            "unit": "SQUARE_FOOT"
+            "supplier_id": 1,
+            "cost_price": 14.99,
+            "unit": "SQUARE_FOOT",
+            "leather_type": "VEGETABLE_TANNED",
+            "is_full_hide": false,
+            "area": 22.5
         },
         {
             "name": "Horween Chromexcel",
-            "type": "OIL_PULL_UP",
+            "material_type": "LEATHER",
             "quality": "PREMIUM",
             "color": "Brown",
             "thickness": 2.0,
-            "origin": "USA",
-            "cost_per_unit": 12.50,
-            "unit": "SQUARE_FOOT"
+            "supplier_id": 4,
+            "cost_price": 12.50,
+            "unit": "SQUARE_FOOT",
+            "leather_type": "OIL_TANNED",
+            "is_full_hide": false,
+            "area": 24.0
         },
         {
             "name": "Horween Shell Cordovan",
-            "type": "SHELL_CORDOVAN",
+            "material_type": "LEATHER",
             "quality": "PREMIUM",
             "color": "Color #8",
             "thickness": 1.5,
-            "origin": "USA",
-            "cost_per_unit": 75.00,
-            "unit": "SQUARE_FOOT"
+            "supplier_id": 4,
+            "cost_price": 75.00,
+            "unit": "SQUARE_FOOT",
+            "leather_type": "SHELL_CORDOVAN",
+            "is_full_hide": false,
+            "area": 18.0
         },
         {
             "name": "Chevre Goatskin",
-            "type": "CHROME_TANNED",
+            "material_type": "LEATHER",
             "quality": "PREMIUM",
             "color": "Navy",
             "thickness": 1.0,
-            "origin": "France",
-            "cost_per_unit": 18.75,
-            "unit": "SQUARE_FOOT"
+            "supplier_id": 5,
+            "cost_price": 18.75,
+            "unit": "SQUARE_FOOT",
+            "leather_type": "CHROME_TANNED",
+            "is_full_hide": false,
+            "area": 12.0
         },
         {
             "name": "Pueblo Veg Tan",
-            "type": "VEGETABLE_TANNED",
+            "material_type": "LEATHER",
             "quality": "PREMIUM",
             "color": "Olive",
             "thickness": 2.2,
-            "origin": "Italy",
-            "cost_per_unit": 16.50,
-            "unit": "SQUARE_FOOT"
+            "supplier_id": 7,
+            "cost_price": 16.50,
+            "unit": "SQUARE_FOOT",
+            "leather_type": "VEGETABLE_TANNED",
+            "is_full_hide": false,
+            "area": 20.0
+        },
+        {
+            "name": "Hermann Oak Veg Tan Tooling",
+            "material_type": "LEATHER",
+            "quality": "PREMIUM",
+            "color": "Natural",
+            "thickness": 8.0,
+            "supplier_id": 5,
+            "cost_price": 11.25,
+            "unit": "SQUARE_FOOT",
+            "leather_type": "VEGETABLE_TANNED",
+            "is_full_hide": true,
+            "area": 22.0
         }
     ],
     "hardware": [
         {
             "name": "Solid Brass Buckle",
-            "type": "BUCKLE",
-            "material": "BRASS",
+            "material_type": "HARDWARE",
+            "hardware_type": "BUCKLE",
+            "hardware_material": "BRASS",
             "finish": "POLISHED",
             "size": "1.5 inch",
-            "cost_per_unit": 5.75,
+            "cost_price": 5.75,
             "unit": "PIECE",
-            "quality": "PREMIUM"
+            "quality": "PREMIUM",
+            "supplier_id": 2
         },
         {
             "name": "Double Cap Rivets",
-            "type": "RIVET",
-            "material": "BRASS",
+            "material_type": "HARDWARE",
+            "hardware_type": "RIVET",
+            "hardware_material": "BRASS",
             "finish": "ANTIQUE",
             "size": "Medium 9mm",
-            "cost_per_unit": 0.35,
+            "cost_price": 0.35,
             "unit": "PIECE",
-            "quality": "PREMIUM"
+            "quality": "PREMIUM",
+            "supplier_id": 2
         },
         {
             "name": "Heavy Duty Magnetic Snap",
-            "type": "MAGNETIC_CLOSURE",
-            "material": "NICKEL",
+            "material_type": "HARDWARE",
+            "hardware_type": "MAGNETIC_CLOSURE",
+            "hardware_material": "NICKEL",
             "finish": "BRUSHED",
             "size": "20mm",
-            "cost_per_unit": 2.25,
+            "cost_price": 2.25,
             "unit": "PIECE",
-            "quality": "PREMIUM"
+            "quality": "PREMIUM",
+            "supplier_id": 2
         },
         {
             "name": "Cast D-Rings",
-            "type": "D_RING",
-            "material": "STAINLESS_STEEL",
+            "material_type": "HARDWARE",
+            "hardware_type": "D_RING",
+            "hardware_material": "STAINLESS_STEEL",
             "finish": "POLISHED",
             "size": "1 inch",
-            "cost_per_unit": 1.50,
+            "cost_price": 1.50,
             "unit": "PIECE",
-            "quality": "PREMIUM"
+            "quality": "PREMIUM",
+            "supplier_id": 2
         },
         {
             "name": "Western Flower Concho",
-            "type": "CONCHO",
-            "material": "SILVER",
+            "material_type": "HARDWARE",
+            "hardware_type": "CONCHO",
+            "hardware_material": "SILVER",
             "finish": "ANTIQUE",
             "size": "1.25 inch",
-            "cost_per_unit": 6.25,
+            "cost_price": 6.25,
             "unit": "PIECE",
-            "quality": "PREMIUM"
+            "quality": "PREMIUM",
+            "supplier_id": 5
+        },
+        {
+            "name": "Roller Bar Buckle",
+            "material_type": "HARDWARE",
+            "hardware_type": "BUCKLE",
+            "hardware_material": "BRASS",
+            "finish": "ANTIQUE",
+            "size": "1.25 inch",
+            "cost_price": 7.50,
+            "unit": "PIECE",
+            "quality": "PREMIUM",
+            "supplier_id": 2
         }
     ],
     "supplies": [
         {
             "name": "Tiger Thread",
-            "type": "SUPPLIES",
+            "material_type": "SUPPLIES",
             "color": "Natural",
-            "thickness": 0.6,
+            "thickness": "0.6mm",
             "material_composition": "Polyester",
-            "cost_per_unit": 24.99,
+            "cost_price": 24.99,
             "unit": "PIECE",
-            "quality": "PREMIUM"
+            "quality": "PREMIUM",
+            "supplier_id": 3,
+            "supplies_type": "THREAD"
         },
         {
             "name": "Pure Beeswax",
-            "type": "WAX",
+            "material_type": "SUPPLIES",
             "color": "Yellow",
             "material_composition": "100% Beeswax",
-            "cost_per_unit": 9.75,
+            "cost_price": 9.75,
             "unit": "PIECE",
-            "quality": "PREMIUM"
+            "quality": "PREMIUM",
+            "supplier_id": 5,
+            "supplies_type": "WAX"
         },
         {
             "name": "Barge Cement",
-            "type": "ADHESIVE",
+            "material_type": "SUPPLIES",
             "color": "Tan",
             "material_composition": "Neoprene",
-            "cost_per_unit": 14.50,
+            "cost_price": 14.50,
             "unit": "PIECE",
-            "quality": "PREMIUM"
+            "quality": "PREMIUM",
+            "supplier_id": 5,
+            "supplies_type": "ADHESIVE"
         },
         {
             "name": "Uniters Edge Paint",
-            "type": "EDGE_PAINT",
+            "material_type": "SUPPLIES",
             "color": "Dark Brown",
             "material_composition": "Acrylic",
-            "cost_per_unit": 22.95,
+            "cost_price": 22.95,
             "unit": "PIECE",
-            "quality": "PREMIUM"
+            "quality": "PREMIUM",
+            "supplier_id": 7,
+            "supplies_type": "EDGE_PAINT"
         },
         {
             "name": "Soft Pigskin Lining",
-            "type": "LINING",
+            "material_type": "SUPPLIES",
             "color": "Tan",
-            "thickness": 0.5,
+            "thickness": "0.5mm",
             "material_composition": "Pigskin",
-            "cost_per_unit": 8.50,
+            "cost_price": 8.50,
             "unit": "SQUARE_FOOT",
-            "quality": "PREMIUM"
+            "quality": "PREMIUM",
+            "supplier_id": 4,
+            "supplies_type": "LINING"
+        },
+        {
+            "name": "Eco-Flo Leather Dye",
+            "material_type": "SUPPLIES",
+            "color": "Mahogany",
+            "material_composition": "Water-based dye",
+            "cost_price": 12.25,
+            "unit": "PIECE",
+            "quality": "PROFESSIONAL",
+            "supplier_id": 6,
+            "supplies_type": "DYE"
         }
     ],
     "tools": [
         {
             "name": "Kevin Lee French Pricking Irons",
             "description": "3mm spacing, 2+8 teeth set for precision stitching",
-            "category": "PUNCHING",
-            "cost": 149.95
+            "tool_category": "PUNCHING",
+            "brand": "Kevin Lee",
+            "model": "French Pricking Iron Set",
+            "supplier_id": 5,
+            "purchase_price": 149.95,
+            "purchase_date": "2024-09-01",
+            "maintenance_interval": 180,
+            "status": "IN_STOCK"
         },
         {
             "name": "Japanese Skiving Knife",
             "description": "Blue steel #2 leather skiving knife with ebony handle",
-            "category": "CUTTING",
-            "cost": 85.00
+            "tool_category": "CUTTING",
+            "brand": "Tōyokuni",
+            "model": "Master Skiver",
+            "supplier_id": 5,
+            "purchase_price": 85.00,
+            "purchase_date": "2024-08-15",
+            "maintenance_interval": 90,
+            "status": "IN_STOCK"
         },
         {
             "name": "Vergez Blanchard Edge Beveler",
             "description": "Size 2 professional edge beveling tool",
-            "category": "EDGE_WORK",
-            "cost": 42.75
+            "tool_category": "EDGE_WORK",
+            "brand": "Vergez Blanchard",
+            "model": "Size 2 Edge Beveler",
+            "supplier_id": 2,
+            "purchase_price": 42.75,
+            "purchase_date": "2024-07-22",
+            "maintenance_interval": 120,
+            "status": "IN_STOCK"
         },
         {
             "name": "Craftool Pro Stitching Pony",
             "description": "Heavy duty stitching clamp with wooden jaws",
-            "category": "STITCHING",
-            "cost": 89.95
+            "tool_category": "STITCHING",
+            "brand": "Tandy Leather",
+            "model": "Pro Stitching Pony",
+            "supplier_id": 6,
+            "purchase_price": 89.95,
+            "purchase_date": "2024-06-10",
+            "maintenance_interval": 365,
+            "status": "IN_STOCK"
         },
         {
             "name": "KS Blade Punch Set",
             "description": "Set of 6 precision round hole punches in graduated sizes",
-            "category": "PUNCHING",
-            "cost": 68.50
+            "tool_category": "PUNCHING",
+            "brand": "KS Blade",
+            "model": "Graduated Punch Set",
+            "supplier_id": 5,
+            "purchase_price": 68.50,
+            "purchase_date": "2024-09-10",
+            "maintenance_interval": 180,
+            "status": "IN_STOCK"
+        },
+        {
+            "name": "Master Round Knife",
+            "description": "Professional grade round knife for cutting leather",
+            "tool_category": "CUTTING",
+            "brand": "Chartermade",
+            "model": "Round Knife",
+            "supplier_id": 2,
+            "purchase_price": 135.00,
+            "purchase_date": "2024-07-15",
+            "maintenance_interval": 60,
+            "status": "IN_STOCK"
+        },
+        {
+            "name": "Leather Burnisher",
+            "description": "Electric burnisher for finishing edges",
+            "tool_category": "EDGE_WORK",
+            "brand": "Dremel",
+            "model": "Leather Burnisher Attachment",
+            "supplier_id": 5,
+            "purchase_price": 95.50,
+            "purchase_date": "2024-05-20",
+            "maintenance_interval": 90,
+            "status": "IN_STOCK"
+        },
+        {
+            "name": "Leather Hole Punch Pliers",
+            "description": "Revolving hole punch pliers with 6 sizes",
+            "tool_category": "PUNCHING",
+            "brand": "CS Osborne",
+            "model": "Revolving Punch",
+            "supplier_id": 6,
+            "purchase_price": 38.99,
+            "purchase_date": "2024-08-05",
+            "maintenance_interval": 120,
+            "status": "IN_STOCK"
+        },
+        {
+            "name": "Wing Divider",
+            "description": "Precision measuring and marking tool",
+            "tool_category": "MEASURING",
+            "brand": "Starrett",
+            "model": "Professional Wing Divider",
+            "supplier_id": 7,
+            "purchase_price": 45.75,
+            "purchase_date": "2024-07-12",
+            "maintenance_interval": 180,
+            "status": "IN_STOCK"
+        }
+    ],
+    "tool_maintenance": [
+        {
+            "tool_id": 2,
+            "maintenance_type": "Sharpening",
+            "maintenance_date": "2024-09-15",
+            "performed_by": "Robert Chen",
+            "cost": 25.00,
+            "status": "COMPLETED",
+            "details": "Sharpened with 1000, 5000, and 8000 grit stones, polished edge",
+            "parts_used": "None",
+            "condition_before": "Dull edge, minor nicks",
+            "condition_after": "Razor sharp, nicks removed"
+        },
+        {
+            "tool_id": 3,
+            "maintenance_type": "Cleaning and Oiling",
+            "maintenance_date": "2024-09-01",
+            "performed_by": "Sarah Johnson",
+            "cost": 15.00,
+            "status": "COMPLETED",
+            "details": "Thoroughly cleaned and oiled internal mechanism",
+            "parts_used": "Tool oil",
+            "condition_before": "Stiff operation, leather residue buildup",
+            "condition_after": "Smooth operation, clean surfaces"
+        },
+        {
+            "tool_id": 6,
+            "maintenance_type": "Sharpening",
+            "maintenance_date": "2024-10-01",
+            "performed_by": "Thomas Wilson",
+            "cost": 30.00,
+            "status": "SCHEDULED",
+            "details": "Scheduled routine sharpening",
+            "parts_used": "",
+            "condition_before": "Moderately sharp",
+            "condition_after": ""
+        }
+    ],
+    "tool_checkouts": [
+        {
+            "tool_id": 1,
+            "project_id": 1,
+            "checked_out_by": "Alice Johnson",
+            "checked_out_date": "2024-09-25",
+            "due_date": "2024-10-02",
+            "status": "CHECKED_OUT",
+            "notes": "Needed for precise stitching on wallet project",
+            "condition_before": "Excellent"
+        },
+        {
+            "tool_id": 4,
+            "project_id": 2,
+            "checked_out_by": "Bob Williams",
+            "checked_out_date": "2024-09-24",
+            "due_date": "2024-10-01",
+            "status": "CHECKED_OUT",
+            "notes": "Large project requires stable stitching support",
+            "condition_before": "Good"
+        },
+        {
+            "tool_id": 2,
+            "project_id": 3,
+            "checked_out_by": "Carol Martinez",
+            "checked_out_date": "2024-09-15",
+            "due_date": "2024-09-22",
+            "returned_date": "2024-09-21",
+            "status": "RETURNED",
+            "notes": "Used for thinning edges on messenger bag straps",
+            "condition_before": "Excellent",
+            "condition_after": "Good, needs sharpening"
         }
     ],
     "products": [
@@ -293,63 +547,560 @@
             "name": "Bifold Wallet",
             "description": "Handcrafted full-grain leather wallet with 6 card slots and cash pocket",
             "price": 125.00,
-            "cost": 45.75,
-            "sku": "BFW-001"
+            "cost_price": 45.75,
+            "is_active": true
         },
         {
             "name": "Card Holder",
             "description": "Minimalist card holder with 3 pockets, hand stitched with Tiger thread",
             "price": 65.00,
-            "cost": 22.50,
-            "sku": "CH-001"
+            "cost_price": 22.50,
+            "is_active": true
         },
         {
             "name": "Market Tote",
             "description": "Large vegetable-tanned leather tote with reinforced handles and interior pocket",
             "price": 295.00,
-            "cost": 110.25,
-            "sku": "MT-001"
+            "cost_price": 110.25,
+            "is_active": true
         },
         {
             "name": "Bridle Belt",
             "description": "1.5 inch English bridle leather belt with solid brass buckle",
             "price": 135.00,
-            "cost": 48.50,
-            "sku": "BBT-001"
+            "cost_price": 48.50,
+            "is_active": true
         },
         {
             "name": "Journal Cover",
             "description": "A5 leather journal cover with pen holder, fits standard notebooks",
             "price": 95.00,
-            "cost": 36.75,
-            "sku": "JC-001"
+            "cost_price": 36.75,
+            "is_active": true
+        },
+        {
+            "name": "Passport Wallet",
+            "description": "Compact wallet designed to hold passport and travel documents",
+            "price": 85.00,
+            "cost_price": 32.25,
+            "is_active": true
         }
     ],
     "patterns": [
         {
             "name": "Classic Bifold Wallet Pattern",
             "description": "Traditional 6-card slot bifold with detailed construction notes",
-            "skill_level": "INTERMEDIATE"
+            "skill_level": "INTERMEDIATE",
+            "version": "2.1"
         },
         {
             "name": "Vertical Card Holder Pattern",
             "description": "Space-efficient 3-pocket vertical card holder, suitable for beginners",
-            "skill_level": "BEGINNER"
+            "skill_level": "BEGINNER",
+            "version": "1.3"
         },
         {
             "name": "Market Tote Pattern",
             "description": "Large capacity tote with reinforced handles and optional interior pocket",
-            "skill_level": "ADVANCED"
+            "skill_level": "ADVANCED",
+            "version": "3.0"
         },
         {
             "name": "Dress Belt Pattern",
             "description": "1.5 inch dress belt with detailed sizing guide and hole placement template",
-            "skill_level": "BEGINNER"
+            "skill_level": "BEGINNER",
+            "version": "2.0"
         },
         {
             "name": "A5 Journal Wrap Pattern",
             "description": "Adjustable journal cover designed for standard A5 notebooks",
-            "skill_level": "INTERMEDIATE"
+            "skill_level": "INTERMEDIATE",
+            "version": "1.5"
+        },
+        {
+            "name": "Passport Cover Pattern",
+            "description": "Slim passport cover with card slots for travel essentials",
+            "skill_level": "BEGINNER",
+            "version": "1.0"
+        }
+    ],
+    "projects": [
+        {
+            "name": "Custom Wallet Project",
+            "description": "Custom bifold wallet in Horween Chromexcel with monogram",
+            "type": "WALLET",
+            "status": "IN_PROGRESS",
+            "start_date": "2024-09-20"
+        },
+        {
+            "name": "Dog Collar Project",
+            "description": "Handcrafted leather dog collar with custom engraving",
+            "type": "DOG_COLLAR",
+            "status": "PATTERN_DEVELOPMENT",
+            "start_date": "2024-09-18"
+        },
+        {
+            "name": "Messenger Bag Project",
+            "description": "Large messenger bag with multiple compartments",
+            "type": "MESSENGER_BAG",
+            "status": "MATERIAL_SELECTION",
+            "start_date": "2024-09-10"
+        },
+        {
+            "name": "Custom Belt Order",
+            "description": "Made-to-measure belt in English bridle leather",
+            "type": "BELT",
+            "status": "CUTTING",
+            "start_date": "2024-09-22"
+        }
+    ],
+    "components": [
+        {
+            "name": "Wallet Body",
+            "description": "Main body piece for a bifold wallet",
+            "component_type": "LEATHER"
+        },
+        {
+            "name": "Card Slot Panel",
+            "description": "Panel containing multiple card slots",
+            "component_type": "LEATHER"
+        },
+        {
+            "name": "Wallet Binding",
+            "description": "Binding strip for wallet edges",
+            "component_type": "LEATHER"
+        },
+        {
+            "name": "Belt Strap",
+            "description": "Main strap component for belt",
+            "component_type": "LEATHER"
+        },
+        {
+            "name": "Tote Handle",
+            "description": "Reinforced handle for tote bag",
+            "component_type": "LEATHER"
+        },
+        {
+            "name": "Interior Pocket",
+            "description": "Hidden pocket for bag interior",
+            "component_type": "LEATHER"
+        },
+        {
+            "name": "Strap Keeper",
+            "description": "Small loop to secure excess belt strap",
+            "component_type": "LEATHER"
+        }
+    ],
+    "inventory": [
+        {
+            "item_type": "material",
+            "item_id": 1,
+            "quantity": 45.5,
+            "status": "IN_STOCK",
+            "storage_location": "Leather Shelf A",
+            "min_stock_level": 20.0,
+            "reorder_point": 30.0,
+            "reorder_quantity": 50.0,
+            "unit_cost": 14.99
+        },
+        {
+            "item_type": "material",
+            "item_id": 2,
+            "quantity": 36.0,
+            "status": "IN_STOCK",
+            "storage_location": "Leather Shelf B",
+            "min_stock_level": 15.0,
+            "reorder_point": 25.0,
+            "reorder_quantity": 40.0,
+            "unit_cost": 12.50
+        },
+        {
+            "item_type": "material",
+            "item_id": 3,
+            "quantity": 12.5,
+            "status": "LOW_STOCK",
+            "storage_location": "Leather Cabinet C",
+            "min_stock_level": 12.0,
+            "reorder_point": 15.0,
+            "reorder_quantity": 20.0,
+            "unit_cost": 75.00
+        },
+        {
+            "item_type": "material",
+            "item_id": 6,
+            "quantity": 5,
+            "status": "PENDING_REORDER",
+            "storage_location": "Hardware Bin A1",
+            "min_stock_level": 10,
+            "reorder_point": 15,
+            "reorder_quantity": 25,
+            "unit_cost": 5.75
+        },
+        {
+            "item_type": "tool",
+            "item_id": 1,
+            "quantity": 1,
+            "status": "IN_STOCK",
+            "storage_location": "Tool Cabinet A",
+            "unit_cost": 149.95
+        },
+        {
+            "item_type": "product",
+            "item_id": 1,
+            "quantity": 5,
+            "status": "IN_STOCK",
+            "storage_location": "Product Shelf A",
+            "min_stock_level": 3,
+            "reorder_point": 4,
+            "reorder_quantity": 5,
+            "unit_cost": 45.75
+        }
+    ],
+    "sales": [
+        {
+            "total_amount": 125.00,
+            "status": "COMPLETED",
+            "payment_status": "PAID",
+            "customer_id": 1,
+            "cost_price": 45.75
+        },
+        {
+            "total_amount": 185.00,
+            "status": "IN_PRODUCTION",
+            "payment_status": "PARTIALLY_PAID",
+            "customer_id": 2,
+            "cost_price": 65.50
+        },
+        {
+            "total_amount": 295.00,
+            "status": "MATERIALS_SOURCING",
+            "payment_status": "DEPOSIT_RECEIVED",
+            "customer_id": 3,
+            "cost_price": 110.25
+        }
+    ],
+    "sales_items": [
+        {
+            "quantity": 1,
+            "price": 125.00,
+            "sales_id": 1,
+            "product_id": 1
+        },
+        {
+            "quantity": 1,
+            "price": 135.00,
+            "sales_id": 2,
+            "product_id": 4
+        },
+        {
+            "quantity": 1,
+            "price": 50.00,
+            "sales_id": 2,
+            "product_id": 2
+        },
+        {
+            "quantity": 1,
+            "price": 295.00,
+            "sales_id": 3,
+            "product_id": 3
+        }
+    ],
+    "purchases": [
+        {
+            "supplier_id": 1,
+            "total_amount": 749.50,
+            "status": "RECEIVED",
+            "order_date": "2024-09-01",
+            "delivery_date": "2024-09-10",
+            "purchase_order_number": "PO-2024-001",
+            "invoice_number": "INV-WT-2355"
+        },
+        {
+            "supplier_id": 2,
+            "total_amount": 425.00,
+            "status": "DELIVERED",
+            "order_date": "2024-09-05",
+            "delivery_date": "2024-09-15",
+            "purchase_order_number": "PO-2024-002",
+            "invoice_number": "BG-17582"
+        },
+        {
+            "supplier_id": 4,
+            "total_amount": 875.25,
+            "status": "SHIPPED",
+            "order_date": "2024-09-12",
+            "expected_delivery": "2024-09-20",
+            "purchase_order_number": "PO-2024-003"
+        }
+    ],
+    "purchase_items": [
+        {
+            "purchase_id": 1,
+            "item_type": "material",
+            "item_id": 1,
+            "quantity": 50.0,
+            "price": 14.99,
+            "received_quantity": 50.0
+        },
+        {
+            "purchase_id": 2,
+            "item_type": "material",
+            "item_id": 6,
+            "quantity": 25,
+            "price": 5.75,
+            "received_quantity": 25
+        },
+        {
+            "purchase_id": 2,
+            "item_type": "material",
+            "item_id": 7,
+            "quantity": 15,
+            "price": 7.50,
+            "received_quantity": 15
+        },
+        {
+            "purchase_id": 3,
+            "item_type": "material",
+            "item_id": 2,
+            "quantity": 40.0,
+            "price": 12.50,
+            "received_quantity": 0.0
+        },
+        {
+            "purchase_id": 3,
+            "item_type": "material",
+            "item_id": 3,
+            "quantity": 5.0,
+            "price": 75.00,
+            "received_quantity": 0.0
+        }
+    ],
+    "picking_lists": [
+        {
+            "sales_id": 2,
+            "status": "IN_PROGRESS",
+            "notes": "Materials needed for custom belt order"
+        },
+        {
+            "sales_id": 3,
+            "status": "PENDING",
+            "notes": "Awaiting leather delivery for tote bag"
+        }
+    ],
+    "picking_list_items": [
+        {
+            "picking_list_id": 1,
+            "material_id": 1,
+            "quantity_ordered": 2,
+            "quantity_picked": 2
+        },
+        {
+            "picking_list_id": 1,
+            "material_id": 6,
+            "quantity_ordered": 1,
+            "quantity_picked": 1
+        },
+        {
+            "picking_list_id": 2,
+            "material_id": 5,
+            "quantity_ordered": 12,
+            "quantity_picked": 0
+        },
+        {
+            "picking_list_id": 2,
+            "material_id": 11,
+            "quantity_ordered": 2,
+            "quantity_picked": 0
+        }
+    ],
+    "tool_lists": [
+        {
+            "project_id": 1,
+            "status": "ACTIVE",
+            "notes": "Tools needed for wallet construction"
+        },
+        {
+            "project_id": 2,
+            "status": "ACTIVE",
+            "notes": "Tools needed for dog collar project"
+        }
+    ],
+    "tool_list_items": [
+        {
+            "tool_list_id": 1,
+            "tool_id": 1,
+            "quantity": 1,
+            "is_checked_out": true
+        },
+        {
+            "tool_list_id": 1,
+            "tool_id": 2,
+            "quantity": 1,
+            "is_checked_out": false
+        },
+        {
+            "tool_list_id": 1,
+            "tool_id": 3,
+            "quantity": 1,
+            "is_checked_out": false
+        },
+        {
+            "tool_list_id": 2,
+            "tool_id": 4,
+            "quantity": 1,
+            "is_checked_out": true
+        },
+        {
+            "tool_list_id": 2,
+            "tool_id": 5,
+            "quantity": 1,
+            "is_checked_out": false
+        }
+    ],
+    "project_components": [
+        {
+            "project_id": 1,
+            "component_id": 1,
+            "quantity": 1
+        },
+        {
+            "project_id": 1,
+            "component_id": 2,
+            "quantity": 2
+        },
+        {
+            "project_id": 2,
+            "component_id": 4,
+            "quantity": 1
+        },
+        {
+            "project_id": 3,
+            "component_id": 5,
+            "quantity": 2
+        },
+        {
+            "project_id": 3,
+            "component_id": 6,
+            "quantity": 1
+        }
+    ],
+    "pattern_components": [
+        {
+            "pattern_id": 1,
+            "component_id": 1,
+            "quantity": 1,
+            "position": "Center"
+        },
+        {
+            "pattern_id": 1,
+            "component_id": 2,
+            "quantity": 2,
+            "position": "Left and Right Interior"
+        },
+        {
+            "pattern_id": 1,
+            "component_id": 3,
+            "quantity": 1,
+            "position": "Edge"
+        },
+        {
+            "pattern_id": 2,
+            "component_id": 2,
+            "quantity": 1,
+            "position": "Front"
+        },
+        {
+            "pattern_id": 3,
+            "component_id": 5,
+            "quantity": 2,
+            "position": "Top"
+        },
+        {
+            "pattern_id": 3,
+            "component_id": 6,
+            "quantity": 1,
+            "position": "Interior"
+        },
+        {
+            "pattern_id": 4,
+            "component_id": 4,
+            "quantity": 1,
+            "position": "Main"
+        },
+        {
+            "pattern_id": 4,
+            "component_id": 7,
+            "quantity": 1,
+            "position": "End"
+        }
+    ],
+    "product_patterns": [
+        {
+            "product_id": 1,
+            "pattern_id": 1,
+            "is_primary": 1,
+            "scale_factor": 1.0
+        },
+        {
+            "product_id": 2,
+            "pattern_id": 2,
+            "is_primary": 1,
+            "scale_factor": 1.0
+        },
+        {
+            "product_id": 3,
+            "pattern_id": 3,
+            "is_primary": 1,
+            "scale_factor": 1.0
+        },
+        {
+            "product_id": 4,
+            "pattern_id": 4,
+            "is_primary": 1,
+            "scale_factor": 1.0
+        },
+        {
+            "product_id": 5,
+            "pattern_id": 5,
+            "is_primary": 1,
+            "scale_factor": 1.0
+        }
+    ],
+    "component_materials": [
+        {
+            "component_id": 1,
+            "material_id": 2,
+            "quantity": 1.5
+        },
+        {
+            "component_id": 2,
+            "material_id": 2,
+            "quantity": 0.75
+        },
+        {
+            "component_id": 3,
+            "material_id": 2,
+            "quantity": 0.25
+        },
+        {
+            "component_id": 4,
+            "material_id": 1,
+            "quantity": 3.0
+        },
+        {
+            "component_id": 5,
+            "material_id": 5,
+            "quantity": 1.0
+        },
+        {
+            "component_id": 6,
+            "material_id": 5,
+            "quantity": 2.0
+        },
+        {
+            "component_id": 7,
+            "material_id": 1,
+            "quantity": 0.5
         }
     ]
 }

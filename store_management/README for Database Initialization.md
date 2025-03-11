@@ -1,142 +1,145 @@
-# Database Initialization
+# Leatherworking Management System
 
-## Overview
-
-This script provides a comprehensive solution for initializing and seeding the leatherworking application database. It supports flexible database setup, sample data generation, and validation.
+This repository contains a comprehensive leatherworking shop management system with tools for managing inventory, sales, projects, and tool maintenance.
 
 ## Features
 
-- Automatic database schema creation
-- Multiple sample data modes
-- Environment variable and command-line configuration
-- Dry run support
-- Detailed logging
-- Error handling and validation
+- **Complete Database Schema**: Fully normalized relational database design with tables for materials, tools, products, sales, projects, customers, and more
+- **Tool Management**: Track tools, their maintenance schedules, and checkout status
+- **Inventory Management**: Track materials, products, and tools in inventory
+- **Project Management**: Manage custom projects from initial design to completion
+- **Sales Tracking**: Record and analyze sales data
+- **Diagnostics Tools**: Comprehensive database validation and reporting
 
-## Prerequisites
+## Database Structure
 
-- Python 3.8+
+The database follows the ER diagram and includes the following main entities:
+
+- Customers
+- Products and Patterns
+- Materials (Leather, Hardware, Supplies)
+- Tools and Tool Management
+- Projects
+- Sales
+- Inventory
+
+## New Features: Tool Management
+
+Recent additions to the system include:
+
+- **Tool Maintenance Tracking**: Record maintenance history, schedule future maintenance, and track costs
+- **Tool Checkout System**: Track which tools are checked out, by whom, and for which projects
+- **Tool Usage Analytics**: Report on most-used tools, maintenance frequency, and checkout patterns
+
+## Setup Instructions
+
+### Prerequisites
+
+- Python 3.7+
 - SQLAlchemy
-- Required project dependencies
+- SQLite (installed by default with Python)
 
-## Usage
+### Installation
 
-### Command-Line Options
+1. Clone this repository
+2. Install required packages:
+   ```
+   pip install sqlalchemy
+   ```
 
-```bash
-python initialize_database.py [OPTIONS]
+### Database Initialization
+
+To initialize the database with tables:
+
+```
+python initialize_database.py
 ```
 
 Options:
-- `--recreate`: Drop and recreate all database tables
-- `--seed`: Add sample data to the database
-- `--mode {minimal,standard,demo}`: Control the amount of sample data
-  - `minimal`: Bare minimum data for basic functionality
-  - `standard`: Comprehensive set of sample data
-  - `demo`: Extended dataset for demonstration purposes
-- `--dry-run`: Validate database setup without committing changes
+- `--recreate`: Drop and recreate all tables (WARNING: This will delete all data)
+- `--seed`: Add minimal sample data to the database
+- `--load-sample /path/to/sample_data.json`: Load comprehensive sample data from a JSON file
 
-### Environment Variables
-
-You can also control the initialization using environment variables:
-
-- `RECREATE_DB`: Set to `true` to drop and recreate tables
-- `SEED_DB`: Set to `true` to add sample data
-- `SEED_MODE`: Set to `minimal`, `standard`, or `demo`
-- `DRY_RUN`: Set to `true` for validation without changes
-
-### Examples
-
-1. Full database recreation with standard sample data:
-```bash
-python initialize_database.py --recreate --seed
+Example:
+```
+python initialize_database.py --recreate --load-sample sample_data.json
 ```
 
-2. Add minimal sample data:
-```bash
-python initialize_database.py --seed --mode minimal
+### Running Diagnostics
+
+To run diagnostics on the database:
+
+```
+python database/diagnostics.py
 ```
 
-3. Dry run with demo dataset:
-```bash
-python initialize_database.py --seed --mode demo --dry-run
-```
+Options:
+- `--silent`: Run diagnostics without console output
+- `--report-file filename`: Save the diagnostic report to a file (generates both JSON and TXT formats)
 
-4. Using environment variables:
-```bash
-RECREATE_DB=true SEED_DB=true SEED_MODE=demo python initialize_database.py
+Example:
+```
+python database/diagnostics.py --report-file diagnostic_report
 ```
 
 ## Sample Data
 
-### Data Sources
+The repository includes a comprehensive sample data file (`sample_data.json`) that can be used to populate the database with realistic data for testing and development. This includes:
 
-- `sample_data.json`: Comprehensive sample data for standard initialization
-- `minimal_sample_data.json`: Minimal dataset for basic testing
+- Suppliers and customers
+- Various materials (leather, hardware, supplies)
+- Tools with maintenance records and checkout history
+- Products and patterns
+- Projects
 
-### Customization
+## Tool Maintenance Module
 
-You can modify the JSON files to customize the sample data without changing the initialization script.
+The tool maintenance module allows you to:
 
-## Logging
+1. Record maintenance activities for each tool
+2. Schedule future maintenance based on intervals
+3. Track maintenance costs and parts used
+4. Monitor tool condition before and after maintenance
 
-The script provides detailed logging to help you understand the initialization process. Logs include:
-- Database connection details
-- Table creation status
-- Sample data loading
-- Performance metrics
-- Validation results
+## Tool Checkout System
 
-## Troubleshooting
+The tool checkout system allows you to:
 
-### Common Issues
+1. Check out tools for specific projects
+2. Track who has each tool and when it's due back
+3. Record tool condition before and after checkout
+4. Monitor overdue checkouts
 
-1. **Database Connection Errors**
-   - Ensure you have the necessary database drivers
-   - Check database file permissions
-   - Verify connection string
+## Diagnostics and Reporting
 
-2. **Model Import Failures**
-   - Confirm all required models are correctly defined
-   - Check import paths
-   - Verify no circular dependencies
+The diagnostic system provides comprehensive checks and reports including:
 
-3. **Sample Data Loading Problems**
-   - Validate JSON file syntax
-   - Ensure enum values match model definitions
-   - Check for data type mismatches
+- Table existence verification
+- Record count per model
+- Relationship validation
+- Data integrity checks
+- Inventory status analysis
+- Sales trend analysis
+- Tool usage analysis
 
-### Debugging
+## Customization
 
-- Use `--dry-run` to validate configuration without changes
-- Check log output for detailed error messages
-- Verify database model implementations
+The system is designed to be extensible. To add new features:
 
-## Performance
+1. Create new model classes in the `database/models` directory
+2. Update the relevant repository classes in `database/repositories`
+3. Update the initialization script to include your new models
+4. Add diagnostic checks for your new features
 
-The initialization script is designed to be efficient:
-- Minimal database roundtrips
-- Batch processing for sample data
-- Comprehensive error handling
-- Configurable logging levels
+## Contributing
 
-## Security Considerations
+Contributions to improve the system are welcome. Please follow these steps:
 
-- Avoid committing sensitive information in sample data
-- Use environment-specific configurations
-- Implement appropriate access controls
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
 
-## Development and Contribution
+## License
 
-### Adding New Sample Data
-
-1. Update `sample_data.json` or create new JSON files
-2. Ensure data matches model definitions
-3. Add appropriate enum mappings in the loader functions
-
-### Extending Initialization Logic
-
-- Modify `create_sample_*` functions to support new data types
-- Implement additional validation in the `main()` function
-- Enhance error handling and logging
-
+This project is licensed under the MIT License - see the LICENSE file for details.

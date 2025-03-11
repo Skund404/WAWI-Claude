@@ -1,191 +1,115 @@
-# store_management/main.py
-"""
-Main application entrypoint for the Leatherworking Store Management Application.
-
-This module handles application initialization, dependency injection setup,
-and launching the main GUI window.
-"""
-
+# main.py
+import logging
 import os
 import sys
-import logging
-import traceback
 import time
-
-# Circular import resolution
-from utils.circular_import_resolver import register_lazy_import
-
-
-# Lazy import registration for complex models
-def _register_lazy_component_imports():
-    """Register lazy imports for component models to resolve circular dependencies."""
-    register_lazy_import("database.models.components", "Component", "Component")
-    register_lazy_import("database.models.components", "PatternComponent", "PatternComponent")
-    register_lazy_import("database.models.components", "ProjectComponent", "ProjectComponent")
-
-
-# Ensure the project root is in the Python path
-def _configure_python_path():
-    """Add project root to Python path to ensure proper module imports."""
-    project_root = os.path.abspath(os.path.dirname(__file__))
-    sys.path.insert(0, project_root)
-
-
-# Import core dependencies
+import traceback
 import tkinter as tk
-from tkinter import messagebox
+import tkinter.messagebox
+from pathlib import Path
 
-# Configuration and logging imports
-from config.settings import get_database_path
-from utils.logging_config import setup_logging
-
-# Database and dependency injection imports
-from database.initialize import initialize_database
 from di.container import DependencyContainer
 from di.setup import setup_dependency_injection
-
-# GUI imports
 from gui.main_window import MainWindow
+from utils.circular_import_resolver import register_lazy_import
+from utils.logging_config import setup_logging
+from config.settings import ConfigurationManager, Environment, get_database_path
+from database.initialize import initialize_database
+
+
+def _register_lazy_component_imports():
+    """Register lazy imports for component models to resolve circular dependencies."""
+    component_model_paths = [
+        "database.models.component",
+        "database.models.component_material",
+    ]
+
+    for path in component_model_paths:
+        register_lazy_import(path)
+
+
+def _configure_python_path():
+    """Add project root to Python path to ensure proper module imports."""
+    project_root = Path(__file__).resolve().parent
+    if str(project_root) not in sys.path:
+        sys.path.insert(0, str(project_root))
 
 
 def _validate_environment():
-    """
-    Perform pre-startup environment validation.
+    """Perform pre-startup environment validation.
 
     Raises:
         EnvironmentError: If critical environment requirements are not met
     """
-    # Add any critical environment checks here
-    # Examples:
-    # - Python version check
-    # - Required libraries check
-    # - Minimum system requirements
-    pass
-
-
-def setup_application_context() -> tk.Tk:
-    """
-    Set up the comprehensive application context.
-
-    Configures logging, initializes database, sets up dependency injection,
-    and prepares the root Tkinter window.
-
-    Returns:
-        tk.Tk: The root Tkinter window for the application
-
-    Raises:
-        Exception: For any critical initialization failures
-    """
-    try:
-        # Validate environment before proceeding
-        _validate_environment()
-
-        # Configure circular import resolution
-        _register_lazy_component_imports()
-        _configure_python_path()
-
-        # Configure logging
-        setup_logging()
-        logger = logging.getLogger(__name__)
-
-        # Log database configuration
-        logger.info("Starting application diagnostic process")
-        logger.info(f"Python Version: {sys.version}")
-        logger.info(f"Python Executable: {sys.executable}")
-        logger.info(f"Current Working Directory: {os.getcwd()}")
-        logger.info(f"Python Path: {sys.path}")
-
-        # Log database configuration
-        db_path = get_database_path()
-        logger.info(f"Database Path: {db_path}")
-
-        # Initialize database
-        try:
-            initialize_database()
-            logger.info("Database initialized successfully")
-        except Exception as db_error:
-            logger.error(f"Database initialization failed: {db_error}")
-            raise
-
-        # Reset and setup dependency injection
-        container = DependencyContainer()
-        container.clear_cache()  # Ensure clean slate
-
-        try:
-            setup_dependency_injection()
-            logger.info("Dependency injection setup completed")
-        except Exception as di_error:
-            logger.error(f"Dependency injection setup failed: {di_error}")
-            raise
-
-        # Create root Tkinter window
-        logger.info("Creating root Tkinter window")
-        root = tk.Tk()
-
-        root.title("Leatherworking Store Management")
-
-        return root
-
-    except Exception as setup_error:
-        logging.error(f"Application context setup failed: {setup_error}")
-        logging.error(traceback.format_exc())
-        raise
+    database_path = get_database_path()
+    if not Path(database_path).exists():
+        logging.warning(f"Database file not found at: {database_path}.  Attempting to initialize...")
 
 
 def main():
-    """
-    Main application entry point with comprehensive error handling.
+    """Main application entry point with comprehensive error handling.
     Manages the entire application lifecycle from startup to shutdown.
     """
-    start_time = time.time()
-    logger = logging.getLogger(__name__)
-
     try:
-        logger.info("Starting Leatherworking Store Management Application")
+        start_time = time.time()
 
-        # Set up application context
-        root = setup_application_context()
+        # Configure Logging
+        setup_logging()
+        logging.info("Application starting...")
 
-        try:
-            # Log MainWindow creation
-            logger.info("Creating MainWindow")
+        # Configure Python Path for Module Resolution
+        _configure_python_path()
 
-            # Create and launch main window
-            main_window = MainWindow(root, DependencyContainer())
+        # Resolve circular import issues
+        _register_lazy_component_imports()
 
-            # Final startup diagnostic
-            startup_time = time.time() - start_time
-            logger.info(f"Application startup completed in {startup_time:.2f} seconds")
+        # Initialize Configuration and validate environment settings
+        ConfigurationManager()  # Initialize configuration manager (singleton)
+        _validate_environment()
 
-            # Launch main event loop
-            main_window.mainloop()
+        # Dependency Injection Setup
+        container = DependencyContainer()
+        setup_dependency_injection(container)
 
-        except Exception as window_error:
-            logger.error(f"Main window initialization failed: {window_error}")
-            messagebox.showerror(
-                "Window Initialization Error",
-                f"Could not create main application window:\n{window_error}\n\n"
-                "Please check logs for more details."
-            )
-            raise
+        # Initialize Database (Create if not exist)
+        database_path = get_database_path()
+        if not Path(database_path).exists():
+            logging.info("Database does not exist, creating and seeding...")
+            initialize_database()
+            logging.info("Database creation and seeding complete.")
+        else:
+            logging.info("Database exists, skipping initialization.")
 
-    except Exception as critical_error:
-        # Last resort error handling for unrecoverable errors
-        logger.critical(f"Unrecoverable application startup error: {critical_error}")
-        logger.critical(traceback.format_exc())
+        # Tkinter GUI Setup
+        root = tk.Tk()
+        root.title(ConfigurationManager().APP_NAME)
 
-        # Show comprehensive error message
-        messagebox.showerror(
-            "Critical Application Error",
-            f"A critical error prevented the application from starting:\n\n"
-            f"{critical_error}\n\n"
-            "Possible causes:\n"
-            "- Database connection issues\n"
-            "- Dependency injection failures\n"
-            "- Missing configuration\n\n"
-            "Please check application logs and consult documentation."
+        main_window = MainWindow(root)
+        main_window.pack(fill=tk.BOTH, expand=True)
+
+        # Calculate Startup Time
+        startup_time = time.time() - start_time
+        logging.info(f"Application started in {startup_time:.4f} seconds.")
+
+        # Start Tkinter main loop
+        root.mainloop()
+
+    except Exception as e:
+        # Global Exception Handling
+        logging.critical("Unhandled exception during application runtime:", exc_info=True)
+        traceback_str = ''.join(traceback.format_exception(None, e, e.__traceback__))
+        print(traceback_str)  # Ensure error is visible in console
+        tk.messagebox.showerror(
+            "Fatal Error",
+            f"The application encountered a critical error and will now terminate.\n\nDetails: {str(e)}"
         )
-        sys.exit(1)
+        sys.exit(1)  # Exit application with an error code
+
+    finally:
+        # Shutdown Procedures
+        logging.info("Application shutting down...")
+        # Add any necessary cleanup code here (e.g., closing database connections)
+        logging.info("Application shutdown complete.")
 
 
 if __name__ == "__main__":

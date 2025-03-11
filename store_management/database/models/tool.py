@@ -2,42 +2,55 @@
 """
 This module defines the Tool model for the leatherworking application.
 """
+import datetime
 from typing import Any, Dict, List, Optional
-from datetime import datetime
 
-from sqlalchemy import Column, Enum, ForeignKey, Integer, String, Text
+from sqlalchemy import Column, DateTime, Enum, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from database.models.base import AbstractBase, ValidationMixin, ModelValidationError
+from database.models.base import AbstractBase, ModelValidationError, ValidationMixin
 from database.models.enums import ToolCategory
+from database.models.inventory import Inventory
 
 
 class Tool(AbstractBase, ValidationMixin):
     """
-    Tool model representing leatherworking tools.
+    Tool model representing tools and equipment used in leatherworking.
 
-    Attributes:
-        name (str): Tool name
-        description (Optional[str]): Detailed description
-        tool_category (ToolCategory): Category/type of tool
-        supplier_id (Optional[int]): Foreign key to the supplier
-        maintenance_notes (Optional[str]): Notes about maintenance
+    Tools can be associated with suppliers, included in tool lists, and
+    tracked through maintenance and checkout records.
     """
     __tablename__ = 'tools'
     __table_args__ = {"extend_existing": True}
 
-    # Basic attributes
+    # Basic information
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     tool_category: Mapped[ToolCategory] = mapped_column(Enum(ToolCategory), nullable=False)
-    maintenance_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
-    # Foreign keys
+    # Supplier relationship
     supplier_id: Mapped[Optional[int]] = mapped_column(
-        Integer,
-        ForeignKey("suppliers.id", ondelete="SET NULL"),
+        ForeignKey("suppliers.id", name="fk_tool_supplier", ondelete="SET NULL"),
         nullable=True
     )
+
+    # Technical specifications
+    brand: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    model: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    serial_number: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    specifications: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Purchase information
+    purchase_price: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    purchase_date: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime, nullable=True)
+
+    # Status
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="IN_STOCK")
+
+    # Maintenance information
+    last_maintenance_date: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime, nullable=True)
+    next_maintenance_date: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime, nullable=True)
+    maintenance_interval: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # in days
 
     # Relationships
     supplier = relationship(
@@ -46,17 +59,15 @@ class Tool(AbstractBase, ValidationMixin):
         lazy="selectin"
     )
 
-    # Inventory relationship
     inventory = relationship(
         "Inventory",
         primaryjoin="and_(Tool.id==Inventory.item_id, Inventory.item_type=='tool')",
-        foreign_keys="[Inventory.item_id]",
+        foreign_keys=[Inventory.item_id],
         back_populates="tool",
         uselist=False,
         lazy="selectin"
     )
 
-    # ToolListItem relationship
     tool_list_items = relationship(
         "ToolListItem",
         back_populates="tool",
@@ -64,12 +75,18 @@ class Tool(AbstractBase, ValidationMixin):
         lazy="selectin"
     )
 
-    # Purchase items relationship
-    purchase_items = relationship(
-        "PurchaseItem",
-        primaryjoin="and_(Tool.id==PurchaseItem.item_id, PurchaseItem.item_type=='tool')",
-        foreign_keys="[PurchaseItem.item_id]",
+    # New relationships for tool management
+    maintenance_records = relationship(
+        "ToolMaintenance",
         back_populates="tool",
+        cascade="all, delete-orphan",
+        lazy="selectin"
+    )
+
+    checkouts = relationship(
+        "ToolCheckout",
+        back_populates="tool",
+        cascade="all, delete-orphan",
         lazy="selectin"
     )
 
@@ -80,6 +97,10 @@ class Tool(AbstractBase, ValidationMixin):
         Args:
             **kwargs: Keyword arguments for Tool initialization
         """
+        # Set default status
+        if "status" not in kwargs:
+            kwargs["status"] = "IN_STOCK"
+
         super().__init__(**kwargs)
         self.validate()
 
@@ -97,75 +118,59 @@ class Tool(AbstractBase, ValidationMixin):
         if len(self.name) > 255:
             raise ModelValidationError("Tool name cannot exceed 255 characters")
 
-        # Description validation
-        if self.description is not None:
-            if not isinstance(self.description, str):
-                raise ModelValidationError("Tool description must be a string")
-
-            if len(self.description) > 500:
-                raise ModelValidationError("Tool description cannot exceed 500 characters")
-
-        # Tool category validation
+        # Category validation
         if not self.tool_category:
             raise ModelValidationError("Tool category must be specified")
 
+        # Price validation
+        if self.purchase_price is not None and self.purchase_price < 0:
+            raise ModelValidationError("Purchase price cannot be negative")
+
         return self
 
-    def get_stock_level(self) -> float:
-        """
-        Get the current stock level for this tool.
+    def is_available(self) -> bool:
+        """Check if the tool is available for checkout.
 
         Returns:
-            float: Current quantity in stock, or 0 if no inventory record exists
+            True if available, False otherwise
         """
-        if self.inventory:
-            return self.inventory.quantity
-        return 0.0
+        return self.status == "IN_STOCK"
 
-    def is_in_stock(self) -> bool:
-        """
-        Check if this tool is currently in stock.
+    def is_checked_out(self) -> bool:
+        """Check if the tool is currently checked out.
 
         Returns:
-            bool: True if tool is in stock (quantity > 0), False otherwise
+            True if checked out, False otherwise
         """
-        return self.get_stock_level() > 0
+        return self.status == "CHECKED_OUT"
 
-    def update_inventory(self, change: float, transaction_type: str,
-                         reference_type: Optional[str] = None,
-                         reference_id: Optional[int] = None,
-                         notes: Optional[str] = None) -> None:
+    def is_in_maintenance(self) -> bool:
+        """Check if the tool is currently in maintenance.
+
+        Returns:
+            True if in maintenance, False otherwise
         """
-        Update the inventory for this tool.
+        return self.status == "MAINTENANCE"
 
-        Creates an inventory record if one doesn't exist yet.
+    def needs_maintenance(self) -> bool:
+        """Check if the tool needs maintenance.
 
-        Args:
-            change: Quantity change (positive for additions, negative for reductions)
-            transaction_type: Type of transaction
-            reference_type: Optional reference type (e.g., 'purchase', 'maintenance')
-            reference_id: Optional reference ID
-            notes: Optional notes about the transaction
+        Returns:
+            True if maintenance is due, False otherwise
         """
-        from database.models.enums import InventoryStatus, TransactionType
-        from database.models.inventory import Inventory
+        if not self.next_maintenance_date:
+            return False
 
-        # Create inventory record if it doesn't exist
-        if not self.inventory:
-            self.inventory = Inventory(
-                item_type='tool',
-                item_id=self.id,
-                quantity=0,
-                status=InventoryStatus.OUT_OF_STOCK,
-                created_at=datetime.now(),
-                updated_at=datetime.now()
-            )
+        return self.next_maintenance_date <= datetime.datetime.now()
 
-        # Update the inventory
-        self.inventory.update_quantity(
-            change=change,
-            transaction_type=TransactionType[transaction_type],
-            reference_type=reference_type,
-            reference_id=reference_id,
-            notes=notes
-        )
+    def days_until_maintenance(self) -> Optional[int]:
+        """Calculate days until next maintenance is due.
+
+        Returns:
+            Number of days until maintenance is due, or None if no maintenance scheduled
+        """
+        if not self.next_maintenance_date:
+            return None
+
+        delta = self.next_maintenance_date - datetime.datetime.now()
+        return delta.days

@@ -1,8 +1,8 @@
 # Main Window Integration
-from tkinter import ttk
+from tkinter import ttk, messagebox
 
 from PIL._tkinter_finder import tk
-
+import logging
 from gui import theme
 # Add these imports to the top of main_window.py
 from gui.widgets.breadcrumb_navigation import BreadcrumbNavigation
