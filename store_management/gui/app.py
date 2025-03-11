@@ -1,154 +1,124 @@
+# gui/app.py
 """
-Main application entry point for the Leatherworking Application.
-This file initializes the application, sets up dependency injection,
-and launches the main window.
+Main application entry point for the Leatherworking GUI application.
+Initializes the dependency injection system and creates the main window.
 """
+
 import logging
-import sys
 import tkinter as tk
-from tkinter import ttk
 from tkinter import messagebox
 
-# Import dependency injection components
-from di.container import DependencyContainer
-from di.setup import setup_dependency_injection
-
-# Import services
-from services.interfaces.material_service import IMaterialService
-from services.interfaces.project_service import IProjectService
-from services.interfaces.pattern_service import IPatternService
-from services.interfaces.sale_service import ISaleService
-from services.interfaces.picking_list_service import IPickingListService
-from services.interfaces.supplier_service import ISupplierService
-from services.interfaces.storage_service import IStorageService
-from services.interfaces.shopping_list_service import IShoppingListService
-from services.interfaces.hardware_service import IHardwareService
-from services.interfaces.inventory_service import IInventoryService
-
-# Import the main window
+from di import initialize, Container, verify_container, resolve
 from gui.main_window import MainWindow
+from gui.theme import apply_theme
+from gui import config
+from utils.gui_logger import setup_gui_logger
 
-# Import theme
-from gui.theme import AppTheme
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler("leatherwork.log"),
-        logging.StreamHandler(sys.stdout)
-    ]
-)
-
-logger = logging.getLogger(__name__)
-
-
-class LeatherworkApp:
-    """Main application class for the Leatherworking Application."""
+class LeatherworkingApp:
+    """Main application class for the Leatherworking GUI application."""
     
     def __init__(self):
-        """Initialize the application, setup DI and create the main window."""
-        logger.info("Starting Leatherworking Application")
-        
-        # Create the root Tkinter window
-        self.root = tk.Tk()
-        self.root.title("Leatherworking Workshop Manager")
-        self.root.geometry("1200x800")
-        self.root.minsize(800, 600)
-        
-        # Set up dependency injection
+        """Initialize the application."""
+        self.root = None
+        self.di_container = None
+        self.main_window = None
+        self.logger = logging.getLogger(__name__)
+    
+    def setup_logging(self):
+        """Set up the logging system for the GUI."""
+        setup_gui_logger(level=config.LOG_LEVEL)
+        self.logger.info("Logging initialized for GUI application")
+    
+    def initialize_di(self):
+        """Initialize the dependency injection container."""
+        self.logger.info("Initializing dependency injection")
         try:
-            logger.info("Setting up dependency injection")
-            self.container = setup_dependency_injection()
-            logger.info("Dependency injection setup complete")
+            self.di_container = initialize()
+            if not verify_container():
+                messagebox.showerror(
+                    "Initialization Error",
+                    "Failed to initialize required services. The application cannot start."
+                )
+                return False
+            return True
         except Exception as e:
-            logger.critical(f"Failed to set up dependency injection: {e}")
-            messagebox.showerror("Startup Error", 
-                                "Failed to initialize application services.\n"
-                                "Please check the logs for more information.")
-            sys.exit(1)
+            self.logger.error(f"Error initializing DI container: {str(e)}")
+            messagebox.showerror(
+                "Initialization Error",
+                f"Failed to initialize services: {str(e)}"
+            )
+            return False
+    
+    def setup_root_window(self):
+        """Set up the root tkinter window."""
+        self.logger.info("Setting up root window")
+        self.root = tk.Tk()
+        self.root.title("Leatherworking Management System")
+        self.root.geometry(f"{config.DEFAULT_WINDOW_WIDTH}x{config.DEFAULT_WINDOW_HEIGHT}")
+        self.root.minsize(config.MIN_WINDOW_WIDTH, config.MIN_WINDOW_HEIGHT)
+        
+        # Set window icon if available
+        try:
+            icon_path = f"{config.ICON_PATH}/app_icon.ico"
+            self.root.iconbitmap(icon_path)
+        except Exception as e:
+            self.logger.warning(f"Could not load application icon: {str(e)}")
         
         # Apply the application theme
-        self.theme = AppTheme()
-        self.theme.apply(self.root)
-        
-        # Create the main window
-        try:
-            logger.info("Creating main application window")
-            self.main_window = MainWindow(self.root, self)
-            logger.info("Main window created successfully")
-        except Exception as e:
-            logger.critical(f"Failed to create main window: {e}")
-            messagebox.showerror("Startup Error", 
-                                "Failed to create application window.\n"
-                                "Please check the logs for more information.")
-            sys.exit(1)
-        
-        # Set up window close handler
-        self.root.protocol("WM_DELETE_WINDOW", self._on_close)
-        
-        # Report successful startup
-        logger.info("Application initialized successfully")
+        apply_theme()
     
-    def get(self, service_type):
-        """
-        Get a service instance from the DI container.
+    def handle_exception(self, exc_type, exc_value, exc_traceback):
+        """Handle uncaught exceptions globally."""
+        # Log the exception
+        self.logger.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
         
-        Args:
-            service_type: The interface type of the service to retrieve
-            
-        Returns:
-            The service instance or None if not found
-        """
-        try:
-            return self.container.resolve(service_type)
-        except Exception as e:
-            logger.error(f"Failed to resolve service {service_type.__name__}: {e}")
-            return None
+        # Show error dialog to user if GUI is running
+        if self.root and self.root.winfo_exists():
+            error_message = f"An unexpected error occurred:\n{str(exc_value)}"
+            messagebox.showerror("Application Error", error_message)
+    
+    def create_main_window(self):
+        """Create the main application window."""
+        self.logger.info("Creating main window")
+        self.main_window = MainWindow(self.root)
+        self.main_window.build()
+    
+    def on_closing(self):
+        """Handle application closing."""
+        self.logger.info("Application closing")
+        if messagebox.askokcancel("Quit", "Do you want to quit the application?"):
+            # Perform cleanup if needed
+            if self.root:
+                self.root.destroy()
     
     def run(self):
-        """Run the application main loop."""
-        logger.info("Starting application main loop")
-        try:
-            self.root.mainloop()
-        except Exception as e:
-            logger.critical(f"Unhandled exception in main loop: {e}")
-            messagebox.showerror("Application Error", 
-                                "An unhandled error occurred.\n"
-                                "The application will now close.")
-            sys.exit(1)
-    
-    def _on_close(self):
-        """Handle application close event."""
-        logger.info("Application close requested")
-        try:
-            # Ask for confirmation
-            if messagebox.askokcancel("Quit", "Do you want to quit the application?"):
-                logger.info("Shutting down application")
-                # Perform cleanup
-                self._cleanup()
-                # Destroy the root window
-                self.root.destroy()
-        except Exception as e:
-            logger.error(f"Error during application shutdown: {e}")
-            self.root.destroy()
-    
-    def _cleanup(self):
-        """Perform cleanup operations before closing."""
-        logger.info("Performing application cleanup")
-        try:
-            # Clean up any resources
-            if hasattr(self.main_window, 'cleanup'):
-                self.main_window.cleanup()
-            
-            # Close any open database connections
-            # This would typically be handled by the DI container
-            pass
-        except Exception as e:
-            logger.error(f"Error during cleanup: {e}")
+        """Run the application."""
+        self.setup_logging()
+        self.logger.info("Starting Leatherworking Management System")
+        
+        # Initialize components
+        if not self.initialize_di():
+            return
+        
+        self.setup_root_window()
+        self.create_main_window()
+        
+        # Set up global exception handler
+        import sys
+        sys.excepthook = self.handle_exception
+        
+        # Set up window close handler
+        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
+        
+        # Start the application
+        self.logger.info("Application ready, starting main loop")
+        self.root.mainloop()
+        self.logger.info("Application terminated")
 
+def main():
+    """Application entry point."""
+    app = LeatherworkingApp()
+    app.run()
 
 if __name__ == "__main__":
-    app = LeatherworkApp()
-    app.run()
+    main()

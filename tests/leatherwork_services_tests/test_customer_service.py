@@ -68,7 +68,7 @@ class TestCustomerService:
         mock_customer.source = CustomerSource.REFERRAL.value
 
         # Configure the repository mock
-        customer_repository_mock.get_by_id.return_value = mock_customer
+        customer_repository_mock.set_next_mock(mock_customer)
 
         # Retrieve the customer
         retrieved_customer = customer_service_with_mock_repo.get_by_id(1)
