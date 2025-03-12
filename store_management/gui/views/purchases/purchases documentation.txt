@@ -1,0 +1,154 @@
+Okay, here's the documentation in the requested style for the `purchase_view.py`, `purchase_details_view.py`, and `supplier_details_dialog.py` files, completing the documentation for the `views/purchases` section.
+
+**I. `views.purchases.purchase_view`**
+
+*   **Module Name:** `views.purchases.purchase_view`
+*   **Description:** Provides a view for displaying and managing purchases.
+
+*   **Key Features:**
+    *   Display the purchase in list View
+    *   Create filters and implement advanced search
+    *   Actionable button to make process smooth
+
+*   **Classes:**
+
+    *   `PurchaseView(BaseListView)`:
+
+        *   `__init__(self, parent, **kwargs)`: Initializes the purchase view.
+
+            *   `parent`: The parent widget.
+            *   `**kwargs`: Additional arguments including:
+                *   `filter_supplier_id`: ID of supplier to filter purchases by
+                *   `filter_supplier_name`: Name of supplier (for display)
+                *   `filter_status`: Status to filter purchases by
+                *   `filter_date_range`: Date range to filter purchases by
+
+        *  `build(self)`: Create Purchase List
+
+        *   `extract_item_values(self, item)`: Extracts the data from each column
+        *   `get_items(self, service, offset, limit)`: Collect the data for Purchase from a certain limit
+
+        *   `add_context_menu_items(self, menu)`: Add the context Menu after selecting column
+        *    `get_total_count(self, service)`: Get toal number for purchases
+
+        *   `_add_default_action_buttons(self)`: Provides a button for default action
+
+        *   `create_metrics_panel(self, parent)`: Displays key for purchases from database
+            ```python
+            import tkinter as tk
+            from tkinter import ttk
+            from views.purchases.purchase_view import PurchaseView
+
+            class MainApp(tk.Tk):
+                def __init__(self, *args, **kwargs):
+                    super().__init__(*args, **kwargs)
+                    self.geometry("1200x800")
+
+                    purchase_view = PurchaseView(self)
+                    purchase_view.pack(expand=True, fill="both", padx=20, pady=20)
+
+            if __name__ == "__main__":
+                root = MainApp()
+                root.mainloop()
+
+            ```
+
+**II. `views.purchases.purchase_details_view`**
+
+*   **Module Name:** `views.purchases.purchase_details_view`
+*   **Description:** Implemented all operations Create, View and Manage the form for purchases
+
+*   **Key Features:**
+
+    *   **View and Create forms** Implements two forms
+    *   **ToolTip message for columns** Helps the user to see the exact time for the chart
+
+*   **Classes:**
+
+    *   `PurchaseDetailsView(BaseView)`:
+        *   `__init__(self, parent, **kwargs)`: Initializes the widget with 3 modes Create, ReadOnly, and Edit
+
+            *   `parent`: The parent widget.
+            *   `**kwargs`: Additional arguments including:
+                *   `purchase_id`: ID of the purchase to view/edit (None for new purchases)
+                *   `create_new`: Whether to create a new purchase
+                *   `readonly`: Whether the view should be read-only
+                *   `supplier_id`: ID of the supplier (for new purchases)
+                *   `supplier_name`: Name of the supplier (for new purchases)
+
+        *   `_add_default_action_buttons(self)`: Actions are handled for header for Create, Edit and View actions
+        *   `create_order_tab(self, notebook)`:Create  BasicInformation Tab
+        *   `create_items_tab(self, notebook)`: Create item Tab for items on the purchases
+        *   `_get_item_display_name(self, item)`:  For items returns string name
+        *   `collect_form_data(self)`: Provides the Dictionary data for form Data
+
+            ```python
+
+                import tkinter as tk
+                from tkinter import ttk
+                from views.purchases.purchase_details_view import PurchaseDetailsView
+                class ViewChart:
+                    def __init__(self, master):
+                         # Sets master root to master
+                        self.master = master
+                        # Adds New Label
+                        ttk.Label(master, text="Purchases Details").pack()
+                        newFrame = PurchaseDetailsView(master, create_new= True)
+                        newFrame.pack()
+            class MainApp(tk.Tk):
+                def __init__(self, *args, **kwargs):
+                    super().__init__(*args, **kwargs)
+                    self.geometry("800x600")
+                    chart_view = ViewChart(self)
+                    chart_view.pack(expand=True, fill="both", padx=20, pady=20)
+
+            if __name__ == "__main__":
+                root = MainApp()
+                root.mainloop()
+            ```
+
+**III. `views.purchases.supplier_details_dialog`**
+
+*   **Module Name:** `views.purchases.supplier_details_dialog`
+*   **Description:** It is used to view, create, and edit the data for supplier
+
+*   **Key Features:**
+    *   **Data Entry Support:** Enable the user to create the view
+    *    **ReadOnly support:** If user have view permission for the data
+    *   **Create and Edit support:** Enable user to edit and create data
+
+*   **Classes:**
+
+    *   `SupplierDetailsDialog(BaseDialog)`:
+        *   `__init__(self, parent, **kwargs)`: Set data
+
+            *   `parent`: The parent widget.
+            *   `**kwargs`: Additional arguments including:
+                *   `supplier_id`: ID of the supplier to view/edit (None for new suppliers)
+                *   `create_new`: Whether to create a new supplier
+                *   `readonly`: Whether the dialog is in read-only mode
+
+        *   `create_layout(self)`: Set all the layout for forms
+        *   `create_header_section(self, parent)`: Set actions on header buttons for the panel
+        *   `collect_form_data(self)`: Creates the Dictionary list for data in form
+
+            ```python
+            import tkinter as tk
+            from tkinter import ttk
+            from views.purchases.supplier_details_dialog import SupplierDetailsDialog
+
+            class MainApp(tk.Tk):
+                def __init__(self, *args, **kwargs):
+                    super().__init__(*args, **kwargs)
+                    self.geometry("800x600")
+
+                    # Here's how you use it
+                    sd_dialog = SupplierDetailsDialog(self)
+                    sd_dialog.show()
+
+            if __name__ == "__main__":
+                root = MainApp()
+                root.mainloop()
+            ```
+
+This provides a complete documentation set for the code.
