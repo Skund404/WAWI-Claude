@@ -68,7 +68,8 @@ class Inventory(AbstractBase, ValidationMixin, AuditMixin, TrackingMixin):
         foreign_keys="[Inventory.item_id]",
         back_populates="inventory",
         uselist=False,
-        lazy="selectin"
+        lazy="selectin",
+        overlaps="inventory"  # Add this parameter
     )
 
     product = relationship(
@@ -77,7 +78,8 @@ class Inventory(AbstractBase, ValidationMixin, AuditMixin, TrackingMixin):
         foreign_keys="[Inventory.item_id]",
         back_populates="inventory",
         uselist=False,
-        lazy="selectin"
+        lazy="selectin",
+        overlaps="inventory,material"  # Add this parameter
     )
 
     tool = relationship(
@@ -86,7 +88,8 @@ class Inventory(AbstractBase, ValidationMixin, AuditMixin, TrackingMixin):
         foreign_keys="[Inventory.item_id]",
         back_populates="inventory",
         uselist=False,
-        lazy="selectin"
+        lazy="selectin",
+        overlaps="inventory,inventory,material,product"  # Add this parameter
     )
 
     def __init__(self, **kwargs):

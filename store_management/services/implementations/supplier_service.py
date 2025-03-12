@@ -9,6 +9,7 @@ from database.repositories.tool_repository import ToolRepository
 from database.repositories.purchase_repository import PurchaseRepository
 
 from database.models.enums import SupplierStatus
+from di import inject
 
 from services.base_service import BaseService
 from services.exceptions import ValidationError, NotFoundError
@@ -16,7 +17,7 @@ from services.dto.supplier_dto import SupplierDTO
 from services.dto.material_dto import MaterialDTO
 from services.dto.tool_dto import ToolDTO
 
-from di.core import inject
+
 
 
 class SupplierService(BaseService):

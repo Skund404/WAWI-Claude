@@ -8,8 +8,6 @@ import tkinter as tk
 import tkinter.messagebox
 from pathlib import Path
 
-from di.container import DependencyContainer
-from di.setup import setup_dependency_injection
 from gui.main_window import MainWindow
 from utils.circular_import_resolver import register_lazy_import
 from utils.logging_config import setup_logging
@@ -66,10 +64,6 @@ def main():
         # Initialize Configuration and validate environment settings
         ConfigurationManager()  # Initialize configuration manager (singleton)
         _validate_environment()
-
-        # Dependency Injection Setup
-        container = DependencyContainer()
-        setup_dependency_injection(container)
 
         # Initialize Database (Create if not exist)
         database_path = get_database_path()

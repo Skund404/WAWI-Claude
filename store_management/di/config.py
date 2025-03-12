@@ -4,71 +4,56 @@ Dependency Injection Configuration.
 Provides centralized configuration for service registrations.
 """
 
-from typing import Dict, Any, Optional, Type, List
+from typing import Dict, Optional, List
 
-# Service mappings - using simple interface names
-SERVICE_MAPPINGS = {
-    # Real implementations (uncomment when implemented)
-    # 'IPatternService': 'services.implementations.pattern_service.PatternService',
-    # 'IToolListService': 'services.implementations.tool_list_service.ToolListService',
-    'IMaterialService': 'services.implementations.material_service.MaterialService',
-    'ICustomerService': 'services.implementations.customer_service.CustomerService',
-    'IProjectService': 'services.implementations.project_service.ProjectService',
-    'IInventoryService': 'services.implementations.inventory_service.InventoryService',
-    'ISalesService': 'services.implementations.sales_service.SalesService',
-    # 'ISupplierService': 'services.implementations.supplier_service.SupplierService',
-
-    # Using mocks (remove these lines when real implementations are ready)
-    'IPatternService': None,  # Using mock implementation
-    'IToolListService': None,  # Using mock implementation
-    'ISupplierService': None,  # Using mock implementation
-    'ILeatherService': None,  # Using mock implementation
-    'IHardwareService': None,  # Using mock implementation
-    'ISuppliesService': None,  # Using mock implementation
-    'IComponentService': None,  # Using mock implementation
-    'IProductService': None,  # Using mock implementation
-    'IPurchaseService': None,  # Using mock implementation
-    'IPickingListService': None,  # Using mock implementation
-    'IToolService': None,  # Using mock implementation
+# Service mappings – map each interface to its real concrete implementation.
+SERVICE_MAPPINGS: Dict[str, Optional[str]] = {
+    "IPatternService": "services.implementations.pattern_service.PatternService",
+    "IMaterialService": "services.implementations.material_service.MaterialService",
+    "ICustomerService": "services.implementations.customer_service.CustomerService",
+    "IProjectService": "services.implementations.project_service.ProjectService",
+    "IInventoryService": "services.implementations.inventory_service.InventoryService",
+    "ISalesService": "services.implementations.sales_service.SalesService",
+    "ISupplierService": "services.implementations.supplier_service.SupplierService",
+    "IToolListService": "services.implementations.tool_list_service.ToolListService",
+    "ILeatherService": "services.implementations.leather_service.LeatherService",
+    "IHardwareService": "services.implementations.hardware_service.HardwareService",
+    "ISuppliesService": "services.implementations.supplies_service.SuppliesService",
+    "IComponentService": "services.implementations.component_service.ComponentService",
+    "IProductService": "services.implementations.product_service.ProductService",
+    "IPurchaseService": "services.implementations.purchase_service.PurchaseService",
+    "IPickingListService": "services.implementations.picking_list_service.PickingListService",
+    "IToolService": "services.implementations.tool_service.ToolService",
+    "IToolCheckoutService": "services.implementations.tool_checkout_service.ToolCheckoutService",
+    "IToolMaintenanceService": "services.implementations.tool_maintenance_service.ToolMaintenanceService",
 }
 
-# Repository mappings - keep what we know exists
-REPOSITORY_MAPPINGS = [
-    # Base repositories
-    'database.repositories.base_repository.BaseRepository',
-
-    # Main entity repositories
-    'database.repositories.customer_repository.CustomerRepository',
-    'database.repositories.material_repository.MaterialRepository',
-    'database.repositories.product_repository.ProductRepository',
-    'database.repositories.pattern_repository.PatternRepository',
-    'database.repositories.project_repository.ProjectRepository',
-    'database.repositories.supplier_repository.SupplierRepository',
-    'database.repositories.tool_repository.ToolRepository',
-    'database.repositories.inventory_repository.InventoryRepository',
-    'database.repositories.sales_repository.SalesRepository',
-    'database.repositories.purchase_repository.PurchaseRepository',
-
-    # Material type repositories
-    'database.repositories.leather_repository.LeatherRepository',
-    'database.repositories.hardware_repository.HardwareRepository',
-    'database.repositories.supplies_repository.SuppliesRepository',
-
-    # Component repositories
-    'database.repositories.component_repository.ComponentRepository',
-    'database.repositories.project_component_repository.ProjectComponentRepository',
-
-    # Transaction item repositories
-    'database.repositories.sales_item_repository.SalesItemRepository',
-    'database.repositories.purchase_item_repository.PurchaseItemRepository',
-
-    # Production related repositories
-    'database.repositories.picking_list_repository.PickingListRepository',
-    'database.repositories.tool_list_repository.ToolListRepository',
+# Repository mappings remain the same.
+REPOSITORY_MAPPINGS: List[str] = [
+    "database.repositories.base_repository.BaseRepository",
+    "database.repositories.customer_repository.CustomerRepository",
+    "database.repositories.material_repository.MaterialRepository",
+    "database.repositories.product_repository.ProductRepository",
+    "database.repositories.pattern_repository.PatternRepository",
+    "database.repositories.project_repository.ProjectRepository",
+    "database.repositories.supplier_repository.SupplierRepository",
+    "database.repositories.tool_repository.ToolRepository",
+    "database.repositories.inventory_repository.InventoryRepository",
+    "database.repositories.sales_repository.SalesRepository",
+    "database.repositories.purchase_repository.PurchaseRepository",
+    "database.repositories.leather_repository.LeatherRepository",
+    "database.repositories.hardware_repository.HardwareRepository",
+    "database.repositories.supplies_repository.SuppliesRepository",
+    "database.repositories.component_repository.ComponentRepository",
+    "database.repositories.project_component_repository.ProjectComponentRepository",
+    "database.repositories.sales_item_repository.SalesItemRepository",
+    "database.repositories.purchase_item_repository.PurchaseItemRepository",
+    "database.repositories.picking_list_repository.PickingListRepository",
+    "database.repositories.tool_list_repository.ToolListRepository",
 ]
 
-# Database session configuration
-DATABASE_SESSION_CONFIG = {
-    'module': 'database.sqlalchemy.session',
-    'factory_function': None  # We'll handle this in the setup code
+# Database session configuration.
+DATABASE_SESSION_CONFIG: Dict[str, Optional[str]] = {
+    "module": "database.sqlalchemy.session",
+    "factory_function": None,  # The session factory is initialized in the DI setup code.
 }

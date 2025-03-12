@@ -1,8 +1,9 @@
 # database/diagnostics.py
 import logging
 import sys
-from datetime import datetime
+import datetime as dt
 from typing import List, Dict, Any, Optional
+
 from sqlalchemy import inspect, func, select, text, create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.exc import SQLAlchemyError
@@ -36,13 +37,14 @@ class DatabaseDiagnostics:
     Provides tools for diagnosing and validating the leatherworking database.
 
     This class includes methods for:
-    - Verifying table existence
-    - Counting records in each table
-    - Validating model relationships
-    - Running comprehensive diagnostics
-    - Generating diagnostic reports
+      - Verifying table existence
+      - Counting records in each table
+      - Validating model relationships
+      - Checking that all expected fields/columns are present
+      - Running comprehensive diagnostics
+      - Generating diagnostic reports
 
-    The diagnostics now strictly follow the ER diagram provided.
+    The diagnostics follow the provided ER diagram.
     """
 
     def __init__(self, session: Optional[Session] = None):
@@ -55,15 +57,14 @@ class DatabaseDiagnostics:
         import os
         from pathlib import Path
 
-        # Configure logging
+        # Configure logging.
         logging.basicConfig(
-            level=logging.INFO,
-            format="%(asctime)s - %(levelname)s - %(message)s"
+            level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
         )
         self.logger = logging.getLogger(__name__)
 
         if session is None:
-            # Use the current file's directory as the base directory; assumed to be store_management
+            # Use the current file's directory as the base (assumed to be store_management)
             base_dir = Path(__file__).resolve().parent
             # Assume the data folder is inside store_management
             data_dir = base_dir / "data"
@@ -76,7 +77,7 @@ class DatabaseDiagnostics:
                 self.logger.error(msg)
                 raise FileNotFoundError(msg)
 
-            # Create a single engine instance with echo enabled initially for reflection.
+            # Create engine with echo enabled initially for reflection.
             self.engine = create_engine(f"sqlite:///{db_path}", echo=True)
             SessionLocal = sessionmaker(bind=self.engine)
             self.session = SessionLocal()
@@ -87,7 +88,7 @@ class DatabaseDiagnostics:
                 Base.metadata.reflect(bind=self.session.bind)
                 self.logger.info("SQLAlchemy metadata reflection completed.")
             except Exception as e:
-                self.logger.error(f"Failed to refresh SQLAlchemy metadata: {e}")
+                self.logger.error(f"Failed to reflect SQLAlchemy metadata: {e}")
                 self.logger.exception(e)
                 raise
             finally:
@@ -106,7 +107,7 @@ class DatabaseDiagnostics:
         Verify existence of all expected tables in the database based on the ER diagram.
 
         Returns:
-            Dict[str, bool]: A dictionary of table names and their existence status.
+            Dict[str, bool]: A dictionary mapping table names to their existence (True/False).
         """
         inspector = inspect(self.session.bind)
         self.logger.info("\nTables found by SQLAlchemy AFTER reflection:")
@@ -119,7 +120,7 @@ class DatabaseDiagnostics:
             # Product and Pattern Related
             "products", "patterns",
             # Material and its subtypes
-            "materials", "leathers", "hardware", "supplies",
+            "materials",
             # Supplier and Purchase Related
             "suppliers", "purchases", "purchase_items",
             # Inventory Related
@@ -129,7 +130,7 @@ class DatabaseDiagnostics:
             # Picking and Tool Management
             "picking_lists", "picking_list_items",
             "tools", "tool_lists", "tool_list_items",
-            # Tool Maintenance and Checkout (NEW)
+            # Tool Maintenance and Checkout
             "tool_maintenance", "tool_checkouts"
         ]
 
@@ -144,12 +145,51 @@ class DatabaseDiagnostics:
 
         return table_existence
 
+    def verify_table_columns(self) -> Dict[str, Dict[str, List[str]]]:
+        """
+        Verify that each database table contains all expected fields based on the model definitions.
+
+        Returns:
+            Dict[str, Dict[str, List[str]]]: A dictionary keyed by table name that maps to a dict with
+            "missing" (expected fields not found in the database) and "extra" (fields present in
+            the database but not defined in the model) lists.
+        """
+        inspector = inspect(self.session.bind)
+        # List of all models to check.
+        models_to_check = [
+            Customer, Sales, SalesItem,
+            Product, Pattern,
+            Material, Leather, Hardware, Supplies,
+            Supplier, Purchase, PurchaseItem,
+            Inventory,
+            Project, Component, ComponentMaterial, ProjectComponent,
+            PickingList, PickingListItem,
+            Tool, ToolList, ToolListItem,
+            ToolMaintenance, ToolCheckout
+        ]
+        result = {}
+        for model in models_to_check:
+            table_name = model.__tablename__
+            # Get expected fields from the model.
+            expected_fields = set(model.__table__.columns.keys())
+            try:
+                actual_columns = inspector.get_columns(table_name)
+                actual_fields = set(col["name"] for col in actual_columns)
+            except Exception as e:
+                self.logger.error(f"Error retrieving columns for table {table_name}: {e}")
+                result[table_name] = {"missing": sorted(list(expected_fields)), "extra": []}
+                continue
+            missing = sorted(list(expected_fields - actual_fields))
+            extra = sorted(list(actual_fields - expected_fields))
+            result[table_name] = {"missing": missing, "extra": extra}
+        return result
+
     def count_records_per_model(self) -> Dict[str, int]:
         """
         Count records for each model in the database.
 
         Returns:
-            Dict[str, int]: A dictionary of model names and their record counts.
+            Dict[str, int]: A dictionary mapping model table names to their record counts.
         """
         models_to_count = [
             # Customer and Sales Related
@@ -167,7 +207,7 @@ class DatabaseDiagnostics:
             # Picking and Tool Management
             PickingList, PickingListItem,
             Tool, ToolList, ToolListItem,
-            # Tool Maintenance and Checkout (NEW)
+            # Tool Maintenance and Checkout
             ToolMaintenance, ToolCheckout
         ]
 
@@ -189,49 +229,30 @@ class DatabaseDiagnostics:
         Validate relationships for each model based on the ER diagram.
 
         Returns:
-            Dict[str, List[Dict[str, Any]]]: A dictionary of models
-            and their relationship validation results.
+            Dict[str, List[Dict[str, Any]]]: Dictionary of each model and its relationship details.
         """
         relationship_validation = {}
 
-        def validate_model_relationships_internal(model):
-            """Internal helper to validate relationships for a single model."""
+        def validate_model_relationships_internal(model) -> List[Dict[str, Any]]:
+            """Internal helper to inspect relationships of a single model."""
             mapper = inspect(model)
             relationships = []
-            try:
-                for rel in mapper.relationships:
-                    try:
-                        target_model = rel.mapper.class_.__name__
-                        relationship_type = str(rel.direction.name)
-                        valid = True
-                        error_msg = None
-                        try:
-                            getattr(model, rel.key)
-                        except Exception as e:
-                            valid = False
-                            error_msg = str(e)
-                        relationships.append({
-                            "name": rel.key,
-                            "target": target_model,
-                            "type": relationship_type,
-                            "valid": valid,
-                            "error": error_msg,
-                        })
-                    except Exception as e:
-                        relationships.append({
-                            "name": rel.key if hasattr(rel, "key") else "unknown",
-                            "target": "unknown",
-                            "type": "unknown",
-                            "valid": False,
-                            "error": str(e),
-                        })
-            except Exception as e:
+            for rel in mapper.relationships:
+                target_model = rel.mapper.class_.__name__
+                relationship_type = str(rel.direction.name)
+                valid = True
+                error_msg = None
+                try:
+                    getattr(model, rel.key)
+                except Exception as e:
+                    valid = False
+                    error_msg = str(e)
                 relationships.append({
-                    "name": "relationship_inspection_failed",
-                    "target": "unknown",
-                    "type": "unknown",
-                    "valid": False,
-                    "error": str(e),
+                    "name": rel.key,
+                    "target": target_model,
+                    "type": relationship_type,
+                    "valid": valid,
+                    "error": error_msg,
                 })
             return relationships
 
@@ -251,7 +272,7 @@ class DatabaseDiagnostics:
             # Picking and Tool Management
             PickingList, PickingListItem,
             Tool, ToolList, ToolListItem,
-            # Tool Maintenance and Checkout (NEW)
+            # Tool Maintenance and Checkout
             ToolMaintenance, ToolCheckout
         ]
 
@@ -260,16 +281,16 @@ class DatabaseDiagnostics:
 
         return relationship_validation
 
-    def validate_data_integrity(self) -> Dict[str, List[Dict[str, Any]]]:
+    def validate_data_integrity(self) -> Dict[str, Any]:
         """
         Validate data integrity across related models according to the ER diagram.
 
         Returns:
-            Dict[str, List[Dict[str, Any]]]: Results of integrity checks.
+            Dict[str, Any]: Dictionary of integrity check results.
         """
         integrity_checks = {}
 
-        # 1. SalesItems should reference valid Sales and Products.
+        # 1. SalesItems must reference valid Sales and Products.
         orphaned_sales_items_sales = self.session.query(SalesItem).filter(
             ~SalesItem.sales_id.in_(select(Sales.id))
         ).all()
@@ -287,7 +308,7 @@ class DatabaseDiagnostics:
             "product_id": item.product_id,
         } for item in orphaned_sales_items_product]
 
-        # 2. Projects must reference a valid Sale (per the ER diagram).
+        # 2. Projects must reference a valid Sale.
         orphaned_projects = self.session.query(Project).filter(
             ~Project.sales_id.in_(select(Sales.id))
         ).all()
@@ -317,7 +338,7 @@ class DatabaseDiagnostics:
             "material_id": cm.material_id,
         } for cm in invalid_component_materials]
 
-        # 5. PurchaseItems must reference valid items based on their type
+        # 5. PurchaseItems must reference valid items based on their type.
         orphaned_purchase_items_material = self.session.query(PurchaseItem).filter(
             PurchaseItem.item_type == "material",
             ~PurchaseItem.item_id.in_(select(Material.id))
@@ -333,7 +354,7 @@ class DatabaseDiagnostics:
             "item_type": item.item_type,
         } for item in orphaned_purchase_items_material + orphaned_purchase_items_tool]
 
-        # 6. PurchaseItems must also reference valid Purchases.
+        # 6. PurchaseItems must reference valid Purchases.
         orphaned_purchase_items_purchase = self.session.query(PurchaseItem).filter(
             ~PurchaseItem.purchase_id.in_(select(Purchase.id))
         ).all()
@@ -438,22 +459,19 @@ class DatabaseDiagnostics:
             "maintenance_date": tm.maintenance_date
         } for tm in orphaned_tool_maintenance]
 
-        # 14. ToolCheckout must reference valid Tools and Projects (if specified).
+        # 14. ToolCheckout must reference valid Tools and Projects (when specified).
         orphaned_tool_checkouts_tool = self.session.query(ToolCheckout).filter(
             ~ToolCheckout.tool_id.in_(select(Tool.id))
         ).all()
-
         orphaned_tool_checkouts_project = self.session.query(ToolCheckout).filter(
             ToolCheckout.project_id.isnot(None),
             ~ToolCheckout.project_id.in_(select(Project.id))
         ).all()
-
         integrity_checks["orphaned_tool_checkouts_tool"] = [{
             "id": tc.id,
             "tool_id": tc.tool_id,
             "checked_out_by": tc.checked_out_by
         } for tc in orphaned_tool_checkouts_tool]
-
         integrity_checks["orphaned_tool_checkouts_project"] = [{
             "id": tc.id,
             "tool_id": tc.tool_id,
@@ -481,11 +499,10 @@ class DatabaseDiagnostics:
         }
 
         try:
-            # Count items by status.
+            # Aggregate counts by status.
             inventory_by_status = self.session.query(
                 Inventory.status, func.count(Inventory.id)
             ).group_by(Inventory.status).all()
-
             for status, count in inventory_by_status:
                 inventory_analysis["total_items"] += count
                 if status == InventoryStatus.IN_STOCK:
@@ -495,22 +512,20 @@ class DatabaseDiagnostics:
                 elif status == InventoryStatus.OUT_OF_STOCK:
                     inventory_analysis["out_of_stock"] = count
 
-            # Count items by item type.
+            # Aggregate counts by item type.
             inventory_by_type = self.session.query(
                 Inventory.item_type, func.count(Inventory.id)
             ).group_by(Inventory.item_type).all()
-
             for item_type, count in inventory_by_type:
                 inventory_analysis["by_type"][item_type] = count
 
-            # Get low/out-of-stock items.
+            # Gather low/out-of-stock items.
             low_stock_items = self.session.query(Inventory).filter(
                 Inventory.status.in_([
                     InventoryStatus.LOW_STOCK,
                     InventoryStatus.OUT_OF_STOCK,
                 ])
             ).all()
-
             for item in low_stock_items:
                 item_name = "Unknown"
                 try:
@@ -534,7 +549,6 @@ class DatabaseDiagnostics:
                             item_name = tool.name
                 except Exception:
                     pass
-
                 inventory_analysis["low_stock_items"].append({
                     "id": item.id,
                     "item_type": item.item_type,
@@ -565,13 +579,11 @@ class DatabaseDiagnostics:
             "top_customers": [],
             "monthly_sales": [],
         }
-
         try:
-            # Total sales and revenue.
+            # Total orders and sales revenue.
             sales_totals = self.session.query(
                 func.count(Sales.id), func.sum(Sales.total_amount)
             ).first()
-
             sales_analysis["total_sales"] = sales_totals[0] or 0
             sales_analysis["total_revenue"] = float(sales_totals[1] or 0)
 
@@ -618,7 +630,7 @@ class DatabaseDiagnostics:
                 "total_spent": float(c.total_spent or 0),
             } for c in top_customers]
 
-            # Monthly sales (SQLite-specific using strftime).
+            # Monthly sales (using SQLite strftime).
             monthly_sales = self.session.execute(text("""
                 SELECT 
                     strftime('%Y-%m', created_at) AS month,
@@ -632,7 +644,6 @@ class DatabaseDiagnostics:
                     month DESC
                 LIMIT 12
             """)).fetchall()
-
             sales_analysis["monthly_sales"] = [{
                 "month": row[0],
                 "order_count": row[1],
@@ -642,7 +653,6 @@ class DatabaseDiagnostics:
         except Exception as e:
             self.logger.error(f"Error analyzing sales trends: {e}")
             sales_analysis["error"] = str(e)
-
         return sales_analysis
 
     def analyze_tool_usage(self) -> Dict[str, Any]:
@@ -667,19 +677,17 @@ class DatabaseDiagnostics:
             },
             "most_used_tools": []
         }
-
         try:
-            # Count total tools
-            tool_analysis["total_tools"] = self.session.query(func.count(Tool.id)).scalar() or 0
+            # Total tools.
+            tool_analysis["total_tools"] = (self.session.query(func.count(Tool.id))
+                                            .scalar() or 0)
+            # Tool maintenance statistics.
+            tool_analysis["maintenance_stats"]["total_maintenance"] = (
+                    self.session.query(func.count(ToolMaintenance.id)).scalar() or 0
+            )
 
-            # Tool maintenance stats
-            tool_analysis["maintenance_stats"]["total_maintenance"] = self.session.query(
-                func.count(ToolMaintenance.id)
-            ).scalar() or 0
-
-            # Get tools needing maintenance soon (next 30 days)
-            now = datetime.datetime.now()
-            thirty_days_from_now = now + datetime.timedelta(days=30)
+            now = dt.datetime.now()
+            thirty_days_from_now = now + dt.timedelta(days=30)
 
             upcoming_maintenance = self.session.query(
                 Tool.id, Tool.name, ToolMaintenance.next_maintenance_date
@@ -688,14 +696,13 @@ class DatabaseDiagnostics:
             ).filter(
                 ToolMaintenance.next_maintenance_date.between(now, thirty_days_from_now)
             ).all()
-
             tool_analysis["maintenance_stats"]["upcoming_maintenance"] = [{
                 "tool_id": t.id,
                 "tool_name": t.name,
-                "due_date": t.next_maintenance_date.strftime("%Y-%m-%d") if t.next_maintenance_date else "Unknown"
+                "due_date": t.next_maintenance_date.strftime("%Y-%m-%d")
+                if t.next_maintenance_date else "Unknown"
             } for t in upcoming_maintenance]
 
-            # Get overdue maintenance
             overdue_maintenance = self.session.query(
                 Tool.id, Tool.name, ToolMaintenance.next_maintenance_date
             ).join(
@@ -703,28 +710,28 @@ class DatabaseDiagnostics:
             ).filter(
                 ToolMaintenance.next_maintenance_date < now
             ).all()
-
             tool_analysis["maintenance_stats"]["overdue_maintenance"] = [{
                 "tool_id": t.id,
                 "tool_name": t.name,
-                "due_date": t.next_maintenance_date.strftime("%Y-%m-%d") if t.next_maintenance_date else "Unknown"
+                "due_date": t.next_maintenance_date.strftime("%Y-%m-%d")
+                if t.next_maintenance_date else "Unknown"
             } for t in overdue_maintenance]
 
-            # Tool checkout stats
-            tool_analysis["checkout_stats"]["checked_out"] = self.session.query(
-                func.count(ToolCheckout.id)
-            ).filter(
-                ToolCheckout.returned_date.is_(None)
-            ).scalar() or 0
-
-            tool_analysis["checkout_stats"]["available"] = tool_analysis["total_tools"] - \
-                                                           tool_analysis["checkout_stats"]["checked_out"]
-
-            # Get current checkouts
+            # Checkout statistics.
+            tool_analysis["checkout_stats"]["checked_out"] = (
+                    self.session.query(func.count(ToolCheckout.id))
+                    .filter(ToolCheckout.returned_date.is_(None))
+                    .scalar() or 0
+            )
+            tool_analysis["checkout_stats"]["available"] = (
+                    tool_analysis["total_tools"] -
+                    tool_analysis["checkout_stats"]["checked_out"]
+            )
             current_checkouts = self.session.query(
                 Tool.id, Tool.name, ToolCheckout.checked_out_by,
                 ToolCheckout.checked_out_date, ToolCheckout.due_date,
-                Project.id.label("project_id"), Project.name.label("project_name")
+                Project.id.label("project_id"),
+                Project.name.label("project_name")
             ).join(
                 ToolCheckout, Tool.id == ToolCheckout.tool_id
             ).outerjoin(
@@ -732,48 +739,47 @@ class DatabaseDiagnostics:
             ).filter(
                 ToolCheckout.returned_date.is_(None)
             ).all()
-
             tool_analysis["checkout_stats"]["current_checkouts"] = [{
                 "tool_id": c.id,
                 "tool_name": c.name,
                 "checked_out_by": c.checked_out_by,
-                "checkout_date": c.checked_out_date.strftime("%Y-%m-%d") if c.checked_out_date else "Unknown",
-                "due_date": c.due_date.strftime("%Y-%m-%d") if c.due_date else "Unknown",
+                "checkout_date": c.checked_out_date.strftime("%Y-%m-%d")
+                if c.checked_out_date else "Unknown",
+                "due_date": c.due_date.strftime("%Y-%m-%d")
+                if c.due_date else "Unknown",
                 "project_id": c.project_id,
                 "project_name": c.project_name
             } for c in current_checkouts]
-
-            # Count overdue checkouts
-            tool_analysis["checkout_stats"]["overdue"] = self.session.query(
-                func.count(ToolCheckout.id)
-            ).filter(
-                ToolCheckout.returned_date.is_(None),
-                ToolCheckout.due_date < now
-            ).scalar() or 0
-
-            # Most used tools (by checkout count)
-            most_used_tools = self.session.query(
-                Tool.id, Tool.name, Tool.category,
-                func.count(ToolCheckout.id).label("checkout_count")
-            ).join(
-                ToolCheckout, Tool.id == ToolCheckout.tool_id
-            ).group_by(
-                Tool.id
-            ).order_by(
-                func.count(ToolCheckout.id).desc()
-            ).limit(5).all()
-
+            tool_analysis["checkout_stats"]["overdue"] = (
+                    self.session.query(func.count(ToolCheckout.id))
+                    .filter(
+                        ToolCheckout.returned_date.is_(None),
+                        ToolCheckout.due_date < now
+                    )
+                    .scalar() or 0
+            )
+            # Most used tools (by checkout count).
+            most_used_tools = (
+                self.session.query(
+                    Tool.id, Tool.name, Tool.tool_category,
+                    func.count(ToolCheckout.id).label("checkout_count")
+                )
+                .join(ToolCheckout, Tool.id == ToolCheckout.tool_id)
+                .group_by(Tool.id)
+                .order_by(func.count(ToolCheckout.id).desc())
+                .limit(5)
+                .all()
+            )
             tool_analysis["most_used_tools"] = [{
                 "tool_id": t.id,
                 "tool_name": t.name,
-                "category": str(t.category),
+                "category": str(t.tool_category),
                 "checkout_count": t.checkout_count
             } for t in most_used_tools]
 
         except Exception as e:
             self.logger.error(f"Error analyzing tool usage: {e}")
             tool_analysis["error"] = str(e)
-
         return tool_analysis
 
     def run_full_database_diagnostics(self) -> Dict[str, Any]:
@@ -785,6 +791,7 @@ class DatabaseDiagnostics:
         """
         diagnostics_results = {
             "table_existence": self.verify_table_existence(),
+            "table_fields": self.verify_table_columns(),
             "record_counts": self.count_records_per_model(),
             "relationship_validation": self.validate_model_relationships(),
             "data_integrity": self.validate_data_integrity(),
@@ -794,9 +801,7 @@ class DatabaseDiagnostics:
         }
         return diagnostics_results
 
-    def print_diagnostics_report(
-            self, diagnostics: Optional[Dict[str, Any]] = None
-    ):
+    def print_diagnostics_report(self, diagnostics: Optional[Dict[str, Any]] = None):
         """
         Print a formatted diagnostic report.
 
@@ -817,11 +822,25 @@ class DatabaseDiagnostics:
             print(f"{table}: {status}")
             if not exists:
                 missing_tables.append(table)
-
         if missing_tables:
             print(
                 f"\nWARNING: {len(missing_tables)} tables are missing: {', '.join(missing_tables)}"
             )
+
+        # Table Fields
+        print("\n== Table Fields ==")
+        table_fields = diagnostics.get("table_fields", {})
+        for table, diffs in table_fields.items():
+            missing = diffs.get("missing", [])
+            extra = diffs.get("extra", [])
+            if not missing and not extra:
+                print(f"{table}: Fields OK")
+            else:
+                print(f"{table}:")
+                if missing:
+                    print(f"   Missing fields: {', '.join(missing)}")
+                if extra:
+                    print(f"   Extra fields: {', '.join(extra)}")
 
         # Record Counts
         print("\n== Record Counts ==")
@@ -935,47 +954,47 @@ class DatabaseDiagnostics:
             print(f"Error analyzing tool usage: {tool_usage['error']}")
         else:
             print(f"Total tools: {tool_usage['total_tools']}")
-
-            # Maintenance stats
+            # Maintenance stats.
             print("\nMaintenance Statistics:")
             print(f"  Total maintenance records: {tool_usage['maintenance_stats']['total_maintenance']}")
-
-            if tool_usage['maintenance_stats']['upcoming_maintenance']:
+            if tool_usage["maintenance_stats"]["upcoming_maintenance"]:
                 print(
-                    f"\n  Tools needing maintenance soon ({len(tool_usage['maintenance_stats']['upcoming_maintenance'])}):")
-                for i, maint in enumerate(tool_usage['maintenance_stats']['upcoming_maintenance'][:5], 1):
+                    f"\n  Tools needing maintenance soon ({len(tool_usage['maintenance_stats']['upcoming_maintenance'])}):"
+                )
+                for i, maint in enumerate(tool_usage["maintenance_stats"]["upcoming_maintenance"][:5], 1):
                     print(f"    {i}. {maint['tool_name']} - Due: {maint['due_date']}")
-                if len(tool_usage['maintenance_stats']['upcoming_maintenance']) > 5:
+                if len(tool_usage["maintenance_stats"]["upcoming_maintenance"]) > 5:
                     print(f"    ... and {len(tool_usage['maintenance_stats']['upcoming_maintenance']) - 5} more")
-
-            if tool_usage['maintenance_stats']['overdue_maintenance']:
+            if tool_usage["maintenance_stats"]["overdue_maintenance"]:
                 print(f"\n  Overdue tool maintenance ({len(tool_usage['maintenance_stats']['overdue_maintenance'])}):")
-                for i, maint in enumerate(tool_usage['maintenance_stats']['overdue_maintenance'][:5], 1):
+                for i, maint in enumerate(tool_usage["maintenance_stats"]["overdue_maintenance"][:5], 1):
                     print(f"    {i}. {maint['tool_name']} - Due: {maint['due_date']}")
-                if len(tool_usage['maintenance_stats']['overdue_maintenance']) > 5:
+                if len(tool_usage["maintenance_stats"]["overdue_maintenance"]) > 5:
                     print(f"    ... and {len(tool_usage['maintenance_stats']['overdue_maintenance']) - 5} more")
-
-            # Checkout stats
+            # Checkout stats.
             print("\nCheckout Statistics:")
             print(f"  Currently checked out: {tool_usage['checkout_stats']['checked_out']}")
             print(f"  Available tools: {tool_usage['checkout_stats']['available']}")
             print(f"  Overdue checkouts: {tool_usage['checkout_stats']['overdue']}")
-
-            if tool_usage['checkout_stats']['current_checkouts']:
+            if tool_usage["checkout_stats"]["current_checkouts"]:
                 print(f"\n  Current checkouts ({len(tool_usage['checkout_stats']['current_checkouts'])}):")
-                for i, checkout in enumerate(tool_usage['checkout_stats']['current_checkouts'][:5], 1):
-                    project_info = f" for project: {checkout['project_name']}" if checkout['project_name'] else ""
+                for i, checkout in enumerate(tool_usage["checkout_stats"]["current_checkouts"][:5], 1):
+                    project_info = f" for project: {checkout['project_name']}" if checkout["project_name"] else ""
                     print(
-                        f"    {i}. {checkout['tool_name']} - Checked out by: {checkout['checked_out_by']}{project_info}")
+                        f"    {i}. {checkout['tool_name']} - Checked out by: {checkout['checked_out_by']}{project_info}"
+                    )
                     print(f"       Due: {checkout['due_date']}")
-                if len(tool_usage['checkout_stats']['current_checkouts']) > 5:
+                if len(tool_usage["checkout_stats"]["current_checkouts"]) > 5:
                     print(f"    ... and {len(tool_usage['checkout_stats']['current_checkouts']) - 5} more")
-
-            # Most used tools
-            if tool_usage['most_used_tools']:
+            # Most used tools.
+            if tool_usage["most_used_tools"]:
                 print("\n  Most frequently used tools:")
-                for i, tool in enumerate(tool_usage['most_used_tools'], 1):
+                for i, tool in enumerate(tool_usage["most_used_tools"], 1):
                     print(f"    {i}. {tool['tool_name']} ({tool['category']}): {tool['checkout_count']} checkouts")
+
+    def run_full_database_diagnostics_and_print(self):
+        full_report = self.run_full_database_diagnostics()
+        self.print_diagnostics_report(full_report)
 
 
 def main():
@@ -986,7 +1005,6 @@ def main():
         python -m database.diagnostics [--silent] [--report-file=output.txt]
     """
     import argparse
-    import datetime
 
     parser = argparse.ArgumentParser(description="Run database diagnostics")
     parser.add_argument(
@@ -1016,7 +1034,6 @@ def main():
             json_file = args.report_file
             if not json_file.endswith(".json"):
                 json_file += ".json"
-
             with open(json_file, "w") as f:
                 json.dump(full_report, f, indent=2, default=str)
 
@@ -1025,7 +1042,6 @@ def main():
                 txt_file = txt_file[:-5] + ".txt"
             elif not txt_file.endswith(".txt"):
                 txt_file += ".txt"
-
             with open(txt_file, "w") as f:
                 old_stdout = sys.stdout
                 sys.stdout = f
@@ -1033,7 +1049,6 @@ def main():
                     diagnostics.print_diagnostics_report(full_report)
                 finally:
                     sys.stdout = old_stdout
-
             if not args.silent:
                 print("\nDiagnostic reports saved to:")
                 print(f"  - JSON: {json_file}")
@@ -1069,7 +1084,14 @@ def check_actual_tables():
     for table in tables:
         print(f"- {table[0]}")
 
-    for table_name in ["materials", "products", "customers", "inventory", "tool_maintenance", "tool_checkouts"]:
+    for table_name in [
+        "materials",
+        "products",
+        "customers",
+        "inventory",
+        "tool_maintenance",
+        "tool_checkouts",
+    ]:
         try:
             cursor.execute(f"PRAGMA table_info({table_name});")
             columns = cursor.fetchall()

@@ -11,12 +11,18 @@ import tkinter as tk
 from tkinter import ttk
 from datetime import datetime, timedelta
 import math
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from di import resolve
 from gui.config import DATE_FORMAT
 from gui.theme import COLORS, get_status_style
 from gui.widgets.charts import create_bar_chart, create_pie_chart, create_line_chart
+from gui.widgets.charts.heatmap import HeatmapChart  # Import the heatmap chart
+from gui.utils.event_bus import subscribe, unsubscribe, publish
+from gui.utils.service_access import with_service
+from gui.utils.view_history_manager import ViewHistoryManager
+from gui.widgets.breadcrumb_navigation import BreadcrumbNavigation
+from gui.widgets.status_badge import StatusBadge
 
 logger = logging.getLogger(__name__)
 
@@ -55,12 +61,20 @@ class DashboardView:
         self.right_column = None
         self.bottom_frame = None
 
+        # Add breadcrumb navigation
+        self.breadcrumb_nav = None
+
+        # Track view history for navigation
+        self.view_history = None
+
         # Build the view
         self.build()
 
         # Subscribe to events
-        # Note: This would require an event bus implementation
-        # For now, we'll just load data on init and offer a refresh method
+        self._subscribe_to_events()
+
+        # Load the data
+        self.load_data()
 
     def build(self):
         """Build the dashboard view layout."""
@@ -114,8 +128,8 @@ class DashboardView:
 
         self.create_upcoming_section(self.bottom_frame)
 
-        # Load the data
-        self.load_data()
+        # Initialize breadcrumb navigation
+        self.init_breadcrumb_navigation()
 
     def create_header(self, parent):
         """
@@ -126,6 +140,14 @@ class DashboardView:
         """
         header_frame = ttk.Frame(parent)
         header_frame.pack(fill=tk.X, expand=False, pady=(0, 15))
+
+        # Add breadcrumb navigation at the top
+        breadcrumb_frame = ttk.Frame(header_frame)
+        breadcrumb_frame.pack(fill=tk.X, pady=(0, 10))
+
+        self.breadcrumb_nav = BreadcrumbNavigation(breadcrumb_frame, callback=self._navigate_to_breadcrumb)
+        self.breadcrumb_nav.pack(fill=tk.X)
+        self.breadcrumb_nav.set_home_breadcrumb("Dashboard", "dashboard")
 
         # Left section - title and description
         title_frame = ttk.Frame(header_frame)
@@ -167,6 +189,14 @@ class DashboardView:
             command=self.refresh
         )
         refresh_button.pack(side=tk.LEFT)
+
+        # Export dashboard button (new)
+        export_button = ttk.Button(
+            action_frame,
+            text="Export Dashboard",
+            command=self._export_dashboard
+        )
+        export_button.pack(side=tk.LEFT, padx=(10, 0))
 
     def create_kpi_section(self, parent):
         """
@@ -430,6 +460,7 @@ class DashboardView:
         self.activities_tree.tag_configure("project", foreground=COLORS["success"])
         self.activities_tree.tag_configure("sale", foreground=COLORS["accent"])
         self.activities_tree.tag_configure("purchase", foreground=COLORS["secondary"])
+        self.activities_tree.tag_configure("alert", foreground=COLORS["danger"])
 
     def create_inventory_status_section(self, parent):
         """
@@ -681,15 +712,13 @@ class DashboardView:
         type_frame = ttk.Frame(frame)
         type_frame.pack(fill=tk.X, anchor="w")
 
-        # Create badge with rounded corners (if possible in ttk)
-        type_label = ttk.Label(
+        # Create badge with a status badge widget instead
+        status_badge = StatusBadge(
             type_frame,
             text=data["type"],
-            padding=(5, 2),
-            background=bg_color,
-            foreground=fg_color
+            status_value=data["type"].lower()
         )
-        type_label.pack(side=tk.LEFT)
+        status_badge.pack(side=tk.LEFT)
 
         # Title
         title_label = ttk.Label(
@@ -709,43 +738,33 @@ class DashboardView:
         )
         date_label.pack(anchor="w")
 
-    def load_data(self):
-        """Load dashboard data from services."""
+    def init_breadcrumb_navigation(self):
+        """Initialize the breadcrumb navigation with the view history manager."""
+        # Connect to the global view history manager if available
         try:
-            # Load inventory statistics
-            self.load_inventory_stats()
-
-            # Load project statistics
-            self.load_project_stats()
-
-            # Load sales statistics
-            self.load_sales_stats()
-
-            # Load purchase statistics
-            self.load_purchase_stats()
-
-            # Load analytics summary
-            self.load_analytics_summary()
-
-            # Load recent activities
-            self.load_recent_activities()
-
-            # Update the dashboard with loaded data
-            self.update_dashboard()
-
-            self.logger.info("Dashboard data loaded successfully")
+            main_window = self.parent.winfo_toplevel()
+            if hasattr(main_window, "view_history_manager"):
+                self.view_history = main_window.view_history_manager
         except Exception as e:
-            self.logger.error(f"Error loading dashboard data: {str(e)}")
-            # We don't have access to a show_error method, so we'll just log it
+            self.logger.warning(f"Could not access view history manager: {str(e)}")
 
-    def load_inventory_stats(self):
+    def _navigate_to_breadcrumb(self, view_name, view_data=None):
+        """
+        Navigate to a view from breadcrumb click.
+
+        Args:
+            view_name: The name of the view to navigate to
+            view_data: Optional data for the view
+        """
+        main_window = self.parent.winfo_toplevel()
+        main_window.show_view(view_name, view_data)
+
+    @with_service("IInventoryService")
+    def load_inventory_stats(self, service=None):
         """Load inventory statistics from inventory service."""
         try:
-            # Use safe service access
-            try:
-                inventory_service = resolve("IInventoryService")
-            except Exception:
-                # If service is not available, use placeholder data
+            # If service is not available, use placeholder data
+            if not service:
                 self.inventory_stats = {
                     "total_value": 12500.00,
                     "total_items": 356,
@@ -763,13 +782,13 @@ class DashboardView:
 
             # If service is available, get actual data
             self.inventory_stats = {
-                "total_value": inventory_service.get_total_inventory_value(),
-                "total_items": inventory_service.get_total_inventory_count(),
-                "low_stock_count": inventory_service.get_low_stock_count(),
-                "out_of_stock_count": inventory_service.get_out_of_stock_count(),
-                "in_stock_count": inventory_service.get_in_stock_count(),
-                "categories": inventory_service.get_inventory_by_category(),
-                "value_trend": inventory_service.get_inventory_value_trend()
+                "total_value": service.get_total_inventory_value(),
+                "total_items": service.get_total_inventory_count(),
+                "low_stock_count": service.get_low_stock_count(),
+                "out_of_stock_count": service.get_out_of_stock_count(),
+                "in_stock_count": service.get_in_stock_count(),
+                "categories": service.get_inventory_by_category(),
+                "value_trend": service.get_inventory_value_trend()
             }
         except Exception as e:
             self.logger.error(f"Error loading inventory statistics: {str(e)}")
@@ -788,14 +807,12 @@ class DashboardView:
                 "value_trend": 3.2  # Percentage change from previous period
             }
 
-    def load_project_stats(self):
+    @with_service("IProjectService")
+    def load_project_stats(self, service=None):
         """Load project statistics from project service."""
         try:
-            # Use safe service access
-            try:
-                project_service = resolve("IProjectService")
-            except Exception:
-                # If service is not available, use placeholder data
+            # If service is not available, use placeholder data
+            if not service:
                 self.project_stats = {
                     "active_count": 8,
                     "completed_this_month": 3,
@@ -821,7 +838,7 @@ class DashboardView:
             today = datetime.now()
             start_of_month = today.replace(day=1)
 
-            completed_this_month = project_service.get_completed_project_count_for_period(
+            completed_this_month = service.get_completed_project_count_for_period(
                 start_of_month, today
             )
 
@@ -829,7 +846,7 @@ class DashboardView:
             last_month_end = start_of_month - timedelta(days=1)
             last_month_start = last_month_end.replace(day=1)
 
-            completed_last_month = project_service.get_completed_project_count_for_period(
+            completed_last_month = service.get_completed_project_count_for_period(
                 last_month_start, last_month_end
             )
 
@@ -839,11 +856,11 @@ class DashboardView:
                 completion_trend = 0 if completed_this_month == 0 else 100
 
             self.project_stats = {
-                "active_count": project_service.get_active_project_count(),
+                "active_count": service.get_active_project_count(),
                 "completed_this_month": completed_this_month,
                 "completion_trend": completion_trend,
-                "by_status": project_service.get_projects_by_status(),
-                "upcoming_deadlines": project_service.get_upcoming_deadlines(limit=5)
+                "by_status": service.get_projects_by_status(),
+                "upcoming_deadlines": service.get_upcoming_deadlines(limit=5)
             }
         except Exception as e:
             self.logger.error(f"Error loading project statistics: {str(e)}")
@@ -868,14 +885,12 @@ class DashboardView:
                 ]
             }
 
-    def load_sales_stats(self):
+    @with_service("ISalesService")
+    def load_sales_stats(self, service=None):
         """Load sales statistics from sales service."""
         try:
-            # Use safe service access
-            try:
-                sales_service = resolve("ISalesService")
-            except Exception:
-                # If service is not available, use placeholder data
+            # If service is not available, use placeholder data
+            if not service:
                 self.sales_stats = {
                     "current_month": 4250.00,
                     "prev_month": 3980.00,
@@ -903,12 +918,12 @@ class DashboardView:
             end_of_prev_month = today.replace(day=1) - timedelta(days=1)
 
             # Get sales statistics
-            current_month_sales = sales_service.get_total_sales_for_period(
+            current_month_sales = service.get_total_sales_for_period(
                 start_of_month,
                 today
             )
 
-            prev_month_sales = sales_service.get_total_sales_for_period(
+            prev_month_sales = service.get_total_sales_for_period(
                 start_of_prev_month,
                 end_of_prev_month
             )
@@ -930,7 +945,7 @@ class DashboardView:
                     next_month = month_date.replace(day=28) + timedelta(days=4)
                     month_end = next_month.replace(day=1) - timedelta(days=1)
 
-                month_sales = sales_service.get_total_sales_for_period(month_start, month_end)
+                month_sales = service.get_total_sales_for_period(month_start, month_end)
                 monthly_trend.append({
                     "month": month_date.strftime("%b"),
                     "value": month_sales
@@ -940,7 +955,7 @@ class DashboardView:
                 "current_month": current_month_sales,
                 "prev_month": prev_month_sales,
                 "percentage_change": percentage_change,
-                "recent_sales": sales_service.get_recent_sales(limit=5),
+                "recent_sales": service.get_recent_sales(limit=5),
                 "monthly_trend": monthly_trend
             }
         except Exception as e:
@@ -965,14 +980,12 @@ class DashboardView:
                 ]
             }
 
-    def load_purchase_stats(self):
+    @with_service("IPurchaseService")
+    def load_purchase_stats(self, service=None):
         """Load purchase statistics from purchase service."""
         try:
-            # Use safe service access
-            try:
-                purchase_service = resolve("IPurchaseService")
-            except Exception:
-                # If service is not available, use placeholder data
+            # If service is not available, use placeholder data
+            if not service:
                 self.purchase_stats = {
                     "pending_count": 3,
                     "pending_amount": 1250.00,
@@ -989,12 +1002,12 @@ class DashboardView:
                 return
 
             # Get current pending purchase amount
-            pending_amount = purchase_service.get_pending_purchase_amount()
+            pending_amount = service.get_pending_purchase_amount()
 
             # Get previous period pending amount (30 days ago)
             today = datetime.now()
             one_month_ago = today - timedelta(days=30)
-            prev_pending_amount = purchase_service.get_pending_purchase_amount_at_date(one_month_ago)
+            prev_pending_amount = service.get_pending_purchase_amount_at_date(one_month_ago)
 
             # Calculate trend
             if prev_pending_amount > 0:
@@ -1004,10 +1017,10 @@ class DashboardView:
 
             # Get purchase statistics
             self.purchase_stats = {
-                "pending_count": purchase_service.get_pending_purchase_count(),
+                "pending_count": service.get_pending_purchase_count(),
                 "pending_amount": pending_amount,
                 "pending_trend": pending_trend,
-                "recent_purchases": purchase_service.get_recent_purchases(limit=5)
+                "recent_purchases": service.get_recent_purchases(limit=5)
             }
         except Exception as e:
             self.logger.error(f"Error loading purchase statistics: {str(e)}")
@@ -1025,22 +1038,12 @@ class DashboardView:
                 ]
             }
 
-    def load_analytics_summary(self):
+    @with_service("IAnalyticsDashboardService")
+    def load_analytics_summary(self, service=None):
         """Load analytics summary from analytics service."""
         try:
-            # Use safe service access
-            try:
-                analytics_service = resolve("IAnalyticsDashboardService")
-
-                # Get analytics summary
-                today = datetime.now()
-                start_date = today - timedelta(days=90)  # Last 90 days
-                self.analytics_summary = analytics_service.get_analytics_summary(
-                    start_date=start_date,
-                    end_date=today
-                )
-            except Exception:
-                # If service is not available, use placeholder data
+            # If service is not available, use placeholder data
+            if not service:
                 self.analytics_summary = {
                     "total_revenue": 12500.00,
                     "profit_margin": 32.5,
@@ -1051,6 +1054,15 @@ class DashboardView:
                     "average_project_time": 8.5,  # days
                     "bottleneck_area": "Edge Finishing"
                 }
+                return
+
+            # Get analytics summary
+            today = datetime.now()
+            start_date = today - timedelta(days=90)  # Last 90 days
+            self.analytics_summary = service.get_analytics_summary(
+                start_date=start_date,
+                end_date=today
+            )
         except Exception as e:
             self.logger.error(f"Error loading analytics summary: {str(e)}")
             # Use placeholder data on error
@@ -1134,6 +1146,35 @@ class DashboardView:
 
         except Exception as e:
             self.logger.error(f"Error loading recent activities: {str(e)}")
+
+    def load_data(self):
+        """Load dashboard data from services."""
+        try:
+            # Load inventory statistics
+            self.load_inventory_stats()
+
+            # Load project statistics
+            self.load_project_stats()
+
+            # Load sales statistics
+            self.load_sales_stats()
+
+            # Load purchase statistics
+            self.load_purchase_stats()
+
+            # Load analytics summary
+            self.load_analytics_summary()
+
+            # Load recent activities
+            self.load_recent_activities()
+
+            # Update the dashboard with loaded data
+            self.update_dashboard()
+
+            self.logger.info("Dashboard data loaded successfully")
+        except Exception as e:
+            self.logger.error(f"Error loading dashboard data: {str(e)}")
+            # We don't have access to a show_error method, so we'll just log it
 
     def update_dashboard(self):
         """Update dashboard widgets with loaded data."""
@@ -1538,6 +1579,272 @@ class DashboardView:
         # For now, just log that this was clicked
         self.logger.info("View calendar clicked")
 
+    def _export_dashboard(self):
+        """Export the dashboard as PDF or image."""
+        self.logger.info("Export dashboard clicked")
+        # Publish an event to trigger export handling elsewhere
+        publish("dashboard.export_requested", {"view": "dashboard"})
+
     def refresh(self):
         """Refresh the dashboard data."""
         self.load_data()
+
+    # EVENT BUS INTEGRATION
+    def _subscribe_to_events(self):
+        """Subscribe to relevant events for dashboard updates."""
+        # Inventory events
+        subscribe("inventory.item.added", self._handle_inventory_event)
+        subscribe("inventory.item.updated", self._handle_inventory_event)
+        subscribe("inventory.item.removed", self._handle_inventory_event)
+        subscribe("inventory.low_stock", self._handle_inventory_alert)
+
+        # Project events
+        subscribe("project.created", self._handle_project_event)
+        subscribe("project.updated", self._handle_project_event)
+        subscribe("project.status_changed", self._handle_project_status_event)
+        subscribe("project.completed", self._handle_project_completion)
+
+        # Sales events
+        subscribe("sale.created", self._handle_sale_event)
+        subscribe("sale.updated", self._handle_sale_event)
+
+        # Purchase events
+        subscribe("purchase.created", self._handle_purchase_event)
+        subscribe("purchase.updated", self._handle_purchase_event)
+        subscribe("purchase.received", self._handle_purchase_received)
+
+        # Other events
+        subscribe("analytics.updated", self._handle_analytics_update)
+
+        self.logger.info("Subscribed to dashboard events")
+
+    def destroy(self):
+        """
+        Clean up resources and unsubscribe from events.
+        Call this method when the dashboard is closed.
+        """
+        self._unsubscribe_from_events()
+        # Clean up any other resources
+
+        self.logger.info("Dashboard destroyed and unsubscribed from events")
+
+    def _unsubscribe_from_events(self):
+        """Unsubscribe from all events."""
+        # Inventory events
+        unsubscribe("inventory.item.added", self._handle_inventory_event)
+        unsubscribe("inventory.item.updated", self._handle_inventory_event)
+        unsubscribe("inventory.item.removed", self._handle_inventory_event)
+        unsubscribe("inventory.low_stock", self._handle_inventory_alert)
+
+        # Project events
+        unsubscribe("project.created", self._handle_project_event)
+        unsubscribe("project.updated", self._handle_project_event)
+        unsubscribe("project.status_changed", self._handle_project_status_event)
+        unsubscribe("project.completed", self._handle_project_completion)
+
+        # Sales events
+        unsubscribe("sale.created", self._handle_sale_event)
+        unsubscribe("sale.updated", self._handle_sale_event)
+
+        # Purchase events
+        unsubscribe("purchase.created", self._handle_purchase_event)
+        unsubscribe("purchase.updated", self._handle_purchase_event)
+        unsubscribe("purchase.received", self._handle_purchase_received)
+
+        # Other events
+        unsubscribe("analytics.updated", self._handle_analytics_update)
+
+        self.logger.info("Unsubscribed from all dashboard events")
+
+    # Event handler methods
+    def _handle_inventory_event(self, data):
+        """
+        Handle inventory-related events.
+
+        Args:
+            data: Event data containing inventory information
+        """
+        self.logger.info(f"Handling inventory event: {data}")
+
+        # Only reload inventory stats, not the entire dashboard
+        self.load_inventory_stats()
+        self._update_inventory_status()
+        self._draw_inventory_chart()
+
+        # Update KPI widget
+        self._update_kpi_widgets()
+
+        # Add to recent activities
+        self._add_activity_entry("Inventory", data.get("description", "Inventory updated"))
+
+    def _handle_inventory_alert(self, data):
+        """
+        Handle inventory alert events (low stock, etc).
+
+        Args:
+            data: Event data containing alert information
+        """
+        self.logger.info(f"Handling inventory alert: {data}")
+
+        # Update inventory status
+        self.load_inventory_stats()
+        self._update_inventory_status()
+
+        # Add to recent activities with alert tag
+        self._add_activity_entry("Inventory",
+                                 data.get("description", "Inventory alert"),
+                                 alert=True)
+
+    def _handle_project_event(self, data):
+        """
+        Handle project-related events.
+
+        Args:
+            data: Event data containing project information
+        """
+        self.logger.info(f"Handling project event: {data}")
+
+        # Only reload project stats, not the entire dashboard
+        self.load_project_stats()
+        self._update_project_status()
+        self._draw_project_chart()
+        self._update_upcoming_deadlines()
+
+        # Update KPI widget
+        self._update_kpi_widgets()
+
+        # Add to recent activities
+        self._add_activity_entry("Project", data.get("description", "Project updated"))
+
+    def _handle_project_status_event(self, data):
+        """
+        Handle project status change events.
+
+        Args:
+            data: Event data containing project status information
+        """
+        self.logger.info(f"Handling project status change: {data}")
+
+        # Only reload project stats, not the entire dashboard
+        self.load_project_stats()
+        self._update_project_status()
+        self._update_kpi_widgets()
+
+        # Add to recent activities
+        status_desc = f"Project '{data.get('project_name', '')}' moved to {data.get('new_status', '')}"
+        self._add_activity_entry("Project", data.get("description", status_desc))
+
+    def _handle_project_completion(self, data):
+        """
+        Handle project completion events.
+
+        Args:
+            data: Event data containing completed project information
+        """
+        self.logger.info(f"Handling project completion: {data}")
+
+        # Reload project stats
+        self.load_project_stats()
+        self._update_project_status()
+        self._update_kpi_widgets()
+
+        # Add to recent activities
+        completion_desc = f"Project '{data.get('project_name', '')}' completed"
+        self._add_activity_entry("Project", data.get("description", completion_desc))
+
+    def _handle_sale_event(self, data):
+        """
+        Handle sale-related events.
+
+        Args:
+            data: Event data containing sale information
+        """
+        self.logger.info(f"Handling sale event: {data}")
+
+        # Only reload sales stats, not the entire dashboard
+        self.load_sales_stats()
+        self._update_kpi_widgets()
+        self._draw_project_chart()  # This also shows sales trend if available
+
+        # Add to recent activities
+        sale_desc = f"New sale: ${data.get('amount', '0.00')} - {data.get('description', 'Sale')}"
+        self._add_activity_entry("Sale", data.get("description", sale_desc))
+
+    def _handle_purchase_event(self, data):
+        """
+        Handle purchase-related events.
+
+        Args:
+            data: Event data containing purchase information
+        """
+        self.logger.info(f"Handling purchase event: {data}")
+
+        # Only reload purchase stats, not the entire dashboard
+        self.load_purchase_stats()
+        self._update_kpi_widgets()
+
+        # Add to recent activities
+        purchase_desc = f"New purchase: ${data.get('amount', '0.00')} - {data.get('supplier', 'Purchase')}"
+        self._add_activity_entry("Purchase", data.get("description", purchase_desc))
+
+    def _handle_purchase_received(self, data):
+        """
+        Handle purchase received events.
+
+        Args:
+            data: Event data containing received purchase information
+        """
+        self.logger.info(f"Handling purchase received: {data}")
+
+        # Update both purchase and inventory stats
+        self.load_purchase_stats()
+        self.load_inventory_stats()
+        self._update_kpi_widgets()
+        self._update_inventory_status()
+
+        # Add to recent activities
+        received_desc = f"Received order: {data.get('description', 'Purchase received')}"
+        self._add_activity_entry("Purchase", data.get("description", received_desc))
+
+    def _handle_analytics_update(self, data):
+        """
+        Handle analytics update events.
+
+        Args:
+            data: Event data containing analytics information
+        """
+        self.logger.info(f"Handling analytics update: {data}")
+
+        # Reload analytics summary
+        self.load_analytics_summary()
+        self._update_analytics_section()
+
+    def _add_activity_entry(self, activity_type, description, alert=False):
+        """
+        Add a new entry to the recent activities list.
+
+        Args:
+            activity_type: Type of activity (Inventory, Project, Sale, Purchase)
+            description: Description of the activity
+            alert: Whether this is an alert entry (highlighted)
+        """
+        # Get current time
+        timestamp = datetime.now()
+        timestamp_str = timestamp.strftime("%m/%d %H:%M")
+
+        # Add to treeview at the top (0 index for newest first)
+        item_id = self.activities_tree.insert(
+            "",
+            0,  # Insert at the beginning
+            values=(timestamp_str, activity_type, description),
+            tags=(activity_type.lower(), "alert" if alert else "")
+        )
+
+        # Limit the number of entries (keep the most recent 20)
+        all_items = self.activities_tree.get_children()
+        if len(all_items) > 20:
+            # Remove the oldest entries
+            for item in all_items[20:]:
+                self.activities_tree.delete(item)
+
+        return item_id

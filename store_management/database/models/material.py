@@ -55,13 +55,18 @@ class Material(AbstractBase, ValidationMixin, CostingMixin):
     # Relationship with components through junction table
     components = relationship(
         "Component",
-        secondary=component_material_table,
+        secondary="component_materials",
         back_populates="materials",
-        lazy="selectin"
+        overlaps="component",  # Changed to match exactly what's in the warning
+        viewonly=True  # Making this side viewonly too to break all circular dependencies
     )
 
     # ORM relationship to ComponentMaterial for direct access
-    component_materials = relationship("database.models.component_material.ComponentMaterial", back_populates="material")
+    component_materials = relationship(
+        "ComponentMaterial",
+        back_populates="material",
+        overlaps="components"  # Add this parameter
+    )
 
     # Relationship to inventory
     inventory = relationship(
@@ -70,7 +75,8 @@ class Material(AbstractBase, ValidationMixin, CostingMixin):
         foreign_keys="[Inventory.item_id]",
         back_populates="material",
         uselist=False,
-        lazy="selectin"
+        lazy="selectin",
+        overlaps="inventory"  # Add this parameter
     )
 
     # Relationship to PickingListItem
@@ -156,7 +162,7 @@ class Leather(Material):
     )
 
     __mapper_args__ = {
-        'polymorphic_identity': MaterialType.LEATHER
+        'polymorphic_identity': 'leather'  # Changed from MaterialType.LEATHER to match data
     }
 
     def validate(self) -> None:
@@ -219,7 +225,7 @@ class Hardware(Material):
     )
 
     __mapper_args__ = {
-        'polymorphic_identity': MaterialType.HARDWARE
+        'polymorphic_identity': 'hardware'  # Changed from MaterialType.HARDWARE to match data
     }
 
     def validate(self) -> None:
@@ -270,7 +276,7 @@ class Supplies(Material):
     )
 
     __mapper_args__ = {
-        'polymorphic_identity': MaterialType.SUPPLIES
+        'polymorphic_identity': 'supplies'  # Changed from MaterialType.SUPPLIES to match data
     }
 
     def validate(self) -> None:

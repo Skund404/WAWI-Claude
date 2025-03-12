@@ -116,7 +116,7 @@ class Container:
             elif isinstance(implementation, str):
                 # String is treated as an import path for lazy loading
                 import_path = implementation
-                factory = lambda c: self._import_implementation(implementation)
+                factory = lambda c, path=implementation: c._create_with_injection(c._import_implementation(path))
                 implementation = None
             elif callable(implementation) and not isinstance(implementation, type):
                 # Factory function

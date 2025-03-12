@@ -62,10 +62,11 @@ class Tool(AbstractBase, ValidationMixin):
     inventory = relationship(
         "Inventory",
         primaryjoin="and_(Tool.id==Inventory.item_id, Inventory.item_type=='tool')",
-        foreign_keys=[Inventory.item_id],
+        foreign_keys="[Inventory.item_id]",
         back_populates="tool",
         uselist=False,
-        lazy="selectin"
+        lazy="selectin",
+        overlaps="inventory,inventory,material,product"  # Add this parameter
     )
 
     tool_list_items = relationship(

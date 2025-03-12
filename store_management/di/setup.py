@@ -149,25 +149,6 @@ def register_services(container: Container) -> Container:
         except Exception as e:
             logger.warning(f"Failed to register service {interface_name}: {str(e)}")
 
-    # Now register mock implementations for testing where needed
-    try:
-        # Import the mock implementations package
-        from di.tests.mock_implementations import MOCK_SERVICES
-
-        # Register mock implementations for interfaces without real implementations
-        for interface_name, mock_class in MOCK_SERVICES.items():
-            if not container.is_registered(interface_name):
-                # Create an instance of the mock
-                mock_instance = mock_class()
-
-                # Register the mock instance
-                container.register_instance(interface_name, mock_instance)
-                registered_count += 1
-                logger.info(f"Registered mock implementation for {interface_name}")
-
-    except Exception as e:
-        logger.error(f"Failed to register mock implementations: {str(e)}")
-        traceback.print_exc()
 
     logger.info(f"Registered {registered_count} services")
     return container

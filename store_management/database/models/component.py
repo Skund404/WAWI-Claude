@@ -45,9 +45,9 @@ class Component(AbstractBase, ValidationMixin):
 
     # Direct relationship to the junction table
     component_materials = relationship(
-        "database.models.component_material.ComponentMaterial",
+        "ComponentMaterial",
         back_populates="component",
-        cascade="all, delete-orphan"
+        overlaps="components",
     )
 
     # Many-to-many relationship with materials
@@ -55,11 +55,9 @@ class Component(AbstractBase, ValidationMixin):
         "Material",
         secondary="component_materials",
         back_populates="components",
-        lazy="selectin"
+        overlaps="material",  # Fixed to the exact string requested in the warning
+        viewonly=True  # Adding viewonly to prevent this side from writing to the junction table
     )
-
-
-
 
     # Uncommented the picking_list_items relationship to match PickingListItem
     picking_list_items = relationship(

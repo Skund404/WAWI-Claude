@@ -1,8 +1,8 @@
-# Dashboard and Analytics Integration Guide
+# Enhanced Dashboard and Integration Guide
 
 ## Overview
 
-The dashboard serves as the central hub for the Leatherworking ERP system, providing at-a-glance visibility into key business metrics, recent activities, and upcoming deadlines. It integrates with the analytics system to offer actionable insights and quick navigation to detailed analytical views.
+The dashboard serves as the central hub for the Leatherworking ERP system, providing at-a-glance visibility into key business metrics, recent activities, and upcoming deadlines. It integrates with the analytics system to offer actionable insights and quick navigation to detailed analytical views. The latest version includes real-time updates via event bus integration, enhanced navigation with breadcrumbs, and improved service access.
 
 ## Dashboard Architecture
 
@@ -10,7 +10,7 @@ The dashboard follows a modular design pattern with distinct sections for differ
 
 ```
 DashboardView
-├── Header
+├── Header (with breadcrumb navigation)
 ├── KPI Section
 ├── Quick Actions
 ├── Recent Activities
@@ -21,7 +21,7 @@ DashboardView
 └── Upcoming Deadlines
 ```
 
-Each section is independently updatable and connects to its respective service for data retrieval.
+Each section is independently updatable and connects to its respective service for data retrieval. Sections now support real-time updates through the event bus system, making the dashboard reactive to changes throughout the application.
 
 ## Key Features
 
@@ -34,7 +34,7 @@ The dashboard displays four primary KPIs that give an immediate overview of busi
 - **Inventory Value**: Total value of current inventory with low stock indicators
 - **Pending Orders**: Number of pending purchase orders with total pending amount
 
-KPIs include trend indicators (↑/↓) with appropriate coloring to quickly identify positive or negative changes.
+KPIs include trend indicators (↑/↓) with appropriate coloring to quickly identify positive or negative changes. These values now update automatically when events occur in the system.
 
 ### 2. Quick Actions
 
@@ -56,7 +56,7 @@ The Recent Activities section displays a chronological list of the latest events
 - Sales transactions
 - Purchase orders
 
-Each activity is color-coded by type and double-clicking an activity navigates to the relevant detailed view.
+Each activity is color-coded by type and double-clicking an activity navigates to the relevant detailed view. The activity feed now updates in real-time when events occur, showing the most recent activities at the top.
 
 ### 4. Status Sections
 
@@ -87,6 +87,92 @@ Displays cards for approaching deadlines and events:
 - Order deadlines
 - Material deliveries
 
+Each deadline card now uses the StatusBadge widget for better visual indication of deadline types.
+
+## Event Bus Integration
+
+### Real-time Updates (New Feature)
+
+The dashboard now supports real-time updates through an event bus system:
+
+1. **Event Subscription**: The dashboard subscribes to relevant events when initialized
+2. **Targeted Updates**: When events occur, only the affected sections are updated
+3. **Activity Tracking**: New activities are automatically added to the activity feed
+4. **Resource Management**: Event subscriptions are properly cleaned up when the dashboard is destroyed
+
+### Event Types
+
+The dashboard responds to the following event types:
+
+#### Inventory Events
+- `inventory.item.added` - When a new inventory item is added
+- `inventory.item.updated` - When an inventory item is updated
+- `inventory.item.removed` - When an inventory item is removed
+- `inventory.low_stock` - When an item reaches low stock threshold
+
+#### Project Events
+- `project.created` - When a new project is created
+- `project.updated` - When a project is updated
+- `project.status_changed` - When a project's status changes
+- `project.completed` - When a project is completed
+
+#### Sales Events
+- `sale.created` - When a new sale is created
+- `sale.updated` - When a sale is updated
+
+#### Purchase Events
+- `purchase.created` - When a new purchase order is created
+- `purchase.updated` - When a purchase order is updated
+- `purchase.received` - When a purchase order is received
+
+#### Other Events
+- `analytics.updated` - When analytics data is updated
+- `dashboard.export_requested` - When dashboard export is requested
+
+### Publishing Events
+
+Other parts of the application can publish events to update the dashboard:
+
+```python
+from gui.utils.event_bus import publish
+
+# Example: When adding new inventory
+publish("inventory.item.added", {
+    "item_id": "123",
+    "name": "Vegetable Tanned Leather",
+    "quantity": 5,
+    "description": "Added 5 sq ft of Veg Tan Leather"
+})
+
+# Example: When changing project status
+publish("project.status_changed", {
+    "project_id": "456",
+    "project_name": "Custom Belt",
+    "old_status": "in_progress",
+    "new_status": "assembly",
+    "description": "Custom Belt moved to Assembly phase"
+})
+```
+
+## Enhanced Navigation
+
+### Breadcrumb Navigation (New Feature)
+
+The dashboard now supports breadcrumb navigation to help users understand their location in the application:
+
+1. **View Hierarchy**: Breadcrumbs show the navigation path from dashboard to current view
+2. **Interactive Navigation**: Clicking on a breadcrumb navigates to that specific view
+3. **Context Preservation**: Breadcrumbs preserve context when navigating between related views
+
+### View History Management
+
+Back/forward navigation is now supported through the view history manager:
+
+1. **History Tracking**: Each navigation action is tracked in the view history
+2. **Back Navigation**: Users can navigate back to previous views
+3. **Forward Navigation**: After going back, users can navigate forward again
+4. **State Persistence**: View state is preserved during back/forward navigation
+
 ## Data Integration
 
 ### Service Integration
@@ -98,6 +184,23 @@ The dashboard integrates with multiple services to gather and display data:
 - **Sales Service**: Provides revenue figures, trends, and recent sales
 - **Purchase Service**: Supplies purchase order information and pending amounts
 - **Analytics Service**: Provides aggregated metrics and insights
+
+### Enhanced Service Access (New Feature)
+
+The dashboard now uses the `with_service` decorator for more robust service access:
+
+1. **Dependency Injection**: Services are automatically injected into methods
+2. **Error Handling**: Service unavailability is gracefully handled
+3. **Code Simplification**: Service retrieval logic is encapsulated in the decorator
+4. **Consistent Fallback**: Placeholder data is used when services are unavailable
+
+Example:
+```python
+@with_service("IInventoryService")
+def load_inventory_stats(self, service=None):
+    # service is automatically provided by the decorator
+    # fallback logic is implemented if service is None
+```
 
 ### Error Handling
 
@@ -161,7 +264,101 @@ The system supports multiple visualization types:
 - Pie charts for distribution analysis
 - Bar charts for comparison analysis
 - Line charts for trend analysis
-- Heatmaps for correlation analysis
+- Heatmaps for correlation analysis (now integrated with HeatmapChart)
+
+## Technical Implementation
+
+### Files Created or Modified
+
+1. **Core Files**:
+   - `gui/views/dashboard/main_dashboard.py` - Main dashboard view implementation
+   - `gui/views/dashboard/__init__.py` - Dashboard package initialization
+
+2. **Supporting Components**:
+   - `gui/widgets/breadcrumb_navigation.py` - Breadcrumb navigation component
+   - `gui/widgets/status_badge.py` - Status badge for visual indicators
+   - `gui/utils/view_history_manager.py` - View history management for back/forward navigation
+   - `gui/utils/event_bus.py` - Event bus for real-time updates
+   - `gui/utils/service_access.py` - Service access utilities with decorators
+
+### Integration Steps
+
+#### Step 1: Update Main Window
+
+The `main_window.py` file needs several updates to integrate the new navigation features:
+
+1. **Add imports**:
+   ```python
+   from gui.widgets.breadcrumb_navigation import BreadcrumbNavigation
+   from gui.utils.view_history_manager import ViewHistoryManager
+   from gui.utils.event_bus import subscribe, unsubscribe, publish
+   ```
+
+2. **Update `__init__` method** to initialize breadcrumbs, view history, and event bus:
+   ```python
+   def __init__(self, root):
+       # Existing initialization...
+       
+       # Initialize breadcrumbs container
+       self.breadcrumb_container = None
+       self.breadcrumb_nav = None
+       
+       # Initialize view history manager
+       self.view_history_manager = ViewHistoryManager()
+       self.view_history_manager.set_navigation_callback(self._navigate_to_view)
+       
+       # Subscribe to relevant application-wide events
+       self._subscribe_to_events()
+   ```
+
+3. **Add event management methods**:
+   ```python
+   def _subscribe_to_events(self):
+       # Subscribe to application-wide events
+       subscribe("dashboard.export_requested", self._handle_dashboard_export)
+       # Add other application-wide event subscriptions as needed
+       
+   def _unsubscribe_from_events(self):
+       # Unsubscribe from all events
+       unsubscribe("dashboard.export_requested", self._handle_dashboard_export)
+       # Unsubscribe from other events
+   
+   def _handle_dashboard_export(self, data):
+       # Handle dashboard export request
+       pass
+   ```
+
+4. **Update `show_view` method** to support breadcrumbs and history:
+   ```python
+   def show_view(self, view_name, view_data=None, add_to_history=True):
+       # Show a view with breadcrumb and history support
+       # Clear existing view
+       for widget in self.content_area.winfo_children():
+           widget.destroy()
+       
+       # Create new view
+       view = self._create_view(view_name, view_data)
+       
+       # Add to view history if needed
+       if add_to_history:
+           self.view_history_manager.add_view(view_name, view_data)
+       
+       # Update breadcrumbs
+       self._update_breadcrumbs(view_name, view_data)
+   ```
+
+#### Step 2: Implement DashboardView
+
+Implement the DashboardView as shown in the provided code, ensuring:
+
+1. Event bus subscriptions are set up in `_subscribe_to_events`
+2. Event handlers are implemented for all event types
+3. Breadcrumb navigation is initialized and connected
+4. Service access is implemented using the `with_service` decorator
+
+#### Step 3: Update Theme.py (if needed)
+
+If your theme.py file doesn't already define all necessary colors, add them.
 
 ## Usage Examples
 
@@ -181,6 +378,7 @@ To manage inventory effectively:
 2. Note any items in low stock status
 3. Click "View Details" to navigate to detailed inventory view
 4. Use "Add Inventory" quick action for immediate restocking
+5. The dashboard automatically updates when inventory changes are made
 
 ### 3. Performance Analysis
 
@@ -189,87 +387,90 @@ To analyze business performance:
 2. Click "View Analytics" to access the analytics dashboard
 3. Navigate to Profitability Analytics for detailed margin analysis
 4. Export reports as needed for meetings or planning sessions
+5. Use the breadcrumbs to navigate back to previous views
 
-### 4. Project Planning
+### 4. Project Management
 
 For effective project management:
 1. Check the Project Status section to see current workload
 2. View upcoming deadlines to plan resource allocation
-3. Access Project Metrics analytics for efficiency improvements
-4. Use "New Project" quick action when ready to start a new project
+3. Use "New Project" quick action to start a new project
+4. Project changes are automatically reflected in the dashboard via events
 
 ## Troubleshooting
 
 ### Dashboard Not Showing Updated Data
 
-1. Click the "Refresh" button in the dashboard header
-2. Check for any error messages in the application log
-3. Verify that the corresponding services are running properly
-4. Check database connectivity if data appears outdated
+1. Check if the event bus system is working properly
+2. Verify that events are being published with the correct topic names
+3. Click the "Refresh" button in the dashboard header for manual update
+4. Check for any error messages in the application log
+5. Verify that the corresponding services are running properly
 
-### Chart Display Issues
+### Event Bus Issues
 
-1. Ensure the display area is large enough for proper rendering
-2. Try refreshing the dashboard to reload chart data
-3. Check for data anomalies that might affect visualization
-4. Verify that the data contains the expected values for visualization
+1. Check that events are being published with the correct format
+2. Verify that the dashboard has subscribed to the relevant events
+3. Check for errors in event handlers
+4. Restart the application if event subscriptions appear to be missing
 
 ### Navigation Problems
 
-1. Ensure you have proper permissions for the target view
-2. Check that the target module is properly loaded
-3. Verify that the navigation path is correctly configured
-4. Refresh the application if navigation appears unresponsive
+1. Ensure the view history manager is properly initialized
+2. Check that breadcrumb navigation is correctly set up
+3. Verify that view transitions are adding entries to the history
+4. Confirm that views are being destroyed and recreated properly during navigation
 
 ## Best Practices
 
-1. **Regular Refreshes**: Refresh the dashboard at the start of your session for the latest data
-2. **Analytical Workflow**: Use dashboard KPIs to identify areas needing attention, then drill down with analytics views
-3. **Action Prioritization**: Use the upcoming deadlines section to prioritize daily tasks
-4. **Performance Monitoring**: Regularly review analytics insights to identify business improvement opportunities
-5. **Custom Date Ranges**: Use custom date ranges in analytics views for period-specific analysis
+### Event Bus Usage
 
-## Technical Implementation
+1. **Event Naming**: Use consistent naming convention with dots as separators (e.g., `inventory.item.added`)
+2. **Event Data**: Include all necessary information in the event data to avoid extra service calls
+3. **Error Handling**: Always include try/except blocks in event handlers
+4. **Cleanup**: Unsubscribe from events when views are destroyed to prevent memory leaks
 
-For developers extending the dashboard:
+### Navigation Implementation
 
-1. The `DashboardView` class in `gui/views/dashboard/main_dashboard.py` serves as the main controller
-2. Each section is created by a dedicated method for maintainability
-3. The `load_data()` method coordinates data retrieval from all services
-4. The `update_dashboard()` method refreshes all UI elements with current data
-5. The analytics integration is handled through navigation methods that connect to analytics views
+1. **Breadcrumb Management**: Update breadcrumbs whenever the view changes
+2. **History Integration**: Add views to history only for significant navigation changes
+3. **Context Preservation**: Include necessary view data when adding to history
+4. **Resource Management**: Properly destroy views when navigating away
 
-## Data Services
+### Service Access
 
-### Primary Data Sources
+1. **Decorator Usage**: Use the `with_service` decorator for all service access methods
+2. **Fallback Handling**: Always provide fallback logic when services are unavailable
+3. **Error Logging**: Log service errors with appropriate detail for troubleshooting
+4. **Targeted Updates**: Only update affected dashboard sections when specific data changes
 
-The dashboard connects to the following services to retrieve its data:
+## Extending the Dashboard
 
-| Service | Interface | Purpose |
-|---------|-----------|---------|
-| Inventory Service | `IInventoryService` | Inventory statistics and status |
-| Project Service | `IProjectService` | Project counts, status, and deadlines |
-| Sales Service | `ISalesService` | Sales figures, trends, and transactions |
-| Purchase Service | `IPurchaseService` | Purchase orders and pending amounts |
-| Analytics Service | `IAnalyticsDashboardService` | Aggregated metrics and insights |
+### Adding New Sections
 
-### Data Refresh Strategy
+To add new sections to the dashboard:
 
-The dashboard implements a comprehensive data refresh strategy:
+1. Create a new method in `DashboardView` to build the section UI
+2. Add a corresponding update method
+3. Add a data loading method with the `with_service` decorator
+4. Subscribe to relevant events for real-time updates
+5. Add the section to the appropriate column in the dashboard layout
 
-1. **Automatic Loading**: Data is loaded automatically when the dashboard is initialized
-2. **Manual Refresh**: Users can refresh all data using the Refresh button
-3. **Targeted Updates**: Each section can be independently updated when its data changes
-4. **Error Recovery**: Failed data loads are handled gracefully with fallback to placeholder data
+### Adding New Event Types
 
-## Future Enhancements
+To support new event types:
 
-The dashboard and analytics integration system is designed to be extensible for future enhancements:
+1. Define the event topic name following the established convention
+2. Create an event handler method in `DashboardView`
+3. Add a subscription in `_subscribe_to_events`
+4. Add an unsubscription in `_unsubscribe_from_events`
+5. Publish the event from relevant parts of the application
 
-1. **Real-time Updates**: Integration with an event system for live data updates
-2. **Customizable Layout**: User-configurable dashboard sections and KPIs
-3. **Advanced Filtering**: Cross-sectional filtering across all dashboard components
-4. **Predictive Analytics**: Integration with forecasting models for trend prediction
-5. **Mobile Optimization**: Responsive design for tablet and mobile access
-6. **Notification System**: Alert mechanism for critical metrics and thresholds
-7. **User-specific Views**: Personalized dashboards based on user role and preferences
+### Adding New Analytics Views
+
+To add new analytics views:
+
+1. Create the analytics view implementation
+2. Add navigation methods in the dashboard
+3. Add links or buttons in the Analytics Insights section
+4. Update the breadcrumb configuration to include the new view

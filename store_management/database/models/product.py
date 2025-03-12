@@ -53,7 +53,8 @@ class Product(AbstractBase, ValidationMixin, CostingMixin):
         foreign_keys="[Inventory.item_id]",
         back_populates="product",
         uselist=False,
-        lazy="selectin"
+        lazy="selectin",
+        overlaps="inventory"  # Add this parameter
     )
 
     def __init__(self, **kwargs):
