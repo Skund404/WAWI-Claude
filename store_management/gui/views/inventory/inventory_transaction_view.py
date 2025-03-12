@@ -11,7 +11,7 @@ import datetime
 
 from database.models.enums import TransactionType
 from gui.base.base_list_view import BaseListView
-from gui.utils.service_access import get_service
+from gui.utils.service_access import with_service
 
 
 class InventoryTransactionView(BaseListView):

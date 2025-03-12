@@ -79,14 +79,14 @@ class DashboardView:
     def build(self):
         """Build the dashboard view layout."""
         # Create main dashboard container with padding
-        main_frame = ttk.Frame(self.parent)
+        main_frame = ttk.Frame(self.parent, style="Dashboard.TFrame")
         main_frame.pack(fill=tk.BOTH, expand=True, padx=15, pady=15)
 
         # Create header
         self.create_header(main_frame)
 
         # Create a canvas for scrolling
-        canvas = tk.Canvas(main_frame, bg=main_frame.cget("background"))
+        canvas = tk.Canvas(main_frame, background=COLORS["bg"], highlightthickness=0)
         scrollbar = ttk.Scrollbar(main_frame, orient=tk.VERTICAL, command=canvas.yview)
         canvas.configure(yscrollcommand=scrollbar.set)
 
@@ -94,7 +94,7 @@ class DashboardView:
         canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         # Create main content frame inside canvas for scrolling
-        self.content_frame = ttk.Frame(canvas)
+        self.content_frame = ttk.Frame(canvas, style="Dashboard.TFrame")
         canvas_frame = canvas.create_window((0, 0), window=self.content_frame, anchor=tk.NW)
 
         # Configure canvas scrolling
@@ -102,19 +102,19 @@ class DashboardView:
         canvas.bind("<Configure>", lambda e: canvas.itemconfig(canvas_frame, width=e.width))
 
         # Create 2-column layout for content
-        columns_frame = ttk.Frame(self.content_frame)
+        columns_frame = ttk.Frame(self.content_frame, style="Dashboard.TFrame")
         columns_frame.pack(fill=tk.BOTH, expand=True, pady=10)
 
         # Left column - KPIs and Actions
-        self.left_column = ttk.Frame(columns_frame)
+        self.left_column = ttk.Frame(columns_frame, style="Dashboard.TFrame")
         self.left_column.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 8))
 
         # Right column - Charts and Status
-        self.right_column = ttk.Frame(columns_frame)
+        self.right_column = ttk.Frame(columns_frame, style="Dashboard.TFrame")
         self.right_column.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(8, 0))
 
         # Bottom section - spans both columns
-        self.bottom_frame = ttk.Frame(self.content_frame)
+        self.bottom_frame = ttk.Frame(self.content_frame, style="Dashboard.TFrame")
         self.bottom_frame.pack(fill=tk.X, expand=False, pady=(10, 0))
 
         # Create dashboard sections
@@ -138,11 +138,11 @@ class DashboardView:
         Args:
             parent: The parent widget
         """
-        header_frame = ttk.Frame(parent)
+        header_frame = ttk.Frame(parent, style="Dashboard.TFrame")
         header_frame.pack(fill=tk.X, expand=False, pady=(0, 15))
 
         # Add breadcrumb navigation at the top
-        breadcrumb_frame = ttk.Frame(header_frame)
+        breadcrumb_frame = ttk.Frame(header_frame, style="Dashboard.TFrame")
         breadcrumb_frame.pack(fill=tk.X, pady=(0, 10))
 
         self.breadcrumb_nav = BreadcrumbNavigation(breadcrumb_frame, callback=self._navigate_to_breadcrumb)
@@ -150,7 +150,7 @@ class DashboardView:
         self.breadcrumb_nav.set_home_breadcrumb("Dashboard", "dashboard")
 
         # Left section - title and description
-        title_frame = ttk.Frame(header_frame)
+        title_frame = ttk.Frame(header_frame, style="Dashboard.TFrame")
         title_frame.pack(side=tk.LEFT, fill=tk.Y)
 
         # Dashboard title
@@ -171,7 +171,7 @@ class DashboardView:
         desc_label.pack(side=tk.TOP, anchor=tk.W)
 
         # Right section - action buttons
-        action_frame = ttk.Frame(header_frame)
+        action_frame = ttk.Frame(header_frame, style="Dashboard.TFrame")
         action_frame.pack(side=tk.RIGHT, fill=tk.Y)
 
         # Analytics button
@@ -205,7 +205,7 @@ class DashboardView:
         Args:
             parent: The parent widget
         """
-        kpi_frame = ttk.LabelFrame(parent, text="Key Metrics")
+        kpi_frame = ttk.LabelFrame(parent, text="Key Metrics", style="Dashboard.TFrame")
         kpi_frame.pack(fill=tk.X, expand=False, pady=(0, 15))
 
         # Create grid layout for KPIs
@@ -355,7 +355,7 @@ class DashboardView:
         Args:
             parent: The parent widget
         """
-        actions_frame = ttk.LabelFrame(parent, text="Quick Actions")
+        actions_frame = ttk.LabelFrame(parent, text="Quick Actions", style="Dashboard.TFrame")
         actions_frame.pack(fill=tk.X, expand=False, pady=(0, 15))
 
         # Create grid layout for action buttons
@@ -405,11 +405,11 @@ class DashboardView:
         Args:
             parent: The parent widget
         """
-        activities_frame = ttk.LabelFrame(parent, text="Recent Activities")
+        activities_frame = ttk.LabelFrame(parent, text="Recent Activities", style="Dashboard.TFrame")
         activities_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
 
         # Create header with view all button
-        header_frame = ttk.Frame(activities_frame, padding=(0, 0, 0, 5))
+        header_frame = ttk.Frame(activities_frame, padding=(0, 0, 0, 5), style="Dashboard.TFrame")
         header_frame.pack(fill=tk.X, expand=False)
 
         view_all_btn = ttk.Button(
@@ -469,11 +469,11 @@ class DashboardView:
         Args:
             parent: The parent widget
         """
-        inventory_frame = ttk.LabelFrame(parent, text="Inventory Status")
+        inventory_frame = ttk.LabelFrame(parent, text="Inventory Status", style="Dashboard.TFrame")
         inventory_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
 
         # Header frame with view details button
-        header_frame = ttk.Frame(inventory_frame, padding=(0, 0, 0, 5))
+        header_frame = ttk.Frame(inventory_frame, padding=(0, 0, 0, 5), style="Dashboard.TFrame")
         header_frame.pack(fill=tk.X, expand=False)
 
         view_details_btn = ttk.Button(
@@ -485,7 +485,7 @@ class DashboardView:
         view_details_btn.pack(side=tk.RIGHT)
 
         # Status overview frame
-        status_frame = ttk.Frame(inventory_frame, padding=5)
+        status_frame = ttk.Frame(inventory_frame, padding=5, style="Dashboard.TFrame")
         status_frame.pack(fill=tk.X, expand=False)
 
         # Status indicators
@@ -496,7 +496,7 @@ class DashboardView:
         }
 
         # Create chart container
-        chart_frame = ttk.Frame(inventory_frame, padding=5, height=200)
+        chart_frame = ttk.Frame(inventory_frame, padding=5, height=200, style="Dashboard.TFrame")
         chart_frame.pack(fill=tk.BOTH, expand=True)
         chart_frame.pack_propagate(False)  # Prevent shrinking
 
@@ -510,11 +510,11 @@ class DashboardView:
         Args:
             parent: The parent widget
         """
-        project_frame = ttk.LabelFrame(parent, text="Project Status")
+        project_frame = ttk.LabelFrame(parent, text="Project Status", style="Dashboard.TFrame")
         project_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
 
         # Header frame with view details button
-        header_frame = ttk.Frame(project_frame, padding=(0, 0, 0, 5))
+        header_frame = ttk.Frame(project_frame, padding=(0, 0, 0, 5), style="Dashboard.TFrame")
         header_frame.pack(fill=tk.X, expand=False)
 
         view_details_btn = ttk.Button(
@@ -526,7 +526,7 @@ class DashboardView:
         view_details_btn.pack(side=tk.RIGHT)
 
         # Status overview frame
-        status_frame = ttk.Frame(project_frame, padding=5)
+        status_frame = ttk.Frame(project_frame, padding=5, style="Dashboard.TFrame")
         status_frame.pack(fill=tk.X, expand=False)
 
         # Status indicators
@@ -537,7 +537,7 @@ class DashboardView:
         }
 
         # Create chart container
-        chart_frame = ttk.Frame(project_frame, padding=5, height=200)
+        chart_frame = ttk.Frame(project_frame, padding=5, height=200, style="Dashboard.TFrame")
         chart_frame.pack(fill=tk.BOTH, expand=True)
         chart_frame.pack_propagate(False)  # Prevent shrinking
 
@@ -551,11 +551,11 @@ class DashboardView:
         Args:
             parent: The parent widget
         """
-        analytics_frame = ttk.LabelFrame(parent, text="Analytics Insights")
+        analytics_frame = ttk.LabelFrame(parent, text="Analytics Insights", style="Dashboard.TFrame")
         analytics_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
 
         # Header frame with view all button
-        header_frame = ttk.Frame(analytics_frame, padding=(0, 0, 0, 5))
+        header_frame = ttk.Frame(analytics_frame, padding=(0, 0, 0, 5), style="Dashboard.TFrame")
         header_frame.pack(fill=tk.X, expand=False)
 
         view_analytics_btn = ttk.Button(
@@ -567,15 +567,15 @@ class DashboardView:
         view_analytics_btn.pack(side=tk.RIGHT)
 
         # Create content frame
-        content_frame = ttk.Frame(analytics_frame, padding=5)
+        content_frame = ttk.Frame(analytics_frame, padding=5, style="Dashboard.TFrame")
         content_frame.pack(fill=tk.BOTH, expand=True)
 
         # Placeholder for analytics metrics
-        self.analytics_metrics_frame = ttk.Frame(content_frame)
+        self.analytics_metrics_frame = ttk.Frame(content_frame, style="Dashboard.TFrame")
         self.analytics_metrics_frame.pack(fill=tk.BOTH, expand=True)
 
         # Links to specific analytics views
-        links_frame = ttk.Frame(analytics_frame, padding=(5, 10, 5, 5))
+        links_frame = ttk.Frame(analytics_frame, padding=(5, 10, 5, 5), style="Dashboard.TFrame")
         links_frame.pack(fill=tk.X, expand=False)
 
         # Create links for different analytics views
@@ -613,7 +613,7 @@ class DashboardView:
         Returns:
             Dictionary with references to the indicator widgets
         """
-        frame = ttk.Frame(parent, padding=5)
+        frame = ttk.Frame(parent, padding=5, style="Dashboard.TFrame")
         frame.grid(row=0, column=column, sticky="ew", padx=5)
 
         value_label = ttk.Label(
@@ -645,23 +645,22 @@ class DashboardView:
         Args:
             parent: The parent widget
         """
-        upcoming_frame = ttk.LabelFrame(parent, text="Upcoming Deadlines")
+        upcoming_frame = ttk.LabelFrame(parent, text="Upcoming Deadlines", style="Dashboard.TFrame")
         upcoming_frame.pack(fill=tk.X, expand=False)
 
         # Header frame with view all button
-        header_frame = ttk.Frame(upcoming_frame, padding=(0, 0, 0, 5))
+        header_frame = ttk.Frame(upcoming_frame, padding=(0, 0, 0, 5), style="Dashboard.TFrame")
         header_frame.pack(fill=tk.X, expand=False)
 
         view_calendar_btn = ttk.Button(
             header_frame,
             text="View Calendar",
             style="Link.TButton",
-            command=self._view_calendar
-        )
+            command=self._view_calendar        )
         view_calendar_btn.pack(side=tk.RIGHT)
 
         # Create 4-column layout for cards
-        card_frame = ttk.Frame(upcoming_frame, padding=5)
+        card_frame = ttk.Frame(upcoming_frame, padding=5, style="Dashboard.TFrame")
         card_frame.pack(fill=tk.X, expand=True)
 
         for i in range(4):
@@ -709,7 +708,7 @@ class DashboardView:
             (COLORS["light_grey"], COLORS["text_secondary"])
         )
 
-        type_frame = ttk.Frame(frame)
+        type_frame = ttk.Frame(frame, style="Dashboard.TFrame")
         type_frame.pack(fill=tk.X, anchor="w")
 
         # Create badge with a status badge widget instead
@@ -1316,7 +1315,7 @@ class DashboardView:
 
         # Create metric labels
         for metric in metrics:
-            frame = ttk.Frame(self.analytics_metrics_frame, padding=10)
+            frame = ttk.Frame(self.analytics_metrics_frame, padding=10, style="Dashboard.TFrame")
             frame.grid(row=metric["row"], column=metric["col"], sticky="nsew", padx=5, pady=5)
 
             # Value

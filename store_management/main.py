@@ -8,22 +8,23 @@ import tkinter as tk
 import tkinter.messagebox
 from pathlib import Path
 
+from initialize_database import initialize_database
 from gui.main_window import MainWindow
 from utils.circular_import_resolver import register_lazy_import
 from utils.logging_config import setup_logging
 from config.settings import ConfigurationManager, Environment, get_database_path
-from database.initialize import initialize_database
+
 
 
 def _register_lazy_component_imports():
     """Register lazy imports for component models to resolve circular dependencies."""
-    component_model_paths = [
-        "database.models.component",
-        "database.models.component_material",
+    component_models = [
+        ("component", "database.models.component"),
+        ("component_material", "database.models.component_material"),
     ]
 
-    for path in component_model_paths:
-        register_lazy_import(path)
+    for name, path in component_models:
+        register_lazy_import(name, path)
 
 
 def _configure_python_path():
@@ -42,6 +43,8 @@ def _validate_environment():
     database_path = get_database_path()
     if not Path(database_path).exists():
         logging.warning(f"Database file not found at: {database_path}.  Attempting to initialize...")
+
+
 
 
 def main():
@@ -76,7 +79,9 @@ def main():
 
         # Tkinter GUI Setup
         root = tk.Tk()
-        root.title(ConfigurationManager().APP_NAME)
+        config = ConfigurationManager()
+        app_title = getattr(config, 'APP_NAME', 'HideSync')
+        root.title(app_title)
 
         main_window = MainWindow(root)
         main_window.pack(fill=tk.BOTH, expand=True)

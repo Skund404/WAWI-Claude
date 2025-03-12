@@ -71,6 +71,23 @@ class BaseListView(BaseView):
         # Load initial data
         self.load_data()
 
+    def add_header_button(self, text, command, side=tk.RIGHT, **kwargs):
+        """
+        Add a button to the header area.
+
+        Args:
+            text: Button text
+            command: Button command
+            side: Side to pack the button on
+            **kwargs: Additional button configuration
+
+        Returns:
+            The created button
+        """
+        button = ttk.Button(self.header_frame, text=text, command=command, **kwargs)
+        button.pack(side=side, padx=5)
+        return button
+
     def _add_default_action_buttons(self):
         """Add default action buttons to the header."""
         # Add button

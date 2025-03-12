@@ -104,6 +104,30 @@ class SearchFrame(ttk.LabelFrame):
         # Build the search form
         self.build_search_form()
 
+    def get_search_criteria(self):
+        """
+        Get the current search criteria as a dictionary.
+
+        Returns:
+            Dictionary of field name -> value pairs
+        """
+        criteria = {}
+        for field_name, var in self.field_vars.items():
+            value = var.get()
+            if value and value.strip():  # Only include non-empty values
+                criteria[field_name] = value
+        return criteria
+
+    def add_search_fields(self, fields):
+        """
+        Add search fields to the search frame.
+
+        Args:
+            fields: List of field configurations
+        """
+        self.search_fields.extend(fields)
+        self.build_search_form()
+
     def build_search_form(self):
         """Build the search form with fields and buttons."""
         # Create the main form frame

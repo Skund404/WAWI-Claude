@@ -1,280 +1,1047 @@
 {
+  "suppliers": [
+    {
+      "id": 1,
+      "name": "Tandy Leather",
+      "contact_email": "sales@tandyleather.com",
+      "status": "ACTIVE"
+    },
+    {
+      "id": 2,
+      "name": "Buckleguy",
+      "contact_email": "orders@buckleguy.com",
+      "status": "ACTIVE"
+    },
+    {
+      "id": 3,
+      "name": "Rocky Mountain Leather Supply",
+      "contact_email": "support@rmleathersupply.com",
+      "status": "ACTIVE"
+    },
+    {
+      "id": 4,
+      "name": "Weaver Leather Supply",
+      "contact_email": "info@weaverleather.com",
+      "status": "ACTIVE"
+    },
+    {
+      "id": 5,
+      "name": "Artisan Hardware Specialties",
+      "contact_email": "wholesale@artisanhardware.com",
+      "status": "ACTIVE"
+    },
+    {
+      "id": 6,
+      "name": "Fine Leathers Ltd.",
+      "contact_email": "sales@fineleathers.com",
+      "status": "PREFERRED"
+    },
+    {
+      "id": 7,
+      "name": "Craft Tool Suppliers",
+      "contact_email": "orders@crafttools.com",
+      "status": "ACTIVE"
+    },
+    {
+      "id": 8,
+      "name": "Specialty Findings Co.",
+      "contact_email": "service@specialtyfindings.com",
+      "status": "STRATEGIC"
+    }
+  ],
+  "materials": [
+    {
+      "id": 1,
+      "name": "Veg-Tan Shoulder",
+      "material_type": "LEATHER",
+      "unit": "SQUARE_FOOT",
+      "quality": "PREMIUM",
+      "supplier_id": 1,
+      "cost_price": 12.99,
+      "retail_price": 19.99,
+      "description": "Premium vegetable tanned shoulder leather, ideal for tooling and carving",
+      "notes": "Consistent quality, good for beginners and professionals",
+      "leather_type": "VEGETABLE_TANNED",
+      "thickness": 3.0,
+      "area": 12.0,
+      "is_full_hide": false
+    },
+    {
+      "id": 2,
+      "name": "Chromexcel Hide - Brown",
+      "material_type": "LEATHER",
+      "unit": "SQUARE_FOOT",
+      "quality": "PREMIUM",
+      "supplier_id": 3,
+      "cost_price": 15.99,
+      "retail_price": 24.99,
+      "description": "Horween Chromexcel pull-up leather",
+      "notes": "Rich pull-up effect, popular for bags and wallets",
+      "leather_type": "CHROME_TANNED",
+      "thickness": 2.0,
+      "area": 22.0,
+      "is_full_hide": true
+    },
+    {
+      "id": 3,
+      "name": "Italian Buttero - Black",
+      "material_type": "LEATHER",
+      "unit": "SQUARE_FOOT",
+      "quality": "PREMIUM",
+      "supplier_id": 6,
+      "cost_price": 18.50,
+      "retail_price": 28.99,
+      "description": "High-end veg-tanned Italian leather with smooth finish",
+      "notes": "Excellent for luxury goods, burnishes beautifully",
+      "leather_type": "VEGETABLE_TANNED",
+      "thickness": 1.2,
+      "area": 8.0,
+      "is_full_hide": false
+    },
+    {
+      "id": 4,
+      "name": "Waxed Thread - Brown",
+      "material_type": "SUPPLIES",
+      "unit": "SPOOL",
+      "quality": "STANDARD",
+      "supplier_id": 4,
+      "cost_price": 8.99,
+      "retail_price": 14.99,
+      "description": "Polyester waxed thread for leather stitching",
+      "material_type": "WAXED_THREAD",
+      "color": "Brown",
+      "thread_thickness": "0.8mm",
+      "material_composition": "Polyester"
+    },
+    {
+      "id": 5,
+      "name": "Nickel Concho - Western Star",
+      "material_type": "HARDWARE",
+      "unit": "PIECE",
+      "quality": "STANDARD",
+      "supplier_id": 2,
+      "cost_price": 2.50,
+      "retail_price": 4.99,
+      "description": "Decorative western-style concho with star design",
+      "hardware_type": "CONCHO",
+      "hardware_material": "NICKEL",
+      "finish": "POLISHED",
+      "size": "1.5 inch"
+    },
+    {
+      "id": 6,
+      "name": "Solid Brass Buckle - 1.5\"",
+      "material_type": "HARDWARE",
+      "unit": "PIECE",
+      "quality": "PREMIUM",
+      "supplier_id": 2,
+      "cost_price": 3.99,
+      "retail_price": 7.99,
+      "description": "Solid brass center-bar buckle",
+      "hardware_type": "CENTER_BAR_BUCKLE",
+      "hardware_material": "BRASS",
+      "finish": "ANTIQUE",
+      "size": "1.5 inch"
+    },
+    {
+      "id": 7,
+      "name": "Edge Beveler Size 2",
+      "material_type": "SUPPLIES",
+      "unit": "PIECE",
+      "quality": "PROFESSIONAL",
+      "supplier_id": 7,
+      "cost_price": 19.99,
+      "retail_price": 29.99,
+      "description": "Professional edge beveling tool for leather edges",
+      "material_type": "TOOL",
+      "color": "Wooden handle",
+      "thread_thickness": null,
+      "material_composition": "Steel blade, wood handle"
+    },
+    {
+      "id": 8,
+      "name": "Heavy Duty O-Rings - 2\" Nickel",
+      "material_type": "HARDWARE",
+      "unit": "PIECE",
+      "quality": "PREMIUM",
+      "supplier_id": 8,
+      "cost_price": 2.75,
+      "retail_price": 5.99,
+      "description": "Welded O-rings, heavy gauge for specialty applications",
+      "hardware_type": "O_RING",
+      "hardware_material": "STAINLESS_STEEL",
+      "finish": "NICKEL_PLATED",
+      "size": "2 inch"
+    },
+    {
+      "id": 9,
+      "name": "Black Garment Leather",
+      "material_type": "LEATHER",
+      "unit": "SQUARE_FOOT",
+      "quality": "PROFESSIONAL",
+      "supplier_id": 6,
+      "cost_price": 9.99,
+      "retail_price": 16.99,
+      "description": "Soft, supple leather for garments and specialty items",
+      "notes": "Comfortable against skin, excellent for wearable items",
+      "leather_type": "CHROME_TANNED",
+      "thickness": 1.0,
+      "area": 18.0,
+      "is_full_hide": false
+    },
+    {
+      "id": 10,
+      "name": "Quick-Release Buckle - Black",
+      "material_type": "HARDWARE",
+      "unit": "PIECE",
+      "quality": "PROFESSIONAL",
+      "supplier_id": 8,
+      "cost_price": 4.50,
+      "retail_price": 8.99,
+      "description": "Heavy-duty quick-release buckle for safety applications",
+      "hardware_type": "QUICK_RELEASE_BUCKLE",
+      "hardware_material": "PLASTIC",
+      "finish": "MATTE",
+      "size": "1 inch"
+    },
+    {
+      "id": 11,
+      "name": "Stitching Chisels Set",
+      "material_type": "SUPPLIES",
+      "unit": "SET",
+      "quality": "PROFESSIONAL",
+      "supplier_id": 7,
+      "cost_price": 45.99,
+      "retail_price": 79.99,
+      "description": "Set of pricking irons for leather stitching, 2-8 prongs",
+      "material_type": "TOOL",
+      "color": "Silver",
+      "thread_thickness": null,
+      "material_composition": "Steel"
+    },
+    {
+      "id": 12,
+      "name": "Latigo Leather Strip - Black",
+      "material_type": "LEATHER",
+      "unit": "FOOT",
+      "quality": "STANDARD",
+      "supplier_id": 1,
+      "cost_price": 3.99,
+      "retail_price": 6.99,
+      "description": "Strong latigo leather strips for straps and restraints",
+      "notes": "Excellent strength and flexibility",
+      "leather_type": "LATIGO",
+      "thickness": 3.5,
+      "area": 0.5,
+      "is_full_hide": false
+    }
+  ],
+  "tools": [
+    {
+      "id": 1,
+      "name": "Adjustable Leather Creaser",
+      "description": "Professional tool for creating decorative creases in leather",
+      "tool_category": "EDGE_WORK",
+      "supplier_id": 7,
+      "brand": "Craftools",
+      "model": "Pro-Creaser 5",
+      "serial_number": "PC5003422",
+      "purchase_price": 89.99,
+      "purchase_date": "2023-02-15",
+      "specifications": "Adjustable width, heated option",
+      "status": "IN_STOCK",
+      "last_maintenance_date": "2023-08-10",
+      "next_maintenance_date": "2023-12-10",
+      "maintenance_interval": 120
+    },
+    {
+      "id": 2,
+      "name": "Round Knife",
+      "description": "Traditional leather cutting tool",
+      "tool_category": "CUTTING",
+      "supplier_id": 7,
+      "brand": "Osborne",
+      "model": "Traditional",
+      "serial_number": "RK78921",
+      "purchase_price": 59.99,
+      "purchase_date": "2022-11-20",
+      "specifications": "4-inch blade, wood handle",
+      "status": "IN_STOCK",
+      "last_maintenance_date": "2023-05-15",
+      "next_maintenance_date": "2023-11-15",
+      "maintenance_interval": 180
+    },
+    {
+      "id": 3,
+      "name": "Stitching Pony",
+      "description": "Clamp for holding leather while stitching",
+      "tool_category": "STITCHING_HORSE",
+      "supplier_id": 1,
+      "brand": "Tandy",
+      "model": "Standard",
+      "serial_number": "N/A",
+      "purchase_price": 49.99,
+      "purchase_date": "2023-01-05",
+      "specifications": "Tabletop model, adjustable width",
+      "status": "IN_STOCK",
+      "last_maintenance_date": null,
+      "next_maintenance_date": null,
+      "maintenance_interval": 0
+    },
+    {
+      "id": 4,
+      "name": "Arbor Press",
+      "description": "For setting rivets, snaps, and other hardware",
+      "tool_category": "HARDWARE_INSTALLATION",
+      "supplier_id": 7,
+      "brand": "Tandy",
+      "model": "Heavy Duty",
+      "serial_number": "AP99281",
+      "purchase_price": 129.99,
+      "purchase_date": "2022-08-12",
+      "specifications": "0.5 ton capacity",
+      "status": "IN_STOCK",
+      "last_maintenance_date": "2023-07-20",
+      "next_maintenance_date": "2024-01-20",
+      "maintenance_interval": 180
+    },
+    {
+      "id": 5,
+      "name": "Edge Beveler Set",
+      "description": "Set of edge bevelers for different leather thicknesses",
+      "tool_category": "EDGE_WORK",
+      "supplier_id": 7,
+      "brand": "Craftool",
+      "model": "Pro Set",
+      "serial_number": "N/A",
+      "purchase_price": 79.99,
+      "purchase_date": "2023-03-10",
+      "specifications": "Sizes #1, #2, #3, #4",
+      "status": "IN_STOCK",
+      "last_maintenance_date": "2023-09-05",
+      "next_maintenance_date": "2024-03-05",
+      "maintenance_interval": 180
+    },
+    {
+      "id": 6,
+      "name": "Heavy Duty Scissors",
+      "description": "For cutting leather and heavy materials",
+      "tool_category": "CUTTING",
+      "supplier_id": 4,
+      "brand": "Kai",
+      "model": "7250",
+      "serial_number": "N/A",
+      "purchase_price": 32.99,
+      "purchase_date": "2023-01-15",
+      "specifications": "10-inch blades, professional grade",
+      "status": "IN_STOCK",
+      "last_maintenance_date": "2023-07-15",
+      "next_maintenance_date": "2024-01-15",
+      "maintenance_interval": 180
+    }
+  ],
+  "tool_maintenance": [
+    {
+      "id": 1,
+      "tool_id": 1,
+      "maintenance_type": "Sharpening",
+      "maintenance_date": "2023-08-10",
+      "performed_by": "John Smith",
+      "cost": 0.00,
+      "status": "completed",
+      "details": "Regular maintenance, cleaned and sharpened creasing tip",
+      "parts_used": "None",
+      "maintenance_interval": 120,
+      "next_maintenance_date": "2023-12-10",
+      "condition_before": "Slightly dull",
+      "condition_after": "Excellent",
+      "created_at": "2023-08-10",
+      "updated_at": "2023-08-10"
+    },
+    {
+      "id": 2,
+      "tool_id": 2,
+      "maintenance_type": "Sharpening",
+      "maintenance_date": "2023-05-15",
+      "performed_by": "Jane Doe",
+      "cost": 15.00,
+      "status": "completed",
+      "details": "Professional sharpening and honing",
+      "parts_used": "None",
+      "maintenance_interval": 180,
+      "next_maintenance_date": "2023-11-15",
+      "condition_before": "Dull edge",
+      "condition_after": "Sharp, like new",
+      "created_at": "2023-05-15",
+      "updated_at": "2023-05-15"
+    }
+  ],
+  "tool_checkouts": [
+    {
+      "id": 1,
+      "tool_id": 3,
+      "checked_out_by": "Jane Doe",
+      "checked_out_date": "2023-09-12",
+      "due_date": "2023-09-15",
+      "returned_date": "2023-09-14",
+      "status": "returned",
+      "notes": "Used for wallet project",
+      "project_id": 2,
+      "condition_before": "Good",
+      "condition_after": "Good",
+      "created_at": "2023-09-12",
+      "updated_at": "2023-09-14"
+    },
+    {
+      "id": 2,
+      "tool_id": 4,
+      "checked_out_by": "Mike Johnson",
+      "checked_out_date": "2023-09-20",
+      "due_date": "2023-09-22",
+      "returned_date": null,
+      "status": "checked_out",
+      "notes": "For setting hardware on bag project",
+      "project_id": 3,
+      "condition_before": "Excellent",
+      "condition_after": null,
+      "created_at": "2023-09-20",
+      "updated_at": "2023-09-20"
+    }
+  ],
+  "components": [
+    {
+      "id": 1,
+      "name": "Wallet Back Panel",
+      "description": "Back panel for bifold wallet",
+      "component_type": "LEATHER",
+      "attributes": {
+        "dimensions": "9cm x 20cm",
+        "quantity_per_item": 1
+      }
+    },
+    {
+      "id": 2,
+      "name": "Wallet Front Panel",
+      "description": "Front panel for bifold wallet",
+      "component_type": "LEATHER",
+      "attributes": {
+        "dimensions": "9cm x 20cm",
+        "quantity_per_item": 1
+      }
+    },
+    {
+      "id": 3,
+      "name": "Card Slot Panel",
+      "description": "Panel for creating card slots",
+      "component_type": "LEATHER",
+      "attributes": {
+        "dimensions": "8cm x 18cm",
+        "quantity_per_item": 1
+      }
+    },
+    {
+      "id": 4,
+      "name": "Belt Strap",
+      "description": "Main strap for belt",
+      "component_type": "LEATHER",
+      "attributes": {
+        "dimensions": "3.8cm x 120cm",
+        "quantity_per_item": 1
+      }
+    },
+    {
+      "id": 5,
+      "name": "Belt Keeper",
+      "description": "Keeper loop for belt",
+      "component_type": "LEATHER",
+      "attributes": {
+        "dimensions": "4cm x 5cm",
+        "quantity_per_item": 1
+      }
+    },
+    {
+      "id": 6,
+      "name": "Basic Wrist Strap",
+      "description": "Simple wrist strap component",
+      "component_type": "LEATHER",
+      "attributes": {
+        "dimensions": "2.5cm x 25cm",
+        "padding": false,
+        "lining": false,
+        "quantity_per_item": 2
+      }
+    },
+    {
+      "id": 7,
+      "name": "Padded Wrist Cuff",
+      "description": "Soft padded wrist cuff",
+      "component_type": "LEATHER",
+      "attributes": {
+        "dimensions": "5cm x 30cm",
+        "padding": true,
+        "lining": true,
+        "quantity_per_item": 2
+      }
+    },
+    {
+      "id": 8,
+      "name": "O-Ring Connector",
+      "description": "O-ring attachment point",
+      "component_type": "CONNECTOR_RING",
+      "attributes": {
+        "quantity_per_item": 2
+      }
+    },
+    {
+      "id": 9,
+      "name": "Reinforced Strap Loop",
+      "description": "Double-layered strap attachment point",
+      "component_type": "REINFORCED_STRESS_POINT",
+      "attributes": {
+        "dimensions": "3cm x 6cm",
+        "quantity_per_item": 4
+      }
+    }
+  ],
+  "component_materials": [
+    {
+      "id": 1,
+      "component_id": 1,
+      "material_id": 3,
+      "quantity": 0.12
+    },
+    {
+      "id": 2,
+      "component_id": 2,
+      "material_id": 3,
+      "quantity": 0.12
+    },
+    {
+      "id": 3,
+      "component_id": 3,
+      "material_id": 3,
+      "quantity": 0.10
+    },
+    {
+      "id": 4,
+      "component_id": 4,
+      "material_id": 1,
+      "quantity": 0.5
+    },
+    {
+      "id": 5,
+      "component_id": 5,
+      "material_id": 1,
+      "quantity": 0.03
+    },
+    {
+      "id": 6,
+      "component_id": 6,
+      "material_id": 12,
+      "quantity": 0.3
+    },
+    {
+      "id": 7,
+      "component_id": 7,
+      "material_id": 9,
+      "quantity": 0.4
+    },
+    {
+      "id": 8,
+      "component_id": 8,
+      "material_id": 8,
+      "quantity": 2.0
+    },
+    {
+      "id": 9,
+      "component_id": 9,
+      "material_id": 12,
+      "quantity": 0.15
+    }
+  ],
+  "patterns": [
+    {
+      "id": 1,
+      "name": "Classic Bifold Wallet",
+      "description": "Traditional bifold wallet with card slots",
+      "skill_level": "INTERMEDIATE"
+    },
+    {
+      "id": 2,
+      "name": "Casual Belt Pattern",
+      "description": "Simple belt with standard buckle",
+      "skill_level": "BEGINNER"
+    },
+    {
+      "id": 3,
+      "name": "Adjustable Wrist Restraints",
+      "description": "Padded leather wrist restraints with quick-release",
+      "skill_level": "INTERMEDIATE"
+    },
+    {
+      "id": 4,
+      "name": "Minimalist Card Holder",
+      "description": "Slim card holder with minimal stitching",
+      "skill_level": "BEGINNER"
+    }
+  ],
+  "products": [
+    {
+      "id": 1,
+      "name": "Premium Leather Bifold Wallet",
+      "description": "Handcrafted leather wallet with 6 card slots and cash pocket",
+      "price": 89.99
+    },
+    {
+      "id": 2,
+      "name": "Artisan Leather Belt",
+      "description": "Handmade vegetable-tanned leather belt with solid brass buckle",
+      "price": 79.99
+    },
+    {
+      "id": 3,
+      "name": "Leather Wrist Cuffs",
+      "description": "Padded leather wrist cuffs with heavy-duty hardware",
+      "price": 129.99
+    },
+    {
+      "id": 4,
+      "name": "Slim Card Wallet",
+      "description": "Minimalist card wallet with 3 slots",
+      "price": 49.99
+    }
+  ],
   "customers": [
     {
       "id": 1,
       "first_name": "John",
-      "last_name": "Doe",
-      "email": "john.doe@example.com",
-      "status": "active"
+      "last_name": "Smith",
+      "email": "john.smith@example.com",
+      "status": "ACTIVE"
     },
     {
       "id": 2,
-      "first_name": "Jane",
-      "last_name": "Smith",
-      "email": "jane.smith@example.com",
-      "status": "active"
+      "first_name": "Emily",
+      "last_name": "Johnson",
+      "email": "emily.johnson@example.com",
+      "status": "ACTIVE"
     },
     {
       "id": 3,
-      "first_name": "Carlos",
-      "last_name": "Martinez",
-      "email": "carlos.martinez@example.com",
-      "status": "inactive"
+      "first_name": "Michael",
+      "last_name": "Brown",
+      "email": "michael.brown@example.com",
+      "status": "ACTIVE"
+    },
+    {
+      "id": 4,
+      "first_name": "Sarah",
+      "last_name": "Williams",
+      "email": "sarah.williams@example.com",
+      "status": "ACTIVE"
     }
   ],
   "sales": [
     {
       "id": 1,
-      "created_at": "2023-09-01T10:00:00Z",
-      "total_amount": 1200.5,
-      "status": "completed",
-      "payment_status": "paid",
+      "created_at": "2023-09-05T14:30:00",
+      "total_amount": 89.99,
+      "status": "COMPLETED",
+      "payment_status": "PAID",
       "customer_id": 1
     },
     {
       "id": 2,
-      "created_at": "2023-09-05T14:30:00Z",
-      "total_amount": 850.0,
-      "status": "in_production",
-      "payment_status": "pending",
+      "created_at": "2023-09-10T11:15:00",
+      "total_amount": 79.99,
+      "status": "COMPLETED",
+      "payment_status": "PAID",
       "customer_id": 2
+    },
+    {
+      "id": 3,
+      "created_at": "2023-09-15T16:45:00",
+      "total_amount": 129.99,
+      "status": "IN_PRODUCTION",
+      "payment_status": "DEPOSIT_PAID",
+      "customer_id": 3
+    },
+    {
+      "id": 4,
+      "created_at": "2023-09-18T10:00:00",
+      "total_amount": 49.99,
+      "status": "MATERIAL_SOURCING",
+      "payment_status": "DEPOSIT_PAID",
+      "customer_id": 4
     }
   ],
-  "salesItems": [
+  "sales_items": [
     {
       "id": 1,
-      "quantity": 2,
-      "price": 600.25,
+      "quantity": 1,
+      "price": 89.99,
       "sales_id": 1,
       "product_id": 1
     },
     {
       "id": 2,
       "quantity": 1,
-      "price": 600.25,
-      "sales_id": 1,
+      "price": 79.99,
+      "sales_id": 2,
       "product_id": 2
     },
     {
       "id": 3,
       "quantity": 1,
-      "price": 850.0,
-      "sales_id": 2,
+      "price": 129.99,
+      "sales_id": 3,
       "product_id": 3
-    }
-  ],
-  "products": [
-    {
-      "id": 1,
-      "name": "Leather Jacket",
-      "description": "Premium leather jacket with detailed stitching",
-      "price": 600.25
     },
     {
-      "id": 2,
-      "name": "Leather Bag",
-      "description": "Handcrafted leather bag with unique design",
-      "price": 600.25
-    },
-    {
-      "id": 3,
-      "name": "Vintage Leather Boots",
-      "description": "Durable boots designed for rugged use",
-      "price": 850.0
-    }
-  ],
-  "suppliers": [
-    {
-      "id": 1,
-      "name": "Premium Leathers Inc.",
-      "contact_email": "contact@premiumleathers.com",
-      "status": "active"
-    },
-    {
-      "id": 2,
-      "name": "Hardware World",
-      "contact_email": "sales@hardwareworld.com",
-      "status": "active"
-    },
-    {
-      "id": 3,
-      "name": "Craft Supplies Co.",
-      "contact_email": "info@craftsupplies.com",
-      "status": "active"
+      "id": 4,
+      "quantity": 1,
+      "price": 49.99,
+      "sales_id": 4,
+      "product_id": 4
     }
   ],
   "purchases": [
     {
       "id": 1,
-      "created_at": "2023-08-25T09:00:00Z",
-      "total_amount": 3000.0,
-      "status": "received",
+      "created_at": "2023-08-15T09:30:00",
+      "total_amount": 256.92,
+      "status": "DELIVERED",
       "supplier_id": 1
     },
     {
       "id": 2,
-      "created_at": "2023-08-28T15:45:00Z",
-      "total_amount": 1500.0,
-      "status": "pending",
+      "created_at": "2023-08-20T14:15:00",
+      "total_amount": 94.75,
+      "status": "DELIVERED",
       "supplier_id": 2
-    }
-  ],
-  "purchaseItems": [
-    {
-      "id": 1,
-      "quantity": 50,
-      "price": 50.0,
-      "purchase_id": 1,
-      "item_id": 1,
-      "item_type": "material"
-    },
-    {
-      "id": 2,
-      "quantity": 20,
-      "price": 75.0,
-      "purchase_id": 1,
-      "item_id": 2,
-      "item_type": "material"
     },
     {
       "id": 3,
-      "quantity": 5,
-      "price": 300.0,
-      "purchase_id": 2,
-      "item_id": 1,
-      "item_type": "tool"
-    }
-  ],
-  "leathers": [
-    {
-      "id": 1,
-      "name": "Full Grain Leather",
-      "material_type": "leather",
-      "unit": "square_meter",
-      "quality": "premium",
-      "supplier_id": 1,
-      "leather_type": "cowhide",
-      "thickness": 1.2,
-      "area": 5.0,
-      "is_full_hide": true
-    },
-    {
-      "id": 2,
-      "name": "Split Leather",
-      "material_type": "leather",
-      "unit": "square_meter",
-      "quality": "standard",
-      "supplier_id": 1,
-      "leather_type": "goatskin",
-      "thickness": 0.8,
-      "area": 3.5,
-      "is_full_hide": false
-    }
-  ],
-  "hardwares": [
-    {
-      "id": 3,
-      "name": "Zipper",
-      "material_type": "hardware",
-      "unit": "piece",
-      "quality": "premium",
-      "supplier_id": 2,
-      "hardware_type": "zipper",
-      "hardware_material": "stainless_steel",
-      "finish": "polished",
-      "size": "medium"
+      "created_at": "2023-09-01T11:00:00",
+      "total_amount": 351.80,
+      "status": "SHIPPED",
+      "supplier_id": 6
     },
     {
       "id": 4,
-      "name": "Buckle",
-      "material_type": "hardware",
-      "unit": "piece",
-      "quality": "premium",
-      "supplier_id": 2,
-      "hardware_type": "buckle",
-      "hardware_material": "brass",
-      "finish": "brushed",
-      "size": "small"
+      "created_at": "2023-09-10T13:45:00",
+      "total_amount": 155.75,
+      "status": "PROCESSING",
+      "supplier_id": 8
     }
   ],
-  "supplies": [
-    {
-      "id": 5,
-      "name": "Red Thread",
-      "material_type": "supplies",
-      "unit": "roll",
-      "quality": "premium",
-      "supplier_id": 3,
-      "color": "red",
-      "thickness": "medium",
-      "material_composition": "polyester"
-    },
-    {
-      "id": 6,
-      "name": "Clear Adhesive",
-      "material_type": "supplies",
-      "unit": "bottle",
-      "quality": "standard",
-      "supplier_id": 3,
-      "color": "clear",
-      "thickness": "n/a",
-      "material_composition": "acrylic"
-    }
-  ],
-  "components": [
+  "purchase_items": [
     {
       "id": 1,
-      "name": "Stitching Panel",
-      "description": "Panel used for stitching details",
-      "component_type": "other",
-      "attributes": {
-        "color": "red",
-        "thread_strength": "high"
-      }
+      "quantity": 10,
+      "price": 12.99,
+      "purchase_id": 1,
+      "item_id": 1,
+      "item_type": "material"
     },
     {
       "id": 2,
-      "name": "Edge Binding",
-      "description": "Binding for edges with a decorative touch",
-      "component_type": "binding",
-      "attributes": {
-        "pattern": "zigzag",
-        "material": "leather"
-      }
-    }
-  ],
-  "componentMaterials": [
-    {
-      "id": 1,
-      "component_id": 1,
-      "material_id": 5,
-      "quantity": 2.0
-    },
-    {
-      "id": 2,
-      "component_id": 2,
-      "material_id": 1,
-      "quantity": 1.5
+      "quantity": 5,
+      "price": 15.99,
+      "purchase_id": 1,
+      "item_id": 12,
+      "item_type": "material"
     },
     {
       "id": 3,
-      "component_id": 2,
-      "material_id": 3,
-      "quantity": 0.5
+      "quantity": 25,
+      "price": 3.79,
+      "purchase_id": 2,
+      "item_id": 6,
+      "item_type": "material"
+    },
+    {
+      "id": 4,
+      "quantity": 15,
+      "price": 18.50,
+      "purchase_id": 3,
+      "item_id": 3,
+      "item_type": "material"
+    },
+    {
+      "id": 5,
+      "quantity": 10,
+      "price": 9.99,
+      "purchase_id": 3,
+      "item_id": 9,
+      "item_type": "material"
+    },
+    {
+      "id": 6,
+      "quantity": 20,
+      "price": 2.75,
+      "purchase_id": 4,
+      "item_id": 8,
+      "item_type": "material"
+    },
+    {
+      "id": 7,
+      "quantity": 15,
+      "price": 4.50,
+      "purchase_id": 4,
+      "item_id": 10,
+      "item_type": "material"
     }
   ],
-  "patterns": [
+  "projects": [
     {
       "id": 1,
-      "name": "Classic Jacket Pattern",
-      "description": "Pattern for a classic leather jacket",
-      "skill_level": "intermediate"
+      "name": "John's Custom Wallet",
+      "description": "Premium bifold wallet for John Smith",
+      "type": "WALLET",
+      "status": "COMPLETED",
+      "start_date": "2023-09-05",
+      "end_date": "2023-09-08",
+      "sales_id": 1
     },
     {
       "id": 2,
-      "name": "Modern Bag Pattern",
-      "description": "Pattern for a modern handbag",
-      "skill_level": "beginner"
+      "name": "Emily's Belt",
+      "description": "Artisan leather belt with personal sizing",
+      "type": "BELT",
+      "status": "COMPLETED",
+      "start_date": "2023-09-10",
+      "end_date": "2023-09-12",
+      "sales_id": 2
+    },
+    {
+      "id": 3,
+      "name": "Michael's Custom Cuffs",
+      "description": "Padded leather wrist cuffs with quick-release feature",
+      "type": "WRIST_RESTRAINT",
+      "status": "ASSEMBLY",
+      "start_date": "2023-09-15",
+      "end_date": null,
+      "sales_id": 3
+    },
+    {
+      "id": 4,
+      "name": "Sarah's Card Wallet",
+      "description": "Minimal design card wallet with 3 slots",
+      "type": "CARD_HOLDER",
+      "status": "MATERIAL_SELECTION",
+      "start_date": "2023-09-18",
+      "end_date": null,
+      "sales_id": 4
+    }
+  ],
+  "project_components": [
+    {
+      "id": 1,
+      "project_id": 1,
+      "component_id": 1,
+      "quantity": 1
+    },
+    {
+      "id": 2,
+      "project_id": 1,
+      "component_id": 2,
+      "quantity": 1
+    },
+    {
+      "id": 3,
+      "project_id": 1,
+      "component_id": 3,
+      "quantity": 1
+    },
+    {
+      "id": 4,
+      "project_id": 2,
+      "component_id": 4,
+      "quantity": 1
+    },
+    {
+      "id": 5,
+      "project_id": 2,
+      "component_id": 5,
+      "quantity": 1
+    },
+    {
+      "id": 6,
+      "project_id": 3,
+      "component_id": 7,
+      "quantity": 2
+    },
+    {
+      "id": 7,
+      "project_id": 3,
+      "component_id": 8,
+      "quantity": 2
+    },
+    {
+      "id": 8,
+      "project_id": 3,
+      "component_id": 9,
+      "quantity": 4
+    }
+  ],
+  "picking_lists": [
+    {
+      "id": 1,
+      "sales_id": 1,
+      "status": "COMPLETED",
+      "created_at": "2023-09-05T14:35:00",
+      "completed_at": "2023-09-05T15:00:00"
+    },
+    {
+      "id": 2,
+      "sales_id": 2,
+      "status": "COMPLETED",
+      "created_at": "2023-09-10T11:20:00",
+      "completed_at": "2023-09-10T11:45:00"
+    },
+    {
+      "id": 3,
+      "sales_id": 3,
+      "status": "PARTIALLY_PICKED",
+      "created_at": "2023-09-15T16:50:00",
+      "completed_at": null
+    }
+  ],
+  "picking_list_items": [
+    {
+      "id": 1,
+      "picking_list_id": 1,
+      "component_id": 1,
+      "material_id": 3,
+      "quantity_ordered": 1,
+      "quantity_picked": 1
+    },
+    {
+      "id": 2,
+      "picking_list_id": 1,
+      "component_id": 2,
+      "material_id": 3,
+      "quantity_ordered": 1,
+      "quantity_picked": 1
+    },
+    {
+      "id": 3,
+      "picking_list_id": 1,
+      "component_id": 3,
+      "material_id": 3,
+      "quantity_ordered": 1,
+      "quantity_picked": 1
+    },
+    {
+      "id": 4,
+      "picking_list_id": 2,
+      "component_id": 4,
+      "material_id": 1,
+      "quantity_ordered": 1,
+      "quantity_picked": 1
+    },
+    {
+      "id": 5,
+      "picking_list_id": 2,
+      "component_id": 5,
+      "material_id": 1,
+      "quantity_ordered": 1,
+      "quantity_picked": 1
+    },
+    {
+      "id": 6,
+      "picking_list_id": 3,
+      "component_id": 7,
+      "material_id": 9,
+      "quantity_ordered": 2,
+      "quantity_picked": 2
+    },
+    {
+      "id": 7,
+      "picking_list_id": 3,
+      "component_id": 8,
+      "material_id": 8,
+      "quantity_ordered": 2,
+      "quantity_picked": 2
+    },
+    {
+      "id": 8,
+      "picking_list_id": 3,
+      "component_id": 9,
+      "material_id": 12,
+      "quantity_ordered": 4,
+      "quantity_picked": 2
+    }
+  ],
+  "tool_lists": [
+    {
+      "id": 1,
+      "project_id": 1,
+      "status": "COMPLETED",
+      "created_at": "2023-09-05T14:40:00"
+    },
+    {
+      "id": 2,
+      "project_id": 2,
+      "status": "COMPLETED",
+      "created_at": "2023-09-10T11:25:00"
+    },
+    {
+      "id": 3,
+      "project_id": 3,
+      "status": "ASSIGNED",
+      "created_at": "2023-09-15T16:55:00"
+    }
+  ],
+  "tool_list_items": [
+    {
+      "id": 1,
+      "tool_list_id": 1,
+      "tool_id": 2,
+      "quantity": 1
+    },
+    {
+      "id": 2,
+      "tool_list_id": 1,
+      "tool_id": 3,
+      "quantity": 1
+    },
+    {
+      "id": 3,
+      "tool_list_id": 1,
+      "tool_id": 5,
+      "quantity": 1
+    },
+    {
+      "id": 4,
+      "tool_list_id": 2,
+      "tool_id": 2,
+      "quantity": 1
+    },
+    {
+      "id": 5,
+      "tool_list_id": 2,
+      "tool_id": 5,
+      "quantity": 1
+    },
+    {
+      "id": 6,
+      "tool_list_id": 3,
+      "tool_id": 3,
+      "quantity": 1
+    },
+    {
+      "id": 7,
+      "tool_list_id": 3,
+      "tool_id": 4,
+      "quantity": 1
+    },
+    {
+      "id": 8,
+      "tool_list_id": 3,
+      "tool_id": 6,
+      "quantity": 1
     }
   ],
   "inventory": [
@@ -282,238 +1049,145 @@
       "id": 1,
       "item_type": "material",
       "item_id": 1,
-      "quantity": 20.0,
-      "status": "available",
-      "storage_location": "Warehouse A"
+      "quantity": 45.2,
+      "status": "IN_STOCK",
+      "storage_location": "Leather Shelf A1"
     },
     {
       "id": 2,
       "item_type": "material",
-      "item_id": 3,
-      "quantity": 100,
-      "status": "available",
-      "storage_location": "Warehouse B"
+      "item_id": 2,
+      "quantity": 18.5,
+      "status": "IN_STOCK",
+      "storage_location": "Leather Shelf A2"
     },
     {
       "id": 3,
-      "item_type": "product",
-      "item_id": 1,
-      "quantity": 5,
-      "status": "reserved",
-      "storage_location": "Storefront"
+      "item_type": "material",
+      "item_id": 3,
+      "quantity": 12.3,
+      "status": "LOW_STOCK",
+      "storage_location": "Leather Shelf A3"
     },
     {
       "id": 4,
-      "item_type": "tool",
+      "item_type": "material",
+      "item_id": 4,
+      "quantity": 8,
+      "status": "IN_STOCK",
+      "storage_location": "Thread Cabinet B1"
+    },
+    {
+      "id": 5,
+      "item_type": "material",
+      "item_id": 6,
+      "quantity": 15,
+      "status": "IN_STOCK",
+      "storage_location": "Hardware Bin C2"
+    },
+    {
+      "id": 6,
+      "item_type": "material",
+      "item_id": 8,
+      "quantity": 32,
+      "status": "IN_STOCK",
+      "storage_location": "Hardware Bin C5"
+    },
+    {
+      "id": 7,
+      "item_type": "material",
+      "item_id": 9,
+      "quantity": 9.5,
+      "status": "IN_STOCK",
+      "storage_location": "Leather Shelf A5"
+    },
+    {
+      "id": 8,
+      "item_type": "material",
+      "item_id": 10,
+      "quantity": 18,
+      "status": "IN_STOCK",
+      "storage_location": "Hardware Bin C7"
+    },
+    {
+      "id": 9,
+      "item_type": "material",
+      "item_id": 12,
+      "quantity": 28.5,
+      "status": "IN_STOCK",
+      "storage_location": "Leather Shelf B3"
+    },
+    {
+      "id": 10,
+      "item_type": "product",
       "item_id": 1,
       "quantity": 2,
-      "status": "damaged",
-      "storage_location": "Maintenance"
-    }
-  ],
-  "pickingLists": [
-    {
-      "id": 1,
-      "sales_id": 1,
-      "status": "completed",
-      "created_at": "2023-09-01T11:00:00Z",
-      "completed_at": "2023-09-01T12:00:00Z"
+      "status": "IN_STOCK",
+      "storage_location": "Finished Products D1"
     },
     {
-      "id": 2,
-      "sales_id": 2,
-      "status": "pending",
-      "created_at": "2023-09-05T15:00:00Z",
-      "completed_at": null
-    }
-  ],
-  "pickingListItems": [
-    {
-      "id": 1,
-      "picking_list_id": 1,
-      "component_id": 1,
-      "material_id": 5,
-      "quantity_ordered": 10,
-      "quantity_picked": 10
+      "id": 11,
+      "item_type": "product",
+      "item_id": 2,
+      "quantity": 3,
+      "status": "IN_STOCK",
+      "storage_location": "Finished Products D2"
     },
     {
-      "id": 2,
-      "picking_list_id": 1,
-      "component_id": 2,
-      "material_id": 1,
-      "quantity_ordered": 5,
-      "quantity_picked": 5
+      "id": 12,
+      "item_type": "product",
+      "item_id": 4,
+      "quantity": 1,
+      "status": "IN_STOCK",
+      "storage_location": "Finished Products D1"
     },
     {
-      "id": 3,
-      "picking_list_id": 2,
-      "component_id": 2,
-      "material_id": 3,
-      "quantity_ordered": 3,
-      "quantity_picked": 0
-    }
-  ],
-  "projects": [
-    {
-      "id": 1,
-      "name": "Custom Jacket Order",
-      "description": "Project for a custom leather jacket",
-      "type": "custom",
-      "status": "in_progress",
-      "start_date": "2023-09-01T10:00:00Z",
-      "end_date": "2023-09-15T17:00:00Z",
-      "sales_id": 1
+      "id": 13,
+      "item_type": "tool",
+      "item_id": 1,
+      "quantity": 1,
+      "status": "IN_STOCK",
+      "storage_location": "Tool Cabinet E1"
     },
     {
-      "id": 2,
-      "name": "Bag Collection",
-      "description": "New line of leather bags",
-      "type": "tote_bag",
-      "status": "planned",
-      "start_date": "2023-09-10T09:00:00Z",
-      "end_date": "2023-10-10T17:00:00Z",
-      "sales_id": 2
-    }
-  ],
-  "projectComponents": [
-    {
-      "id": 1,
-      "project_id": 1,
-      "component_id": 1,
-      "quantity": 3
+      "id": 14,
+      "item_type": "tool",
+      "item_id": 2,
+      "quantity": 1,
+      "status": "IN_STOCK",
+      "storage_location": "Tool Cabinet E1"
     },
     {
-      "id": 2,
-      "project_id": 1,
-      "component_id": 2,
-      "quantity": 2
+      "id": 15,
+      "item_type": "tool",
+      "item_id": 3,
+      "quantity": 1,
+      "status": "IN_STOCK",
+      "storage_location": "Tool Cabinet E2"
     },
     {
-      "id": 3,
-      "project_id": 2,
-      "component_id": 2,
-      "quantity": 5
-    }
-  ],
-  "tools": [
-    {
-      "id": 1,
-      "name": "Leather Cutting Knife",
-      "description": "High precision leather cutting tool",
-      "tool_category": "CUTTING",
-      "supplier_id": 2,
-      "brand": "SharpCut",
-      "model": "SC-200",
-      "serial_number": "CKN-001",
-      "purchase_price": 150.0,
-      "purchase_date": "2023-06-15T00:00:00Z",
-      "specifications": "Ergonomic handle, stainless steel blade",
-      "status": "in_stock",
-      "last_maintenance_date": "2023-08-15T00:00:00Z",
-      "next_maintenance_date": "2023-11-15T00:00:00Z",
-      "maintenance_interval": 90
+      "id": 16,
+      "item_type": "tool",
+      "item_id": 4,
+      "quantity": 1,
+      "status": "IN_STOCK",
+      "storage_location": "Tool Cabinet E3"
     },
     {
-      "id": 2,
-      "name": "Edge Stitching Machine",
-      "description": "Automatic stitching machine for edges",
-      "tool_category": "STITCHING",
-      "supplier_id": 2,
-      "brand": "StitchPro",
-      "model": "SP-500",
-      "serial_number": "STM-002",
-      "purchase_price": 1200.0,
-      "purchase_date": "2023-05-20T00:00:00Z",
-      "specifications": "High speed, precision stitching",
-      "status": "maintenance",
-      "last_maintenance_date": "2023-09-01T00:00:00Z",
-      "next_maintenance_date": "2023-12-01T00:00:00Z",
-      "maintenance_interval": 90
-    }
-  ],
-  "toolLists": [
-    {
-      "id": 1,
-      "project_id": 1,
-      "status": "active",
-      "created_at": "2023-09-01T11:30:00Z"
+      "id": 17,
+      "item_type": "tool",
+      "item_id": 5,
+      "quantity": 1,
+      "status": "IN_STOCK",
+      "storage_location": "Tool Cabinet E1"
     },
     {
-      "id": 2,
-      "project_id": 2,
-      "status": "active",
-      "created_at": "2023-09-10T10:00:00Z"
-    }
-  ],
-  "toolListItems": [
-    {
-      "id": 1,
-      "tool_list_id": 1,
-      "tool_id": 1,
-      "quantity": 1
-    },
-    {
-      "id": 2,
-      "tool_list_id": 1,
-      "tool_id": 2,
-      "quantity": 1
-    },
-    {
-      "id": 3,
-      "tool_list_id": 2,
-      "tool_id": 2,
-      "quantity": 1
-    }
-  ],
-  "toolMaintenance": [
-    {
-      "id": 1,
-      "tool_id": 2,
-      "maintenance_type": "routine_check",
-      "maintenance_date": "2023-09-01T10:00:00Z",
-      "performed_by": "technician_a",
-      "cost": 100.0,
-      "status": "completed",
-      "details": "Replaced needle parts",
-      "parts_used": "needles, thread guide",
-      "maintenance_interval": 90,
-      "next_maintenance_date": "2023-12-01T10:00:00Z",
-      "condition_before": "slight wear",
-      "condition_after": "optimal",
-      "created_at": "2023-09-01T10:05:00Z",
-      "updated_at": "2023-09-01T10:15:00Z"
-    }
-  ],
-  "toolCheckouts": [
-    {
-      "id": 1,
-      "tool_id": 1,
-      "checked_out_by": "alice",
-      "checked_out_date": "2023-09-05T08:00:00Z",
-      "due_date": "2023-09-10T17:00:00Z",
-      "returned_date": "2023-09-10T16:30:00Z",
-      "status": "returned",
-      "notes": "returned in good condition",
-      "project_id": 1,
-      "condition_before": "sharp",
-      "condition_after": "good",
-      "created_at": "2023-09-05T08:05:00Z",
-      "updated_at": "2023-09-10T16:35:00Z"
-    },
-    {
-      "id": 2,
-      "tool_id": 2,
-      "checked_out_by": "bob",
-      "checked_out_date": "2023-09-06T09:00:00Z",
-      "due_date": "2023-09-12T17:00:00Z",
-      "returned_date": null,
-      "status": "checked_out",
-      "notes": "in use for custom order",
-      "project_id": 1,
-      "condition_before": "excellent",
-      "condition_after": "",
-      "created_at": "2023-09-06T09:05:00Z",
-      "updated_at": "2023-09-06T09:10:00Z"
+      "id": 18,
+      "item_type": "tool",
+      "item_id": 6,
+      "quantity": 1,
+      "status": "IN_STOCK",
+      "storage_location": "Tool Cabinet E1"
     }
   ]
 }

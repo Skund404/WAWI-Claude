@@ -219,7 +219,7 @@ def verify_container() -> bool:
         for service in critical_services:
             try:
                 instance = container.resolve(service)
-                logger.info(f"✓ Successfully resolved {service}")
+                logger.info(f"[OK] Successfully resolved {service}")
                 verification_results.append(True)
             except Exception as e:
                 logger.error(f"✗ Failed to resolve {service}: {str(e)}")

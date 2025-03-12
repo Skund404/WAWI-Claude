@@ -11,8 +11,7 @@ from typing import Any, Dict, List, Optional
 from database.models.enums import StorageLocationType
 from gui.base.base_list_view import BaseListView
 from gui.widgets.status_badge import StatusBadge
-from gui.utils.service_access import get_service
-
+from gui.utils.service_access import with_service
 
 class StorageLocationView(BaseListView):
     """View for managing storage locations."""

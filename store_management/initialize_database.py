@@ -59,6 +59,15 @@ def get_database_path() -> str:
     db_path = data_dir / "leatherworking_database.db"
     return str(db_path)
 
+def initialize_database():
+    """Initialize the database: create tables and seed with minimal data."""
+    try:
+        engine, Session = create_engine_and_session(recreate=False)
+        seed_minimal_data(Session)
+        return True
+    except Exception as e:
+        logger.error(f"Error initializing database: {e}")
+        return False
 
 def create_engine_and_session(recreate: bool = False):
     """

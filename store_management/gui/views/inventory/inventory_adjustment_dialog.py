@@ -10,7 +10,7 @@ from typing import Any, Dict, Optional
 
 from database.models.enums import InventoryStatus, StorageLocationType, TransactionType
 from gui.base.base_dialog import BaseDialog
-from gui.utils.service_access import get_service
+from gui.utils.service_access import with_service, get_service
 
 
 class InventoryAdjustmentDialog(BaseDialog):

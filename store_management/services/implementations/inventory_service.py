@@ -43,6 +43,25 @@ class InventoryService(BaseService):
         self.tool_repository = tool_repository or ToolRepository(session)
         self.logger = logging.getLogger(__name__)
 
+    def get_count(self, search_criteria=None):
+        """
+        Get the count of inventory items matching the search criteria.
+
+        Args:
+            search_criteria: Optional search criteria
+
+        Returns:
+            Count of matching items
+        """
+        try:
+            # Use the repository to get the count
+            # For now, just return the length of all items
+            inventory_entries = self.inventory_repository.get_all(search_criteria)
+            return len(inventory_entries)
+        except Exception as e:
+            self.logger.error(f"Error getting inventory count: {str(e)}")
+            return 0  # Return 0 on error
+
     def get_by_id(self, inventory_id: int) -> Dict[str, Any]:
         """Get inventory entry by ID.
 
@@ -66,21 +85,39 @@ class InventoryService(BaseService):
             self.logger.error(f"Error retrieving inventory entry {inventory_id}: {str(e)}")
             raise
 
-    def get_all(self, filters: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
-        """Get all inventory entries, optionally filtered.
+    def get_all(self, offset=0, limit=20, sort_by=None, search_criteria=None):
+        """
+        Get a paginated list of inventory entries.
 
         Args:
-            filters: Optional filters to apply
+            offset: Starting index for pagination
+            limit: Maximum number of items to return
+            sort_by: Optional sorting criteria (field, direction)
+            search_criteria: Optional filters to apply
 
         Returns:
             List of dicts representing inventory entries
         """
         try:
-            inventory_entries = self.inventory_repository.get_all(filters)
-            return [InventoryDTO.from_model(entry).to_dict() for entry in inventory_entries]
+            # Get all inventory entries (your existing implementation)
+            inventory_entries = self.inventory_repository.get_all(search_criteria)
+
+            # Apply sorting if specified
+            if sort_by and isinstance(sort_by, tuple) and len(sort_by) == 2:
+                field, direction = sort_by
+                reverse = direction.lower() == 'desc'
+                inventory_entries.sort(key=lambda x: getattr(x, field, None), reverse=reverse)
+
+            # Apply pagination
+            start = offset
+            end = offset + limit if limit else None
+            paginated_entries = inventory_entries[start:end] if end else inventory_entries[start:]
+
+            # Convert to DTOs and return
+            return [InventoryDTO.from_model(entry).to_dict() for entry in paginated_entries]
         except Exception as e:
             self.logger.error(f"Error retrieving inventory entries: {str(e)}")
-            raise
+            return []  # Return empty list on error
 
     def create(self, inventory_data: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new inventory entry.
